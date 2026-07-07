@@ -1,0 +1,1 @@
+Bigram language modeling: each example is a length-`L` window of token IDs. Labels are the next token at each position, sampled from a **single fixed** bigram law `P(y|x)` shared by train and test. Only the random windows differ between splits.
