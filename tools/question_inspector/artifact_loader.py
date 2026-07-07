@@ -120,14 +120,15 @@ def candidate_file_paths(candidate_dir: Path, *, include_summary: bool = True) -
     summary = results_dir / "summary.json"
     if include_summary and summary.is_file():
         paths["summary.json"] = summary
-        curves = results_dir / "curves.npz"
-        if curves.is_file():
-            paths["curves.npz"] = curves
     return paths
 
 
 def dataset_file_paths(dataset_dir: Path) -> dict[str, Path]:
-    return {name: dataset_dir / name for name in DATASET_FILES}
+    return {
+        name: dataset_dir / name
+        for name in DATASET_FILES
+        if (dataset_dir / name).is_file()
+    }
 
 
 def _iter_question_json_paths(root: Path) -> list[Path]:

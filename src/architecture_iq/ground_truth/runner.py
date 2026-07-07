@@ -12,6 +12,7 @@ from architecture_iq.candidates.generator import write_candidate
 from architecture_iq.profile import Profile
 from architecture_iq.registry import get_dataset_family, get_model_type
 from architecture_iq.runtime.loader import load_candidate_train
+from architecture_iq.significance.validator import final_metric_key, mean_metric_key
 from architecture_iq.util import git_commit_hash, write_json
 from architecture_iq.paths import ROOT
 
@@ -31,6 +32,8 @@ def run_single_seed(
     test_y: torch.Tensor,
     seed: int,
     fail_threshold: float,
+    *,
+    selection_metric: str,
 ) -> dict[str, Any]:
     train_mod = load_candidate_train(candidate_path)
     if not hasattr(train_mod, "train_and_eval"):
@@ -48,10 +51,13 @@ def run_single_seed(
         seed=seed,
         fail_threshold=fail_threshold,
     )
+    final_key = final_metric_key(selection_metric)
+    if final_key not in result:
+        raise KeyError(f"train_and_eval missing {final_key!r}")
     return {
         "seed": seed,
         "failed": bool(result["failed"]),
-        "final_test_mse": float(result["final_test_mse"]),
+        final_key: float(result[final_key]),
         "eval_samples": list(result["eval_samples"]),
         "step_metrics": list(result["step_metrics"]),
     }
@@ -78,6 +84,8 @@ def run_ground_truth(
     dataset_path = dataset_path.resolve()
     train_x, train_y, test_x, test_y = family.load_tensors(dataset_path)
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
+    selection_metric = dataset_spec["selection_metric"]
+    final_key = final_metric_key(selection_metric)
     sig_cfg = dataset_spec.get("significance", {})
     gt_cfg = profile.ground_truth
     fail_threshold = float(sig_cfg.get("fail_threshold", gt_cfg["fail_threshold"]))
@@ -98,12 +106,13 @@ def run_ground_truth(
                 test_y,
                 base_seed + i,
                 fail_threshold,
+                selection_metric=selection_metric,
             )
         )
 
     ok = [r for r in seed_results if not r["failed"]]
     failed_count = len(seed_results) - len(ok)
-    finals = [r["final_test_mse"] for r in ok] or [float("inf")]
+    finals = [r[final_key] for r in ok] or [float("inf")]
 
     max_len = max((len(r["step_metrics"]) for r in ok), default=0)
     curves = np.full((n_seeds, max_len), np.nan, dtype=np.float64)
@@ -115,19 +124,38 @@ def run_ground_truth(
         if sample_axis is None:
             sample_axis = r["eval_samples"]
 
+    mean_key = mean_metric_key(selection_metric)
+    std_key = f"std_{selection_metric}"
     summary = {
         "schema_version": profile.schema_version,
         "candidate_id": spec["candidate_id"],
-        "selection_metric": dataset_spec["selection_metric"],
+        "selection_metric": selection_metric,
         "execution": "candidate_py_files",
         "n_seeds": n_seeds,
         "base_seed": base_seed,
         "failed_seeds": failed_count,
         "excluded": failed_count >= int(profile.ground_truth["max_failed_seeds"]),
-        "mean_test_mse": float(np.mean(finals)) if ok else float("inf"),
-        "std_test_mse": float(np.std(finals)) if ok else float("inf"),
+        mean_key: float(np.mean(finals)) if ok else float("inf"),
+        std_key: float(np.std(finals)) if ok else float("inf"),
+        **(
+            {
+                "mean_test_mse": float(np.mean(finals)) if ok else float("inf"),
+                "std_test_mse": float(np.std(finals)) if ok else float("inf"),
+            }
+            if selection_metric == "test_mse"
+            else {}
+        ),
         "seed_results": [
-            {"seed": r["seed"], "failed": r["failed"], "final_test_mse": r["final_test_mse"]}
+            {
+                "seed": r["seed"],
+                "failed": r["failed"],
+                final_key: r[final_key],
+                **(
+                    {"final_test_mse": r[final_key], "mean_test_mse": r[final_key]}
+                    if selection_metric == "test_mse"
+                    else {}
+                ),
+            }
             for r in seed_results
         ],
         "environment": {
@@ -138,6 +166,7 @@ def run_ground_truth(
             "git_commit": git_commit_hash(ROOT),
         },
     }
+    summary = {k: v for k, v in summary.items() if v is not None}
 
     results_dir = candidate_path / "results"
     results_dir.mkdir(parents=True, exist_ok=True)

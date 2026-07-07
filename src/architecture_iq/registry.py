@@ -39,11 +39,17 @@ def list_model_types() -> list[str]:
 
 
 def _register_all() -> None:
+    from architecture_iq.families.bigram_lm import BigramLmFamily
+    from architecture_iq.families.multivariate_regression import MultivariateRegressionFamily
     from architecture_iq.families.univariate_regression import UnivariateRegressionFamily
     from architecture_iq.models.mlp import MlpModelFamily
+    from architecture_iq.models.transformer_lm import TransformerLmModelFamily
 
     register_dataset_family(UnivariateRegressionFamily())
+    register_dataset_family(MultivariateRegressionFamily())
+    register_dataset_family(BigramLmFamily())
     register_model_type(MlpModelFamily())
+    register_model_type(TransformerLmModelFamily())
 
 
 _BOOTSTRAPPED = False

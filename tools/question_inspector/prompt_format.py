@@ -19,23 +19,71 @@ def activation_nl(name: str) -> str:
     return name
 
 
+def _format_activation_line(acts: list[str]) -> str:
+    return f"- Activations: [{', '.join(acts)}]"
+
+
 def format_mlp_nl(model: dict) -> str:
-    acts = model["activations"]
-    act_lines = [
-        f"  - Layer {i + 1}: {activation_nl(name)}"
-        for i, name in enumerate(acts)
-    ]
     lines = [
         "- Type: MLP",
         f"- Depth: {model['depth']} hidden layers",
         f"- Width: {model['width']} (all hidden layers)",
         f"- Residual connections: {model['residual']}",
         f"- Layer norm per layer: {model['layer_norm']}",
-        "- Activations per layer:",
-        *act_lines,
+        _format_activation_line(model["activations"]),
         "- Initialization: PyTorch Linear defaults",
     ]
     return "\n".join(lines)
+
+
+def format_model_nl(model: dict) -> str:
+    model_type = model.get("type", "mlp")
+    if model_type == "mlp":
+        return format_mlp_nl(model)
+    if model_type == "transformer_lm":
+        return format_transformer_lm_nl(model)
+    return f"- Type: {model_type}"
+
+
+def _transformer_dims(model: dict) -> tuple[int, int]:
+    if "d_model" in model:
+        d_model = int(model["d_model"])
+    else:
+        d_model = int(model["embed_dim"])
+    if "d_ff" in model:
+        d_ff = int(model["d_ff"])
+    else:
+        d_ff = int(model["ff_dim"])
+    return d_model, d_ff
+
+
+def format_transformer_lm_nl(model: dict) -> str:
+    d_model, d_ff = _transformer_dims(model)
+    return "\n".join(
+        [
+            "- Type: causal transformer LM",
+            f"- Vocab size: {model['vocab_size']}",
+            f"- Context length: {model['context_length']}",
+            f"- d_model: {d_model}",
+            f"- num_layers: {model['num_layers']}",
+            f"- num_heads: {model['num_heads']}",
+            f"- d_ff: {d_ff}",
+        ]
+    )
+
+
+def format_model_spec_lines(model: dict) -> list[str]:
+    """Compact lines for UI cards (strips markdown list prefixes from format_model_nl)."""
+    lines: list[str] = []
+    for line in format_model_nl(model).splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("- "):
+            lines.append(stripped[2:])
+        else:
+            lines.append(stripped)
+    return lines
 
 
 def format_optimizer_nl(opt: dict) -> str:

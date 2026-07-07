@@ -20,6 +20,14 @@ class SignificanceResult:
     reason: str = ""
 
 
+def mean_metric_key(metric: str) -> str:
+    return f"mean_{metric}"
+
+
+def final_metric_key(metric: str) -> str:
+    return f"final_{metric}"
+
+
 def validate_significance(
     summaries: list[dict[str, Any]],
     profile: Profile,
@@ -36,6 +44,8 @@ def validate_significance(
     use_non_overlap = bool(
         use_non_overlap if use_non_overlap is not None else sig.get("use_non_overlap", True)
     )
+    mean_key = mean_metric_key(metric)
+    final_key = final_metric_key(metric)
 
     if any(s.get("excluded") for s in summaries):
         return SignificanceResult(
@@ -47,8 +57,8 @@ def validate_significance(
             reason="excluded candidate in pool",
         )
 
-    means = np.array([s["mean_test_mse"] for s in summaries], dtype=np.float64)
-    stds = np.array([s["std_test_mse"] for s in summaries], dtype=np.float64)
+    means = np.array([s[mean_key] for s in summaries], dtype=np.float64)
+    stds = np.array([s[f"std_{metric}"] for s in summaries], dtype=np.float64)
     if not np.all(np.isfinite(means)):
         return SignificanceResult(
             passed=False, gap=0.0, win_rate=0.0, metric=metric, winner_index=-1, reason="non-finite mean"
@@ -80,7 +90,7 @@ def validate_significance(
         vals = []
         for s in summaries:
             sr = s["seed_results"][seed_i]
-            vals.append(float("inf") if sr["failed"] else sr["final_test_mse"])
+            vals.append(float("inf") if sr["failed"] else sr[final_key])
         vals_arr = np.array(vals)
         seed_order = np.argsort(vals_arr)
         if higher_is_better:

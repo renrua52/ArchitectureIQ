@@ -14,8 +14,10 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifact_loader  # noqa: E402
+import prompt_format  # noqa: E402
 
 reload(artifact_loader)
+reload(prompt_format)
 from artifact_loader import (  # noqa: E402
     QuestionBundle,
     candidate_file_paths,
@@ -277,20 +279,39 @@ def _render_question_picker(data_root: str) -> None:
     st.caption(f"{len(pool)} question(s) · `{picked_path.name}`")
 
 
-def _plot_dataset(bundle: QuestionBundle) -> None:
-    train_x, train_y, test_x, test_y = load_dataset_tensors(bundle.dataset_dir)
+def _selection_metric(bundle: QuestionBundle, q: dict[str, Any]) -> str:
+    if "evaluation" in q:
+        return str(q["evaluation"].get("selection_metric", "test_mse"))
+    spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
+    return str(spec.get("selection_metric", "test_mse"))
+
+
+def _metric_display_name(metric: str) -> str:
+    if metric == "test_ce":
+        return "test cross-entropy"
+    if metric == "test_mse":
+        return "test MSE"
+    return metric
+
+
+def _plot_univariate_regression(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
+) -> None:
     fig, ax = plt.subplots(figsize=(7, 3.5))
     ax.scatter(
-        train_x.squeeze().numpy(),
-        train_y.squeeze().numpy(),
+        train_x.squeeze(-1).numpy(),
+        train_y.squeeze(-1).numpy(),
         s=10,
         alpha=0.55,
         label="train",
         c="#2563eb",
     )
     ax.scatter(
-        test_x.squeeze().numpy(),
-        test_y.squeeze().numpy(),
+        test_x.squeeze(-1).numpy(),
+        test_y.squeeze(-1).numpy(),
         s=10,
         alpha=0.55,
         label="test",
@@ -306,50 +327,173 @@ def _plot_dataset(bundle: QuestionBundle) -> None:
     plt.close(fig)
 
 
-def _plot_candidate_curves(
-    curves_path: Path,
+def _plot_multivariate_regression(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
     *,
-    total_samples_seen: int,
-    batch_size: int,
+    input_dim: int,
 ) -> None:
-    loaded = load_candidate_curves(
-        curves_path,
-        total_samples_seen=total_samples_seen,
-        batch_size=batch_size,
-    )
-    if "error" in loaded:
-        st.warning(loaded["error"])
-        return
-
-    curves = loaded["curves"]
-    x = np.asarray(loaded["eval_samples"], dtype=np.int64)
-    if curves.size == 0 or not np.isfinite(curves).any():
-        st.info("No curve data available.")
-        return
-
+    y_train = train_y.squeeze(-1).numpy()
+    y_test = test_y.squeeze(-1).numpy()
+    x_train = train_x.numpy()
+    x_test = test_x.numpy()
     fig, ax = plt.subplots(figsize=(7, 3.5))
-    for row in curves:
-        valid = np.isfinite(row)
+
+    if input_dim >= 2:
+        train_sc = ax.scatter(
+            x_train[:, 0],
+            x_train[:, 1],
+            c=y_train,
+            s=12,
+            alpha=0.65,
+            cmap="viridis",
+            label="train",
+        )
+        ax.scatter(
+            x_test[:, 0],
+            x_test[:, 1],
+            c=y_test,
+            s=12,
+            alpha=0.65,
+            cmap="viridis",
+            marker="x",
+            label="test",
+        )
+        ax.set_xlabel("x0")
+        ax.set_ylabel("x1")
+        ax.set_title("Dataset projection (color = target y)")
+        fig.colorbar(train_sc, ax=ax, label="y")
+    else:
+        ax.scatter(x_train[:, 0], y_train, s=10, alpha=0.55, label="train", c="#2563eb")
+        ax.scatter(x_test[:, 0], y_test, s=10, alpha=0.55, label="test", c="#dc2626")
+        ax.set_xlabel("x0")
+        ax.set_ylabel("y")
+        ax.set_title("Dataset points")
+        ax.legend(loc="best")
+
+    ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    st.pyplot(fig, clear_figure=True)
+    plt.close(fig)
+
+
+def _plot_bigram_lm(dataset_dir: Path, train_x: torch.Tensor, train_y: torch.Tensor) -> None:
+    transition_path = dataset_dir / "transition.npz"
+    if transition_path.is_file():
+        probs = np.load(transition_path)["probs"]
+        fig, ax = plt.subplots(figsize=(7, 3.5))
+        im = ax.imshow(probs, aspect="auto", cmap="viridis", origin="lower")
+        ax.set_xlabel("next token y")
+        ax.set_ylabel("current token x")
+        ax.set_title("Bigram transition P(y | x)")
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        fig.tight_layout()
+        st.pyplot(fig, clear_figure=True)
+        plt.close(fig)
+
+    sample_rows = min(3, int(train_x.shape[0]))
+    context_length = int(train_x.shape[1])
+    st.caption(
+        f"Sample train windows ({sample_rows} of {train_x.shape[0]}, length {context_length}):"
+    )
+    for i in range(sample_rows):
+        x_row = train_x[i].tolist()
+        y_row = train_y[i].tolist()
+        st.code(f"x: {x_row}\ny: {y_row}", language="text")
+
+
+def _plot_dataset(bundle: QuestionBundle) -> None:
+    spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
+    family = spec.get("family", "univariate_regression")
+    params = spec.get("params", {})
+    train_x, train_y, test_x, test_y = load_dataset_tensors(bundle.dataset_dir)
+
+    if family == "multivariate_regression":
+        _plot_multivariate_regression(
+            train_x,
+            train_y,
+            test_x,
+            test_y,
+            input_dim=int(params.get("input_dim", train_x.shape[1])),
+        )
+    elif family == "bigram_lm":
+        _plot_bigram_lm(bundle.dataset_dir, train_x, train_y)
+    else:
+        _plot_univariate_regression(train_x, train_y, test_x, test_y)
+
+
+def _choice_color(index: int) -> str:
+    palette = ("#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2")
+    return palette[index % len(palette)]
+
+
+def _render_combined_curves(bundle: QuestionBundle, q: dict[str, Any], *, metric: str) -> None:
+    st.markdown("#### Learning curves")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    any_plotted = False
+
+    for index, choice in enumerate(bundle.choices):
+        letter = choice["letter"]
+        color = _choice_color(index)
+        curves_path = choice["candidate_dir"] / "results" / "curves.npz"
+        spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
+        budget = spec.get("budget", {})
+        total_samples_seen = budget.get("total_samples_seen")
+        batch_size = budget.get("batch_size")
+        if total_samples_seen is None or batch_size is None:
+            continue
+
+        loaded = load_candidate_curves(
+            curves_path,
+            total_samples_seen=int(total_samples_seen),
+            batch_size=int(batch_size),
+        )
+        if "error" in loaded:
+            continue
+
+        curves = loaded["curves"]
+        x = np.asarray(loaded["eval_samples"], dtype=np.int64)
+        if curves.size == 0 or not np.isfinite(curves).any():
+            continue
+
+        mean = np.nanmean(curves, axis=0)
+        std = np.nanstd(curves, axis=0)
+        valid = np.isfinite(mean)
         if not valid.any():
             continue
-        ax.plot(x[valid], row[valid], color="#94a3b8", alpha=0.45, linewidth=1)
 
-    mean_curve = np.nanmean(curves, axis=0)
-    valid_mean = np.isfinite(mean_curve)
-    if valid_mean.any():
-        ax.plot(
-            x[valid_mean],
-            mean_curve[valid_mean],
-            color="#2563eb",
-            linewidth=2.2,
-            label="mean",
+        x_valid = x[valid]
+        mean_valid = mean[valid]
+        std_valid = std[valid]
+        ax.fill_between(
+            x_valid,
+            mean_valid - std_valid,
+            mean_valid + std_valid,
+            color=color,
+            alpha=0.22,
+            linewidth=0,
         )
+        ax.plot(
+            x_valid,
+            mean_valid,
+            color=color,
+            linewidth=2.2,
+            label=f"{letter} · {choice['candidate_id']}",
+        )
+        any_plotted = True
+
+    if not any_plotted:
+        plt.close(fig)
+        st.info("No learning curve data available for these candidates.")
+        return
 
     ax.set_xlabel("Samples seen")
-    ax.set_ylabel("Test MSE")
-    ax.set_title("Learning curve")
+    ax.set_ylabel(_metric_display_name(metric))
+    ax.set_title("Learning curves (mean ± std across seeds)")
     ax.grid(True, alpha=0.25)
-    ax.legend(loc="best")
+    ax.legend(loc="best", fontsize=9)
     fig.tight_layout()
     st.pyplot(fig, clear_figure=True)
     plt.close(fig)
@@ -359,9 +503,6 @@ def _render_file_panel(
     paths: dict[str, Path],
     selected: str,
     key_prefix: str,
-    *,
-    total_samples_seen: int | None = None,
-    batch_size: int | None = None,
 ) -> None:
     names = list(paths.keys())
     idx = names.index(selected) if selected in names else 0
@@ -369,26 +510,6 @@ def _render_file_panel(
     st.session_state[f"{key_prefix}_file"] = choice
     path = paths[choice]
 
-    if choice == "curves.npz":
-        shown_key = f"{key_prefix}_curves_shown"
-        if choice != selected:
-            st.session_state.pop(shown_key, None)
-        if total_samples_seen is None or batch_size is None:
-            st.warning("Budget metadata unavailable for this candidate.")
-            return
-        if st.button("Render curve", key=f"{key_prefix}_render_curves"):
-            st.session_state[shown_key] = True
-        if st.session_state.get(shown_key):
-            _plot_candidate_curves(
-                path,
-                total_samples_seen=total_samples_seen,
-                batch_size=batch_size,
-            )
-        else:
-            st.caption("Click **Render curve** to load and plot test MSE vs samples seen.")
-        return
-
-    st.session_state.pop(f"{key_prefix}_curves_shown", None)
     if choice.endswith(".json"):
         st.json(read_json_file(path))
     else:
@@ -396,14 +517,7 @@ def _render_file_panel(
 
 
 def _format_model_lines(model: dict[str, Any]) -> list[str]:
-    return [
-        f"Type: {str(model.get('type', 'mlp')).upper()}",
-        f"Depth: {model.get('depth')} hidden layers",
-        f"Width: {model.get('width')}",
-        f"Residual: {model.get('residual')}",
-        f"Layer norm: {model.get('layer_norm')}",
-        f"Activations: {model.get('activations')}",
-    ]
+    return prompt_format.format_model_spec_lines(model)
 
 
 def _format_optimizer_lines(opt: dict[str, Any]) -> list[str]:
@@ -568,10 +682,11 @@ def _render_candidate_card(
         st.rerun()
 
 
-def _render_answer_banner(q: dict[str, Any], committed_letter: str) -> None:
+def _render_answer_banner(q: dict[str, Any], committed_letter: str, *, metric: str) -> None:
     correct = q["correct_letter"]
+    metric_label = _metric_display_name(metric)
     if committed_letter == correct:
-        st.success(f"Correct — **{committed_letter}** achieves the best test MSE.")
+        st.success(f"Correct — **{committed_letter}** achieves the best {metric_label}.")
     else:
         st.error(
             f"Incorrect — you picked **{committed_letter}**, "
@@ -608,19 +723,45 @@ def _render_ranked_metrics(bundle: QuestionBundle, q: dict[str, Any]) -> None:
             st.write(f"**{row['letter']}** `{row['candidate_id']}` — no metrics")
 
 
+def _render_dataset_info(spec: dict[str, Any], dataset_id: str) -> None:
+    family = spec.get("family", "univariate_regression")
+    params = spec.get("params", {})
+    st.markdown(f"**ID:** `{dataset_id}`")
+    st.markdown(f"**Family:** `{family}`")
+
+    if family == "bigram_lm":
+        st.markdown(f"**Vocab size:** {params.get('vocab_size', '—')}")
+        st.markdown(f"**Context length:** {params.get('context_length', '—')}")
+        st.markdown(
+            "Fixed bigram law **P(y|x)** shared by train and test; "
+            "only sampled windows differ between splits."
+        )
+        return
+
+    expression = params.get("expression", "—")
+    domain = params.get("domain", [0, 1])
+    st.markdown("**Expression:**")
+    st.latex(expression_to_latex(expression))
+    if family == "multivariate_regression":
+        st.markdown(f"**Input dimension:** {params.get('input_dim', '—')}")
+        st.markdown(f"**Domain:** `[{domain[0]}, {domain[1]}]` per coordinate")
+    else:
+        st.markdown(f"**Domain:** `[{domain[0]}, {domain[1]}]`")
+
+
 def _render_dataset_panel(bundle: QuestionBundle) -> None:
     st.markdown("#### Dataset")
     spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
-    expression = spec.get("params", {}).get("expression", "—")
-    domain = spec.get("params", {}).get("domain", [0, 1])
-    info_col, plot_col = st.columns([1, 1.4])
-    with info_col:
-        st.markdown(f"**ID:** `{bundle.dataset_dir.name}`")
-        st.markdown("**Expression:**")
-        st.latex(expression_to_latex(expression))
-        st.markdown(f"**Domain:** `[{domain[0]}, {domain[1]}]`")
-    with plot_col:
-        _plot_dataset(bundle)
+    family = spec.get("family", "univariate_regression")
+
+    if family == "multivariate_regression":
+        _render_dataset_info(spec, bundle.dataset_dir.name)
+    else:
+        info_col, plot_col = st.columns([1, 1.4])
+        with info_col:
+            _render_dataset_info(spec, bundle.dataset_dir.name)
+        with plot_col:
+            _plot_dataset(bundle)
 
     with st.expander("Dataset files", expanded=False):
         ds_paths = dataset_file_paths(bundle.dataset_dir)
@@ -639,6 +780,7 @@ def _render_question_page(
     committed: bool,
     focus_letter: str | None,
 ) -> None:
+    metric = _selection_metric(bundle, q)
     _render_metadata(q)
     _render_dataset_panel(bundle)
     st.markdown("#### Choices")
@@ -656,7 +798,8 @@ def _render_question_page(
             )
 
     if committed:
-        _render_answer_banner(q, st.session_state.committed_letter)
+        _render_answer_banner(q, st.session_state.committed_letter, metric=metric)
+        _render_combined_curves(bundle, q, metric=metric)
         _render_ranked_metrics(bundle, q)
 
     inspect_letter = st.session_state.info_letter or st.session_state.focus_letter
@@ -665,16 +808,10 @@ def _render_question_page(
         st.divider()
         st.markdown(f"#### Files · Choice **{inspect_letter}** · `{selected_choice['candidate_id']}`")
         paths = _inspect_paths(selected_choice["candidate_dir"], show_summary=committed)
-        spec = read_json_file(selected_choice["candidate_dir"] / "candidate_spec.json")
-        budget = spec.get("budget", {})
         _render_file_panel(
             paths,
             st.session_state.inspect_file,
             f"candidate_{inspect_letter}",
-            total_samples_seen=int(budget["total_samples_seen"])
-            if budget.get("total_samples_seen") is not None
-            else None,
-            batch_size=int(budget["batch_size"]) if budget.get("batch_size") is not None else None,
         )
 
 

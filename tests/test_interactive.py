@@ -253,10 +253,8 @@ def test_resolve_dataset_family_requires_explicit_choice() -> None:
     with pytest.raises(ValueError, match="required"):
         resolve_dataset_family(profile)
     assert resolve_dataset_family(profile, family="univariate_regression") == "univariate_regression"
-    assert (
-        resolve_dataset_family(profile, random_pick=True, rng=random.Random(0))
-        == "univariate_regression"
-    )
+    picked = resolve_dataset_family(profile, random_pick=True, rng=random.Random(0))
+    assert picked in profile.pools["dataset_families"]
 
 
 @pytest.mark.skipif(not (DATA / "datasets").is_dir(), reason="no datasets")

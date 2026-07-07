@@ -59,6 +59,7 @@ class MLPBlock(nn.Module):
 class RegressionMLP(nn.Module):
     def __init__(
         self,
+        input_dim: int,
         depth: int,
         width: int,
         activations: list[str],
@@ -68,7 +69,7 @@ class RegressionMLP(nn.Module):
         super().__init__()
         if not (depth == len(activations) == len(layer_norm)):
             raise ValueError("depth must match activations and layer_norm length")
-        layers: list[nn.Module] = [nn.Linear(1, width)]
+        layers: list[nn.Module] = [nn.Linear(input_dim, width)]
         for i in range(depth):
             layers.append(
                 MLPBlock(
@@ -98,6 +99,7 @@ class MlpModelFamily(ModelFamily):
     def build_module(self, model_spec: dict[str, Any]) -> nn.Module:
         self.validate(model_spec)
         return RegressionMLP(
+            input_dim=int(model_spec.get("input_dim", 1)),
             depth=int(model_spec["depth"]),
             width=int(model_spec["width"]),
             activations=list(model_spec["activations"]),
@@ -109,6 +111,7 @@ class MlpModelFamily(ModelFamily):
         self.validate(model_spec)
         depth = int(model_spec["depth"])
         width = int(model_spec["width"])
+        input_dim = int(model_spec.get("input_dim", 1))
         residual = bool(model_spec["residual"])
         acts = model_spec["activations"]
         norms = model_spec["layer_norm"]
@@ -159,7 +162,7 @@ class Model(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(1, {width}),
+            nn.Linear({input_dim}, {width}),
 {blocks_str}
             nn.Linear({width}, 1),
         )
@@ -168,14 +171,19 @@ class Model(nn.Module):
         return self.net(x)
 '''
 
-    def sample_spec(self, profile: Any, rng: random.Random) -> dict[str, Any]:
+    def sample_spec(
+        self,
+        profile: Any,
+        rng: random.Random,
+        dataset_params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         cfg = profile.mlp
         depth = rng.choice(cfg["depth"])
         width = rng.choice(cfg["width"])
         residual = rng.choice(cfg["residual"])
         activations = [rng.choice(cfg["activations"]) for _ in range(depth)]
         layer_norm = [rng.choice([True, False]) for _ in range(depth)]
-        return {
+        spec: dict[str, Any] = {
             "type": "mlp",
             "depth": depth,
             "width": width,
@@ -183,3 +191,8 @@ class Model(nn.Module):
             "layer_norm": layer_norm,
             "activations": activations,
         }
+        if dataset_params is not None and "input_dim" in dataset_params:
+            spec["input_dim"] = int(dataset_params["input_dim"])
+        else:
+            spec["input_dim"] = 1
+        return spec

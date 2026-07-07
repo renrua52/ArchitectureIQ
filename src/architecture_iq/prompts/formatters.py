@@ -19,22 +19,26 @@ def activation_nl(name: str) -> str:
     return name
 
 
+def _format_activation_line(acts: list[str]) -> str:
+    return f"- Activations: [{', '.join(acts)}]"
+
+
 def format_mlp_nl(model: dict) -> str:
-    acts = model["activations"]
-    act_lines = [
-        f"  - Layer {i + 1}: {activation_nl(name)}"
-        for i, name in enumerate(acts)
-    ]
     lines = [
         "- Type: MLP",
-        f"- Depth: {model['depth']} hidden layers",
-        f"- Width: {model['width']} (all hidden layers)",
-        f"- Residual connections: {model['residual']}",
-        f"- Layer norm per layer: {model['layer_norm']}",
-        "- Activations per layer:",
-        *act_lines,
-        "- Initialization: PyTorch Linear defaults",
     ]
+    if "input_dim" in model and int(model["input_dim"]) > 1:
+        lines.append(f"- Input dimension: {model['input_dim']}")
+    lines.extend(
+        [
+            f"- Depth: {model['depth']} hidden layers",
+            f"- Width: {model['width']} (all hidden layers)",
+            f"- Residual connections: {model['residual']}",
+            f"- Layer norm per layer: {model['layer_norm']}",
+            _format_activation_line(model["activations"]),
+            "- Initialization: PyTorch Linear defaults",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -47,6 +51,56 @@ def format_optimizer_nl(opt: dict) -> str:
     if opt["type"] in {"Adam", "AdamW"} and "betas" in opt:
         lines.append(f"- Betas: {opt['betas']}")
     return "\n".join(lines)
+
+
+def format_model_nl(model: dict) -> str:
+    model_type = model.get("type", "mlp")
+    if model_type == "mlp":
+        return format_mlp_nl(model)
+    if model_type == "transformer_lm":
+        return format_transformer_lm_nl(model)
+    return f"- Type: {model_type}"
+
+
+def _transformer_dims(model: dict) -> tuple[int, int]:
+    if "d_model" in model:
+        d_model = int(model["d_model"])
+    else:
+        d_model = int(model["embed_dim"])
+    if "d_ff" in model:
+        d_ff = int(model["d_ff"])
+    else:
+        d_ff = int(model["ff_dim"])
+    return d_model, d_ff
+
+
+def format_transformer_lm_nl(model: dict) -> str:
+    d_model, d_ff = _transformer_dims(model)
+    return "\n".join(
+        [
+            "- Type: causal transformer LM",
+            f"- Vocab size: {model['vocab_size']}",
+            f"- Context length: {model['context_length']}",
+            f"- d_model: {d_model}",
+            f"- num_layers: {model['num_layers']}",
+            f"- num_heads: {model['num_heads']}",
+            f"- d_ff: {d_ff}",
+        ]
+    )
+
+
+def format_model_spec_lines(model: dict) -> list[str]:
+    """Compact lines for UI cards (strips markdown list prefixes from format_model_nl)."""
+    lines: list[str] = []
+    for line in format_model_nl(model).splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("- "):
+            lines.append(stripped[2:])
+        else:
+            lines.append(stripped)
+    return lines
 
 
 def format_loss_nl(loss: dict) -> str:
@@ -62,23 +116,20 @@ def format_loss_nl(loss: dict) -> str:
             f"- Loss: MSE on the minibatch + L1 weight penalty "
             f"(lambda={loss['lambda']}, mean absolute parameter magnitude)"
         )
+    if loss["loss_id"] == "cross_entropy":
+        return "- Loss: cross-entropy on next-token labels"
+    if loss["loss_id"] == "cross_entropy_l2":
+        return (
+            f"- Loss: cross-entropy + L2 weight penalty (lambda={loss['lambda']})"
+        )
+    if loss["loss_id"] == "cross_entropy_l1":
+        return (
+            f"- Loss: cross-entropy + L1 weight penalty (lambda={loss['lambda']})"
+        )
     return f"- Loss: {loss['loss_id']}"
 
 
-def format_training_schedule(budget: dict) -> str:
-    steps = budget["training_steps"]
-    batch_size = budget["batch_size"]
-    total = budget["total_samples_seen"]
-    return "\n".join(
-        [
-            f"- training_steps: {steps}",
-            f"- batch_size: {batch_size}",
-            f"- total_samples_seen: {total} (= training_steps × batch_size)",
-        ]
-    )
-
-
-def format_dataset_protocol(params: dict) -> str:
+def format_regression_protocol(params: dict) -> str:
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
     expression = params.get("expression", "—")
@@ -95,6 +146,58 @@ def format_dataset_protocol(params: dict) -> str:
         "- Reference device: CPU",
     ]
     return "\n".join(lines)
+
+
+def format_multivariate_protocol(params: dict) -> str:
+    point_seed = params.get("point_sampling", {}).get("seed", "—")
+    domain = params.get("domain", [0.0, 1.0])
+    expression = params.get("expression", "—")
+    return "\n".join(
+        [
+            f"- Target expression (canonical): `{expression}`",
+            f"- Input dimension: {params['input_dim']}",
+            f"- Train split size: {params['train_size']} fixed `(x, y)` pairs",
+            f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
+            f"- Input domain: [{domain[0]}, {domain[1]}] per coordinate, uniform sampling",
+            f"- Point-sampling seed: {point_seed}",
+            "- Evaluation: **test MSE** on the held-out split",
+        ]
+    )
+
+
+def format_bigram_protocol(params: dict) -> str:
+    return "\n".join(
+        [
+            f"- Vocab size: {params['vocab_size']}",
+            f"- Context length: {params['context_length']}",
+            "- Layout: causal LM windows (`x` shape `[N, L]`, `y` shape `[N, L]`)",
+            "- One fixed bigram transition matrix `P(y|x)` shared by train and test",
+            f"- Train rows: {params['train_size']}; test rows: {params['test_size']}",
+            f"- Sequence seed: {params['sequence_seed']}; table seed: {params['table_seed']}",
+            "- Evaluation: **test cross-entropy** on held-out windows",
+        ]
+    )
+
+
+def format_dataset_protocol(params: dict, *, family: str | None = None) -> str:
+    if family == "bigram_lm" or "vocab_size" in params:
+        return format_bigram_protocol(params)
+    if "input_dim" in params:
+        return format_multivariate_protocol(params)
+    return format_regression_protocol(params)
+
+
+def format_training_schedule(budget: dict) -> str:
+    steps = budget["training_steps"]
+    batch_size = budget["batch_size"]
+    total = budget["total_samples_seen"]
+    return "\n".join(
+        [
+            f"- training_steps: {steps}",
+            f"- batch_size: {batch_size}",
+            f"- total_samples_seen: {total} (= training_steps × batch_size)",
+        ]
+    )
 
 
 def format_ranking_protocol(*, n_seeds: int, base_seed: int, selection_metric: str) -> str:

@@ -32,6 +32,18 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
+## Dataset families (v1)
+
+| Family | Task | Models | Losses | Metric |
+|--------|------|--------|--------|--------|
+| `univariate_regression` | R → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
+| `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
+
+For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+
+Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
+
 ## CLI reference
 
 All commands accept `--profile v1` (default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
@@ -45,6 +57,7 @@ Create a new dataset instance under `data/datasets/{family}/{dataset_id}/`.
 ```bash
 architecture-iq create-dataset --family univariate_regression --seed 42
 architecture-iq create-dataset --random-family --seed 42
+architecture-iq create-dataset --family multivariate_regression --seed 42 --input-dim 4
 architecture-iq create-dataset -i
 ```
 
@@ -54,7 +67,10 @@ architecture-iq create-dataset -i
 | `--seed`              | `0` (non-interactive) | Instance seed for dataset generation (see below)         |
 | `--family`            | —                     | **Required** unless `--random-family` or `-i`            |
 | `--random-family`     | off                   | Pick a random family from the profile pool               |
-| `-i`, `--interactive` | off                   | Prompt for family and seed (Enter = random), then create |
+| `--input-dim`         | —                     | For `multivariate_regression` only: pin **n** (must be in profile `input_dims`) |
+| `-i`, `--interactive` | off                   | Prompt for family, seed, and multivariate **n** (Enter = random from pool) |
+
+**Multivariate input dimension.** By default, `multivariate_regression` samples **n** from `profiles/v1.yaml` → `dataset_configs.multivariate_regression.input_dims` (currently `[2, 3, 4, 5, 8]`). Use `--input-dim` or `-i` to pin **n**; otherwise it is chosen randomly from that list (seeded by instance seed).
 
 **What `--seed` controls:** the **instance seed** for synthetic data generation (expression formula and train/test point sampling). Same `--family` + same `--seed` reproduces the same dataset. It does **not** affect which family is picked when using `--random-family` (that draw uses a separate unseeded RNG).
 

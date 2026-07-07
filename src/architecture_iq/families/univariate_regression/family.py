@@ -59,7 +59,7 @@ class UnivariateRegressionFamily(DatasetFamily):
         seed: int,
     ) -> dict[str, Any]:
         expression_seed, point_seed = self._rng_streams(seed)
-        cfg = profile.dataset
+        cfg = profile.family_config(self.name)
         domain = tuple(cfg["domain"])
         sampler_cfg = cfg["sampler"]
         sampled = sample_symbolic_expression(

@@ -25,6 +25,8 @@ def _prepare_for_sympy(expression: str) -> str:
     text = expression.strip()
     text = text.replace(TWO_PI, "2*pi")
     text = re.sub(r"\babs\b", "Abs", text)
+    # x0, x1, ... must become x_0, x_1 before implicit-multiplication parsing (else x0 -> x*0).
+    text = re.sub(r"\bx(\d+)\b", r"x_\1", text)
     return text
 
 

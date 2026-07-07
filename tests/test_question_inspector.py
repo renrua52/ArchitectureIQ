@@ -47,6 +47,14 @@ def test_expression_to_latex_powers() -> None:
     assert "2" in latex
 
 
+def test_expression_to_latex_multivariate_subscripts() -> None:
+    latex = expression_to_latex("x0 + sin(6.283185307179586*x1) * x2")
+    assert "x_{0}" in latex or r"x_0" in latex
+    assert "x_{1}" in latex or r"x_1" in latex
+    assert "x_{2}" in latex or r"x_2" in latex
+    assert "3 x" not in latex
+
+
 @pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")
 def test_load_question_bundle(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)

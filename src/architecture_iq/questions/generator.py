@@ -64,6 +64,7 @@ def find_significant_subsets(
     limit: int | None = None,
     max_attempts: int | None = None,
     question_type: str | None = None,
+    selection_metric: str = "test_mse",
 ) -> list[list[Path]]:
     """Return significant candidate subsets; exhaustive when feasible."""
     num_choices = num_choices if num_choices is not None else profile.num_choices
@@ -82,7 +83,11 @@ def find_significant_subsets(
         specs = [read_json(p / "candidate_spec.json") for p in combo]
         if not choices_compatible(specs, question_type):
             return False
-        sig = validate_significance([summary_map[p] for p in combo], profile)
+        sig = validate_significance(
+            [summary_map[p] for p in combo],
+            profile,
+            metric=selection_metric,
+        )
         return sig.passed
 
     if n_combos <= max_exhaustive:
@@ -180,7 +185,7 @@ def build_question_record(
     question_type = infer_question_type(specs)
     invariant_axes, varying_axes = infer_axes(specs)
 
-    sig = validate_significance(summaries, profile)
+    sig = validate_significance(summaries, profile, metric=dataset_spec["selection_metric"])
     if not sig.passed:
         raise ValueError(f"Significance failed: {sig.reason}")
 
@@ -303,13 +308,20 @@ def generate_questions(
     pool = load_candidate_pool_from_sets(resolved_sets)
     _validate_pool_dataset(pool, dataset_path)
 
+    dataset_spec = read_json(dataset_path / "dataset_spec.json")
     n_choices = num_choices if num_choices is not None else profile.num_choices
     if len(pool) < n_choices:
         raise RuntimeError(
             f"Not enough eligible candidates ({len(pool)}) for {n_choices} choices"
         )
 
-    subsets = find_significant_subsets(pool, profile, rng, num_choices=n_choices)
+    subsets = find_significant_subsets(
+        pool,
+        profile,
+        rng,
+        num_choices=n_choices,
+        selection_metric=dataset_spec["selection_metric"],
+    )
     if not subsets:
         raise RuntimeError(
             f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"

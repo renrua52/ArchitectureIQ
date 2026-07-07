@@ -61,6 +61,19 @@ class Profile:
     def base_seed(self) -> int:
         return int(self.ground_truth["base_seed"])
 
+    def family_config(self, family: str) -> dict[str, Any]:
+        configs = self.raw.get("dataset_configs", {})
+        if family in configs:
+            return dict(configs[family])
+        if family == self.dataset.get("family"):
+            legacy = {k: v for k, v in self.dataset.items() if k != "family"}
+            return legacy
+        raise KeyError(f"No dataset config for family {family!r}")
+
+    @property
+    def transformer_lm(self) -> dict[str, Any]:
+        return self.raw["transformer_lm"]
+
     def training_steps(self, total_samples_seen: int, batch_size: int) -> int:
         if total_samples_seen % batch_size != 0:
             raise ValueError(

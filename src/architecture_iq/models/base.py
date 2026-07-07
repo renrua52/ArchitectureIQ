@@ -22,5 +22,10 @@ class ModelFamily(ABC):
         ...
 
     @abstractmethod
-    def sample_spec(self, profile: Any, rng: Any) -> dict[str, Any]:
+    def sample_spec(
+        self,
+        profile: Any,
+        rng: Any,
+        dataset_params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         ...

@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from architecture_iq.families.base import DatasetFamily
 from architecture_iq.paths import DATA_DIR, dataset_dir
@@ -75,10 +76,17 @@ def create_dataset(
     seed: int,
     *,
     family_name: str,
+    family_options: dict[str, Any] | None = None,
 ) -> tuple[dict, Path]:
     resolve_dataset_family(profile, family=family_name)
     family = get_dataset_family(family_name)
-    partial = family.create_instance(profile, seed)
+    options = family_options or {}
+    if family_name == "multivariate_regression":
+        partial = family.create_instance(profile, seed, **options)
+    else:
+        if options:
+            raise ValueError(f"family_options are not supported for {family_name!r}")
+        partial = family.create_instance(profile, seed)
     spec = family.build_spec_with_id(partial)
     out = dataset_dir(family.name, spec["dataset_id"])
     materialized = {**partial, **spec}
@@ -88,3 +96,23 @@ def create_dataset(
 
 def load_dataset_spec(path: Path) -> dict:
     return read_json(path / "dataset_spec.json")
+
+
+def format_dataset_summary_lines(spec: dict) -> list[str]:
+    """Human-readable summary lines for a dataset spec (family-specific)."""
+    family = spec["family"]
+    params = spec["params"]
+    if family == "univariate_regression":
+        return [f"Expression: {params['expression']}"]
+    if family == "multivariate_regression":
+        return [
+            f"Input dimension: {params['input_dim']}",
+            f"Expression: {params['expression']}",
+        ]
+    if family == "bigram_lm":
+        return [
+            f"Vocab size: {params['vocab_size']}",
+            f"Context length: {params['context_length']}",
+            f"Layout: {params['layout']}",
+        ]
+    return [f"{key}: {value}" for key, value in sorted(params.items())]

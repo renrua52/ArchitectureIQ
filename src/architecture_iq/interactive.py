@@ -16,7 +16,12 @@ from architecture_iq.candidates.generator import (
     valid_batch_sizes,
 )
 from architecture_iq.candidates.sets import list_candidate_sets, load_set_manifest
-from architecture_iq.datasets import create_dataset, list_dataset_instances
+from architecture_iq.datasets import (
+    create_dataset,
+    format_dataset_summary_lines,
+    list_dataset_instances,
+)
+from architecture_iq.families.multivariate_regression.config import allowed_input_dims
 from architecture_iq.profile import Profile
 from architecture_iq.util import read_json
 
@@ -740,6 +745,25 @@ def interactive_generate_questions(
     }
 
 
+def prompt_multivariate_input_dim(
+    profile: Profile,
+    *,
+    rng: random.Random,
+    input_fn: InputFn = _default_input,
+    write: WriteFn = _default_write,
+) -> int | None:
+    """Return explicit input_dim or None to sample from the profile pool."""
+    grid = allowed_input_dims(profile)
+    write("Input dimension (number of variables n in R^n -> R):")
+    return prompt_grid_value(
+        "input_dim",
+        grid,
+        input_fn=input_fn,
+        write=write,
+        allow_random=True,
+    )
+
+
 def _prompt_and_create_dataset(
     profile: Profile,
     family: str,
@@ -759,7 +783,20 @@ def _prompt_and_create_dataset(
             write=write,
         )
 
-    spec, path = create_dataset(profile, seed, family_name=family)
+    family_options: dict[str, Any] = {}
+    if family == "multivariate_regression":
+        picked = prompt_multivariate_input_dim(
+            profile, rng=picker, input_fn=input_fn, write=write
+        )
+        if picked is not None:
+            family_options["input_dim"] = picked
+
+    spec, path = create_dataset(
+        profile,
+        seed,
+        family_name=family,
+        family_options=family_options or None,
+    )
     write(f"Created dataset {spec['dataset_id']} at {path}")
     return spec, path
 
@@ -814,5 +851,6 @@ def interactive_select_dataset_path(
         input_fn=input_fn,
         write=write,
     )
-    write(f"Expression: {spec['params']['expression']}")
+    for line in format_dataset_summary_lines(spec):
+        write(line)
     return path

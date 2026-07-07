@@ -9,7 +9,7 @@ from architecture_iq.prompts.formatters import (
 from architecture_iq.prompts.renderer import render_prompt
 
 
-def test_format_mlp_nl_includes_leaky_relu_slope() -> None:
+def test_format_mlp_nl_lists_activations() -> None:
     text = format_mlp_nl(
         {
             "depth": 2,
@@ -19,8 +19,7 @@ def test_format_mlp_nl_includes_leaky_relu_slope() -> None:
             "activations": ["leaky_relu", "gelu"],
         }
     )
-    assert "LeakyReLU(negative_slope=0.1)" in text
-    assert "Layer 1:" in text
+    assert "- Activations: [leaky_relu, gelu]" in text
 
 
 def test_format_training_schedule_includes_product() -> None:
@@ -41,7 +40,7 @@ def test_render_prompt_includes_reproduction_protocol() -> None:
     assert "Target expression (canonical)" in text
     assert "with replacement" in text
     assert "Ground-truth ranking" in text or "Evaluation metric" in text
-    assert "LeakyReLU(negative_slope=0.1)" in text
+    assert "Activations: [" in text
     assert "def _activation" in text
     assert "## Sample budget (same for all choices)" in text
 

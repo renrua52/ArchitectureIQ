@@ -78,8 +78,28 @@ def test_excerpt_synthesize_py() -> None:
     out = excerpt_synthesize_py(SAMPLE_SYNTH)
     assert "import torch" not in out
     assert "if __name__" not in out
-    assert "def synthesize" not in out
     assert "def target" in out
+    assert "def synthesize" in out
+
+
+def test_excerpt_synthesize_py_bigram_lm() -> None:
+    from architecture_iq.families.bigram_lm.family import SYNTHESIZE_TEMPLATE
+
+    source = SYNTHESIZE_TEMPLATE.format(
+        train_size=100,
+        test_size=50,
+        sequence_seed=1,
+        table_seed=2,
+        vocab_size=16,
+        context_length=8,
+        alpha=1.0,
+        layout="lm",
+    )
+    out = excerpt_synthesize_py(source)
+    assert "def target" in out
+    assert "def synthesize(" in out
+    assert "seq[:, 1:]" in out
+    assert "if __name__" not in out
 
 
 def test_render_prompt_uses_excerpts() -> None:

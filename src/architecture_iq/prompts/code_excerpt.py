@@ -53,4 +53,13 @@ def excerpt_optimizer_py(source: str) -> str:
 
 
 def excerpt_synthesize_py(source: str) -> str:
-    return extract_function_definitions(source, {"target"})
+    """Return ``target`` and ``synthesize`` top-level definitions (dataset ground truth + I/O generation)."""
+    names = {"target", "synthesize"}
+    tree = ast.parse(source)
+    parts: list[str] = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in names:
+            parts.append(_source_segment(source, node))
+    if not parts:
+        raise ValueError(f"No matching functions found: {names}")
+    return "\n\n\n".join(parts)

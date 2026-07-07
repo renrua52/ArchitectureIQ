@@ -62,6 +62,7 @@ def sample_candidate_set_pool(
     varying_axes: frozenset[str],
     rng: random.Random,
     fixed_shared: dict[str, Any] | None = None,
+    dataset_params: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if not varying_axes <= VARYING_AXIS_CHOICES:
         raise ValueError(f"varying_axes must be subset of {sorted(VARYING_AXIS_CHOICES)}")
@@ -70,7 +71,9 @@ def sample_candidate_set_pool(
     if "batch_size" not in shared:
         shared["batch_size"] = _pick_batch_size(profile, budget, rng)
     if "model" not in varying_axes and "model" not in shared:
-        shared["model"] = sample_model(profile, rng)
+        shared["model"] = sample_model(
+            profile, rng, family=family, dataset_params=dataset_params
+        )
     if "optimizer" not in varying_axes and "optimizer" not in shared:
         shared["optimizer"] = sample_optimizer(profile, rng)
     if "loss" not in varying_axes and "loss" not in shared:
@@ -83,11 +86,14 @@ def sample_candidate_set_pool(
             break
         fixed = deepcopy(shared)
         if "model" in varying_axes:
-            fixed["model"] = sample_model(profile, rng)
+            fixed["model"] = sample_model(
+                profile, rng, family=family, dataset_params=dataset_params
+            )
         if "optimizer" in varying_axes:
             fixed["optimizer"] = sample_optimizer(profile, rng)
         if "loss" in varying_axes:
             fixed["loss"] = sample_loss(profile, family, rng)
+        fixed["_dataset_params"] = dataset_params
         spec = sample_candidate(
             profile,
             dataset_id=dataset_id,
@@ -182,6 +188,7 @@ def generate_candidate_set(
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
     dataset_id = dataset_spec["dataset_id"]
     family = dataset_spec["family"]
+    dataset_params = dataset_spec["params"]
 
     pinned = deepcopy(fixed_shared) if fixed_shared is not None else {}
     specs = sample_candidate_set_pool(
@@ -193,6 +200,7 @@ def generate_candidate_set(
         varying_axes=varying_axes,
         rng=rng,
         fixed_shared=pinned,
+        dataset_params=dataset_params,
     )
 
     set_name = make_set_name(budget, varying_axes, salt=rng.randint(0, 2**31 - 1))
@@ -222,10 +230,10 @@ def generate_candidate_set(
         family=family,
     )
 
-    model_family = get_model_type(profile.pools["model_types"][0])
     total = len(specs)
     for i, spec in enumerate(specs):
         out = candidate_in_set_dir(set_path, spec["candidate_id"])
+        model_family = get_model_type(spec["model"]["type"])
         write_candidate(spec, out, model_family)
         run_ground_truth(out, profile, dataset_path)
         if on_progress is not None:

@@ -10,7 +10,11 @@ from architecture_iq.candidates.sets import (
     generate_candidate_set,
     parse_varying_axes,
 )
-from architecture_iq.datasets import create_dataset, resolve_dataset_family
+from architecture_iq.datasets import (
+    create_dataset,
+    format_dataset_summary_lines,
+    resolve_dataset_family,
+)
 from architecture_iq.interactive import (
     interactive_create_dataset,
     interactive_generate_candidate_set,
@@ -52,6 +56,11 @@ def create_dataset_cmd(
         None,
         help="Instance seed (default 0 when omitted)",
     ),
+    input_dim: Optional[int] = typer.Option(
+        None,
+        "--input-dim",
+        help="Input dimension n for multivariate_regression (must be in profile input_dims pool)",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -68,6 +77,7 @@ def create_dataset_cmd(
         family=family is not None,
         random_family=random_family,
         seed=seed is not None,
+        input_dim=input_dim is not None,
     )
 
     if interactive:
@@ -76,7 +86,8 @@ def create_dataset_cmd(
             rng=rng,
             write=typer.echo,
         )
-        typer.echo(f"Expression: {spec['params']['expression']}")
+        for line in format_dataset_summary_lines(spec):
+            typer.echo(line)
         typer.echo(f"Path: {path}")
         return
 
@@ -86,6 +97,8 @@ def create_dataset_cmd(
         )
     if family is not None and random_family:
         raise typer.BadParameter("Use only one of --family and --random-family")
+    if input_dim is not None and family not in (None, "multivariate_regression"):
+        raise typer.BadParameter("--input-dim is only valid with --family multivariate_regression")
 
     instance_seed = seed if seed is not None else 0
     family_name = resolve_dataset_family(
@@ -94,9 +107,25 @@ def create_dataset_cmd(
         random_pick=random_family,
         rng=rng,
     )
-    spec, path = create_dataset(prof, instance_seed, family_name=family_name)
+    if input_dim is not None and family_name != "multivariate_regression":
+        raise typer.BadParameter(
+            "--input-dim requires multivariate_regression (got random family "
+            f"{family_name!r})"
+        )
+
+    family_options = {"input_dim": input_dim} if input_dim is not None else None
+    try:
+        spec, path = create_dataset(
+            prof,
+            instance_seed,
+            family_name=family_name,
+            family_options=family_options,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Created dataset {spec['dataset_id']} at {path}")
-    typer.echo(f"Expression: {spec['params']['expression']}")
+    for line in format_dataset_summary_lines(spec):
+        typer.echo(line)
 
 
 @app.command("generate-candidates")

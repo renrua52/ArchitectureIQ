@@ -15,7 +15,7 @@ from architecture_iq.prompts.formatters import (
     SINGLE_AXIS_TYPES,
     format_dataset_protocol,
     format_loss_nl,
-    format_mlp_nl,
+    format_model_nl,
     format_optimizer_nl,
     format_ranking_protocol,
     format_training_schedule,
@@ -88,13 +88,13 @@ def render_prompt(question_path: Path) -> str:
         "## Dataset",
         dataset_nl.strip(),
         "",
-        "### Target function (PyTorch)",
+        "### Synthesis (PyTorch)",
         "```python",
         synth_code,
         "```",
         "",
         "### Data splits and training protocol",
-        format_dataset_protocol(params),
+        format_dataset_protocol(params, family=q["family"]),
         "",
         budget_heading,
     ]
@@ -160,7 +160,7 @@ def render_prompt(question_path: Path) -> str:
         parts.extend(
             [
                 "**Model (natural language)**",
-                format_mlp_nl(cand_spec["model"]),
+                format_model_nl(cand_spec["model"]),
                 "",
                 "**Model code**",
                 "```python",

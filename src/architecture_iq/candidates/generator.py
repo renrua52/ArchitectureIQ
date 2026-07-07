@@ -6,14 +6,14 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from architecture_iq.losses.regression import render_loss_py
+from architecture_iq.losses import render_loss_py
 from architecture_iq.models.base import ModelFamily
 from architecture_iq.optimizers.factory import render_optimizer_py
 from architecture_iq.profile import Profile
 from architecture_iq.registry import get_model_type
 from architecture_iq.util import short_hash, write_json
 
-TRAIN_PY = '''"""Training loop for this candidate — executed by the ground-truth runner."""
+REGRESSION_TRAIN_PY = '''"""Training loop for this candidate — executed by the ground-truth runner."""
 from __future__ import annotations
 
 import math
@@ -103,6 +103,87 @@ def train(
     )
 '''
 
+LM_TRAIN_PY = '''"""Training loop for this candidate — executed by the ground-truth runner."""
+from __future__ import annotations
+
+import math
+
+import torch
+import torch.nn.functional as F
+
+from loss import loss_fn
+from model import Model
+from optimizer import build_optimizer
+
+
+def _test_ce(model: torch.nn.Module, test_x: torch.Tensor, test_y: torch.Tensor) -> float:
+    model.eval()
+    with torch.no_grad():
+        pred = model(test_x)
+        if pred.ndim == 3:
+            vocab = pred.shape[-1]
+            loss = F.cross_entropy(pred.reshape(-1, vocab), test_y.reshape(-1))
+        else:
+            loss = F.cross_entropy(pred, test_y.reshape(-1))
+        return float(loss.item())
+
+
+def train_and_eval(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
+    *,
+    steps: int,
+    batch_size: int,
+    seed: int = 0,
+    fail_threshold: float = float("inf"),
+) -> dict:
+    torch.manual_seed(seed)
+    model = Model()
+    optimizer = build_optimizer(model)
+    n = train_x.shape[0]
+    step_metrics: list[float] = []
+    eval_samples: list[int] = []
+    failed = False
+
+    for step in range(1, steps + 1):
+        model.train()
+        idx = torch.randint(0, n, (batch_size,))
+        pred = model(train_x[idx])
+        loss = loss_fn(model, pred, train_y[idx])
+        if not torch.isfinite(loss):
+            failed = True
+            break
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        metric = _test_ce(model, test_x, test_y)
+        if not math.isfinite(metric):
+            failed = True
+            break
+        eval_samples.append(step * batch_size)
+        step_metrics.append(metric)
+
+    final_metric = step_metrics[-1] if step_metrics else float("inf")
+    if final_metric > fail_threshold:
+        failed = True
+
+    return {
+        "failed": failed,
+        "final_test_ce": final_metric,
+        "eval_samples": eval_samples,
+        "step_metrics": step_metrics,
+    }
+'''
+
+
+def _train_py_for_family(family: str) -> str:
+    if family == "bigram_lm":
+        return LM_TRAIN_PY
+    return REGRESSION_TRAIN_PY
+
 
 from architecture_iq.candidates.axes import SINGLE_AXIS_TYPES, choices_compatible
 
@@ -174,9 +255,22 @@ def sample_loss(profile: Profile, family: str, rng: random.Random) -> dict[str, 
     return spec
 
 
-def sample_model(profile: Profile, rng: random.Random) -> dict[str, Any]:
-    model_type = rng.choice(profile.pools["model_types"])
-    return get_model_type(model_type).sample_spec(profile, rng)
+def sample_model(
+    profile: Profile,
+    rng: random.Random,
+    *,
+    family: str,
+    dataset_params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from architecture_iq.registry import get_dataset_family
+
+    family_obj = get_dataset_family(family)
+    allowed = set(family_obj.compatible_model_types())
+    model_types = [m for m in profile.pools["model_types"] if m in allowed]
+    if not model_types:
+        raise ValueError(f"No compatible model types for family {family!r}")
+    model_type = rng.choice(model_types)
+    return get_model_type(model_type).sample_spec(profile, rng, dataset_params=dataset_params)
 
 
 def build_candidate_spec(
@@ -230,7 +324,7 @@ def write_candidate(
     (out_dir / "optimizer.py").write_text(
         render_optimizer_py(spec["optimizer"]), encoding="utf-8"
     )
-    (out_dir / "train.py").write_text(TRAIN_PY, encoding="utf-8")
+    (out_dir / "train.py").write_text(_train_py_for_family(spec["family"]), encoding="utf-8")
     return out_dir
 
 
@@ -245,7 +339,10 @@ def sample_candidate(
 ) -> dict[str, Any]:
     fixed = fixed or {}
     batch_size = fixed.get("batch_size") or _pick_batch_size(profile, budget, rng)
-    model = fixed.get("model") or sample_model(profile, rng)
+    dataset_params = fixed.get("_dataset_params")
+    model = fixed.get("model") or sample_model(
+        profile, rng, family=family, dataset_params=dataset_params
+    )
     optimizer = fixed.get("optimizer") or sample_optimizer(profile, rng)
     loss = fixed.get("loss") or sample_loss(profile, family, rng)
     return build_candidate_spec(
