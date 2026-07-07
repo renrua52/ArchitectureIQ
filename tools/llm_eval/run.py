@@ -19,7 +19,7 @@ def _default_questions_root() -> Path:
 
 
 def _default_runs_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "data" / "llm_runs"
+    return Path(__file__).resolve().parents[2] / "llm_runs"
 
 
 def main() -> None:
@@ -39,7 +39,7 @@ def main() -> None:
     parser.add_argument(
         "--runs-root",
         default=str(_default_runs_root()),
-        help="Parent directory for evaluation runs (default: data/llm_runs)",
+        help="Parent directory for evaluation runs (default: llm_runs)",
     )
     parser.add_argument(
         "--run-dir",

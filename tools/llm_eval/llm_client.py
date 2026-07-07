@@ -82,6 +82,24 @@ def _env(name: str) -> str:
     return value
 
 
+def _token_limit_payload(config: ModelConfig) -> dict[str, int]:
+    """Return a single token-limit field (APIs reject both at once)."""
+    if "max_completion_tokens" in config.extra:
+        return {"max_completion_tokens": int(config.extra["max_completion_tokens"])}
+    if "max_tokens" in config.extra:
+        return {"max_tokens": int(config.extra["max_tokens"])}
+
+    param = os.environ.get("OPENAI_MAX_TOKENS_PARAM", "max_tokens").strip()
+    if param == "max_completion_tokens":
+        return {"max_completion_tokens": config.max_tokens}
+    if param != "max_tokens":
+        raise LLMClientError(
+            "OPENAI_MAX_TOKENS_PARAM must be 'max_tokens' or 'max_completion_tokens', "
+            f"got {param!r}"
+        )
+    return {"max_tokens": config.max_tokens}
+
+
 class LLMClient:
     """Minimal caller for ``POST /chat/completions`` compatible APIs."""
 
@@ -108,12 +126,13 @@ class LLMClient:
             "model": config.name,
             "messages": messages,
             "temperature": config.temperature,
-            "max_tokens": config.max_tokens,
-            "max_completion_tokens": config.max_tokens,
+            **_token_limit_payload(config),
         }
         if config.top_p is not None:
             payload["top_p"] = config.top_p
-        payload.update(config.extra)
+        for key, value in config.extra.items():
+            if key not in {"max_tokens", "max_completion_tokens"}:
+                payload[key] = value
 
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(

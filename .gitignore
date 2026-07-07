@@ -216,4 +216,5 @@ __marimo__/
 
 # Benchmark generated artifacts
 data/
+llm_runs/
 

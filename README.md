@@ -36,7 +36,7 @@ Artifacts are written under `data/` (gitignored).
 
 All commands accept `--profile v1` (default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
 
-Interactive mode (`-i` / `--interactive`) prompts for every parameter. **Enter** on a choice field picks a random valid option. Interactive commands reject all other arguments except `--profile`.
+Interactive mode (`-i` / `--interactive`) prompts for every parameter. **Enter** on a choice field picks a random valid option. Interactive commands reject all other arguments except `--profile`. `generate-candidates -i` and `generate-question -i` only let you pick **existing** datasets (use `create-dataset` first).
 
 ### `create-dataset`
 
@@ -171,7 +171,8 @@ profiles/v1.yaml          # V1 profile (pools, grids, ground-truth settings)
 prompts/templates/        # NL prompt templates
 src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
 tools/llm_eval/           # Standalone LLM evaluation runner
-data/                     # Generated datasets, candidates, questions, llm_runs (runtime)
+data/                     # Generated datasets, candidates, questions (runtime)
+llm_runs/                 # LLM evaluation runs (runtime)
 ```
 
 ## Reproducibility
@@ -222,7 +223,7 @@ python tools/llm_eval/run.py data/datasets/univariate_regression/sym_XXXXXX/ques
 python tools/llm_eval/run.py --model gpt-4o-mini --temperature 0 --limit 10 --workers 8
 ```
 
-Each run writes under `data/llm_runs/{timestamp}_{model}/`:
+Each run writes under `llm_runs/{timestamp}_{model}/`:
 
 - `run.json` — model config and accuracy summary
 - `results/{question_id}.json` — per-question ground truth, parsed letter, raw response, and chain-of-thought (when present)

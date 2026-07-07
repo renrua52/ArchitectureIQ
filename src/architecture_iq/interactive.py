@@ -475,6 +475,7 @@ def prompt_dataset_instance(
     family: str | None = None,
     rng: random.Random | None = None,
     data_dir: Path | None = None,
+    allow_create: bool = True,
     input_fn: InputFn = _default_input,
     write: WriteFn = _default_write,
 ) -> tuple[Path | None, str]:
@@ -489,12 +490,27 @@ def prompt_dataset_instance(
             write(f"  {i}) {_dataset_label(entry.path)}")
     else:
         write("  (no existing datasets)")
-    write(f"  n) Create new {resolved_family} dataset")
+    if allow_create:
+        write(f"  n) Create new {resolved_family} dataset")
+    elif not instances:
+        raise ValueError(
+            f"No datasets found for {resolved_family!r}. "
+            "Run create-dataset first, then retry."
+        )
     raw = prompt_line("> ", input_fn=input_fn)
     if not instances:
-        return None, resolved_family
+        if allow_create:
+            return None, resolved_family
+        raise ValueError(
+            f"No datasets found for {resolved_family!r}. "
+            "Run create-dataset first, then retry."
+        )
     if raw.lower() in {"n", "new"}:
-        return None, resolved_family
+        if allow_create:
+            return None, resolved_family
+        raise ValueError(
+            "Dataset creation is not available in this command. Run create-dataset first."
+        )
     if raw.isdigit():
         idx = int(raw)
         if 1 <= idx <= len(instances):
@@ -622,7 +638,11 @@ def interactive_generate_candidate_set(
     write: WriteFn = _default_write,
 ) -> dict[str, Any]:
     resolved_dataset = dataset_path or interactive_select_dataset_path(
-        profile, rng=rng, input_fn=input_fn, write=write
+        profile,
+        rng=rng,
+        allow_create=False,
+        input_fn=input_fn,
+        write=write,
     )
     ds = read_json(resolved_dataset / "dataset_spec.json")
 
@@ -675,7 +695,11 @@ def interactive_generate_questions(
 ) -> dict[str, Any]:
     """Prompt for generate-question parameters."""
     dataset_path = interactive_select_dataset_path(
-        profile, rng=rng, input_fn=input_fn, write=write
+        profile,
+        rng=rng,
+        allow_create=False,
+        input_fn=input_fn,
+        write=write,
     )
     candidate_set_paths = prompt_candidate_sets(
         dataset_path, input_fn=input_fn, write=write
@@ -767,15 +791,17 @@ def interactive_select_dataset_path(
     family: str | None = None,
     rng: random.Random | None = None,
     data_dir: Path | None = None,
+    allow_create: bool = True,
     input_fn: InputFn = _default_input,
     write: WriteFn = _default_write,
 ) -> Path:
-    """Pick an existing dataset or create a new one."""
+    """Pick an existing dataset, optionally creating a new one."""
     existing, resolved_family = prompt_dataset_instance(
         profile,
         family=family,
         rng=rng,
         data_dir=data_dir,
+        allow_create=allow_create,
         input_fn=input_fn,
         write=write,
     )

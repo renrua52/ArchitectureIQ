@@ -15,6 +15,7 @@ from architecture_iq.interactive import (
     assemble_optimizer_spec,
     prompt_choice,
     prompt_dataset_family,
+    prompt_dataset_instance,
     prompt_fixed_components,
     prompt_grid_value,
     prompt_int,
@@ -188,6 +189,39 @@ def test_prompt_dataset_family_random() -> None:
         write=lambda _: None,
     )
     assert family in profile.pools["dataset_families"]
+
+
+@pytest.mark.skipif(not (DATA / "datasets").is_dir(), reason="no datasets")
+def test_prompt_dataset_instance_existing_only() -> None:
+    profile = load_profile("v1")
+    lines: list[str] = []
+
+    def capture(text: str) -> None:
+        lines.append(text)
+
+    path, family = prompt_dataset_instance(
+        profile,
+        family="univariate_regression",
+        allow_create=False,
+        input_fn=lambda _: "1",
+        write=capture,
+    )
+    assert path is not None
+    assert path.is_dir()
+    assert family == "univariate_regression"
+    assert not any("Create new" in line for line in lines)
+
+
+def test_prompt_dataset_instance_rejects_create_when_disabled() -> None:
+    profile = load_profile("v1")
+    with pytest.raises(ValueError, match="Dataset creation is not available"):
+        prompt_dataset_instance(
+            profile,
+            family="univariate_regression",
+            allow_create=False,
+            input_fn=lambda _: "n",
+            write=lambda _: None,
+        )
 
 
 def test_prompt_int_default() -> None:

@@ -12,7 +12,7 @@ LLM_EVAL = ROOT / "tools" / "llm_eval"
 sys.path.insert(0, str(LLM_EVAL))
 
 from completion import fetch_model_response  # noqa: E402
-from llm_client import LLMCompletion, ModelConfig, message_text  # noqa: E402
+from llm_client import LLMCompletion, ModelConfig, _token_limit_payload, message_text  # noqa: E402
 from prompt_wrapper import format_eval_prompt  # noqa: E402
 from question_loader import QuestionItem, load_question_item, prompt_hash  # noqa: E402
 from response_parser import parse_choice_letter, split_chain_of_thought  # noqa: E402
@@ -74,6 +74,13 @@ class SequentialFakeClient:
         self.calls.append(messages)
         idx = min(len(self.calls) - 1, len(self.completions) - 1)
         return self.completions[idx].to_llm_completion()
+
+
+def test_token_limit_payload_sends_one_field() -> None:
+    assert _token_limit_payload(ModelConfig(name="m", max_tokens=100)) == {"max_tokens": 100}
+    assert _token_limit_payload(
+        ModelConfig(name="m", max_tokens=100, extra={"max_completion_tokens": 512})
+    ) == {"max_completion_tokens": 512}
 
 
 def test_format_eval_prompt_appends_answer_tags() -> None:

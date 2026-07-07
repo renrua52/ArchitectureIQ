@@ -9,6 +9,8 @@ Does not import `architecture_iq`. Reads question artifacts under `data/` (datas
 ```bash
 export OPENAI_API_BASE="https://api.openai.com/v1"
 export OPENAI_API_KEY="sk-..."
+# Optional: use max_completion_tokens instead of max_tokens (never both)
+# export OPENAI_MAX_TOKENS_PARAM=max_completion_tokens
 ```
 
 ## Run
@@ -25,7 +27,7 @@ Optional flags:
 - `--limit 10` — evaluate first N questions only
 - `--workers 4` — concurrent API requests (default 4; use 1 for sequential)
 - `--run-dir path/to/run` — explicit output directory
-- `--runs-root data/llm_runs` — parent for auto-named runs
+- `--runs-root llm_runs` — parent for auto-named runs
 - `--skip-existing` — resume a partial run
 
 ## Answer format
@@ -42,7 +44,7 @@ If the API stops early (`finish_reason: length`), the runner automatically sends
 
 ## Output layout
 
-Each run writes to `data/llm_runs/{timestamp}_{model}/`:
+Each run writes to `llm_runs/{timestamp}_{model}/`:
 
 ```
 run.json                 # model config + accuracy summary
