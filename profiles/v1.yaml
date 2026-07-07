@@ -1,0 +1,75 @@
+profile: v1
+schema_version: "1.0"
+
+pools:
+  dataset_families:
+    - univariate_regression
+  model_types:
+    - mlp
+  optimizers:
+    - SGD
+    - Adam
+    - AdamW
+    - RMSprop
+    - Adagrad
+  losses:
+    univariate_regression:
+      - mse
+      - mse_l2
+      - mse_l1
+  question_types:
+    - architecture_only
+    - optimizer_only
+    - loss_only
+    - mixed
+  num_choices: 2
+
+dataset:
+  family: univariate_regression
+  domain: [0.0, 1.0]
+  train_size: 256
+  test_size: 256
+  sampler:
+    id: symbolic_expr
+    max_depth: 3
+    max_retries: 200
+
+mlp:
+  depth: [1, 2, 3, 4, 5, 6]
+  width: [16, 32, 64, 128, 256]
+  residual: [false, true]
+  activations: [relu, leaky_relu, gelu, silu]
+  leaky_relu_slope: 0.01
+
+optimizer_grids:
+  lr: [1.0e-4, 3.0e-4, 1.0e-3, 3.0e-3, 1.0e-2]
+  weight_decay: [0, 1.0e-5, 1.0e-4, 1.0e-3]
+  sgd_momentum: [0, 0.9]
+  adam_betas: [0.9, 0.999]
+  batch_size: [16, 32, 64]
+
+loss_grids:
+  lambda: [1.0e-4, 1.0e-3, 1.0e-2]
+
+budgets:
+  # Must be divisible by all batch_size values (16, 32, 64)
+  total_samples_seen: [1024, 2048, 5120, 10240, 20480, 40960]
+
+ground_truth:
+  n_seeds: 10
+  base_seed: 0
+  fail_threshold: 2.0
+  max_failed_seeds: 3
+
+significance:
+  gap_min: 0.05
+  win_rate_min: 0.7
+  use_non_overlap: true
+
+question_generation:
+  max_attempts: 20
+  targeted_pool_size: 32
+
+prompts:
+  use_llm_paraphrase: false
+  template_version: "1.0"

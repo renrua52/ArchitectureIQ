@@ -214,5 +214,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Streamlit
-.streamlit/secrets.toml
+# Benchmark generated artifacts
+data/
+

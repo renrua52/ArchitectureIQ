@@ -1,2 +1,239 @@
 # ArchitectureIQ
-A prototype benchmark for the 'modeling intuition' of LLMs (and human).
+
+A prototype benchmark for the **modeling intuition** of LLMs (and humans): given synthetic dataset specs and candidate training setups (model, optimizer, loss), pick which setup achieves the best test metric under a fixed sample budget.
+
+Design: [plan-v2.md](./plan-v2.md)
+
+## Install
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+Requires Python 3.10+ and PyTorch 2.x.
+
+## Quick start
+
+```bash
+# Create a dataset
+architecture-iq create-dataset -i
+
+# Generate a candidate set
+architecture-iq generate-candidates -i
+
+# Assemble questions from one or more candidate sets
+architecture-iq generate-question -i
+
+# Evaluate an LLM on generated questions
+python tools/llm_eval/run.py --model gpt-4o-mini
+```
+
+Artifacts are written under `data/` (gitignored).
+
+## CLI reference
+
+All commands accept `--profile v1` (default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
+
+Interactive mode (`-i` / `--interactive`) prompts for every parameter. **Enter** on a choice field picks a random valid option. Interactive commands reject all other arguments except `--profile`.
+
+### `create-dataset`
+
+Create a new dataset instance under `data/datasets/{family}/{dataset_id}/`.
+
+```bash
+architecture-iq create-dataset --family univariate_regression --seed 42
+architecture-iq create-dataset --random-family --seed 42
+architecture-iq create-dataset -i
+```
+
+
+| Option                | Default               | Description                                              |
+| --------------------- | --------------------- | -------------------------------------------------------- |
+| `--seed`              | `0` (non-interactive) | Instance seed for dataset generation (see below)         |
+| `--family`            | —                     | **Required** unless `--random-family` or `-i`            |
+| `--random-family`     | off                   | Pick a random family from the profile pool               |
+| `-i`, `--interactive` | off                   | Prompt for family and seed (Enter = random), then create |
+
+**What `--seed` controls:** the **instance seed** for synthetic data generation (expression formula and train/test point sampling). Same `--family` + same `--seed` reproduces the same dataset. It does **not** affect which family is picked when using `--random-family` (that draw uses a separate unseeded RNG).
+
+
+### `generate-candidates`
+
+Generate a named candidate set with ground truth. Each run writes candidates under `data/datasets/{family}/{dataset_id}/candidates/{set_name}/` where `set_name` looks like `set_{budget}_{model}_{optimizer}_{loss}_{hash}` (`var` or `fix` per axis).
+
+```bash
+architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 1024 --count 32 --vary model --vary optimizer
+architecture-iq generate-candidates -i
+```
+
+
+| Option                | Default                        | Description                                                  |
+| --------------------- | ------------------------------ | ------------------------------------------------------------ |
+| `dataset_path`        | **required** (non-interactive) | Path to dataset instance dir                                 |
+| `--budget`            | **required** (non-interactive) | `total_samples_seen`                                         |
+| `--count`             | **required** (non-interactive) | Number of candidates in this set                             |
+| `--vary`              | **required** (non-interactive) | Repeat: `model`, `optimizer`, or `loss` (axes that may vary) |
+| `--seed`              | `0`                            | RNG seed for candidate sampling (see below)                    |
+| `-i`, `--interactive` | off                            | Prompt for varying/invariant axes and fixed values           |
+
+**What `--seed` controls:** the RNG for **sampling candidate specs**—which models/optimizers/losses are drawn on varying axes, and (in non-interactive mode) the random picks for invariant axes and batch size. It also salts the set directory name (`set_…_{hash}`). The seed is stored in `set.json`. It does **not** control ground-truth training seeds (those come from the profile's `base_seed` / `n_seeds`) or the dataset itself.
+
+**Non-interactive vs `-i`.** Both modes use the same sampling and ground-truth pipeline. The difference is control over **invariant** axes (everything not listed in `--vary`, plus batch size, which never varies within a set):
+
+- **Non-interactive:** invariant values are chosen **randomly once** per set, seeded by `--seed`. For example, `--vary model` fixes one optimizer and one loss for all candidates without prompting.
+- **`-i`:** you are prompted to **pin** each invariant axis (model, optimizer, loss, batch size). **Enter** on a prompt accepts the same random sample non-interactive mode would use.
+
+Interactive mode is not a different generator—it is strictly **more expressive** for pinning fixed components. There are no CLI flags today to pass those pins without `-i`.
+
+### `generate-question`
+
+Assemble one or more multiple-choice questions from candidate set(s) and write `prompt.txt`. Each invocation creates a run folder under `data/datasets/{family}/{instance}/questions/run_{n}q_{c}c_{hash}/` containing `run.json` and one directory per question. Question type is inferred automatically from the chosen candidates' specs.
+
+```bash
+architecture-iq generate-question data/datasets/univariate_regression/sym_XXXXXX \
+  data/datasets/univariate_regression/sym_XXXXXX/candidates/set_1024_var_fix_fix_XXXXXX \
+  --num-questions 5
+
+# Multiple sets (e.g. different budgets or varying axes)
+architecture-iq generate-question data/datasets/univariate_regression/sym_XXXXXX \
+  data/datasets/.../candidates/set_1024_var_fix_fix_AAAAA \
+  data/datasets/.../candidates/set_2048_fix_var_fix_BBBBB \
+  --num-questions 3
+
+architecture-iq generate-question -i
+```
+
+
+| Option                | Default                        | Description                                    |
+| --------------------- | ------------------------------ | ---------------------------------------------- |
+| `dataset_path`        | **required** (non-interactive) | Path to dataset instance dir                   |
+| `candidate_sets`      | **required** (non-interactive) | One or more candidate set dirs                 |
+| `--num-questions`     | **required** (non-interactive) | Questions to generate from the union pool      |
+| `--num-choices`       | profile (`2`)                  | Choices per question (letters A, B, …)         |
+| `--seed`              | `0`                            | RNG seed for question assembly (see below)     |
+| `-i`, `--interactive` | off                            | Prompt for dataset, candidate sets, and counts |
+
+**What `--seed` controls:** the RNG for **assembling questions from an existing candidate pool** (no ground truth is re-run). Specifically:
+
+- **Subset selection** — when more significant subsets exist than `--num-questions`, which ones are kept (order after shuffling the passing list).
+- **Letter assignment** — shuffles which choice letter (A, B, …) each candidate gets; the significance winner stays correct but its letter may move.
+- **Run folder name** — salts the `run_{n}q_{c}_{hash}` directory name.
+
+The seed is stored in `run.json`. For typical pool sizes, subset search is exhaustive and deterministic aside from these shuffle steps. If the pool is very large, the seed also drives random combo sampling when exhaustive search is skipped. It does **not** change candidate metrics, which subsets pass significance, or which candidate is the correct answer.
+
+
+## Typical workflows
+
+### Architecture-only questions
+
+Generate a set where only the model varies, then assemble questions.
+
+```bash
+architecture-iq create-dataset --family univariate_regression --seed 0
+architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 1024 --count 32 --vary model
+architecture-iq generate-question data/datasets/univariate_regression/sym_XXXXXX \
+  data/datasets/univariate_regression/sym_XXXXXX/candidates/set_1024_var_fix_fix_XXXXXX \
+  --num-questions 5
+```
+
+### Cross-budget mixed questions
+
+Generate separate sets (e.g. different budgets or varying axes), then pass all set paths to `generate-question`.
+
+```bash
+architecture-iq create-dataset --family univariate_regression --seed 0
+architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 1024 --count 32 --vary model --vary optimizer --vary loss
+architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 2048 --count 32 --vary model --vary optimizer --vary loss
+architecture-iq generate-question data/datasets/univariate_regression/sym_XXXXXX \
+  data/datasets/.../candidates/set_1024_var_var_var_XXXXXX \
+  data/datasets/.../candidates/set_2048_var_var_var_YYYYY \
+  --num-questions 5
+```
+
+### Interactive session
+
+```bash
+architecture-iq create-dataset -i
+architecture-iq generate-candidates -i
+architecture-iq generate-question -i
+```
+
+## Layout
+
+```
+profiles/v1.yaml          # V1 profile (pools, grids, ground-truth settings)
+prompts/templates/        # NL prompt templates
+src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
+tools/llm_eval/           # Standalone LLM evaluation runner
+data/                     # Generated datasets, candidates, questions, llm_runs (runtime)
+```
+
+## Reproducibility
+
+Ground truth **executes the on-disk Python files**, not parallel framework shortcuts:
+
+- **Datasets:** `synthesize.py` is loaded via `importlib` and `synthesize()` materializes `train.pt` / `test.pt`.
+- **Candidates:** `train.py` imports `model.py`, `optimizer.py`, and `loss.py` from the same folder. The runner calls `train_and_eval()` in `train.py`. Before each run, `.py` files are regenerated from `candidate_spec.json` so specs and code stay aligned.
+
+See `src/architecture_iq/runtime/loader.py`.
+
+## Question inspector
+
+Standalone Streamlit UI for browsing and taking questions (reads `data/` artifacts only):
+
+```bash
+pip install -e ".[inspector]"
+python tools/question_inspector/run.py
+```
+
+Optional: open a specific question or run first:
+
+```bash
+python tools/question_inspector/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX/q_XXXXXX
+python tools/question_inspector/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX
+```
+
+See [tools/question_inspector/README.md](./tools/question_inspector/README.md).
+
+## LLM evaluation
+
+Standalone runner that sends question prompts to an OpenAI-compatible chat API, parses the model's letter answer from an `<answer>` tag, and scores against ground truth. Does not import `architecture_iq`; reads question artifacts under `data/` (dataset-scoped runs and legacy `data/questions/`).
+
+Prompts are augmented at eval time so the model can reason freely, then commit with e.g. `<answer>B</answer>`. The full raw response is stored before parsing.
+
+Set API credentials (any OpenAI-compatible host):
+
+```bash
+export OPENAI_API_BASE="https://api.openai.com/v1"
+export OPENAI_API_KEY="sk-..."
+```
+
+Run over all questions under `data/` (default), a question run folder, or legacy `data/questions/`:
+
+```bash
+python tools/llm_eval/run.py --model gpt-4o-mini
+python tools/llm_eval/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX --model gpt-4o-mini
+python tools/llm_eval/run.py --model gpt-4o-mini --temperature 0 --limit 10 --workers 8
+```
+
+Each run writes under `data/llm_runs/{timestamp}_{model}/`:
+
+- `run.json` — model config and accuracy summary
+- `results/{question_id}.json` — per-question ground truth, parsed letter, raw response, and chain-of-thought (when present)
+
+Use `--run-dir path/to/run --skip-existing` to resume a partial run.
+
+See [tools/llm_eval/README.md](./tools/llm_eval/README.md).
+
+## Tests
+
+```bash
+pytest
+```
+
