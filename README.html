@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ArchitectureIQ 开发计划总览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #5a6472;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --band: #f4f7fb;
+      --accent: #0f7b8f;
+      --accent-2: #9a5a00;
+      --good: #176b3a;
+      --warn: #a54d10;
+      --code: #101827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #fbfcfe;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.58;
+      overflow-x: hidden;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+
+    header {
+      padding: 42px 0 30px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(32px, 6vw, 58px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 44px 0 16px;
+      font-size: 26px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    .lead {
+      max-width: 860px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .card strong {
+      color: var(--accent);
+    }
+
+    .band {
+      margin: 28px -24px 0;
+      padding: 26px 24px;
+      background: var(--band);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .step {
+      min-height: 118px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef3f8;
+      color: #223044;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: #edf1f5;
+      color: var(--code);
+    }
+
+    pre {
+      margin: 14px 0 0;
+      padding: 16px;
+      overflow: auto;
+      border-radius: 8px;
+      background: var(--code);
+      color: #eef5ff;
+      font-size: 13px;
+    }
+
+    ul {
+      padding-left: 20px;
+      margin: 10px 0 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    .status {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .next {
+      color: var(--accent-2);
+      font-weight: 700;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .chart-panel {
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .chart-title {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .chart-title h3 {
+      margin: 0;
+    }
+
+    .chart {
+      width: 100%;
+      height: auto;
+      min-height: 280px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .legend-swatch {
+      width: 22px;
+      height: 3px;
+      border-radius: 99px;
+      background: currentColor;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr) 86px;
+      gap: 12px;
+      align-items: center;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+
+    .bar-track {
+      height: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e7edf4;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+    }
+
+    .launch-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin: 18px 0 12px;
+    }
+
+    .launch-button,
+    .launch-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 9px 16px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent);
+      color: #ffffff;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .launch-link {
+      background: var(--panel);
+      color: var(--accent);
+    }
+
+    .launch-button:hover,
+    .launch-link:hover {
+      filter: brightness(0.97);
+    }
+
+    .launch-status {
+      min-height: 24px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .grid,
+      .two,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      th,
+      td {
+        min-width: 160px;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      main {
+        padding: 24px 18px 44px;
+      }
+
+      .band {
+        margin-left: -18px;
+        margin-right: -18px;
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ArchitectureIQ 开发计划总览</h1>
+      <p class="lead">
+        ArchitectureIQ 是一个用于衡量 LLM 和人类是否理解基础模型结构、优化器、损失函数与训练预算关系的可控 benchmark。
+        当前版本已经形成 Python 包、CLI、三类合成数据族、候选集生成、真实训练、显著性筛题、prompt 渲染、LLM eval 和 Streamlit inspector 的端到端雏形。
+      </p>
+      <div class="meta">
+        <span class="pill">分支：shaoyang</span>
+        <span class="pill">更新时间：2026-07-09</span>
+        <span class="pill">Profile：v1</span>
+        <span class="pill">Python：3.10+</span>
+        <span class="pill">测试入口：pytest</span>
+      </div>
+    </header>
+
+    <section class="band" id="quiz">
+      <h2>立刻体验做题</h2>
+      <p>
+        当前导入的是一轮 65 道三选一题：<code>bigram_lm</code> 20 道、<code>multivariate_regression</code> 20 道、
+        <code>univariate_regression</code> 25 道。题目会给出合成数据集、训练预算和三个候选训练方案，
+        你需要判断哪个方案在对应 held-out metric 上最好。
+      </p>
+      <p class="small">
+        做题界面会先隐藏真实指标和正确答案；选择后才展示排名、曲线和候选文件。Learning curves 里有
+        <code>Log Y</code> 复选框，便于查看数量级差异很大的曲线。
+      </p>
+      <div class="launch-row">
+        <button class="launch-button" id="quiz-launch" type="button">启动/打开做题</button>
+        <a class="launch-link" href="http://127.0.0.1:8501" target="_blank" rel="noreferrer">直接打开 8501</a>
+      </div>
+      <p class="launch-status" id="quiz-status">
+        如果服务尚未启动，请在仓库根目录运行下面这条幂等命令；重复运行会复用已存在的服务。
+      </p>
+      <pre><code>.venv/bin/python tools/start_quiz.py</code></pre>
+    </section>
+
+    <section id="evaluation">
+      <h2>评测报告</h2>
+      <p>
+        本轮主结论：<strong>gpt-5.5 high</strong> 在无反馈盲答下为 <strong>81.5%</strong>；
+        用 <code>tools/sequential_feedback_session.py</code> 固定逐题反馈协议后，三次连续反馈平均为
+        <strong>80.5%</strong>，标准差 <strong>1.9%</strong>。
+      </p>
+      <p class="small">
+        去答案题集指的是：65 道题一次性提供给模型，但去掉正确答案、真实指标、训练曲线和 summary。
+        这不是“一次只给一题”。只有连续反馈实验才按题号一题一题做。
+      </p>
+      <table>
+        <thead>
+          <tr><th>评测</th><th>模型</th><th>上下文</th><th>反馈</th><th>正确率</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>原始盲答</td>
+            <td><code>gpt-5.5</code>，high effort</td>
+            <td>一次性看到 65 道去答案题；无正确答案、无真实指标、无曲线、无 summary</td>
+            <td>无</td>
+            <td><strong>53/65 = 81.5%</strong></td>
+          </tr>
+          <tr>
+            <td>盲答复现 A/B/C</td>
+            <td><code>gpt-5.5</code>，high effort</td>
+            <td>每个 agent 独立、一次性看到同一份 65 道去答案题</td>
+            <td>无</td>
+            <td>37/65、42/65、40/65；多数投票 39/65</td>
+          </tr>
+          <tr>
+            <td>10 题分组反馈</td>
+            <td><code>gpt-5.5</code>，high effort</td>
+            <td>每 10 道一组；每组新 agent；组间无共享记忆</td>
+            <td>组内答后看当前题反馈</td>
+            <td>43/65 = 66.2%</td>
+          </tr>
+          <tr>
+            <td>非审计连续反馈</td>
+            <td><code>gpt-5.5</code>，high effort</td>
+            <td>单 agent 从第 1 题做到第 65 题；由 prompt 要求它答后再看当前题反馈</td>
+            <td>有；协议靠 agent 自觉执行，文件访问不由工具强制隔离</td>
+            <td>平均 71.9%，标准差 9.7%</td>
+          </tr>
+          <tr>
+            <td>CLI 审计连续反馈 A/B/C</td>
+            <td><code>gpt-5.5</code>，high effort</td>
+            <td>单 agent 从第 1 题做到第 65 题；只能通过 session CLI 取当前题并提交答案</td>
+            <td>有；CLI 先记录预测，再返回当前题反馈，并保存完整 session 日志</td>
+            <td><strong>54/65、52/65、51/65；平均 80.5%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        原始盲答是第一批主结果；盲答复现 A/B/C 是后来用同一无反馈协议重跑，用来估计波动。
+        非审计连续反馈和 CLI 审计连续反馈都一题一题做，区别是后者由工具强制“先记录答案，再显示反馈”。
+      </p>
+
+      <div class="chart-panel">
+        <div class="chart-title">
+          <h3>累计正确率曲线</h3>
+          <span class="small">横轴为题号 1-65；纵轴为截至该题的累计正确率；共 5 条曲线。</span>
+        </div>
+        <svg class="chart" id="cumulative-chart" viewBox="0 0 980 360" role="img" aria-label="模型累计正确率曲线"></svg>
+        <div class="legend" id="cumulative-legend"></div>
+      </div>
+
+      <div class="chart-panel">
+        <div class="chart-title">
+          <h3>整体正确率对比</h3>
+          <span class="small">用于快速比较不同协议的最终表现。</span>
+        </div>
+        <div class="metric-row">
+          <span>原始盲答</span>
+          <span class="bar-track"><span class="bar-fill" style="width:81.5%"></span></span>
+          <strong>81.5%</strong>
+        </div>
+        <div class="metric-row">
+          <span>10 题分组反馈</span>
+          <span class="bar-track"><span class="bar-fill" style="width:66.2%"></span></span>
+          <strong>66.2%</strong>
+        </div>
+        <div class="metric-row">
+          <span>非审计连续反馈</span>
+          <span class="bar-track"><span class="bar-fill" style="width:71.9%"></span></span>
+          <strong>71.9%</strong>
+        </div>
+        <div class="metric-row">
+          <span>CLI 审计连续反馈</span>
+          <span class="bar-track"><span class="bar-fill" style="width:80.5%"></span></span>
+          <strong>80.5%</strong>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>10 题窗口</th><th>平均正确率</th><th>波动</th><th>解释</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1-10</td><td>63.3%</td><td>60-70%</td><td>冷启动，尚无反馈记忆。</td></tr>
+          <tr><td>11-20</td><td>83.3%</td><td>80-90%</td><td>开始复用同题族经验。</td></tr>
+          <tr><td>21-30</td><td>80.0%</td><td>固定 80%</td><td>跨入回归题后仍较稳定。</td></tr>
+          <tr><td>31-40</td><td>90.0%</td><td>固定 90%</td><td>该段反馈迁移最有效。</td></tr>
+          <tr><td>41-50</td><td>73.3%</td><td>70-80%</td><td>题族/目标变化带来回落。</td></tr>
+          <tr><td>51-60</td><td>83.3%</td><td>80-90%</td><td>恢复稳定。</td></tr>
+          <tr><td>61-65</td><td>100.0%</td><td>固定 100%</td><td>短尾段，候选规律明确。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>讨论启发</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>题型多样性</h3>
+          <p>除了综合判断题，可以增加更窄的控制变量题，例如只改变激活函数、只改变优化器、或专门测试 memorization/random dataset。</p>
+        </article>
+        <article class="card">
+          <h3>可学习性与作弊</h3>
+          <p>连续刷题会让人和模型学到 shortcut；后续评测可以区分 closed-book、few-shot、course + test 和带反馈连续作答。</p>
+        </article>
+        <article class="card">
+          <h3>答题体验</h3>
+          <p>曲线重叠时需要更好的可视化控制；当前 inspector 已支持在学习曲线里切换 <code>Log Y</code>。</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>我们现在有什么</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="status">已实现</span>
+          <h3>核心 benchmark 流水线</h3>
+          <p>从数据集创建、候选训练配置采样、ground truth 训练，到显著性验证和多选题 prompt 渲染，已经有可执行路径。</p>
+          <p class="small">入口：<code>architecture-iq create-dataset</code>、<code>generate-candidates</code>、<code>generate-question</code></p>
+        </article>
+        <article class="card">
+          <span class="status">已实现</span>
+          <h3>三类数据族</h3>
+          <p><code>univariate_regression</code>、<code>multivariate_regression</code>、<code>bigram_lm</code> 已进入 profile；每类都有对应模型和损失兼容关系。</p>
+          <p class="small">配置：<code>profiles/v1.yaml</code></p>
+        </article>
+        <article class="card">
+          <span class="status">已实现</span>
+          <h3>可复现实验工件</h3>
+          <p>数据、候选、问题都用 JSON spec 加真实执行代码固定下来；ground truth runner 会加载磁盘上的 Python 文件，而不是隐藏实现。</p>
+          <p class="small">关键模块：<code>runtime/loader.py</code>、<code>ground_truth/runner.py</code></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <h2>Benchmark 主流程</h2>
+      <p>开发时要守住一个原则：prompt 中展示的规格和代码，必须就是后端训练和评测实际执行的东西。</p>
+      <div class="flow">
+        <div class="step"><b>1. Dataset</b>合成数据，写入 <code>dataset_spec.json</code>、<code>synthesize.py</code> 和 tensor 文件。</div>
+        <div class="step"><b>2. Candidate</b>采样模型、优化器、损失、batch size 和预算，写入候选 spec 与代码。</div>
+        <div class="step"><b>3. Ground Truth</b>多 seed 真实训练，保存均值、方差、曲线和失败状态。</div>
+        <div class="step"><b>4. Significance</b>筛掉差距不足、胜率不稳或结果失败的候选组合。</div>
+        <div class="step"><b>5. Question</b>生成多选题，记录正确答案但不泄漏 metric。</div>
+        <div class="step"><b>6. Evaluation</b>给人或 LLM 作答，用答案字母和 ground truth 对齐评分。</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>当前 v1 Profile</h2>
+      <table>
+        <thead>
+          <tr><th>维度</th><th>当前配置</th><th>开发含义</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>数据族</td>
+            <td><code>univariate_regression</code>、<code>multivariate_regression</code>、<code>bigram_lm</code></td>
+            <td>先覆盖回归和小型语言建模，后续再扩展分类、图像或真实数据。</td>
+          </tr>
+          <tr>
+            <td>模型池</td>
+            <td><code>mlp</code>、<code>transformer_lm</code></td>
+            <td>MLP 用于回归；Transformer LM 用于 bigram next-token 预测。</td>
+          </tr>
+          <tr>
+            <td>优化器</td>
+            <td><code>SGD</code>、<code>Adam</code>、<code>AdamW</code>、<code>RMSprop</code>、<code>Adagrad</code></td>
+            <td>足够产生学习动力学差异，也便于构造 optimizer-only 问题。</td>
+          </tr>
+          <tr>
+            <td>损失池</td>
+            <td>回归：MSE/L1/L2；语言：CE/L1/L2</td>
+            <td>用于测试模型是否理解 objective 与 selection metric 的区别。</td>
+          </tr>
+          <tr>
+            <td>训练预算</td>
+            <td><code>1024</code> 到 <code>40960</code> total samples seen</td>
+            <td>所有候选必须在同题内共享预算，避免用训练更久混淆模型更好。</td>
+          </tr>
+          <tr>
+            <td>显著性</td>
+            <td><code>gap_min=0.05</code>、<code>win_rate_min=0.7</code>、非重叠可选</td>
+            <td>保证每题只有一个稳定最佳选项。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>开发计划</h2>
+      <div class="grid two">
+        <article class="card">
+          <h3>近期：把 v1 做扎实</h3>
+          <ul>
+            <li>继续补足基础模块单元测试，重点保护 spec、路径、候选集、问题集、prompt parity。</li>
+            <li>给 CLI 增加更顺手的非交互 pin 参数，减少必须进 <code>-i</code> 的场景。</li>
+            <li>建立小规模 smoke artifact，供 inspector 和 prompt renderer 稳定截图测试。</li>
+            <li>把 README、HTML 总览、plan-v2 的状态同步起来，避免路线图漂移。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>中期：扩大 benchmark 能力</h3>
+          <ul>
+            <li>引入更多 question type：<code>data_only</code>、跨预算对比、受控干扰项。</li>
+            <li>为不同 family 增加更细的显著性阈值和失败诊断。</li>
+            <li>丰富 LLM eval 汇总报告：按 family/type/budget/model 分桶分析。</li>
+            <li>让 inspector 成为稳定的人类答题和 artifact 审核界面。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>长期：从合成走向复杂任务</h3>
+          <ul>
+            <li>扩展分类、图像、序列和更真实的训练机制。</li>
+            <li>引入更多模型类型，例如 CNN、RNN 或小型 modern sequence model。</li>
+            <li>构建公开 benchmark release：固定题集、隐藏答案、可重复评分。</li>
+            <li>比较人类、不同 LLM、不同 prompt 风格在 architecture intuition 上的差异。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>持续质量线</h3>
+          <ul>
+            <li>每次改生成逻辑都要有 determinism 测试。</li>
+            <li>每次改 prompt 都要有渲染内容和 inspector parity 测试。</li>
+            <li>每次改训练代码都要跑 smoke ground truth，而不是只测 JSON。</li>
+            <li>截图要覆盖文档、question inspector、关键宽度和关键状态。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <h2>本轮测试与截图计划</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>单元测试</h3>
+          <p>新增基础设施测试：<code>short_hash</code> 稳定性、JSON round-trip、legacy 路径、benchmark manifest、候选集/候选目录发现、轴兼容性边界。</p>
+        </article>
+        <article class="card">
+          <h3>全量测试</h3>
+          <p>运行 <code>pytest</code>，确认现有生成器、prompt、inspector、runtime 和 eval 测试仍然通过。</p>
+        </article>
+        <article class="card">
+          <h3>大量截图</h3>
+          <p>用浏览器打开本 HTML，并在 desktop、tablet、mobile 尺寸下截取首屏、流程、profile、路线图和测试计划区域。</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>常用开发命令</h2>
+      <pre><code>python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev,inspector]"
+
+pytest
+
+architecture-iq create-dataset --family univariate_regression --seed 42
+architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 1024 --count 32 --vary model
+architecture-iq generate-question data/datasets/univariate_regression/sym_XXXXXX \
+  data/datasets/univariate_regression/sym_XXXXXX/candidates/set_1024_var_fix_fix_XXXXXX \
+  --num-questions 5
+
+python tools/question_inspector/run.py
+python tools/llm_eval/run.py --model gpt-4o-mini</code></pre>
+      <p class="small">注：<code>data/</code> 与 <code>llm_runs/</code> 是运行时产物，不纳入仓库。</p>
+    </section>
+
+    <section>
+      <h2>风险和下一步判断</h2>
+      <table>
+        <thead>
+          <tr><th>风险</th><th>表现</th><th>处理方式</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>题目过易或过难</td>
+            <td>LLM 总是秒选或随机猜</td>
+            <td>按 family/type/budget 分桶分析，并调整候选采样和显著性阈值。</td>
+          </tr>
+          <tr>
+            <td>prompt 泄漏答案</td>
+            <td>模型不需要理解训练机制也能推断</td>
+            <td>保持 prompt 不含 metric、seed 统计和曲线；增加 prompt snapshot 测试。</td>
+          </tr>
+          <tr>
+            <td>训练开销扩大</td>
+            <td>候选池生成慢，CI 难以覆盖</td>
+            <td>区分 fast unit、smoke ground truth、offline benchmark 三层验证。</td>
+          </tr>
+          <tr>
+            <td>扩展时 schema 漂移</td>
+            <td>旧 artifact 或 inspector 读取失败</td>
+            <td>保持稳定 envelope，把 family/type 变化放到 nested fields。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="next">下一步建议：先把 v1 的小规模 artifact 固化成 smoke fixture，再推进 inspector 截图回归和 LLM eval 报告分桶。</p>
+    </section>
+  </main>
+  <script>
+    const cumulativeSeries = [
+      {
+        name: "原始盲答",
+        color: "#425466",
+        strokeWidth: 2,
+        values: [1.0,1.0,1.0,1.0,0.8,0.6667,0.7143,0.625,0.5556,0.6,0.5455,0.5,0.5385,0.5714,0.6,0.5625,0.5882,0.5556,0.5789,0.6,0.619,0.5909,0.6087,0.625,0.6,0.5769,0.5926,0.6071,0.6207,0.6333,0.6452,0.625,0.6364,0.6471,0.6571,0.6667,0.6757,0.6842,0.6923,0.7,0.7073,0.7143,0.7209,0.7273,0.7333,0.7391,0.7447,0.75,0.7551,0.76,0.7647,0.7692,0.7736,0.7778,0.7818,0.7857,0.7895,0.7931,0.7966,0.8,0.8033,0.8065,0.8095,0.8125,0.8154]
+      },
+      {
+        name: "审计 A",
+        color: "#0f7b8f",
+        strokeWidth: 2,
+        values: [1.0,1.0,0.6667,0.75,0.8,0.6667,0.5714,0.625,0.6667,0.7,0.7273,0.75,0.7692,0.7857,0.7333,0.75,0.7647,0.7778,0.7895,0.8,0.8095,0.7727,0.7826,0.7917,0.8,0.7692,0.7778,0.7857,0.7931,0.8,0.7742,0.7812,0.7879,0.7941,0.8,0.8056,0.8108,0.8158,0.8205,0.825,0.8293,0.8333,0.8372,0.8409,0.8444,0.8261,0.8298,0.8125,0.7959,0.8,0.8039,0.7885,0.7925,0.7963,0.8,0.8036,0.807,0.8103,0.8136,0.8167,0.8197,0.8226,0.8254,0.8281,0.8308]
+      },
+      {
+        name: "审计 B",
+        color: "#176b3a",
+        strokeWidth: 2,
+        values: [0.0,0.5,0.3333,0.5,0.6,0.5,0.5714,0.5,0.5556,0.6,0.6364,0.6667,0.6923,0.7143,0.6667,0.6875,0.7059,0.6667,0.6842,0.7,0.7143,0.6818,0.6957,0.7083,0.72,0.6923,0.7037,0.7143,0.7241,0.7333,0.7097,0.7188,0.7273,0.7353,0.7429,0.75,0.7568,0.7632,0.7692,0.775,0.7805,0.7857,0.7907,0.7955,0.8,0.7826,0.7872,0.7708,0.7755,0.78,0.7843,0.7692,0.7547,0.7593,0.7636,0.7679,0.7719,0.7759,0.7797,0.7833,0.7869,0.7903,0.7937,0.7969,0.8]
+      },
+      {
+        name: "审计 C",
+        color: "#9a5a00",
+        strokeWidth: 2,
+        values: [0.0,0.5,0.3333,0.5,0.6,0.5,0.5714,0.5,0.5556,0.6,0.6364,0.6667,0.6923,0.7143,0.6667,0.6875,0.7059,0.6667,0.6842,0.7,0.7143,0.6818,0.6957,0.7083,0.72,0.6923,0.7037,0.7143,0.7241,0.7333,0.7097,0.7188,0.7273,0.7353,0.7429,0.75,0.7568,0.7632,0.7692,0.775,0.7561,0.7619,0.7674,0.7727,0.7778,0.7609,0.766,0.75,0.7551,0.76,0.7647,0.75,0.7358,0.7407,0.7455,0.75,0.7544,0.7586,0.7627,0.7667,0.7705,0.7742,0.7778,0.7812,0.7846]
+      },
+      {
+        name: "审计平均",
+        color: "#b42318",
+        strokeWidth: 4,
+        values: [0.3333,0.6667,0.4444,0.5833,0.6667,0.5556,0.5714,0.5417,0.5926,0.6333,0.6667,0.6945,0.7179,0.7381,0.6889,0.7083,0.7255,0.7037,0.7193,0.7333,0.746,0.7121,0.7247,0.7361,0.7467,0.7179,0.7284,0.7381,0.7471,0.7555,0.7312,0.7396,0.7475,0.7549,0.7619,0.7685,0.7748,0.7807,0.7863,0.7917,0.7886,0.7936,0.7984,0.803,0.8074,0.7899,0.7943,0.7778,0.7755,0.78,0.7843,0.7692,0.761,0.7654,0.7697,0.7738,0.7778,0.7816,0.7853,0.7889,0.7924,0.7957,0.799,0.8021,0.8051]
+      }
+    ];
+
+    function svgEl(name, attrs = {}) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      return el;
+    }
+
+    function renderCumulativeChart() {
+      const svg = document.getElementById("cumulative-chart");
+      const legend = document.getElementById("cumulative-legend");
+      if (!svg || !legend) return;
+
+      const width = 980;
+      const height = 360;
+      const pad = { left: 58, right: 24, top: 22, bottom: 44 };
+      const xMax = 65;
+      const yMin = 0.45;
+      const yMax = 1.0;
+      const x = (n) => pad.left + ((n - 1) / (xMax - 1)) * (width - pad.left - pad.right);
+      const y = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * (height - pad.top - pad.bottom);
+
+      svg.innerHTML = "";
+      [0.5, 0.6, 0.7, 0.8, 0.9, 1.0].forEach((tick) => {
+        const yy = y(tick);
+        svg.appendChild(svgEl("line", { x1: pad.left, y1: yy, x2: width - pad.right, y2: yy, stroke: "#e3e9f1", "stroke-width": 1 }));
+        svg.appendChild(svgEl("text", { x: 14, y: yy + 4, fill: "#5a6472", "font-size": 12 }, ));
+        svg.lastChild.textContent = `${Math.round(tick * 100)}%`;
+      });
+
+      [1, 10, 20, 30, 40, 50, 60, 65].forEach((tick) => {
+        const xx = x(tick);
+        svg.appendChild(svgEl("line", { x1: xx, y1: pad.top, x2: xx, y2: height - pad.bottom, stroke: "#f0f3f7", "stroke-width": 1 }));
+        svg.appendChild(svgEl("text", { x: xx, y: height - 16, fill: "#5a6472", "font-size": 12, "text-anchor": "middle" }));
+        svg.lastChild.textContent = tick;
+      });
+
+      svg.appendChild(svgEl("line", { x1: pad.left, y1: height - pad.bottom, x2: width - pad.right, y2: height - pad.bottom, stroke: "#9aa6b2", "stroke-width": 1.2 }));
+      svg.appendChild(svgEl("line", { x1: pad.left, y1: pad.top, x2: pad.left, y2: height - pad.bottom, stroke: "#9aa6b2", "stroke-width": 1.2 }));
+
+      cumulativeSeries.forEach((series) => {
+        const points = series.values.map((value, index) => `${x(index + 1)},${y(value)}`).join(" ");
+        svg.appendChild(svgEl("polyline", {
+          points,
+          fill: "none",
+          stroke: series.color,
+          "stroke-width": series.strokeWidth,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+          opacity: series.name === "审计平均" ? 1 : 0.9
+        }));
+      });
+
+      legend.innerHTML = "";
+      cumulativeSeries.forEach((series) => {
+        const item = document.createElement("span");
+        item.className = "legend-item";
+        item.style.color = series.color;
+        item.innerHTML = `<span class="legend-swatch"></span><span>${series.name}</span>`;
+        legend.appendChild(item);
+      });
+    }
+
+    renderCumulativeChart();
+
+    const quizButton = document.getElementById("quiz-launch");
+    const quizStatus = document.getElementById("quiz-status");
+    const quizUrl = "http://127.0.0.1:8501";
+    const healthUrl = `${quizUrl}/_stcore/health`;
+    const startCommand = ".venv/bin/python tools/start_quiz.py";
+
+    async function openQuiz() {
+      quizStatus.textContent = "正在检查本地做题服务...";
+      try {
+        await fetch(healthUrl, { mode: "no-cors", cache: "no-store" });
+        quizStatus.textContent = "服务已在 8501 运行，正在打开做题页面。";
+        window.open(quizUrl, "_blank", "noopener,noreferrer");
+      } catch (error) {
+        quizStatus.textContent = `服务还没启动。请在仓库根目录运行：${startCommand}`;
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(startCommand);
+          quizStatus.textContent += " 命令已复制。";
+        }
+      }
+    }
+
+    quizButton.addEventListener("click", openQuiz);
+  </script>
+</body>
+</html>
