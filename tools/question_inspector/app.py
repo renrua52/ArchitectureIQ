@@ -431,6 +431,7 @@ def _choice_color(index: int) -> str:
 
 def _render_combined_curves(bundle: QuestionBundle, q: dict[str, Any], *, metric: str) -> None:
     st.markdown("#### Learning curves")
+    use_log_y = st.checkbox("Log Y", value=False, key=f"log_y_{q['question_id']}")
     fig, ax = plt.subplots(figsize=(8, 4))
     any_plotted = False
 
@@ -467,17 +468,25 @@ def _render_combined_curves(bundle: QuestionBundle, q: dict[str, Any], *, metric
         x_valid = x[valid]
         mean_valid = mean[valid]
         std_valid = std[valid]
+        lower = mean_valid - std_valid
+        upper = mean_valid + std_valid
+        line = mean_valid
+        if use_log_y:
+            eps = np.finfo(float).tiny
+            lower = np.maximum(lower, eps)
+            upper = np.maximum(upper, eps)
+            line = np.maximum(line, eps)
         ax.fill_between(
             x_valid,
-            mean_valid - std_valid,
-            mean_valid + std_valid,
+            lower,
+            upper,
             color=color,
             alpha=0.22,
             linewidth=0,
         )
         ax.plot(
             x_valid,
-            mean_valid,
+            line,
             color=color,
             linewidth=2.2,
             label=f"{letter} · {choice['candidate_id']}",
@@ -491,6 +500,8 @@ def _render_combined_curves(bundle: QuestionBundle, q: dict[str, Any], *, metric
 
     ax.set_xlabel("Samples seen")
     ax.set_ylabel(_metric_display_name(metric))
+    if use_log_y:
+        ax.set_yscale("log")
     ax.set_title("Learning curves (mean ± std across seeds)")
     ax.grid(True, alpha=0.25)
     ax.legend(loc="best", fontsize=9)
@@ -645,11 +656,15 @@ def _render_candidate_card(
             st.session_state.focus_letter = letter
             st.rerun()
 
+    metric_pill = ""
+    if committed and summary and "error" not in summary:
+        metric_pill = f'<span class="metric-pill">{format_metrics(summary)}</span>'
+
     st.markdown(
         f'<div style="border: {border}; border-radius: 12px; padding: 0.85rem 1rem; '
         f'background: {bg}; min-height: 18rem;">'
         f"{_render_candidate_spec_html(spec)}"
-        f"{f'<span class=\"metric-pill\">{format_metrics(summary)}</span>' if committed and summary and 'error' not in summary else ''}"
+        f"{metric_pill}"
         f"</div>",
         unsafe_allow_html=True,
     )
