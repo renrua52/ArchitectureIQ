@@ -8,15 +8,7 @@ Interactive experiment report: [README.html](./README.html) (Chinese).
 
 ## AI agent instructions
 
-If you use **Cursor**, **Claude Code**, or other coding agents on this repo, make sure they load the correct rule files:
-
-| File | Purpose |
-|------|---------|
-| **[AGENTS.md](./AGENTS.md)** | **Canonical** project guide (pipeline invariants, terminology, extension checklists). Cursor and many other agents read this automatically. |
-| **[CLAUDE.md](./CLAUDE.md)** | Same content as `AGENTS.md` for Claude Code. |
-| **[.cursor/rules/](./.cursor/rules/)** | Optional Cursor-specific scoped rules (MDC); use for file-pattern overrides, not to duplicate `AGENTS.md`. |
-
-**Maintenance:** Edit **`AGENTS.md` only**, then copy the same content to **`CLAUDE.md`**. Do not use `AGENT.md` (deprecated singular name).
+If you use **Cursor**, **Claude Code**, or other coding agents on this repo, make sure they use [AGENTS.md](./AGENTS.md) or [CLAUDE.md](./CLAUDE.md).
 
 ## Start the quiz
 
