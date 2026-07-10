@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import random
 import sys
 from importlib import reload
@@ -237,10 +238,19 @@ def _default_question_path(pool: list[Path]) -> Path | None:
 
 def _load_selected_question(question_path: Path, data_root: str) -> QuestionBundle | None:
     try:
-        return load_question_bundle(question_path, data_root or None)
+        bundle = load_question_bundle(question_path, data_root or None)
+        _assign_question_cache_scope(bundle)
+        return bundle
     except FileNotFoundError as exc:
         st.error(str(exc))
         return None
+
+
+def _assign_question_cache_scope(bundle: QuestionBundle) -> None:
+    identity = str(bundle.question_root.resolve())
+    bundle.question["_inspector_cache_scope"] = hashlib.sha256(
+        identity.encode("utf-8")
+    ).hexdigest()[:16]
 
 
 def _render_question_picker(data_root: str) -> None:
@@ -713,7 +723,14 @@ def _question_budget(q: dict[str, Any]) -> int:
 
 
 def _setting_key(q: dict[str, Any], name: str) -> str:
-    return f"custom_setting_{q['question_id']}_{name}"
+    scope = q.get("_inspector_cache_scope")
+    if not scope:
+        identity = "|".join(
+            str(q.get(field, ""))
+            for field in ("family", "dataset_id", "question_run_id", "question_id")
+        )
+        scope = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
+    return f"custom_setting_{scope}_{name}"
 
 
 def _ensure_setting_value(q: dict[str, Any], name: str, default: Any) -> str:
@@ -1476,6 +1493,7 @@ def main() -> None:
         return
 
     q = bundle.question
+    _assign_question_cache_scope(bundle)
     committed = st.session_state.committed_letter is not None
     focus_letter = st.session_state.focus_letter
 
