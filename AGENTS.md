@@ -1,4 +1,4 @@
-# AGENT.md — ArchitectureIQ development guide
+# AGENTS.md — ArchitectureIQ development guide
 
 This document is for **AI agents and contributors** working in this repo. Read it before making non-trivial changes. Design rationale lives in [plan-v2.md](./plan-v2.md); user-facing usage is in [README.md](./README.md).
 

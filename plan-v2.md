@@ -1,6 +1,6 @@
 # ArchitectureIQ Benchmark Plan
 
-This document defines the **general** ArchitectureIQ benchmark architecture — pools, schemas, invariants, and pipeline — so new dataset families, model types, and question types can be added without redesign. [plan.md](./plan.md) is the original sketch; this file makes the design explicit and extensible. **Terminology:** [AGENT.md](./AGENT.md#terminology).
+This document defines the **general** ArchitectureIQ benchmark architecture — pools, schemas, invariants, and pipeline — so new dataset families, model types, and question types can be added without redesign. [plan.md](./plan.md) is the original sketch; this file makes the design explicit and extensible. **Terminology:** [AGENTS.md](./AGENTS.md#terminology).
 
 **V1** is not a different benchmark — it is the **first implementation profile**: one dataset family, one model type, and a small set of optimizers/losses. Everything below is written as if the full system already exists; [V1 Profile](#v1-profile-first-implementation) at the end records what V1 actually ships.
 

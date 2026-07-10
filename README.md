@@ -2,9 +2,21 @@
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given a dataset instance and several **candidates** (model + optimizer + loss + budget), pick which **choice** achieves the best selection metric after its stated training budget.
 
-Design: [plan-v2.md](./plan-v2.md) · Terminology: [AGENT.md](./AGENT.md#terminology)
+Design: [plan-v2.md](./plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology)
 
 Interactive experiment report: [README.html](./README.html) (Chinese).
+
+## AI agent instructions
+
+If you use **Cursor**, **Claude Code**, or other coding agents on this repo, make sure they load the correct rule files:
+
+| File | Purpose |
+|------|---------|
+| **[AGENTS.md](./AGENTS.md)** | **Canonical** project guide (pipeline invariants, terminology, extension checklists). Cursor and many other agents read this automatically. |
+| **[CLAUDE.md](./CLAUDE.md)** | Same content as `AGENTS.md` for Claude Code. |
+| **[.cursor/rules/](./.cursor/rules/)** | Optional Cursor-specific scoped rules (MDC); use for file-pattern overrides, not to duplicate `AGENTS.md`. |
+
+**Maintenance:** Edit **`AGENTS.md` only**, then copy the same content to **`CLAUDE.md`**. Do not use `AGENT.md` (deprecated singular name).
 
 ## Start the quiz
 
@@ -27,8 +39,6 @@ python3 -m venv .venv
 ```
 
 Requires Python 3.10+ and PyTorch 2.x.
-
-Design: [plan-v2.md](./plan-v2.md)
 
 ## Generate benchmark artifacts
 
@@ -205,6 +215,8 @@ architecture-iq generate-question -i
 
 ```
 profiles/v1.yaml          # V1 profile (pools, grids, ground-truth settings)
+AGENTS.md                 # AI agent development guide (canonical)
+CLAUDE.md                 # Same as AGENTS.md (Claude Code)
 prompts/templates/        # NL prompt templates
 src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
 tools/llm_eval/           # Standalone LLM evaluation runner
