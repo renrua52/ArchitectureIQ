@@ -1481,8 +1481,7 @@ def main() -> None:
         st.header("Questions")
         _render_score_panel()
         st.divider()
-        data_root = st.text_input("Data root", value=st.session_state.data_root)
-        st.session_state.data_root = data_root
+        data_root = st.text_input("Data root", key="data_root")
         _render_question_picker(data_root)
 
     bundle: QuestionBundle | None = st.session_state.bundle
