@@ -2,6 +2,8 @@
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given synthetic dataset specs and candidate training setups (model, optimizer, loss), pick which setup achieves the best test metric under a fixed sample budget.
 
+Interactive experiment report: [README.html](./README.html) (Chinese).
+
 ## Start the quiz
 
 From the repository root, run:
@@ -204,6 +206,9 @@ profiles/v1.yaml          # V1 profile (pools, grids, ground-truth settings)
 prompts/templates/        # NL prompt templates
 src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
 tools/llm_eval/           # Standalone LLM evaluation runner
+tools/ranking_questions/  # Calibration-plus-ranking generation and scoring
+tools/*analysis*.py       # Offline curve/order-parameter analysis
+templates/                # Reusable HTML report template
 data/                     # Generated datasets, candidates, questions (runtime)
 llm_runs/                 # LLM evaluation runs (runtime)
 ```
@@ -238,6 +243,30 @@ question or question run first, pass its path to the launcher:
 ```
 
 See [tools/question_inspector/README.md](./tools/question_inspector/README.md).
+
+## Ranking questions and analysis tools
+
+Generate calibration-plus-ranking tasks, create de-identified agent bundles,
+and score predicted orders by inversion count:
+
+```bash
+python tools/ranking_questions/generate.py <candidate-set> --layout anchored
+python tools/ranking_questions/make_blind_bundle.py <run> <public-bundle> \
+  --answer-key-output <private-key.json>
+python tools/ranking_questions/score_answers.py <run> <answers.json>
+```
+
+Additional offline utilities:
+
+- `tools/analyze_order_parameters.py` summarizes trained candidate curves.
+- `tools/evaluate_arithmetic_rules.py` evaluates deterministic selection rules.
+- `tools/make_single_question_blind_quiz.py` builds isolated single-question bundles.
+- `tools/build_readme_case_assets.py` rebuilds the case-study data used by
+  [README.html](./README.html).
+
+Generated analysis and ranking runs under `artifacts/` are gitignored. See
+[tools/ranking_questions/README.md](./tools/ranking_questions/README.md) for the
+ranking workflow and leakage precautions.
 
 ## LLM evaluation
 

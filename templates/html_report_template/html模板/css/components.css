@@ -1,0 +1,220 @@
+/* ============================================================
+   components.css —【设计】可复用内容组件
+   ------------------------------------------------------------
+   依赖 theme.css。每个组件自包含, 互不依赖, 按需取用:
+     .callout      提示框 (默认/live/dead/blue)
+     .demo         动画/交互面板 + canvas + .controls 控件
+     .derivation   分步推导 step-card + arrow
+     .two-col      两栏布局
+     table         表格
+   ============================================================ */
+
+/* ===== callout 提示框 ===== */
+.callout {
+  background: var(--bg-panel); border-left: 3px solid var(--accent);
+  padding: 12px 18px; margin: 14px 0; border-radius: 0 4px 4px 0; font-size: 15px;
+}
+.callout.live { border-left-color: var(--live); }
+.callout.dead { border-left-color: var(--dead); }
+.callout.blue { border-left-color: var(--blue); }
+.callout-title {
+  font-size: 12px; font-family: var(--font-mono);
+  letter-spacing: 0.1em; color: var(--dim); margin-bottom: 4px;
+}
+
+/* ===== demo 面板 (放 canvas / 交互控件) ===== */
+.demo {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 18px; margin: 16px 0;
+}
+.demo-title {
+  font-size: 12px; font-family: var(--font-mono);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 10px;
+}
+canvas {
+  display: block; width: 100%; height: auto;
+  background: var(--canvas-bg); border-radius: 4px;
+}
+
+/* ===== 交互控件 (滑块 / 按钮 / 读数) ===== */
+.controls {
+  display: flex; gap: 16px; align-items: center;
+  margin-top: 12px; flex-wrap: wrap; font-size: 13px;
+}
+.controls label {
+  display: flex; gap: 8px; align-items: center;
+  font-family: var(--font-mono); color: var(--dim);
+}
+.controls input[type=range] { width: 140px; accent-color: var(--accent); }
+.controls .val {
+  font-family: var(--font-mono); color: var(--accent); min-width: 50px;
+}
+.btn-small {
+  background: var(--code-bg); border: 1px solid var(--border); color: var(--text);
+  padding: 4px 12px; font-family: var(--font-mono); font-size: 12px;
+  cursor: pointer; border-radius: 3px;
+}
+.btn-small:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== 两栏布局 ===== */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+/* ===== 分步推导 step-card (带 hover 高亮) ===== */
+.derivation { margin: 20px 0; }
+.step-card {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent); border-radius: 6px;
+  padding: 16px 22px; margin: 8px 0; transition: all 0.2s ease;
+}
+.step-card:hover {
+  background: linear-gradient(90deg, rgba(212,165,116,0.10), var(--bg-panel) 60%);
+  transform: translateX(4px); box-shadow: -4px 0 12px rgba(212,165,116,0.18);
+}
+.step-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+.step-num {
+  font-family: var(--font-mono); font-size: 12px; color: var(--accent);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.step-name { font-size: 17px; font-weight: 600; color: var(--text); }
+.step-tag {
+  margin-left: auto; font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 8px; border-radius: 3px; letter-spacing: 0.05em;
+}
+.tag-rigorous { background: rgba(141,180,216,0.15); color: var(--blue); }
+.tag-empirical { background: rgba(168,216,185,0.15); color: var(--live); }
+.tag-approx { background: rgba(212,165,116,0.15); color: var(--accent); }
+.step-eq { font-size: 15px; margin: 8px 0; overflow-x: auto; }
+.step-note { font-size: 13px; color: var(--dim); margin-top: 4px; }
+.arrow {
+  text-align: center; font-family: var(--font-mono); font-size: 13px;
+  color: var(--dim); padding: 6px 0; letter-spacing: 0.05em;
+}
+
+/* ===== 表格 ===== */
+table { border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
+th { background: var(--bg-panel); color: var(--accent); }
+table.zebra tr:nth-child(even) td { background: var(--bg-panel); }
+
+/* ===== 多栏布局补充 ===== */
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+/* ============================================================
+   以下为「丰富版」组件 — 做 PPT 时常用的现成积木
+   ============================================================ */
+
+/* ===== 引用块 ===== */
+.quote {
+  border-left: 3px solid var(--accent); padding: 6px 22px;
+  margin: 16px 0; font-size: 19px; line-height: 1.6;
+  color: var(--text); font-style: italic;
+}
+.quote-cite {
+  display: block; margin-top: 8px; font-size: 13px; font-style: normal;
+  color: var(--dim); font-family: var(--font-mono);
+}
+.quote-cite::before { content: "— "; }
+
+/* ===== 统计大数字 ===== */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin: 18px 0; }
+.stat {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px; text-align: center;
+}
+.stat-num {
+  font-family: var(--font-mono); font-size: 38px; font-weight: 600;
+  color: var(--accent); line-height: 1.1;
+}
+.stat-num.live { color: var(--live); }
+.stat-num.dead { color: var(--dead); }
+.stat-num.blue { color: var(--blue); }
+.stat-label { font-size: 13px; color: var(--dim); margin-top: 6px; }
+.stat-sub { font-size: 12px; color: var(--dim); margin-top: 2px; font-family: var(--font-mono); }
+
+/* ===== 卡片网格 ===== */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 18px 0; }
+.card {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px; transition: all 0.2s ease;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: var(--shadow); }
+.card-icon { font-size: 26px; margin-bottom: 8px; }
+.card-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.card p { font-size: 14px; color: var(--dim); margin: 4px 0; }
+
+/* ===== 徽章 / 标签 ===== */
+.badge {
+  display: inline-block; font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: 0.04em; padding: 2px 9px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); vertical-align: middle;
+}
+.badge.live   { background: var(--live-soft);   color: var(--live); }
+.badge.dead   { background: var(--dead-soft);   color: var(--dead); }
+.badge.blue   { background: var(--blue-soft);   color: var(--blue); }
+.badge.purple { background: var(--purple-soft); color: var(--purple); }
+
+/* ===== 进度条 (内容用) ===== */
+.bar { background: var(--bg-elev); border-radius: 999px; height: 10px; overflow: hidden; margin: 8px 0; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
+.bar-fill.live { background: var(--live); }
+.bar-fill.blue { background: var(--blue); }
+.bar-row { display: grid; grid-template-columns: 120px 1fr 48px; gap: 12px; align-items: center; margin: 8px 0; font-size: 14px; }
+.bar-row .val { font-family: var(--font-mono); color: var(--accent); text-align: right; font-size: 13px; }
+
+/* ===== 时间线 ===== */
+.timeline { position: relative; margin: 20px 0 20px 8px; padding-left: 28px; }
+.timeline::before {
+  content: ""; position: absolute; left: 6px; top: 4px; bottom: 4px;
+  width: 2px; background: var(--border);
+}
+.tl-item { position: relative; margin-bottom: 20px; }
+.tl-item::before {
+  content: ""; position: absolute; left: -28px; top: 5px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg);
+}
+.tl-time { font-family: var(--font-mono); font-size: 12px; color: var(--accent); margin-bottom: 2px; }
+.tl-title { font-size: 16px; font-weight: 600; }
+.tl-body { font-size: 14px; color: var(--dim); margin-top: 2px; }
+
+/* ===== 对比 / 利弊两栏 ===== */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+.compare-col {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px; border-top: 3px solid var(--dim);
+}
+.compare-col.pro { border-top-color: var(--live); }
+.compare-col.con { border-top-color: var(--dead); }
+.compare-col h3 { margin-top: 0; }
+.compare-col.pro h3 { color: var(--live); }
+.compare-col.con h3 { color: var(--dead); }
+.compare-col ul { margin-left: 18px; }
+
+/* ===== 横向流程 ===== */
+.flow { display: flex; align-items: stretch; gap: 0; margin: 20px 0; flex-wrap: wrap; }
+.flow-step {
+  flex: 1; min-width: 120px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; text-align: center;
+}
+.flow-step .n {
+  font-family: var(--font-mono); font-size: 11px; color: var(--accent);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.flow-step .t { font-weight: 600; margin: 4px 0; }
+.flow-step .d { font-size: 13px; color: var(--dim); }
+.flow-sep { display: flex; align-items: center; color: var(--dim); padding: 0 10px; font-size: 20px; }
+
+/* ===== 定义 / 键值表 ===== */
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; margin: 14px 0; font-size: 15px; }
+.kv dt { font-family: var(--font-mono); color: var(--accent); }
+.kv dd { margin: 0; color: var(--text); }
+
+/* ===== 图片 + 图注 ===== */
+.figure { margin: 18px 0; text-align: center; }
+.figure img {
+  max-width: 100%; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-panel);
+}
+.figure-cap { font-size: 13px; color: var(--dim); margin-top: 8px; font-family: var(--font-mono); }

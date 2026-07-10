@@ -218,3 +218,14 @@ __marimo__/
 data/
 llm_runs/
 
+# Local analysis and report-build outputs. Curated report assets are force-added.
+artifacts/.cache/
+artifacts/.matplotlib/
+artifacts/_archive_default_unused/
+artifacts/order_parameter_analysis/
+artifacts/q_b24cf4_extended_training/
+artifacts/quiz_attempt_60/
+artifacts/ranking_questions/
+
+# Finder metadata from imported templates
+templates/**/__MACOSX/

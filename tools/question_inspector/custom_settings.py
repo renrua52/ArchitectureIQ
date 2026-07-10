@@ -128,6 +128,68 @@ def build_loss_spec(loss_id: str, *, lambda_value: float | None = None) -> dict[
     return spec
 
 
+def form_values_from_candidate_spec(
+    spec: dict[str, Any],
+    *,
+    source_letter: str,
+    evaluation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Map every editable candidate field to its inspector widget value."""
+    budget = spec["budget"]
+    model = spec["model"]
+    optimizer = spec["optimizer"]
+    loss = spec["loss"]
+    values: dict[str, Any] = {
+        "label": f"From {source_letter}",
+        "budget": int(budget["total_samples_seen"]),
+        "batch_size": int(budget["batch_size"]),
+        "model_type": model["type"],
+        "optimizer_type": optimizer["type"],
+        "learning_rate": float(optimizer["lr"]),
+        "weight_decay": float(optimizer.get("weight_decay", 0.0)),
+        "loss": loss["loss_id"],
+    }
+    if evaluation:
+        if "n_seeds" in evaluation:
+            values["n_seeds"] = int(evaluation["n_seeds"])
+        if "base_seed" in evaluation:
+            values["base_seed"] = int(evaluation["base_seed"])
+
+    if model["type"] == "mlp":
+        values.update(
+            {
+                "mlp_depth": int(model["depth"]),
+                "mlp_width": int(model["width"]),
+                "mlp_residual": bool(model.get("residual", False)),
+            }
+        )
+        for index, activation in enumerate(model["activations"]):
+            values[f"mlp_activation_{index}"] = activation
+        for index, use_norm in enumerate(model["layer_norm"]):
+            values[f"mlp_norm_{index}"] = bool(use_norm)
+    elif model["type"] == "transformer_lm":
+        d_model = model["d_model"] if "d_model" in model else model["embed_dim"]
+        d_ff = model["d_ff"] if "d_ff" in model else model["ff_dim"]
+        values.update(
+            {
+                "transformer_d_model": int(d_model),
+                "transformer_layers": int(model["num_layers"]),
+                "transformer_heads": int(model["num_heads"]),
+                "transformer_d_ff": int(d_ff),
+            }
+        )
+
+    if optimizer["type"] == "SGD":
+        values["momentum"] = float(optimizer.get("momentum", 0.0))
+    elif optimizer["type"] in {"Adam", "AdamW"}:
+        betas = optimizer.get("betas", [0.9, 0.999])
+        values["beta1"] = float(betas[0])
+        values["beta2"] = float(betas[1])
+    if "lambda" in loss:
+        values["loss_lambda"] = float(loss["lambda"])
+    return values
+
+
 def build_custom_setting_spec(
     profile: Profile,
     dataset_spec: dict[str, Any],
@@ -301,6 +363,7 @@ def run_custom_setting(
     label: str,
     n_seeds: int,
     base_seed: int,
+    inherited_from: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize and train one setting without modifying benchmark candidates."""
     if n_seeds <= 0:
@@ -344,6 +407,7 @@ def run_custom_setting(
         "final_metric": _finite_metric(
             summary.get(f"mean_{summary['selection_metric']}")
         ),
+        **({"inherited_from": inherited_from} if inherited_from else {}),
     }
     write_json(output_dir / SETTING_MANIFEST, manifest)
     retained = prune_custom_setting_runs(question_root, newest_id=run_id)

@@ -50,3 +50,5 @@ Custom runs are isolated under
 `<question>/custom_settings/<setting_id>/`. Every run receives a unique sequence id
 and display name. At most two runs are retained: the newest run and the historical run
 with the lowest final loss. Custom runs do not alter the choices, answer key, or score.
+Selecting Choice A/B/C applies inheritance immediately, including the question's
+ground-truth seed count and base seed; no separate apply action is required.

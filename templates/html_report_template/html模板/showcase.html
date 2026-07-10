@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组件画廊 — Showcase</title>
+
+<script>
+window.MathJax = {
+  tex: {inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']]},
+  svg: {fontCache: 'global'}
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/navigation.css">
+
+<style>
+/* 仅本页用: 主题切换按钮组 */
+.theme-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.theme-row button {
+  font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+  background: var(--bg-panel); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 14px; border-radius: var(--radius-sm);
+}
+.theme-row button:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<button class="icon-btn" id="fsBtn" title="全屏 (F)">⛶</button>
+<div class="toc" id="toc"></div>
+
+<div class="deck" id="deck">
+
+<!-- ============ 0. 封面 + 主题切换 ============ -->
+<div class="slide active" data-title="画廊封面">
+  <div style="display:flex; flex-direction:column; justify-content:center; min-height:75vh;">
+    <div class="act-label">Component Gallery</div>
+    <h1 style="font-size:46px; margin-bottom:14px;">组件画廊 <span class="badge">showcase</span></h1>
+    <div style="font-size:18px; color:var(--dim); max-width:760px;">
+      每种组件、每套主题、动画工具都在这里。做演示时来这里抄片段。<br>
+      起手新演示请复制 <code>template.html</code>。
+    </div>
+    <div class="theme-row">
+      <span style="color:var(--dim); font-family:var(--font-mono); font-size:12px; align-self:center;">切主题(或按 T):</span>
+      <button data-set="">深色(默认)</button>
+      <button data-set="light">light</button>
+      <button data-set="academic">academic</button>
+      <button data-set="warm">warm</button>
+      <button data-set="projector">projector</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1. 排版基础 ============ -->
+<div class="slide" data-title="排版基础">
+  <div class="act-label">幕 1 · Typography</div>
+  <h1>排版基础</h1>
+  <div class="subtitle">h1 / h2 / h3 · 正文 · 强调 · 代码 · 公式</div>
+
+  <h2>二级标题</h2>
+  <h3>三级标题</h3>
+  <p>正文段落。<strong>strong 主色</strong>、<mark>mark 高亮</mark>、行内 <code>code</code>、键位 <kbd>⌘</kbd><kbd>P</kbd>、行内公式 $\nabla\cdot\mathbf{E} = \rho/\varepsilon_0$。</p>
+
+  <div class="two-col">
+    <div>
+      <p>无序 / 有序列表:</p>
+      <ul><li>列表项一</li><li>列表项二</li></ul>
+      <ol><li>步骤一</li><li>步骤二</li></ol>
+    </div>
+    <div>
+      <p>多行代码块:</p>
+      <pre><code>def ou_step(x, kappa, T, dt):
+    return x - kappa*x*dt + (2*T*dt)**0.5 * randn()</code></pre>
+    </div>
+  </div>
+
+  <div class="eq">$$\boxed{\;dx = -\kappa(x-x^*)\,dt + \sqrt{2T}\,dW_t\;}$$</div>
+</div>
+
+<!-- ============ 2. callout 全套 ============ -->
+<div class="slide" data-title="提示框">
+  <div class="act-label">幕 2 · Callouts</div>
+  <h1>提示框 callout</h1>
+  <div class="subtitle">默认(金) / live(绿) / dead(红) / blue(蓝)</div>
+
+  <div class="callout"><div class="callout-title">默认 · 金</div><p>中性强调一段话。</p></div>
+  <div class="callout live"><div class="callout-title">live · 绿</div><p>结论成立 / 验证通过。</p></div>
+  <div class="callout dead"><div class="callout-title">dead · 红</div><p>结论被推翻 / 反例 / 风险。</p></div>
+  <div class="callout blue"><div class="callout-title">blue · 蓝</div><p>旁注 / 方法说明 / 中性提示。</p></div>
+</div>
+
+<!-- ============ 3. 大数字 + 进度条 ============ -->
+<div class="slide" data-title="数字与进度">
+  <div class="act-label">幕 3 · Stats & bars</div>
+  <h1>统计大数字 · 进度条</h1>
+  <div class="subtitle">.stats / .stat · .bar-row</div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num">4.58×</div><div class="stat-label">κ_DPO / κ_SFT</div><div class="stat-sub">[3.64, 5.63]</div></div>
+    <div class="stat"><div class="stat-num live">0.91</div><div class="stat-label">Pearson r</div></div>
+    <div class="stat"><div class="stat-num blue">25</div><div class="stat-label">层</div></div>
+    <div class="stat"><div class="stat-num dead">−51%</div><div class="stat-label">L12 瓶颈</div></div>
+  </div>
+
+  <h2>进度条</h2>
+  <div class="bar-row"><span>方案 A</span><div class="bar"><div class="bar-fill live" style="width:85%"></div></div><span class="val">85%</span></div>
+  <div class="bar-row"><span>方案 B</span><div class="bar"><div class="bar-fill" style="width:62%"></div></div><span class="val">62%</span></div>
+  <div class="bar-row"><span>方案 C</span><div class="bar"><div class="bar-fill blue" style="width:40%"></div></div><span class="val">40%</span></div>
+</div>
+
+<!-- ============ 4. 卡片网格 + 徽章 ============ -->
+<div class="slide" data-title="卡片与徽章">
+  <div class="act-label">幕 4 · Cards & badges</div>
+  <h1>卡片网格 · 徽章</h1>
+  <div class="subtitle">.cards / .card · .badge</div>
+
+  <div class="cards">
+    <div class="card"><div class="card-icon">🌀</div><div class="card-title">恢复力 κ <span class="badge">架构</span></div><p>弹簧常数, 偏离越远拉得越猛。</p></div>
+    <div class="card"><div class="card-icon">🔥</div><div class="card-title">温度 T <span class="badge blue">优化器</span></div><p>驱动噪声, $T=\eta\Sigma_g/B$。</p></div>
+    <div class="card"><div class="card-icon">⚖️</div><div class="card-title">稳态 <span class="badge live">FDT</span></div><p>$\mathrm{Var}=T/\kappa$, 涨落-耗散。</p></div>
+  </div>
+
+  <p style="margin-top:18px;">徽章独立用:
+    <span class="badge">default</span>
+    <span class="badge live">live</span>
+    <span class="badge dead">dead</span>
+    <span class="badge blue">blue</span>
+    <span class="badge purple">purple</span>
+  </p>
+</div>
+
+<!-- ============ 5. 多栏 + 表格 ============ -->
+<div class="slide" data-title="多栏与表格">
+  <div class="act-label">幕 5 · Columns & tables</div>
+  <h1>多栏布局 · 表格</h1>
+  <div class="subtitle">.two-col / .three-col · table.zebra</div>
+
+  <div class="three-col">
+    <div><h3>列一</h3><p>三栏用 <code>three-col</code>。</p></div>
+    <div><h3>列二</h3><p>每栏放任意内容。</p></div>
+    <div><h3>列三</h3><p>窄屏会挤, 适合短内容。</p></div>
+  </div>
+
+  <table class="zebra">
+    <tr><th>协议</th><th>φ_lag1</th><th>结论</th></tr>
+    <tr><td>shuffle batch</td><td>−0.28</td><td><span class="badge dead">违反 OU</span></td></tr>
+    <tr><td>fixed batch</td><td>+0.94</td><td><span class="badge live">OU 浮现</span></td></tr>
+    <tr><td>high-freq</td><td>+0.99</td><td><span class="badge live">强一致</span></td></tr>
+  </table>
+</div>
+
+<!-- ============ 6. 对比 / 利弊 ============ -->
+<div class="slide" data-title="对比利弊">
+  <div class="act-label">幕 6 · Compare</div>
+  <h1>对比 · 利弊两栏</h1>
+  <div class="subtitle">.compare · .compare-col.pro / .con</div>
+
+  <div class="compare">
+    <div class="compare-col pro">
+      <h3>✓ 优点</h3>
+      <ul><li>可定量比较配置</li><li>loss-scale 不变</li><li>可证伪预测</li></ul>
+    </div>
+    <div class="compare-col con">
+      <h3>✗ 局限</h3>
+      <ul><li>只对特定 observable</li><li>架构相关</li><li>机制尚未明</li></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 7. 时间线 ============ -->
+<div class="slide" data-title="时间线">
+  <div class="act-label">幕 7 · Timeline</div>
+  <h1>时间线</h1>
+  <div class="subtitle">.timeline · .tl-item</div>
+
+  <div class="timeline">
+    <div class="tl-item"><div class="tl-time">2026-05-10</div><div class="tl-title">P3 实验</div><div class="tl-body">发现 σ²_W 占比极小, 一度误判 OU 不存在。</div></div>
+    <div class="tl-item"><div class="tl-time">2026-05-12</div><div class="tl-title">反转</div><div class="tl-body">fixed-batch 把 σ²_π 噪声移走, OU 信号浮现。</div></div>
+    <div class="tl-item"><div class="tl-time">2026-05-13</div><div class="tl-title">n=8 定稿</div><div class="tl-body">κ_DPO/κ_SFT = 4.58, 机制假设被证伪。</div></div>
+  </div>
+</div>
+
+<!-- ============ 8. 横向流程 + 键值 ============ -->
+<div class="slide" data-title="流程与键值">
+  <div class="act-label">幕 8 · Flow & key-value</div>
+  <h1>横向流程 · 定义表</h1>
+  <div class="subtitle">.flow / .flow-step · .kv</div>
+
+  <div class="flow">
+    <div class="flow-step"><div class="n">Step 1</div><div class="t">Langevin</div><div class="d">参数空间 SDE</div></div>
+    <div class="flow-sep">→</div>
+    <div class="flow-step"><div class="n">Step 2</div><div class="t">Itô 投影</div><div class="d">投到标量 H</div></div>
+    <div class="flow-sep">→</div>
+    <div class="flow-step"><div class="n">Step 3</div><div class="t">线性化</div><div class="d">近 H*</div></div>
+    <div class="flow-sep">→</div>
+    <div class="flow-step"><div class="n">Step 4</div><div class="t">OU</div><div class="d">最终方程</div></div>
+  </div>
+
+  <h2>键值定义表</h2>
+  <dl class="kv">
+    <dt>κ</dt><dd>恢复力强度, 单位 1/step, 架构性。</dd>
+    <dt>T</dt><dd>驱动噪声温度, $\eta\Sigma_g/B$, 优化器性。</dd>
+    <dt>H*</dt><dd>稳态均值, $\approx \log r^{\mathrm{PR}}$。</dd>
+  </dl>
+</div>
+
+<!-- ============ 9. 引用 + 图片 ============ -->
+<div class="slide" data-title="引用与图片">
+  <div class="act-label">幕 9 · Quote & figure</div>
+  <h1>引用 · 图片图注</h1>
+  <div class="subtitle">.quote · .figure</div>
+
+  <div class="quote">
+    The OU form is not assumed: it is a controlled approximation, with quantified residuals.
+    <span class="quote-cite">paper §II.A</span>
+  </div>
+
+  <div class="figure">
+    <!-- 把 src 换成自己的图; 这里用一个内联 SVG 占位 -->
+    <img alt="占位图" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='240'%3E%3Crect width='100%25' height='100%25' fill='%23161b22'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8378' font-family='monospace' font-size='15' text-anchor='middle'%3E把你的图放这里%3C/text%3E%3C/svg%3E">
+    <div class="figure-cap">图 1 · 把 .figure 里的 img src 换成自己的图即可</div>
+  </div>
+</div>
+
+<!-- ============ 10. 推导卡片 ============ -->
+<div class="slide" data-title="推导卡片">
+  <div class="act-label">幕 10 · Derivation</div>
+  <h1>分步推导卡片</h1>
+  <div class="subtitle">.derivation · .step-card · tag 三色</div>
+
+  <div class="derivation">
+    <div class="step-card">
+      <div class="step-head"><span class="step-num">Step 1</span><span class="step-name">起点</span><span class="step-tag tag-rigorous">rigorous</span></div>
+      <div class="step-eq">$$\frac{d}{dx}e^x = e^x$$</div>
+      <div class="step-note">蓝 tag = 严格。</div>
+    </div>
+    <div class="arrow">↓ &nbsp; 中间操作</div>
+    <div class="step-card">
+      <div class="step-head"><span class="step-num">Step 2</span><span class="step-name">结论</span><span class="step-tag tag-approx">controlled approx.</span></div>
+      <div class="step-eq">$$\boxed{\;dx = -\kappa x\,dt + \sqrt{2T}\,dW_t\;}$$</div>
+      <div class="step-note">金 tag = 受控近似; 绿 tag-empirical = 实测。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 11. 动画工具三连 ============ -->
+<div class="slide" data-title="动画工具">
+  <div class="act-label">幕 11 · Canvas toolkit</div>
+  <h1>动画工具 · 函数 / 折线 / 柱状</h1>
+  <div class="subtitle">animate() + makePlot() — 三种常用图</div>
+
+  <div class="three-col">
+    <div class="demo"><div class="demo-title">函数曲线 fn()</div><canvas id="cvFn" width="420" height="300"></canvas></div>
+    <div class="demo"><div class="demo-title">实时折线 line()</div><canvas id="cvLine" width="420" height="300"></canvas></div>
+    <div class="demo"><div class="demo-title">柱状 bars()</div><canvas id="cvBar" width="420" height="300"></canvas></div>
+  </div>
+  <div class="callout blue"><div class="callout-title">都来自 js/canvas.js</div><p><code>makePlot(ctx, box, xRange, yRange)</code> 给你 <code>fn / line / bars / dot / grid / frame / text</code>, 全在数据坐标下作图, 不用手算像素。</p></div>
+</div>
+
+<!-- ============ 12. fragment + 备注 ============ -->
+<div class="slide" data-title="分步与备注">
+  <div class="act-label">幕 12 · Fragments & notes</div>
+  <h1>逐条点出 · 演讲者备注</h1>
+  <div class="subtitle">.fragment(按 →) · .notes(按 S)</div>
+
+  <ul>
+    <li class="fragment">按 <kbd>→</kbd> 这条先出现……</li>
+    <li class="fragment">……再出现这条……</li>
+    <li class="fragment">……最后这条。点完才翻下一幕。</li>
+  </ul>
+  <div class="callout live fragment"><div class="callout-title">收尾</div><p>fragment 可以是任意元素, 不止列表项。</p></div>
+
+  <div class="notes">这一幕用来演示备注。观众屏幕看不到这段, 只有你按 S 才显示。讲第二条 fragment 时举个例子。</div>
+</div>
+
+<!-- ============ 13. 主题 + 快捷键 ============ -->
+<div class="slide" data-title="主题与快捷键">
+  <div class="act-label">Epilogue</div>
+  <h1>主题 · 快捷键</h1>
+  <div class="subtitle">data-theme · keyboard</div>
+
+  <div class="two-col">
+    <div>
+      <h2>5 套主题</h2>
+      <p>在 <code>&lt;html data-theme="..."&gt;</code> 设置, 或演示时按 <kbd>T</kbd> 循环:</p>
+      <ul>
+        <li>默认 — 深色金</li>
+        <li><code>light</code> — 浅色简洁</li>
+        <li><code>academic</code> — 暖白学术蓝</li>
+        <li><code>warm</code> — 暖棕深色</li>
+        <li><code>projector</code> — 纯黑高对比</li>
+      </ul>
+    </div>
+    <div>
+      <h2>快捷键</h2>
+      <dl class="kv">
+        <dt>← → 空格</dt><dd>上一步 / 下一步</dd>
+        <dt>0–9</dt><dd>跳幕</dd>
+        <dt>F</dt><dd>全屏</dd>
+        <dt>S</dt><dd>备注</dd>
+        <dt>T</dt><dd>换主题</dd>
+        <dt>?</dt><dd>帮助</dd>
+        <dt>⌘P</dt><dd>导出 PDF</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="nav">
+  <button class="btn" id="prev">← 上一步</button>
+  <div class="dots" id="dots"></div>
+  <div style="display:flex; align-items:center; gap:18px;">
+    <span class="counter" id="counter">1 / 1</span>
+    <button class="btn" id="next">下一步 →</button>
+  </div>
+</div>
+
+<div id="notesPanel"></div>
+
+<div id="helpOverlay">
+  <div class="panel">
+    <h3>快捷键</h3>
+    <div class="row"><span><kbd>←</kbd> <kbd>→</kbd> <kbd>空格</kbd></span><span>上一步 / 下一步</span></div>
+    <div class="row"><span><kbd>0</kbd>–<kbd>9</kbd></span><span>跳到对应幕</span></div>
+    <div class="row"><span><kbd>Home</kbd> <kbd>End</kbd></span><span>首幕 / 末幕</span></div>
+    <div class="row"><span><kbd>F</kbd></span><span>全屏</span></div>
+    <div class="row"><span><kbd>S</kbd></span><span>演讲者备注</span></div>
+    <div class="row"><span><kbd>T</kbd></span><span>循环主题</span></div>
+    <div class="row"><span><kbd>?</kbd></span><span>本帮助</span></div>
+  </div>
+</div>
+
+<script src="js/canvas.js"></script>
+<script src="js/engine.js"></script>
+
+<script>
+/* 主题切换按钮 */
+document.querySelectorAll('.theme-row button').forEach(b => {
+  b.onclick = () => {
+    const t = b.getAttribute('data-set');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+    else document.documentElement.removeAttribute('data-theme');
+    window.refreshCanvasColors && window.refreshCanvasColors();
+  };
+});
+
+/* 动画 1 · 函数曲线 (幕 11) */
+animate('cvFn', 11, (s) => {
+  clearBg(s);
+  const box = { x: 36, y: 16, w: s.w - 52, h: s.h - 40 };
+  const p = makePlot(s.ctx, box, [-Math.PI, Math.PI], [-1.2, 1.2]);
+  p.grid(6, 4); p.frame();
+  const ph = s.t * 1.5;
+  p.fn(x => Math.sin(x + ph), colors.accent, 2);
+  p.fn(x => Math.cos(x + ph) * 0.6, colors.blue, 2);
+});
+
+/* 动画 2 · 实时折线 (随机游走, 幕 11) */
+const lineState = animate('cvLine', 11, (s) => {
+  if (!s.data) { s.data = []; }
+  // 每帧推进一点
+  const last = s.data.length ? s.data[s.data.length - 1][1] : 0;
+  s.data.push([s.data.length, last + randn() * 0.3]);
+  if (s.data.length > 80) s.data.shift();
+  clearBg(s);
+  const box = { x: 36, y: 16, w: s.w - 52, h: s.h - 40 };
+  const xs = s.data.map(d => d[0]); const ys = s.data.map(d => d[1]);
+  const xmin = xs[0], xmax = xs[xs.length - 1] || 1;
+  const ymax = Math.max(2, ...ys.map(Math.abs));
+  const p = makePlot(s.ctx, box, [xmin, xmax], [-ymax, ymax]);
+  p.grid(6, 4); p.frame();
+  // 重新索引到当前窗口
+  p.line(s.data.map((d, i) => [xmin + i, d[1]]), colors.live, 2);
+});
+
+/* 动画 3 · 柱状图 (呼吸, 幕 11) */
+animate('cvBar', 11, (s) => {
+  clearBg(s);
+  const box = { x: 30, y: 16, w: s.w - 46, h: s.h - 40 };
+  const p = makePlot(s.ctx, box, [0, 6], [0, 1]);
+  p.grid(6, 4); p.frame();
+  const vals = [0.3, 0.55, 0.8, 0.65, 0.45, 0.9].map((v, i) =>
+    v * (0.7 + 0.3 * Math.sin(s.t * 2 + i)));
+  p.bars(vals, colors.accent);
+});
+</script>
+
+</body>
+</html>

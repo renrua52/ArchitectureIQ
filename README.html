@@ -1,851 +1,1670 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-Hans" data-theme="academic">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ArchitectureIQ 开发计划总览</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --ink: #18212f;
-      --muted: #5a6472;
-      --line: #d8dee8;
-      --panel: #ffffff;
-      --band: #f4f7fb;
-      --accent: #0f7b8f;
-      --accent-2: #9a5a00;
-      --good: #176b3a;
-      --warn: #a54d10;
-      --code: #101827;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPT 评测报告｜大模型解题表现的行为学分析</title>
+<link rel="stylesheet" href="templates/html_report_template/html模板/css/theme.css">
+<link rel="stylesheet" href="templates/html_report_template/html模板/css/themes.css">
+<link rel="stylesheet" href="templates/html_report_template/html模板/css/base.css">
+<link rel="stylesheet" href="templates/html_report_template/html模板/css/components.css">
+<link rel="stylesheet" href="templates/html_report_template/html模板/css/navigation.css">
+<style>
+  :root {
+    --maxw: 1280px;
+  }
+
+  .slide {
+    padding-top: 40px;
+  }
+
+  .slide.scrollable {
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+  }
+
+  .slide.scrollable pre {
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: visible;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .long-code {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .hero {
+    display: flex;
+    min-height: 78vh;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .hero h1 {
+    max-width: 960px;
+    font-size: 50px;
+    line-height: 1.12;
+    margin-bottom: 18px;
+  }
+
+  .hero-copy {
+    max-width: 820px;
+    color: var(--dim);
+    font-size: 19px;
+    line-height: 1.72;
+  }
+
+  .tight {
+    margin-top: 6px;
+  }
+
+  .small {
+    color: var(--dim);
+    font-size: 13px;
+  }
+
+  .mini {
+    color: var(--dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .clean-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .clean-table th,
+  .clean-table td {
+    vertical-align: top;
+    word-break: break-word;
+  }
+
+  .clean-table th:nth-child(1) { width: 16%; }
+  .clean-table th:nth-child(2) { width: 20%; }
+  .clean-table th:nth-child(3) { width: 29%; }
+  .clean-table th:nth-child(4) { width: 17%; }
+  .clean-table th:nth-child(5) { width: 18%; }
+
+  .protocol-table th:nth-child(1) { width: 18%; }
+  .protocol-table th:nth-child(2) { width: 32%; }
+  .protocol-table th:nth-child(3) { width: 25%; }
+  .protocol-table th:nth-child(4) { width: 25%; }
+
+  .chart-wrap {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px 16px;
+    margin: 16px 0;
+  }
+
+  .chart-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 10px;
+  }
+
+  .chart-title {
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 330px;
+    background: var(--canvas-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--dim);
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .swatch {
+    width: 22px;
+    height: 3px;
+    border-radius: 99px;
+    background: currentColor;
+  }
+
+  .bar-row {
+    grid-template-columns: 190px 1fr 74px;
+  }
+
+  .model-block {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 12px 0;
+    padding: 12px 14px 8px;
+    background: var(--bg);
+  }
+
+  .model-title {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .case-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .slide.scrollable .compare {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .slide.scrollable .compare-col {
+    width: 100%;
+  }
+
+  .case-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .case-title {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .case-card p {
+    margin: 7px 0;
+  }
+
+  .case-card .quote {
+    color: var(--text);
+    font-style: italic;
+    line-height: 1.55;
+  }
+
+  .badge-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 18px 0 0;
+  }
+
+  .takeaway {
+    font-size: 18px;
+    line-height: 1.72;
+  }
+
+  .prompt-box {
+    white-space: pre-wrap;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+    max-height: 360px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    padding: 14px 16px;
+  }
+
+  .slide.scrollable .prompt-box {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .translation-box {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--dim);
+    font-size: 13px;
+    line-height: 1.72;
+  }
+
+  .translation-box strong {
+    color: var(--text);
+  }
+
+  .case-study {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .question-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .question-switcher button {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-panel);
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+
+  .question-switcher button.active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-panel));
+    color: var(--accent);
+  }
+
+  .case-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-panel);
+    padding: 14px 16px;
+  }
+
+  .case-section h3 {
+    margin: 0 0 10px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  .case-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .case-meta span {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 7px;
+  }
+
+  .choice-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .choice-row {
+    min-width: 0;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    background: var(--bg);
+  }
+
+  .choice-row.correct {
+    border-color: var(--live);
+    background: color-mix(in srgb, var(--live) 8%, var(--bg-panel));
+  }
+
+  .choice-row.picked-wrong {
+    border-color: var(--dead);
+    background: color-mix(in srgb, var(--dead) 7%, var(--bg-panel));
+  }
+
+  .choice-row.picked.correct {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--live) 20%, transparent);
+  }
+
+  .choice-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .choice-letter {
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .choice-id {
+    display: block;
+    margin-top: 5px;
+    color: var(--dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .choice-status {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+
+  .choice-tag {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--dim);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 7px;
+  }
+
+  .choice-tag.correct {
+    border-color: color-mix(in srgb, var(--live) 55%, var(--border));
+    color: var(--live);
+  }
+
+  .choice-tag.picked {
+    border-color: color-mix(in srgb, var(--blue) 55%, var(--border));
+    color: var(--blue);
+  }
+
+  .spec-block {
+    margin-top: 12px;
+  }
+
+  .spec-label {
+    margin-bottom: 4px;
+    color: var(--dim);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .spec-line {
+    margin: 2px 0;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .metric-pill {
+    display: inline-block;
+    margin-top: 12px;
+    border-radius: 999px;
+    background: var(--live-soft);
+    color: var(--live);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 9px;
+  }
+
+  .posthoc {
+    border-left: 4px solid var(--purple);
+    background: color-mix(in srgb, var(--purple) 6%, var(--bg-panel));
+  }
+
+  .posthoc h3 {
+    color: var(--purple);
+  }
+
+  .posthoc p {
+    margin: 8px 0;
+    line-height: 1.72;
+  }
+
+  .posthoc .ranking {
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .curve-image {
+    display: block;
+    width: 100%;
+    max-width: 980px;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .trace-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trace-item {
+    border-left: 3px solid var(--border);
+    padding: 8px 0 8px 12px;
+  }
+
+  .trace-item.active {
+    border-left-color: var(--accent);
+    background: rgba(79, 70, 229, 0.07);
+    border-radius: 0 8px 8px 0;
+    padding-right: 10px;
+  }
+
+  .trace-title {
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .trace-text {
+    margin: 6px 0;
+    line-height: 1.65;
+  }
+
+  .raw-response {
+    margin: 12px 0 0;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--canvas-bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.62;
+    padding: 14px 16px;
+  }
+
+  .provenance {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 12px;
+    margin: 8px 0 0;
+    color: var(--dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  .provenance code {
+    overflow-wrap: anywhere;
+  }
+
+  .record-note {
+    margin: 10px 0 0;
+    color: var(--dim);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .raw-details {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-panel);
+    padding: 12px 16px;
+  }
+
+  .raw-details summary {
+    color: var(--accent);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .warn-text {
+    color: var(--dead);
+  }
+
+  .ok-text {
+    color: var(--live);
+  }
+
+  .blue-text {
+    color: var(--blue);
+  }
+
+  @media (max-width: 840px) {
+    .slide {
+      padding: 36px 22px 88px;
     }
 
-    * {
-      box-sizing: border-box;
+    .hero h1 {
+      font-size: 36px;
     }
 
-    body {
-      margin: 0;
-      color: var(--ink);
-      background: #fbfcfe;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.58;
-      overflow-x: hidden;
+    .clean-table {
+      table-layout: auto;
+      min-width: 900px;
     }
 
-    main {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 32px 24px 56px;
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
-    header {
-      padding: 42px 0 30px;
-      border-bottom: 1px solid var(--line);
+    .bar-row {
+      grid-template-columns: 1fr;
+      gap: 5px;
     }
 
-    h1 {
-      margin: 0 0 12px;
-      font-size: clamp(32px, 6vw, 58px);
-      line-height: 1.02;
-      letter-spacing: 0;
+    .choice-list {
+      grid-template-columns: 1fr;
     }
-
-    h2 {
-      margin: 44px 0 16px;
-      font-size: 26px;
-      letter-spacing: 0;
-    }
-
-    h3 {
-      margin: 0 0 10px;
-      font-size: 18px;
-      letter-spacing: 0;
-    }
-
-    p {
-      margin: 0 0 14px;
-    }
-
-    .lead {
-      max-width: 860px;
-      color: var(--muted);
-      font-size: 18px;
-    }
-
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 30px;
-      padding: 4px 10px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: var(--panel);
-      color: var(--muted);
-      font-size: 13px;
-      white-space: nowrap;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .two {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .card {
-      min-width: 0;
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-    }
-
-    .card strong {
-      color: var(--accent);
-    }
-
-    .band {
-      margin: 28px -24px 0;
-      padding: 26px 24px;
-      background: var(--band);
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .flow {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    .step {
-      min-height: 118px;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-    }
-
-    .step b {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--accent);
-    }
-
-    table {
-      width: 100%;
-      margin-top: 14px;
-      border-collapse: collapse;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    th, td {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      background: #eef3f8;
-      color: #223044;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-    }
-
-    tr:last-child td {
-      border-bottom: 0;
-    }
-
-    code, pre {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-
-    code {
-      padding: 2px 5px;
-      border-radius: 5px;
-      background: #edf1f5;
-      color: var(--code);
-    }
-
-    pre {
-      margin: 14px 0 0;
-      padding: 16px;
-      overflow: auto;
-      border-radius: 8px;
-      background: var(--code);
-      color: #eef5ff;
-      font-size: 13px;
-    }
-
-    ul {
-      padding-left: 20px;
-      margin: 10px 0 0;
-    }
-
-    li {
-      margin: 6px 0;
-    }
-
-    .status {
-      display: inline-block;
-      margin-bottom: 8px;
-      color: var(--good);
-      font-weight: 700;
-    }
-
-    .next {
-      color: var(--accent-2);
-      font-weight: 700;
-    }
-
-    .small {
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .chart-panel {
-      margin-top: 16px;
-      padding: 18px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-    }
-
-    .chart-title {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-
-    .chart-title h3 {
-      margin: 0;
-    }
-
-    .chart {
-      width: 100%;
-      height: auto;
-      min-height: 280px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #ffffff;
-    }
-
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 16px;
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    .legend-swatch {
-      width: 22px;
-      height: 3px;
-      border-radius: 99px;
-      background: currentColor;
-    }
-
-    .metric-row {
-      display: grid;
-      grid-template-columns: 180px minmax(0, 1fr) 86px;
-      gap: 12px;
-      align-items: center;
-      margin: 10px 0;
-      font-size: 14px;
-    }
-
-    .bar-track {
-      height: 12px;
-      overflow: hidden;
-      border-radius: 999px;
-      background: #e7edf4;
-    }
-
-    .bar-fill {
-      height: 100%;
-      border-radius: inherit;
-      background: var(--accent);
-    }
-
-    .launch-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      margin: 18px 0 12px;
-    }
-
-    .launch-button,
-    .launch-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 42px;
-      padding: 9px 16px;
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      background: var(--accent);
-      color: #ffffff;
-      font: inherit;
-      font-weight: 700;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    .launch-link {
-      background: var(--panel);
-      color: var(--accent);
-    }
-
-    .launch-button:hover,
-    .launch-link:hover {
-      filter: brightness(0.97);
-    }
-
-    .launch-status {
-      min-height: 24px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    @media (max-width: 900px) {
-      .grid,
-      .two,
-      .flow {
-        grid-template-columns: 1fr;
-      }
-
-      table {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-      }
-
-      th,
-      td {
-        min-width: 160px;
-      }
-
-      .metric-row {
-        grid-template-columns: 1fr;
-        gap: 6px;
-      }
-
-      main {
-        padding: 24px 18px 44px;
-      }
-
-      .band {
-        margin-left: -18px;
-        margin-right: -18px;
-        padding-left: 18px;
-        padding-right: 18px;
-      }
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
-  <main>
-    <header>
-      <h1>ArchitectureIQ 开发计划总览</h1>
-      <p class="lead">
-        ArchitectureIQ 是一个用于衡量 LLM 和人类是否理解基础模型结构、优化器、损失函数与训练预算关系的可控 benchmark。
-        当前版本已经形成 Python 包、CLI、三类合成数据族、候选集生成、真实训练、显著性筛题、prompt 渲染、LLM eval 和 Streamlit inspector 的端到端雏形。
-      </p>
-      <div class="meta">
-        <span class="pill">分支：shaoyang</span>
-        <span class="pill">更新时间：2026-07-09</span>
-        <span class="pill">Profile：v1</span>
-        <span class="pill">Python：3.10+</span>
-        <span class="pill">测试入口：pytest</span>
-      </div>
-    </header>
 
-    <section class="band" id="quiz">
-      <h2>立刻体验做题</h2>
-      <p>
-        当前导入的是一轮 65 道三选一题：<code>bigram_lm</code> 20 道、<code>multivariate_regression</code> 20 道、
-        <code>univariate_regression</code> 25 道。题目会给出合成数据集、训练预算和三个候选训练方案，
-        你需要判断哪个方案在对应 held-out metric 上最好。
-      </p>
-      <p class="small">
-        做题界面会先隐藏真实指标和正确答案；选择后才展示排名、曲线和候选文件。Learning curves 里有
-        <code>Log Y</code> 复选框，便于查看数量级差异很大的曲线。
-      </p>
-      <div class="launch-row">
-        <button class="launch-button" id="quiz-launch" type="button">启动/打开做题</button>
-        <a class="launch-link" href="http://127.0.0.1:8501" target="_blank" rel="noreferrer">直接打开 8501</a>
-      </div>
-      <p class="launch-status" id="quiz-status">
-        如果服务尚未启动，请在仓库根目录运行下面这条幂等命令；重复运行会复用已存在的服务。
-      </p>
-      <pre><code>.venv/bin/python tools/start_quiz.py</code></pre>
-    </section>
+<div id="progress"></div>
+<button class="icon-btn" id="fsBtn" title="全屏 (F)">⛶</button>
+<div class="toc" id="toc"></div>
 
-    <section id="evaluation">
-      <h2>评测报告</h2>
-      <p>
-        本轮主结论：<strong>gpt-5.5 high</strong> 在无反馈盲答下为 <strong>81.5%</strong>；
-        用 <code>tools/sequential_feedback_session.py</code> 固定逐题反馈协议后，三次连续反馈平均为
-        <strong>80.5%</strong>，标准差 <strong>1.9%</strong>。
-      </p>
-      <p class="small">
-        去答案题集指的是：65 道题一次性提供给模型，但去掉正确答案、真实指标、训练曲线和 summary。
-        这不是“一次只给一题”。只有连续反馈实验才按题号一题一题做。
-      </p>
-      <table>
-        <thead>
-          <tr><th>评测</th><th>模型</th><th>上下文</th><th>反馈</th><th>正确率</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>原始盲答</td>
-            <td><code>gpt-5.5</code>，high effort</td>
-            <td>一次性看到 65 道去答案题；无正确答案、无真实指标、无曲线、无 summary</td>
-            <td>无</td>
-            <td><strong>53/65 = 81.5%</strong></td>
-          </tr>
-          <tr>
-            <td>盲答复现 A/B/C</td>
-            <td><code>gpt-5.5</code>，high effort</td>
-            <td>每个 agent 独立、一次性看到同一份 65 道去答案题</td>
-            <td>无</td>
-            <td>37/65、42/65、40/65；多数投票 39/65</td>
-          </tr>
-          <tr>
-            <td>10 题分组反馈</td>
-            <td><code>gpt-5.5</code>，high effort</td>
-            <td>每 10 道一组；每组新 agent；组间无共享记忆</td>
-            <td>组内答后看当前题反馈</td>
-            <td>43/65 = 66.2%</td>
-          </tr>
-          <tr>
-            <td>非审计连续反馈</td>
-            <td><code>gpt-5.5</code>，high effort</td>
-            <td>单 agent 从第 1 题做到第 65 题；由 prompt 要求它答后再看当前题反馈</td>
-            <td>有；协议靠 agent 自觉执行，文件访问不由工具强制隔离</td>
-            <td>平均 71.9%，标准差 9.7%</td>
-          </tr>
-          <tr>
-            <td>CLI 审计连续反馈 A/B/C</td>
-            <td><code>gpt-5.5</code>，high effort</td>
-            <td>单 agent 从第 1 题做到第 65 题；只能通过 session CLI 取当前题并提交答案</td>
-            <td>有；CLI 先记录预测，再返回当前题反馈，并保存完整 session 日志</td>
-            <td><strong>54/65、52/65、51/65；平均 80.5%</strong></td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="small">
-        原始盲答是第一批主结果；盲答复现 A/B/C 是后来用同一无反馈协议重跑，用来估计波动。
-        非审计连续反馈和 CLI 审计连续反馈都一题一题做，区别是后者由工具强制“先记录答案，再显示反馈”。
-      </p>
+<div class="deck" id="deck">
 
-      <div class="chart-panel">
-        <div class="chart-title">
-          <h3>累计正确率曲线</h3>
-          <span class="small">横轴为题号 1-65；纵轴为截至该题的累计正确率；共 5 条曲线。</span>
-        </div>
-        <svg class="chart" id="cumulative-chart" viewBox="0 0 980 360" role="img" aria-label="模型累计正确率曲线"></svg>
-        <div class="legend" id="cumulative-legend"></div>
-      </div>
+<div class="slide active" data-title="封面">
+  <div class="hero">
+    <div class="act-label">ArchitectureIQ · Behavioral Evaluation</div>
+    <h1>GPT 评测报告</h1>
+    <div class="hero-copy">
+      主题：大模型在训练配置选择题上的解题表现。核心问题不是只看最终正确率，而是比较
+      <strong>单题盲答</strong>、<strong>整套盲答</strong>、<strong>顺序做10题</strong>、<strong>顺序做全部题目</strong>
+      这些上下文设置下，模型如何利用题目间结构和反馈记忆。
+    </div>
+    <div class="badge-line">
+      <span class="badge">60 道三选题主口径</span>
+      <span class="badge blue">GPT / high effort</span>
+	      <span class="badge live">严格 prompt 协议</span>
+	      <span class="badge blue">subagent 模板记录</span>
+    </div>
+  </div>
+  <div class="notes">
+    开场只讲一句：这不是产品 README，而是行为学评测报告；重点是 context setting 对 GPT 做题表现的影响。
+  </div>
+</div>
 
-      <div class="chart-panel">
-        <div class="chart-title">
-          <h3>整体正确率对比</h3>
-          <span class="small">用于快速比较不同协议的最终表现。</span>
-        </div>
-        <div class="metric-row">
-          <span>原始盲答</span>
-          <span class="bar-track"><span class="bar-fill" style="width:81.5%"></span></span>
-          <strong>81.5%</strong>
-        </div>
-        <div class="metric-row">
-          <span>10 题分组反馈</span>
-          <span class="bar-track"><span class="bar-fill" style="width:66.2%"></span></span>
-          <strong>66.2%</strong>
-        </div>
-        <div class="metric-row">
-          <span>非审计连续反馈</span>
-          <span class="bar-track"><span class="bar-fill" style="width:71.9%"></span></span>
-          <strong>71.9%</strong>
-        </div>
-        <div class="metric-row">
-          <span>CLI 审计连续反馈</span>
-          <span class="bar-track"><span class="bar-fill" style="width:80.5%"></span></span>
-          <strong>80.5%</strong>
-        </div>
-      </div>
+<div class="slide scrollable" data-title="主结果">
+  <div class="act-label">Main result</div>
+	  <h1>主结论：同一模型内部比较 setting</h1>
+	  <div class="subtitle">主 comparison 使用 60 道三选题；5.4 与 5.5 分开看，不把模型差异和 setting 差异混在一起。</div>
 
-      <table>
-        <thead>
-          <tr><th>10 题窗口</th><th>平均正确率</th><th>波动</th><th>解释</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>1-10</td><td>63.3%</td><td>60-70%</td><td>冷启动，尚无反馈记忆。</td></tr>
-          <tr><td>11-20</td><td>83.3%</td><td>80-90%</td><td>开始复用同题族经验。</td></tr>
-          <tr><td>21-30</td><td>80.0%</td><td>固定 80%</td><td>跨入回归题后仍较稳定。</td></tr>
-          <tr><td>31-40</td><td>90.0%</td><td>固定 90%</td><td>该段反馈迁移最有效。</td></tr>
-          <tr><td>41-50</td><td>73.3%</td><td>70-80%</td><td>题族/目标变化带来回落。</td></tr>
-          <tr><td>51-60</td><td>83.3%</td><td>80-90%</td><td>恢复稳定。</td></tr>
-          <tr><td>61-65</td><td>100.0%</td><td>固定 100%</td><td>短尾段，候选规律明确。</td></tr>
-        </tbody>
-      </table>
-    </section>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num dead">46.7%</div>
+      <div class="stat-label">单题盲答</div>
+      <div class="stat-sub">GPT-5.5 high · 28/60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num blue">57.8%</div>
+      <div class="stat-label">整套盲答</div>
+      <div class="stat-sub">GPT-5.5 high · 3 次均值</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num live">79.4%</div>
+      <div class="stat-label">顺序做全部题目</div>
+      <div class="stat-sub">GPT-5.5 high · 3 次均值</div>
+    </div>
+  </div>
 
-    <section>
-      <h2>讨论启发</h2>
-      <div class="grid">
-        <article class="card">
-          <h3>题型多样性</h3>
-          <p>除了综合判断题，可以增加更窄的控制变量题，例如只改变激活函数、只改变优化器、或专门测试 memorization/random dataset。</p>
-        </article>
-        <article class="card">
-          <h3>可学习性与作弊</h3>
-          <p>连续刷题会让人和模型学到 shortcut；后续评测可以区分 closed-book、few-shot、course + test 和带反馈连续作答。</p>
-        </article>
-        <article class="card">
-          <h3>答题体验</h3>
-          <p>曲线重叠时需要更好的可视化控制；当前 inspector 已支持在学习曲线里切换 <code>Log Y</code>。</p>
-        </article>
-      </div>
-    </section>
+  <div class="chart-wrap">
+    <div class="chart-head">
+      <div class="chart-title">60 道三选题最终正确率</div>
+      <div class="mini">主口径；排除原始 41-45</div>
+    </div>
+    <div class="model-block">
+      <div class="model-title">GPT-5.4 high</div>
+      <div class="bar-row"><span>单题盲答</span><div class="bar"><div class="bar-fill" style="width:48.3%"></div></div><span class="val">48.3%</span></div>
+      <div class="bar-row"><span>整套盲答</span><div class="bar"><div class="bar-fill blue" style="width:65.2%"></div></div><span class="val">65.2%</span></div>
+    </div>
+    <div class="model-block">
+      <div class="model-title">GPT-5.5 high</div>
+      <div class="bar-row"><span>单题盲答</span><div class="bar"><div class="bar-fill" style="width:46.7%"></div></div><span class="val">46.7%</span></div>
+      <div class="bar-row"><span>整套盲答</span><div class="bar"><div class="bar-fill blue" style="width:57.8%"></div></div><span class="val">57.8%</span></div>
+      <div class="bar-row"><span>顺序做10题</span><div class="bar"><div class="bar-fill live" style="width:65.0%"></div></div><span class="val">65.0%</span></div>
+      <div class="bar-row"><span>顺序做全部题目</span><div class="bar"><div class="bar-fill live" style="width:79.4%"></div></div><span class="val">79.4%</span></div>
+    </div>
+    <div class="model-block">
+      <div class="model-title">GPT-5.6-SOL high</div>
+      <div class="bar-row"><span>单题盲答</span><div class="bar"><div class="bar-fill" style="width:41.7%"></div></div><span class="val">41.7%</span></div>
+      <div class="bar-row"><span>整套盲答</span><div class="bar"><div class="bar-fill blue" style="width:39.4%"></div></div><span class="val">39.4%</span></div>
+      <div class="bar-row"><span>顺序做10题</span><div class="bar"><div class="bar-fill live" style="width:63.3%"></div></div><span class="val">63.3%</span></div>
+      <div class="bar-row"><span>顺序做全部题目</span><div class="bar"><div class="bar-fill live" style="width:72.2%"></div></div><span class="val">72.2%</span></div>
+    </div>
+    <div class="model-block">
+      <div class="model-title">Human baseline</div>
+      <div class="bar-row"><span>匿名人类参与者</span><div class="bar"><div class="bar-fill blue" style="width:70.0%"></div></div><span class="val">42/60</span></div>
+      <div class="bar-row"><span>仅看参数量</span><div class="bar"><div class="bar-fill" style="width:66.7%"></div></div><span class="val">40/60</span></div>
+    </div>
+    <div class="model-block external-baselines">
+      <div class="model-title">其他模型成功率 · 60题</div>
+      <div class="bar-row"><span>gemini-3.5-flash-thinking</span><div class="bar"><div class="bar-fill blue" style="width:48.3%"></div></div><span class="val">48.3%</span></div>
+      <div class="bar-row"><span>gpt-5</span><div class="bar"><div class="bar-fill blue" style="width:46.7%"></div></div><span class="val">46.7%</span></div>
+      <div class="bar-row"><span>gpt-5.5</span><div class="bar"><div class="bar-fill blue" style="width:46.7%"></div></div><span class="val">46.7%</span></div>
+      <div class="bar-row"><span>claude-opus-4-8</span><div class="bar"><div class="bar-fill blue" style="width:40.0%"></div></div><span class="val">40.0%</span></div>
+      <div class="bar-row"><span>claude-sonnet-5</span><div class="bar"><div class="bar-fill blue" style="width:40.0%"></div></div><span class="val">40.0%</span></div>
+      <div class="bar-row"><span>o3</span><div class="bar"><div class="bar-fill blue" style="width:35.0%"></div></div><span class="val">35.0%</span></div>
+      <div class="bar-row"><span>gemini-2.5-pro</span><div class="bar"><div class="bar-fill blue" style="width:23.3%"></div></div><span class="val">23.3%</span></div>
+    </div>
+  </div>
+</div>
 
-    <section>
-      <h2>我们现在有什么</h2>
-      <div class="grid">
-        <article class="card">
-          <span class="status">已实现</span>
-          <h3>核心 benchmark 流水线</h3>
-          <p>从数据集创建、候选训练配置采样、ground truth 训练，到显著性验证和多选题 prompt 渲染，已经有可执行路径。</p>
-          <p class="small">入口：<code>architecture-iq create-dataset</code>、<code>generate-candidates</code>、<code>generate-question</code></p>
-        </article>
-        <article class="card">
-          <span class="status">已实现</span>
-          <h3>三类数据族</h3>
-          <p><code>univariate_regression</code>、<code>multivariate_regression</code>、<code>bigram_lm</code> 已进入 profile；每类都有对应模型和损失兼容关系。</p>
-          <p class="small">配置：<code>profiles/v1.yaml</code></p>
-        </article>
-        <article class="card">
-          <span class="status">已实现</span>
-          <h3>可复现实验工件</h3>
-          <p>数据、候选、问题都用 JSON spec 加真实执行代码固定下来；ground truth runner 会加载磁盘上的 Python 文件，而不是隐藏实现。</p>
-          <p class="small">关键模块：<code>runtime/loader.py</code>、<code>ground_truth/runner.py</code></p>
-        </article>
-      </div>
-    </section>
+<div class="slide scrollable" data-title="协议表">
+  <div class="act-label">Protocol</div>
+  <h1>各实验的 context setting</h1>
+  <div class="subtitle">明天汇报时建议直接按这张表解释公平性。</div>
 
-    <section class="band">
-      <h2>Benchmark 主流程</h2>
-      <p>开发时要守住一个原则：prompt 中展示的规格和代码，必须就是后端训练和评测实际执行的东西。</p>
-      <div class="flow">
-        <div class="step"><b>1. Dataset</b>合成数据，写入 <code>dataset_spec.json</code>、<code>synthesize.py</code> 和 tensor 文件。</div>
-        <div class="step"><b>2. Candidate</b>采样模型、优化器、损失、batch size 和预算，写入候选 spec 与代码。</div>
-        <div class="step"><b>3. Ground Truth</b>多 seed 真实训练，保存均值、方差、曲线和失败状态。</div>
-        <div class="step"><b>4. Significance</b>筛掉差距不足、胜率不稳或结果失败的候选组合。</div>
-        <div class="step"><b>5. Question</b>生成多选题，记录正确答案但不泄漏 metric。</div>
-        <div class="step"><b>6. Evaluation</b>给人或 LLM 作答，用答案字母和 ground truth 对齐评分。</div>
-      </div>
-    </section>
+  <div class="table-scroll">
+    <table class="clean-table">
+      <thead>
+        <tr>
+          <th>实验</th>
+          <th>模型/次数</th>
+          <th>模型实际看到什么</th>
+          <th>反馈</th>
+          <th>结果与状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>单题盲答</td>
+          <td><code>gpt-5.4 high</code><br><code>gpt-5.5 high</code></td>
+          <td>每题一个 fresh subagent；message 只指定当前 1 道去答案题文件，并要求不得读取其他文件。原始 session 显示 agent 用 <code>cat</code> 读取这一份题目；未读取其他题、历史回答、正确答案、曲线或 summary，也未运行训练/模拟实验。</td>
+          <td>无；每个 subagent 独立</td>
+          <td>5.4: 29/60 = 48.3%<br>5.5: 28/60 = 46.7%</td>
+        </tr>
+        <tr>
+          <td>单题盲答</td>
+          <td><code>gpt-5.6-SOL high</code><br>60 个 fresh subagent</td>
+          <td>每题一个独立 agent；每个 agent 只允许读取当前一份 sanitized question JSON。prompt 明确禁止读取其他题、答案、反馈、评分、summary、曲线、历史尝试和仓库文档，也禁止运行训练、模拟、评分或数据重建。</td>
+          <td>无；每个 subagent 独立</td>
+          <td>25/60 = 41.7%；by family: bigram 12/20，multivariate 9/20，univariate 4/20。</td>
+        </tr>
+        <tr>
+          <td>整套盲答</td>
+          <td><code>gpt-5.5 high</code><br>3 个独立 agent</td>
+          <td>每个 agent 一次性看到同一份 60 道去答案题；一次性输出全部 60 题答案；可以横向比较所有题和候选模式。prompt 禁止答案文件和本地实验。</td>
+          <td>无</td>
+          <td>32/60、37/60、35/60；均值 57.8%；多数投票 34/60。</td>
+        </tr>
+        <tr>
+          <td>整套盲答</td>
+          <td><code>gpt-5.4 high</code><br>10 个独立 agent</td>
+	          <td>同上，一次性看到 60 道去答案题并一次性输出答案；可以横向比较所有题和候选模式。</td>
+          <td>无</td>
+	          <td>均值 39.1/60 = 65.2%；范围 32-42；多数投票 38/60。</td>
+        </tr>
+        <tr>
+          <td>整套盲答</td>
+          <td><code>gpt-5.6-SOL high</code><br>6 个独立 agent</td>
+          <td>沿用旧 setting：每个 agent 一次性看到同一份 60 道去答案题；可以横向比较，但不读取答案、不看反馈、不运行训练或模拟。</td>
+          <td>无</td>
+          <td>22/60、21/60、25/60、25/60、27/60、22/60；均值 39.4%；多数投票 24/60。</td>
+        </tr>
+        <tr>
+          <td>整套盲答 + 启发式公式</td>
+          <td><code>gpt-5.6-SOL high</code><br>3 个独立 agent</td>
+          <td>同一份 60 题、同样无标签；额外强制先为三个 family 写公式，计算参数量和每个选项分项得分，再做跨题一致性审计与无标签修订。保留 60 道初选和 60 道终选的完整结构化轨迹。</td>
+          <td>无；修订不能看标签</td>
+          <td>初选均值 33.9%；修订后 18/60、21/60、20/60，均值 32.8%；多数投票 19/60。</td>
+        </tr>
+        <tr>
+          <td>顺序做10题</td>
+          <td><code>gpt-5.5 high</code><br>每组新 agent</td>
+          <td>连续 10 题作为一组；每组一个 fresh agent。组内按顺序答题，答完当前题后看到当前题反馈，再答下一题；组与组之间不共享记忆。</td>
+          <td>组内有；组间无</td>
+          <td>主口径 39/60 = 65.0%。</td>
+        </tr>
+        <tr>
+          <td>顺序做10题</td>
+          <td><code>gpt-5.6-SOL high</code><br>6 组，每组新 agent</td>
+          <td>沿用之前的 prompt-driven grouped setting：每个 agent 只拿到自己连续 10 题；组内先答当前题，再看当前题反馈，然后继续下一题；不强制写 formal lesson；组间无记忆。</td>
+          <td>组内有；组间无</td>
+          <td>7/10、5/10、5/10、9/10、4/10、8/10；合计 38/60 = 63.3%。</td>
+        </tr>
+        <tr>
+          <td>顺序做全部题目</td>
+          <td><code>gpt-5.5 high</code><br>3 次</td>
+          <td>同样是一个 agent 从头做到尾；区别是只能通过记录器获取当前题并提交答案。记录器先保存预测，再返回当前题答案、真实指标和 lesson。</td>
+          <td>全部题目均有；顺序由工具强制</td>
+          <td><strong>49/60、47/60、47/60；均值 79.4%</strong>。</td>
+        </tr>
+        <tr>
+          <td>顺序做全部题目</td>
+          <td><code>gpt-5.6-SOL high</code><br>6 次</td>
+          <td>通过 CLI 记录器强制“先答后看反馈”。由于长连续 subagent stream 多次断连，实际实现是 chunked continuation：后续 agent 继续同一个 session 文件和已有 lesson，因此不是单个不中断上下文。</td>
+          <td>全部题目均有；每题由工具强制先预测后反馈</td>
+          <td>42/60、43/60、44/60、42/60、44/60、45/60；均值 43.33/60 = 72.2%。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
-    <section>
-      <h2>当前 v1 Profile</h2>
-      <table>
-        <thead>
-          <tr><th>维度</th><th>当前配置</th><th>开发含义</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>数据族</td>
-            <td><code>univariate_regression</code>、<code>multivariate_regression</code>、<code>bigram_lm</code></td>
-            <td>先覆盖回归和小型语言建模，后续再扩展分类、图像或真实数据。</td>
-          </tr>
-          <tr>
-            <td>模型池</td>
-            <td><code>mlp</code>、<code>transformer_lm</code></td>
-            <td>MLP 用于回归；Transformer LM 用于 bigram next-token 预测。</td>
-          </tr>
-          <tr>
-            <td>优化器</td>
-            <td><code>SGD</code>、<code>Adam</code>、<code>AdamW</code>、<code>RMSprop</code>、<code>Adagrad</code></td>
-            <td>足够产生学习动力学差异，也便于构造 optimizer-only 问题。</td>
-          </tr>
-          <tr>
-            <td>损失池</td>
-            <td>回归：MSE/L1/L2；语言：CE/L1/L2</td>
-            <td>用于测试模型是否理解 objective 与 selection metric 的区别。</td>
-          </tr>
-          <tr>
-            <td>训练预算</td>
-            <td><code>1024</code> 到 <code>40960</code> total samples seen</td>
-            <td>所有候选必须在同题内共享预算，避免用训练更久混淆模型更好。</td>
-          </tr>
-          <tr>
-            <td>显著性</td>
-            <td><code>gap_min=0.05</code>、<code>win_rate_min=0.7</code>、非重叠可选</td>
-            <td>保证每题只有一个稳定最佳选项。</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+<div class="slide scrollable" data-title="5.6-SOL 公式实验">
+  <div class="act-label">GPT-5.6-SOL · controlled prompt experiment</div>
+  <h1>显式启发式公式让过程更透明，但没有提高正确率</h1>
+  <div class="subtitle">控制题集、整套上下文、reasoning effort 和无反馈协议；唯一变量是要求模型把直觉写成可审计公式并做无标签迭代。</div>
 
-    <section>
-      <h2>开发计划</h2>
-      <div class="grid two">
-        <article class="card">
-          <h3>近期：把 v1 做扎实</h3>
-          <ul>
-            <li>继续补足基础模块单元测试，重点保护 spec、路径、候选集、问题集、prompt parity。</li>
-            <li>给 CLI 增加更顺手的非交互 pin 参数，减少必须进 <code>-i</code> 的场景。</li>
-            <li>建立小规模 smoke artifact，供 inspector 和 prompt renderer 稳定截图测试。</li>
-            <li>把 README、HTML 总览、plan-v2 的状态同步起来，避免路线图漂移。</li>
-          </ul>
-        </article>
-        <article class="card">
-          <h3>中期：扩大 benchmark 能力</h3>
-          <ul>
-            <li>引入更多 question type：<code>data_only</code>、跨预算对比、受控干扰项。</li>
-            <li>为不同 family 增加更细的显著性阈值和失败诊断。</li>
-            <li>丰富 LLM eval 汇总报告：按 family/type/budget/model 分桶分析。</li>
-            <li>让 inspector 成为稳定的人类答题和 artifact 审核界面。</li>
-          </ul>
-        </article>
-        <article class="card">
-          <h3>长期：从合成走向复杂任务</h3>
-          <ul>
-            <li>扩展分类、图像、序列和更真实的训练机制。</li>
-            <li>引入更多模型类型，例如 CNN、RNN 或小型 modern sequence model。</li>
-            <li>构建公开 benchmark release：固定题集、隐藏答案、可重复评分。</li>
-            <li>比较人类、不同 LLM、不同 prompt 风格在 architecture intuition 上的差异。</li>
-          </ul>
-        </article>
-        <article class="card">
-          <h3>持续质量线</h3>
-          <ul>
-            <li>每次改生成逻辑都要有 determinism 测试。</li>
-            <li>每次改 prompt 都要有渲染内容和 inspector parity 测试。</li>
-            <li>每次改训练代码都要跑 smoke ground truth，而不是只测 JSON。</li>
-            <li>截图要覆盖文档、question inspector、关键宽度和关键状态。</li>
-          </ul>
-        </article>
-      </div>
-    </section>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num blue">39.4%</div>
+      <div class="stat-label">旧 prompt</div>
+      <div class="stat-sub">6 次均值 · 23.67/60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">33.9%</div>
+      <div class="stat-label">公式初选</div>
+      <div class="stat-sub">3 次均值 · 20.33/60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num dead">32.8%</div>
+      <div class="stat-label">公式修订后</div>
+      <div class="stat-sub">3 次均值 · 19.67/60</div>
+    </div>
+  </div>
 
-    <section class="band">
-      <h2>本轮测试与截图计划</h2>
-      <div class="grid">
-        <article class="card">
-          <h3>单元测试</h3>
-          <p>新增基础设施测试：<code>short_hash</code> 稳定性、JSON round-trip、legacy 路径、benchmark manifest、候选集/候选目录发现、轴兼容性边界。</p>
-        </article>
-        <article class="card">
-          <h3>全量测试</h3>
-          <p>运行 <code>pytest</code>，确认现有生成器、prompt、inspector、runtime 和 eval 测试仍然通过。</p>
-        </article>
-        <article class="card">
-          <h3>大量截图</h3>
-          <p>用浏览器打开本 HTML，并在 desktop、tablet、mobile 尺寸下截取首屏、流程、profile、路线图和测试计划区域。</p>
-        </article>
-      </div>
-    </section>
+  <div class="table-scroll">
+    <table class="clean-table">
+      <thead><tr><th>Family</th><th>旧 prompt 均值</th><th>公式 prompt 均值</th><th>变化</th></tr></thead>
+      <tbody>
+        <tr><td><code>bigram_lm</code></td><td>45.8%</td><td>40.0%</td><td>-5.8 pp</td></tr>
+        <tr><td><code>multivariate_regression</code></td><td>48.3%</td><td>45.0%</td><td>-3.3 pp</td></tr>
+        <tr><td><code>univariate_regression</code></td><td>24.2%</td><td>13.3%</td><td><strong>-10.8 pp</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
 
-    <section>
-      <h2>常用开发命令</h2>
-      <pre><code>python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev,inspector]"
+  <div class="callout warn">
+    <div class="callout-title">为什么会降</div>
+    <p>三个 agent 都把“参数很多 + 步数很少”写成较强惩罚，并把高学习率的过拟合/不稳定风险提前编码。这个先验听起来合理，却在本题集里系统性低估了容量收益；尤其一维回归中，大模型经常仍占优。25 项公式修订只改变了 5 个答案，三次合计从 61 个初选正确降到 59 个终选正确。</p>
+  </div>
 
-pytest
+  <div class="case-card">
+    <h3>新增 prompt 的核心约束</h3>
+    <pre class="prompt-box">For each family, write:
+Score_family(candidate | question)
+  = weighted benefits - weighted risks + interaction terms
 
-architecture-iq create-dataset --family univariate_regression --seed 42
-architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
-  --budget 1024 --count 32 --vary model
-architecture-iq generate-question data/datasets/univariate_regression/sym_XXXXXX \
-  data/datasets/univariate_regression/sym_XXXXXX/candidates/set_1024_var_fix_fix_XXXXXX \
-  --num-questions 5
+At minimum include exact/estimated trainable parameters, optimizer steps,
+non-monotonic learning-rate fit, optimizer suitability, architecture,
+normalization/residual interactions, regularization, underfit and overfit risk.
 
-python tools/question_inspector/run.py
-python tools/llm_eval/run.py --model gpt-4o-mini</code></pre>
-      <p class="small">注：<code>data/</code> 与 <code>llm_runs/</code> 是运行时产物，不纳入仓库。</p>
-    </section>
+Pass 1: score every option and choose.
+Audit: enforce repeated-candidate consistency and detect double counting.
+Revision: change only shared family-level weights, without labels; re-score all
+affected questions. Save every contribution, risk flag, revision, and answer.</pre>
+    <p class="small">完整 prompt：<code>artifacts/quiz_attempt_60/gpt56_sol/heuristic_formula/prompt.md</code>。三份完整 60+60 轨迹、评分和对照统计位于同目录。</p>
+  </div>
 
-    <section>
-      <h2>风险和下一步判断</h2>
-      <table>
-        <thead>
-          <tr><th>风险</th><th>表现</th><th>处理方式</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>题目过易或过难</td>
-            <td>LLM 总是秒选或随机猜</td>
-            <td>按 family/type/budget 分桶分析，并调整候选采样和显著性阈值。</td>
-          </tr>
-          <tr>
-            <td>prompt 泄漏答案</td>
-            <td>模型不需要理解训练机制也能推断</td>
-            <td>保持 prompt 不含 metric、seed 统计和曲线；增加 prompt snapshot 测试。</td>
-          </tr>
-          <tr>
-            <td>训练开销扩大</td>
-            <td>候选池生成慢，CI 难以覆盖</td>
-            <td>区分 fast unit、smoke ground truth、offline benchmark 三层验证。</td>
-          </tr>
-          <tr>
-            <td>扩展时 schema 漂移</td>
-            <td>旧 artifact 或 inspector 读取失败</td>
-            <td>保持稳定 envelope，把 family/type 变化放到 nested fields。</td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="next">下一步建议：先把 v1 的小规模 artifact 固化成 smoke fixture，再推进 inspector 截图回归和 LLM eval 报告分桶。</p>
-    </section>
-  </main>
-  <script>
-    const cumulativeSeries = [
-      {
-        name: "原始盲答",
-        color: "#425466",
-        strokeWidth: 2,
-        values: [1.0,1.0,1.0,1.0,0.8,0.6667,0.7143,0.625,0.5556,0.6,0.5455,0.5,0.5385,0.5714,0.6,0.5625,0.5882,0.5556,0.5789,0.6,0.619,0.5909,0.6087,0.625,0.6,0.5769,0.5926,0.6071,0.6207,0.6333,0.6452,0.625,0.6364,0.6471,0.6571,0.6667,0.6757,0.6842,0.6923,0.7,0.7073,0.7143,0.7209,0.7273,0.7333,0.7391,0.7447,0.75,0.7551,0.76,0.7647,0.7692,0.7736,0.7778,0.7818,0.7857,0.7895,0.7931,0.7966,0.8,0.8033,0.8065,0.8095,0.8125,0.8154]
+  <div class="callout live">
+    <div class="callout-title">下一步</div>
+    <p>公式方向仍值得保留，但权重不能凭直觉在测试集上继续调。应使用独立 calibration split 学习参数量、学习率、优化器及交互项的权重，冻结公式后再评估 held-out 题集。</p>
+  </div>
+</div>
+
+<div class="slide scrollable" data-title="5.6-SOL 为什么低">
+  <div class="act-label">GPT-5.6-SOL · interpretation</div>
+  <h1>5.6-SOL 低于 5.5，更像是盲答先验偏了</h1>
+  <div class="subtitle">这不是“5.6 一定更弱”的结论；它是当前题族、当前 prompt、当前可见上下文下的行为结果。</div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">41.7%</div>
+      <div class="stat-label">单题盲答</div>
+      <div class="stat-sub">60 fresh agents · 25/60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num dead">39.4%</div>
+      <div class="stat-label">整套盲答</div>
+      <div class="stat-sub">6 次均值 · 23.67/60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num live">63.3%</div>
+      <div class="stat-label">顺序做10题</div>
+      <div class="stat-sub">组内反馈 · 38/60</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num live">72.2%</div>
+      <div class="stat-label">顺序做全部题目</div>
+      <div class="stat-sub">chunked continuation · 6 次均值</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">主要原因</div>
+    <p>5.6-SOL 盲答时经常形成“短预算下高学习率/快速优化器更占优、容量过大更危险”的共同启发式。这个先验在一些题上合理，但在本题集里会系统性错过容量收益，尤其是一维回归：单题盲答按 family 看，<code>bigram_lm</code> 60.0%，<code>multivariate_regression</code> 45.0%，<code>univariate_regression</code> 只有 20.0%；整套盲答的一维回归也只有约 24.2%。</p>
+  </div>
+
+  <div class="case-grid">
+    <div class="case-card">
+      <h3>共同偏差会让投票失效</h3>
+      <p>单题 fresh-agent 盲答是 25/60 = 41.7%，整套盲答均值反而是 23.67/60 = 39.4%；这说明对 5.6-SOL 来说，一次性看到全套题没有产生 5.5 那种横向校准收益。整套盲答 6 个 agent 的多数投票也只有 24/60 = 40.0%，因为很多错题上高度一致地选同一个错误启发式。</p>
+    </div>
+    <div class="case-card">
+      <h3>反馈后能明显恢复</h3>
+      <p>同一个模型在顺序反馈里升到 72.2%，说明它能从真实反馈里修正规则。更合理的解释是：无标签盲答时默认先验不适配这个 synthetic generator；不是模型完全不能学，也不是上下文压缩本身导致崩掉。</p>
+    </div>
+    <div class="case-card">
+      <h3>和 5.5 的比较要带协议注脚</h3>
+      <p>5.6-SOL 的单题盲答已经补跑，协议是每题 fresh subagent；全程反馈仍是分段 continuation，不完全等价于 5.5 的 CLI 连续记录。它可以作为行为观察，但不应被写成严格模型排行榜。</p>
+    </div>
+  </div>
+
+  <div class="callout blue">
+    <div class="callout-title">一句话汇报</div>
+    <p>5.6-SOL 在无反馈盲答中偏低，单题 41.7%、整套 39.4%，主要是共同启发式先验在本题族上错得更一致；一旦给顺序反馈，正确率提升到 72.2%，说明低分主要来自 blind prior mismatch，而不是反馈学习能力缺失。</p>
+  </div>
+</div>
+
+<div class="slide" data-title="累计曲线">
+  <div class="act-label">Learning curve</div>
+  <h1>累计正确率随题号变化</h1>
+  <div class="subtitle">曲线按模型分组：先看 5.4/5.5 的 setting 差异，再看 5.6-SOL 的 blind prior 与 feedback recovery。</div>
+
+  <div class="chart-wrap">
+    <div class="chart-head">
+      <div class="chart-title">累计正确率曲线</div>
+      <div class="mini">纵轴：截至该题累计正确率</div>
+    </div>
+    <svg class="chart" id="cumulative-chart" viewBox="0 0 1040 390" role="img" aria-label="累计正确率曲线"></svg>
+    <div class="legend" id="cumulative-legend"></div>
+  </div>
+
+  <div class="callout live">
+    <div class="callout-title">Pattern</div>
+    <p>5.4 只比较单题盲答与整套盲答；5.5 进一步比较顺序做10题和顺序做全部题目；5.6-SOL 加入单题盲答、整套盲答、顺序做10题和顺序做全部题目。曲线不是为了比较模型谁更强，而是看同一模型随 setting 改变的走势。</p>
+  </div>
+</div>
+
+<div class="slide scrollable" data-title="实际题目">
+  <div class="act-label">Actual question seen by the model</div>
+  <h1>模型实际看到的 Question</h1>
+  <div class="subtitle">例：第 1 道题 <code>q_094b12</code>。以下内容逐字来自实验使用的 sanitized question 文件，没有补写原始 Inspector Prompt。</div>
+
+  <div class="translation-box">
+    <strong>实际传递流程：</strong>原始 session 的 message 指定唯一允许读取的 sanitized question 文件，并明确要求按给定预算选择预期 <code>selection_metric</code> 最好的候选；agent 随后用 <code>cat</code> 读取该文件，工具返回的内容就是下面这段 JSON。<br>
+    <strong>实际输入边界：</strong>没有题目图片、训练曲线、真实指标、正确答案或原始 Inspector Prompt，也不得读取其他文件。<br>
+    <strong>任务类型是明确的：</strong>顶层 <code>family</code> 直接标记 <code>bigram_lm</code>、<code>univariate_regression</code> 或 <code>multivariate_regression</code>；本例还同时给出 <code>selection_metric=test_ce</code>、词表/上下文长度、数据规模，以及 Transformer 与交叉熵配置。
+  </div>
+
+  <pre class="prompt-box long-code">{
+  "question_id": "q_094b12",
+  "question_run_id": "run_20q_3c_dc3e83",
+  "family": "bigram_lm",
+  "dataset_id": "bg_0021c1",
+  "question_type": "mixed",
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "selection_metric": "test_ce",
+  "dataset_params": {
+    "instance_seed": 1410009409,
+    "vocab_size": 32,
+    "context_length": 16,
+    "train_size": 800,
+    "test_size": 200,
+    "alpha": 1.0,
+    "layout": "lm",
+    "sequence_seed": 1410009409,
+    "table_seed": 1410019409
+  },
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_1c667d",
+      "budget": {
+        "training_steps": 80,
+        "batch_size": 64,
+        "total_samples_seen": 5120
       },
-      {
-        name: "审计 A",
-        color: "#0f7b8f",
-        strokeWidth: 2,
-        values: [1.0,1.0,0.6667,0.75,0.8,0.6667,0.5714,0.625,0.6667,0.7,0.7273,0.75,0.7692,0.7857,0.7333,0.75,0.7647,0.7778,0.7895,0.8,0.8095,0.7727,0.7826,0.7917,0.8,0.7692,0.7778,0.7857,0.7931,0.8,0.7742,0.7812,0.7879,0.7941,0.8,0.8056,0.8108,0.8158,0.8205,0.825,0.8293,0.8333,0.8372,0.8409,0.8444,0.8261,0.8298,0.8125,0.7959,0.8,0.8039,0.7885,0.7925,0.7963,0.8,0.8036,0.807,0.8103,0.8136,0.8167,0.8197,0.8226,0.8254,0.8281,0.8308]
+      "model": {
+        "type": "transformer_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 128,
+        "num_layers": 1,
+        "num_heads": 4,
+        "d_ff": 256
       },
-      {
-        name: "审计 B",
-        color: "#176b3a",
-        strokeWidth: 2,
-        values: [0.0,0.5,0.3333,0.5,0.6,0.5,0.5714,0.5,0.5556,0.6,0.6364,0.6667,0.6923,0.7143,0.6667,0.6875,0.7059,0.6667,0.6842,0.7,0.7143,0.6818,0.6957,0.7083,0.72,0.6923,0.7037,0.7143,0.7241,0.7333,0.7097,0.7188,0.7273,0.7353,0.7429,0.75,0.7568,0.7632,0.7692,0.775,0.7805,0.7857,0.7907,0.7955,0.8,0.7826,0.7872,0.7708,0.7755,0.78,0.7843,0.7692,0.7547,0.7593,0.7636,0.7679,0.7719,0.7759,0.7797,0.7833,0.7869,0.7903,0.7937,0.7969,0.8]
+      "optimizer": {
+        "type": "Adam",
+        "lr": 0.0003,
+        "weight_decay": 0.001,
+        "betas": [
+          0.9,
+          0.999
+        ]
       },
-      {
-        name: "审计 C",
-        color: "#9a5a00",
-        strokeWidth: 2,
-        values: [0.0,0.5,0.3333,0.5,0.6,0.5,0.5714,0.5,0.5556,0.6,0.6364,0.6667,0.6923,0.7143,0.6667,0.6875,0.7059,0.6667,0.6842,0.7,0.7143,0.6818,0.6957,0.7083,0.72,0.6923,0.7037,0.7143,0.7241,0.7333,0.7097,0.7188,0.7273,0.7353,0.7429,0.75,0.7568,0.7632,0.7692,0.775,0.7561,0.7619,0.7674,0.7727,0.7778,0.7609,0.766,0.75,0.7551,0.76,0.7647,0.75,0.7358,0.7407,0.7455,0.75,0.7544,0.7586,0.7627,0.7667,0.7705,0.7742,0.7778,0.7812,0.7846]
-      },
-      {
-        name: "审计平均",
-        color: "#b42318",
-        strokeWidth: 4,
-        values: [0.3333,0.6667,0.4444,0.5833,0.6667,0.5556,0.5714,0.5417,0.5926,0.6333,0.6667,0.6945,0.7179,0.7381,0.6889,0.7083,0.7255,0.7037,0.7193,0.7333,0.746,0.7121,0.7247,0.7361,0.7467,0.7179,0.7284,0.7381,0.7471,0.7555,0.7312,0.7396,0.7475,0.7549,0.7619,0.7685,0.7748,0.7807,0.7863,0.7917,0.7886,0.7936,0.7984,0.803,0.8074,0.7899,0.7943,0.7778,0.7755,0.78,0.7843,0.7692,0.761,0.7654,0.7697,0.7738,0.7778,0.7816,0.7853,0.7889,0.7924,0.7957,0.799,0.8021,0.8051]
+      "loss": {
+        "loss_id": "cross_entropy"
       }
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_2e1fc1",
+      "budget": {
+        "training_steps": 80,
+        "batch_size": 64,
+        "total_samples_seen": 5120
+      },
+      "model": {
+        "type": "transformer_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 128,
+        "num_layers": 1,
+        "num_heads": 4,
+        "d_ff": 64
+      },
+      "optimizer": {
+        "type": "RMSprop",
+        "lr": 0.01,
+        "weight_decay": 1e-05
+      },
+      "loss": {
+        "loss_id": "cross_entropy"
+      }
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_54a92a",
+      "budget": {
+        "training_steps": 80,
+        "batch_size": 64,
+        "total_samples_seen": 5120
+      },
+      "model": {
+        "type": "transformer_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 32,
+        "num_layers": 2,
+        "num_heads": 2,
+        "d_ff": 256
+      },
+      "optimizer": {
+        "type": "AdamW",
+        "lr": 0.0001,
+        "weight_decay": 0,
+        "betas": [
+          0.9,
+          0.999
+        ]
+      },
+      "loss": {
+        "loss_id": "cross_entropy"
+      }
+    }
+  ]
+}</pre>
+</div>
+
+<div class="slide scrollable" data-title="Prompt 模板">
+  <div class="act-label">Actual subagent message · audited from session</div>
+  <h1>单题盲答实际收到的 Message</h1>
+  <div class="subtitle">以下是 GPT-5.4 / GPT-5.5 单题 session 中保存的实际句式；文件路径和题号逐题替换。</div>
+
+  <pre class="prompt-box">Per-question blind ArchitectureIQ quiz. Use ONLY this single-question
+sanitized file and do not open/read any other files:
+{{ONE_SANITIZED_QUESTION_FILE}}
+
+Choose the letter/candidate expected to achieve the best selection_metric
+after the stated training budget. Return ONLY compact JSON with keys:
+n, question_id, predicted_letter, predicted_candidate_id, confidence, reason.
+n={{QUESTION_NUMBER}}.</pre>
+
+  <div class="translation-box"><strong>中文直译版（message）：</strong></div>
+  <pre class="prompt-box">ArchitectureIQ 单题盲答测验。只使用下面这一份经过清理的单题文件，不要打开或读取任何其他文件：
+{{ONE_SANITIZED_QUESTION_FILE}}
+
+选择在给定训练预算后预计能取得最佳 selection_metric 的选项字母/候选项。仅返回紧凑的 JSON，包含以下键：n、question_id、predicted_letter、predicted_candidate_id、confidence、reason。
+n={{QUESTION_NUMBER}}。</pre>
+
+  <div class="callout blue">
+    <div class="callout-title">分发参数</div>
+    <p>
+      单题盲答使用 <code>gpt-5.4 high</code> 与 <code>gpt-5.5 high</code> 两组，每题一个独立 session。
+      原始日志显示 agent 实际调用 <code>cat</code> 读取唯一获准的题目文件；限制是不得读取其他题目、答案或结果文件，而不是禁止读取这份题目本身。
+    </p>
+  </div>
+</div>
+
+<div class="slide scrollable" data-title="其他模板">
+  <div class="act-label">Other protocol prompts</div>
+  <h1>整套盲答与反馈类 setting</h1>
+  <div class="subtitle">这里的核心区别是可见上下文；记录器强制只是保证“先答后看反馈”的实现方式。</div>
+  <p class="small"><code>{{REPO_ROOT}}</code> 是发布前脱敏的本地仓库路径占位符；其余协议内容保持实验时的语义。</p>
+
+  <div class="case-grid">
+    <div class="case-card">
+      <h3>整套盲答：实际 subagent payload</h3>
+      <pre class="prompt-box">{
+  "tool": "multi_agent_v1.spawn_agent",
+  "parameters": {
+    "agent_type": "default",
+    "fork_context": false,
+    "model": "{{gpt-5.5 OR gpt-5.4}}",
+    "reasoning_effort": "high",
+    "message": "You are an independent blind-answer agent for ArchitectureIQ.\n\nSTRICT PROTOCOL:\n- You will receive the full 60-question sanitized set at once.\n- Answer only from the visible sanitized questions and qualitative reasoning.\n- Do NOT read answer keys, feedback files, scoring files, result summaries, curves, previous attempts, repository files, or any hidden ground-truth artifacts.\n- Do NOT run shell commands, Python, Node, jq, scripts, training, local simulations, approximate experiments, or data reconstruction.\n- You may compare across the visible questions, repeated candidates, model families, optimizers, learning rates, budgets, and architecture patterns.\n- Return strict JSON only with keys: agent, model, reasoning_effort, source_used, forbidden_files_viewed, predictions.\n- predictions must be an array of exactly 60 records.\n- Each prediction must contain: original_n, question_id, predicted_letter, predicted_candidate_id, confidence, reason.\n- predicted_candidate_id must match the selected letter in that question.\n\nSanitized 60-question JSON:\n{{SANITIZED_60_QUESTION_JSON}}"
+  }
+}</pre>
+      <div class="translation-box"><strong>中文直译版：</strong>下面是同一个 payload 的中文版本，字段结构不变，仅把传给 subagent 的 message 逐条翻译。</div>
+      <pre class="prompt-box">{
+  "tool": "multi_agent_v1.spawn_agent",
+  "parameters": {
+    "agent_type": "default",
+    "fork_context": false,
+    "model": "{{gpt-5.5 OR gpt-5.4}}",
+    "reasoning_effort": "high",
+    "message": "你是 ArchitectureIQ 的独立盲答 agent。\n\n严格协议：\n- 你会一次性收到完整的 60 道 sanitized 题目集合。\n- 只能根据可见的 sanitized 题目和定性推理作答。\n- 不要读取答案 key、反馈文件、评分文件、结果 summary、曲线、先前尝试、仓库文件或任何隐藏的 ground-truth artifact。\n- 不要运行 shell 命令、Python、Node、jq、脚本、训练、本地模拟、近似实验或数据重建。\n- 你可以在可见题目之间比较重复 candidate、模型族、优化器、学习率、预算和架构模式。\n- 只返回严格 JSON，key 为：agent、model、reasoning_effort、source_used、forbidden_files_viewed、predictions。\n- predictions 必须是一个正好包含 60 条记录的数组。\n- 每条 prediction 必须包含：original_n、question_id、predicted_letter、predicted_candidate_id、confidence、reason。\n- predicted_candidate_id 必须匹配该题中所选字母。\n\nSanitized 60 题 JSON：\n{{SANITIZED_60_QUESTION_JSON}}"
+  }
+}</pre>
+    </div>
+
+    <div class="case-card">
+      <h3>顺序做10题：实际 subagent payload</h3>
+      <pre class="prompt-box">{
+  "tool": "multi_agent_v1.spawn_agent",
+  "parameters": {
+    "agent_type": "default",
+    "fork_context": false,
+    "model": "gpt-5.5",
+    "reasoning_effort": "high",
+    "message": "You are assigned one consecutive 10-question ArchitectureIQ block.\n\nSTRICT PROTOCOL:\n- You start with no memory from other blocks.\n- Use only the 10 sanitized questions in this block and the feedback revealed inside this block.\n- Do NOT inspect answer keys, scoring files, global feedback files, result summaries, curves, previous attempts, repository files, or future blocks.\n- Do NOT run shell commands, Python, Node, jq, scripts, training, local simulations, approximate experiments, or data reconstruction.\n\nFor each question in order:\n1. answer the current sanitized question first;\n2. record predicted_letter, predicted_candidate_id, confidence, and a short reason;\n3. only after recording the prediction, reveal/read the current question's feedback from the provided per-question feedback packet;\n4. write a short lesson about what changed;\n5. use only earlier lessons from this same 10-question block for later questions.\n\nReturn strict JSON with keys: group, range, model, reasoning_effort, records.\nEach record must contain: original_n, question_id, predicted_letter, predicted_candidate_id, confidence, reason, feedback_viewed_after_prediction, lesson.\n\nBlock input:\n{{TEN_QUESTION_SANITIZED_JSON}}\n\nPer-question feedback packets, to be opened only after each prediction:\n{{TEN_QUESTION_FEEDBACK_PACKETS}}"
+  }
+}</pre>
+      <div class="translation-box"><strong>中文直译版：</strong>下面是同一个 payload 的中文版本，字段结构不变，仅把传给 subagent 的 message 逐条翻译。</div>
+      <pre class="prompt-box">{
+  "tool": "multi_agent_v1.spawn_agent",
+  "parameters": {
+    "agent_type": "default",
+    "fork_context": false,
+    "model": "gpt-5.5",
+    "reasoning_effort": "high",
+    "message": "你被分配到一个连续的 10 题 ArchitectureIQ block。\n\n严格协议：\n- 你从其他 block 中没有任何记忆开始。\n- 只能使用这个 block 中的 10 道 sanitized 题，以及这个 block 内部揭示的反馈。\n- 不要检查答案 key、评分文件、全局反馈文件、结果 summary、曲线、先前尝试、仓库文件或未来 block。\n- 不要运行 shell 命令、Python、Node、jq、脚本、训练、本地模拟、近似实验或数据重建。\n\n对每一道题，按顺序执行：\n1. 先回答当前 sanitized 题目；\n2. 记录 predicted_letter、predicted_candidate_id、confidence 和一个简短 reason；\n3. 只有在记录预测之后，才揭示 / 读取所提供的当前题反馈包；\n4. 写一条简短 lesson，说明发生了什么变化；\n5. 后续题只能使用同一个 10 题 block 中更早的 lesson。\n\n返回严格 JSON，key 为：group、range、model、reasoning_effort、records。\n每条 record 必须包含：original_n、question_id、predicted_letter、predicted_candidate_id、confidence、reason、feedback_viewed_after_prediction、lesson。\n\nBlock 输入：\n{{TEN_QUESTION_SANITIZED_JSON}}\n\n每题反馈包，只能在每次预测之后打开：\n{{TEN_QUESTION_FEEDBACK_PACKETS}}"
+  }
+}</pre>
+    </div>
+
+    <div class="case-card">
+      <h3>顺序做全部题目：记录器强制版 payload</h3>
+      <pre class="prompt-box">{
+  "tool": "multi_agent_v1.spawn_agent",
+  "parameters": {
+    "agent_type": "default",
+    "fork_context": false,
+    "model": "gpt-5.5",
+    "reasoning_effort": "high",
+    "message": "You are in {{REPO_ROOT}}.\n\nTask: run one mechanically audited full sequential feedback experiment named {{SESSION_NAME}} using tools/sequential_feedback_session.py.\n\nIMPORTANT PROTOCOL:\n- Do NOT directly read artifacts/quiz_attempt/questions_sanitized.json, learning_feedback_key.json, answer_key.json, question.json, results/summary.json, curves, scored answers, or raw ground-truth files.\n- Interact with questions and feedback only through tools/sequential_feedback_session.py.\n- The answer command records your prediction before returning current-question feedback.\n- Do not modify unrelated files.\n\nCommands:\n1. init:\npython tools/sequential_feedback_session.py init --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --questions artifacts/quiz_attempt/questions_sanitized.json --feedback artifacts/quiz_attempt/learning_feedback_key.json --experiment {{SESSION_NAME}} --force\n\n2. loop until done:\npython tools/sequential_feedback_session.py current --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json\n\n3. submit answer before feedback:\npython tools/sequential_feedback_session.py answer --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --letter <A/B/C> --candidate-id <candidate_id> --confidence <0-1> --reason \"<reason>\"\n\n4. after reading returned feedback, record lesson:\npython tools/sequential_feedback_session.py lesson --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --lesson \"<lesson>\"\n\n5. final summary:\npython tools/sequential_feedback_session.py summary --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --output artifacts/quiz_attempt/{{SESSION_NAME}}_summary.json\n\nFinal report: accuracy, 10-question block accuracy, whether you used only the CLI, and output file paths."
+  }
+}</pre>
+      <div class="translation-box"><strong>中文直译版：</strong>下面是同一个 payload 的中文版本，字段结构不变，仅把传给 subagent 的 message 逐条翻译。</div>
+      <pre class="prompt-box">{
+  "tool": "multi_agent_v1.spawn_agent",
+  "parameters": {
+    "agent_type": "default",
+    "fork_context": false,
+    "model": "gpt-5.5",
+    "reasoning_effort": "high",
+    "message": "你位于 {{REPO_ROOT}}。\n\n任务：使用 tools/sequential_feedback_session.py 运行一个名为 {{SESSION_NAME}} 的机械审计全程顺序反馈实验。\n\n重要协议：\n- 不要直接读取 artifacts/quiz_attempt/questions_sanitized.json、learning_feedback_key.json、answer_key.json、question.json、results/summary.json、curves、scored answers 或 raw ground-truth 文件。\n- 只能通过 tools/sequential_feedback_session.py 与题目和反馈交互。\n- answer 命令会先记录你的预测，然后才返回当前题反馈。\n- 不要修改无关文件。\n\n命令：\n1. 初始化：\npython tools/sequential_feedback_session.py init --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --questions artifacts/quiz_attempt/questions_sanitized.json --feedback artifacts/quiz_attempt/learning_feedback_key.json --experiment {{SESSION_NAME}} --force\n\n2. 循环直到完成：\npython tools/sequential_feedback_session.py current --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json\n\n3. 在看到反馈前提交答案：\npython tools/sequential_feedback_session.py answer --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --letter <A/B/C> --candidate-id <candidate_id> --confidence <0-1> --reason \"<reason>\"\n\n4. 读取返回的反馈后，记录 lesson：\npython tools/sequential_feedback_session.py lesson --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --lesson \"<lesson>\"\n\n5. 最终 summary：\npython tools/sequential_feedback_session.py summary --session artifacts/quiz_attempt/{{SESSION_NAME}}_session.json --output artifacts/quiz_attempt/{{SESSION_NAME}}_summary.json\n\n最终报告：accuracy、10-question block accuracy、你是否只使用了 CLI，以及输出文件路径。"
+  }
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="slide scrollable" data-title="案例：单题盲答">
+  <div class="act-label">Answer trace · per-question blind</div>
+  <h1>案例一：单题盲答</h1>
+  <div class="subtitle">完整题面、fresh subagent 的原始最终 JSON、正确答案与曲线放在同一页核对。</div>
+  <div class="case-study" id="case-single-blind"></div>
+</div>
+
+<div class="slide scrollable" data-title="案例：整套盲答">
+  <div class="act-label">Answer trace · full-set blind</div>
+  <h1>案例二：整套盲答</h1>
+  <div class="subtitle">同一个 agent 一次性看到整套题；展示单题 prediction 原文，也可展开完整历史输出。</div>
+  <div class="case-study" id="case-fullset-blind"></div>
+</div>
+
+<div class="slide scrollable" data-title="案例：顺序做10题">
+  <div class="act-label">Answer trace · grouped feedback</div>
+  <h1>案例三：顺序做10题</h1>
+  <div class="subtitle">Group 6 的连续选择序列；该 artifact 没有保存完整 reason/lesson，所以这里只展示真实记录，不补写推理。</div>
+  <div class="case-study" id="case-group-feedback"></div>
+</div>
+
+<div class="slide scrollable" data-title="案例：顺序做全部题目">
+  <div class="act-label">Answer trace · CLI-audited sequential</div>
+  <h1>案例四：顺序做全部题目</h1>
+  <div class="subtitle">记录器先保存预测，再返回当前题反馈；完整展示 reason、真实指标、lesson 与累计正确率。</div>
+  <div class="case-study" id="case-sequential-feedback"></div>
+</div>
+
+<div class="slide" data-title="行为解释">
+  <div class="act-label">Behavioral interpretation</div>
+  <h1>为什么不同上下文会改变正确率</h1>
+  <div class="subtitle">这更像行为学测量，而不是一个静态 leaderboard。</div>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-time">单题盲答</div>
+      <div class="tl-title">只能调用一般先验</div>
+      <div class="tl-body">模型只能根据 optimizer、学习率、模型容量等常识猜测；无法知道本题集生成器的具体偏好。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-time">整套盲答</div>
+      <div class="tl-title">可以做横向比较</div>
+      <div class="tl-body">同一候选、相似数据族、重复配置会在多题中出现；模型能用题间一致性校准自己的启发式。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-time">顺序做10题</div>
+      <div class="tl-title">开始形成经验规则</div>
+      <div class="tl-body">模型只能在当前 10 题内积累 lesson；小组之间 reset，所以它能学习，但记忆长度受限。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-time">顺序做全部题目</div>
+      <div class="tl-title">最接近人类刷题视角</div>
+      <div class="tl-body">一个 agent 从头做到尾，前面题目的反馈都可以进入后续推理；记录器强制版只是在工具层保证先答后看。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-time">长上下文</div>
+      <div class="tl-title">有收益，也有衰减风险</div>
+      <div class="tl-body">整套接龙会变长；但 subagent 具备自动上下文管理，主要风险不是上下文压缩 bug，而是协议审计不够硬。</div>
+    </div>
+  </div>
+</div>
+
+<div class="slide" data-title="汇报口径">
+  <div class="act-label">Recommended wording</div>
+  <h1>明天汇报建议</h1>
+  <div class="subtitle">用这几句话压住争议点。</div>
+
+  <div class="derivation">
+    <div class="step-card">
+      <div class="step-head"><span class="step-num">01</span><span class="step-name">主结论</span><span class="step-tag tag-rigorous">clean</span></div>
+      <div class="step-note">在 60 道三选题主口径上，GPT-5.5 high 单题盲答约 46.7%，整套盲答约 57.8%，顺序做10题约 65.0%，顺序做全部题目约 79.4%。</div>
+    </div>
+    <div class="step-card">
+      <div class="step-head"><span class="step-num">02</span><span class="step-name">上下文解释</span><span class="step-tag tag-empirical">behavior</span></div>
+      <div class="step-note">正确率随可用上下文增加而上升，说明模型并非只在做单题静态推理，而是在利用题间结构和反馈经验。</div>
+    </div>
+    <div class="step-card">
+	      <div class="step-head"><span class="step-num">03</span><span class="step-name">协议解释</span><span class="step-tag tag-approx">protocol</span></div>
+	      <div class="step-note">正式结论要同时报告 subagent 可见上下文、禁止项、输出 JSON schema、模型 effort 和评分方式。</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Take-home</div>
+    <p class="takeaway">
+      这组实验最有价值的不是单个分数，而是展示 GPT 的“解题行为”会被上下文设置显著调制：
+      从单题先验、到整套比较、再到反馈学习，表现呈现可解释的阶梯式变化。
+    </p>
+  </div>
+</div>
+
+</div>
+
+<div class="nav">
+  <button class="btn" id="prev">← 上一步</button>
+  <div class="dots" id="dots"></div>
+  <div style="display:flex; align-items:center; gap:18px;">
+    <span class="counter" id="counter">1 / 1</span>
+    <button class="btn" id="next">下一步 →</button>
+  </div>
+</div>
+
+<div id="notesPanel"></div>
+
+<div id="helpOverlay">
+  <div class="panel">
+    <h3>快捷键</h3>
+    <div class="row"><span><kbd>←</kbd> <kbd>→</kbd> <kbd>空格</kbd></span><span>上一步 / 下一步</span></div>
+    <div class="row"><span><kbd>↑</kbd> <kbd>↓</kbd> <kbd>PageUp</kbd> <kbd>PageDown</kbd></span><span>长页内滚动</span></div>
+    <div class="row"><span><kbd>0</kbd>–<kbd>9</kbd></span><span>跳到对应幕</span></div>
+    <div class="row"><span><kbd>Home</kbd> <kbd>End</kbd></span><span>首幕 / 末幕</span></div>
+    <div class="row"><span><kbd>F</kbd></span><span>全屏</span></div>
+    <div class="row"><span><kbd>S</kbd></span><span>演讲者备注</span></div>
+    <div class="row"><span><kbd>T</kbd></span><span>循环主题</span></div>
+    <div class="row"><span><kbd>?</kbd></span><span>本帮助</span></div>
+  </div>
+</div>
+
+<script src="templates/html_report_template/html模板/js/engine.js"></script>
+<script src="artifacts/quiz_attempt_60/readme_case_assets/case_data.js"></script>
+<script>
+(function () {
+  const payload = window.README_CASE_STUDIES;
+  if (!payload) return;
+
+  function esc(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function fmt(value) {
+    if (value === null || value === undefined || value === '') return 'n/a';
+    if (typeof value === 'number') {
+      if (Number.isInteger(value)) return String(value);
+      if (Math.abs(value) >= 100) return value.toFixed(0);
+      if (Math.abs(value) >= 1) return value.toFixed(4);
+      return value.toPrecision(4);
+    }
+    return esc(value);
+  }
+
+  function prettyJson(value) {
+    return esc(JSON.stringify(value, null, 2) ?? 'null');
+  }
+
+  function specBlock(label, lines) {
+    return `<div class="spec-block">
+      <div class="spec-label">${esc(label)}</div>
+      ${lines.map(line => `<div class="spec-line">${esc(line)}</div>`).join('')}
+    </div>`;
+  }
+
+  function modelLines(model) {
+    if (model?.type === 'transformer_lm') {
+      return [
+        'Type: causal transformer LM',
+        `Vocab size: ${model.vocab_size}`,
+        `Context length: ${model.context_length}`,
+        `d_model: ${model.d_model ?? model.embed_dim}`,
+        `num_layers: ${model.num_layers}`,
+        `num_heads: ${model.num_heads}`,
+        `d_ff: ${model.d_ff ?? model.ff_dim}`
+      ];
+    }
+    if (model?.type === 'mlp') {
+      return [
+        'Type: MLP',
+        `Depth: ${model.depth} hidden layers`,
+        `Width: ${model.width} (all hidden layers)`,
+        `Residual connections: ${model.residual}`,
+        `Layer norm per layer: ${JSON.stringify(model.layer_norm ?? [])}`,
+        `Activations: ${JSON.stringify(model.activations ?? [])}`,
+        'Initialization: PyTorch Linear defaults'
+      ];
+    }
+    return Object.entries(model || {}).map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
+  }
+
+  function optimizerLines(optimizer) {
+    const lines = [
+      `Type: ${optimizer?.type ?? '?'}`,
+      `Learning rate: ${optimizer?.lr ?? '?'}`,
+      `Weight decay: ${optimizer?.weight_decay ?? 0}`
     ];
+    if (optimizer?.type === 'SGD' && optimizer.momentum !== undefined) lines.push(`Momentum: ${optimizer.momentum}`);
+    if (['Adam', 'AdamW'].includes(optimizer?.type) && optimizer.betas) lines.push(`Betas: ${JSON.stringify(optimizer.betas)}`);
+    return lines;
+  }
 
-    function svgEl(name, attrs = {}) {
-      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
-      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
-      return el;
+  function lossLines(loss) {
+    const lossId = loss?.loss_id ?? '?';
+    const names = {
+      mse: 'mean squared error (MSE) on the minibatch',
+      cross_entropy: 'cross-entropy on next-token labels',
+      mse_l2: 'MSE + L2 weight penalty',
+      mse_l1: 'MSE + L1 weight penalty',
+      cross_entropy_l2: 'cross-entropy + L2 weight penalty',
+      cross_entropy_l1: 'cross-entropy + L1 weight penalty'
+    };
+    const lines = [`Loss: ${names[lossId] ?? lossId}`];
+    if (loss?.lambda !== undefined) lines.push(`Lambda: ${loss.lambda}`);
+    return lines;
+  }
+
+  function choiceHtml(choice, outcome, predictedLetter, metricName) {
+    const isCorrect = outcome?.is_correct === true;
+    const isPicked = choice.letter === predictedLetter;
+    const classes = ['choice-row'];
+    if (isCorrect) classes.push('correct');
+    if (isPicked) classes.push('picked');
+    if (isPicked && !isCorrect) classes.push('picked-wrong');
+    const tags = [
+      isCorrect ? '<span class="choice-tag correct">正确答案</span>' : '',
+      isPicked ? '<span class="choice-tag picked">模型选择</span>' : ''
+    ].join('');
+    const budget = choice.budget || {};
+    return `<div class="${classes.join(' ')}">
+      <div class="choice-head">
+        <div><span class="choice-letter">${esc(choice.letter)}</span><span class="choice-id">${esc(choice.candidate_id)}</span></div>
+        <div class="choice-status">${tags}</div>
+      </div>
+      ${specBlock('Training', [
+        `Training steps: ${budget.training_steps}`,
+        `Batch size: ${budget.batch_size}`,
+        `Total samples seen: ${budget.total_samples_seen}`
+      ])}
+      ${specBlock('Model', modelLines(choice.model))}
+      ${specBlock('Optimizer', optimizerLines(choice.optimizer))}
+      ${specBlock('Loss', lossLines(choice.loss))}
+      ${outcome?.metric_value === undefined ? '' : `<span class="metric-pill">${esc(metricName)} = ${fmt(outcome.metric_value)}</span>`}
+    </div>`;
+  }
+
+  function traceHtml(trace, activeN) {
+    const ok = trace.is_correct === true ? '对' : trace.is_correct === false ? '错' : '未知';
+    const confidence = trace.confidence === null || trace.confidence === undefined ? '未记录' : fmt(trace.confidence);
+    const lesson = trace.lesson ? `<p class="trace-text"><strong>Lesson：</strong>${esc(trace.lesson)}</p>` : '';
+    const reason = trace.reason
+      ? `<p class="trace-text"><strong>Reason：</strong>${esc(trace.reason)}</p>`
+      : '<p class="trace-text"><strong>Reason：</strong>原始记录未保存</p>';
+    const protocol = trace.protocol_confirmation
+      ? `<p class="trace-text"><strong>Protocol confirmation：</strong>${esc(trace.protocol_confirmation)}</p>`
+      : '';
+    const candidate = trace.predicted_candidate_id ? ` / ${esc(trace.predicted_candidate_id)}` : '';
+    const correctCandidate = trace.correct_candidate_id ? ` / ${esc(trace.correct_candidate_id)}` : '';
+    const activeClass = Number(trace.n) === Number(activeN) ? ' active' : '';
+    return `<div class="trace-item${activeClass}">
+      <div class="trace-title">${esc(trace.label)} · ${ok}</div>
+      <p class="trace-text"><strong>先答：</strong>${esc(trace.predicted_letter)}${candidate}；<strong>正确：</strong>${esc(trace.correct_letter)}${correctCandidate}；<strong>置信度：</strong>${confidence}</p>
+      ${reason}
+      ${lesson}
+      ${protocol}
+      ${trace.cumulative_accuracy === null || trace.cumulative_accuracy === undefined ? '' : `<p class="small">cumulative accuracy: ${fmt(trace.cumulative_accuracy)}</p>`}
+    </div>`;
+  }
+
+  function provenanceHtml(trace) {
+    return `<div class="provenance">
+      <span>artifact：<code>${esc(trace.source_path)}</code></span>
+    </div>`;
+  }
+
+  function questionHtml(question, trace) {
+    const extended = question.question_id === 'q_b24cf4'
+      ? `<div class="case-section">
+          <h3>补充：n=55 长训练曲线</h3>
+          <p class="small">这个题另有更长训练预算下的 B vs C 对比，可用来解释为什么短训下 c_428635 是强 candidate anchor。</p>
+          <img class="curve-image" src="artifacts/q_b24cf4_extended_training/extended_curves.svg" alt="q_b24cf4 extended training curves">
+        </div>`
+      : '';
+    return `<div class="case-section">
+      <h3>题目内容</h3>
+      <div class="case-meta">
+        <span>original n=${fmt(question.original_n)}</span>
+        <span>60题序号=${fmt(question.clean_n)}</span>
+        <span>${esc(question.question_id)}</span>
+        <span>${esc(question.family)}</span>
+        <span>${esc(question.metric)}</span>
+        <span>correct=${esc(question.correct_letter)}</span>
+      </div>
+      <p><strong>dataset：</strong>${esc(question.dataset_id)} · ${esc(question.question_type)} · varying axes: ${esc((question.varying_axes || []).join(', '))}</p>
+      <p><strong>数据/函数：</strong>${esc(question.dataset_summary)}</p>
+      <p class="small">gap=${fmt(question.gap)} · win_rate=${fmt(question.win_rate)}</p>
+    </div>
+    <div class="case-section">
+      <h3>三候选配置</h3>
+      <div class="choice-list">${(question.raw_question?.choices || []).map(choice => {
+        const outcome = question.choices.find(item => item.letter === choice.letter);
+        return choiceHtml(choice, outcome, trace?.predicted_letter, question.metric);
+      }).join('')}</div>
+    </div>
+    <div class="case-section">
+      <h3>模型实际收到的完整题面 JSON</h3>
+      <p class="small">这是 sanitized 输入原文；不含正确答案、真实指标、训练曲线或 summary。</p>
+      <pre class="raw-response">${prettyJson(question.raw_question)}</pre>
+    </div>
+    <div class="case-section">
+      <h3>真实训练曲线</h3>
+      <p class="small">每条线是对应 candidate 多 seed 的平均曲线；selection metric 越低越好。</p>
+      <img class="curve-image" src="${esc(question.curve_svg)}" alt="${esc(question.question_id)} learning curves">
+    </div>
+    ${extended}`;
+  }
+
+  function choiceBrief(choice) {
+    if (!choice) return '未找到配置';
+    const model = choice.model || {};
+    const modelText = model.type === 'transformer_lm'
+      ? `Transformer d_model=${model.d_model ?? model.embed_dim}, layers=${model.num_layers}, heads=${model.num_heads}, d_ff=${model.d_ff ?? model.ff_dim}`
+      : `MLP depth=${model.depth}, width=${model.width}, residual=${model.residual}`;
+    const opt = choice.optimizer || {};
+    return `${choice.letter} / ${choice.candidate_id}：${modelText}；${opt.type}，lr=${opt.lr}，wd=${opt.weight_decay ?? 0}`;
+  }
+
+  function decisionSignals(reason) {
+    const text = String(reason || '').toLowerCase();
+    const signals = [];
+    if (/repeat|known|seen|anchor|candidate/.test(text)) signals.push('重复 candidate / 历史 anchor');
+    if (/capacity|wide|width|deep|depth|layer|larger|smaller|narrow/.test(text)) signals.push('容量、宽度和深度');
+    if (/optimizer|adam|rmsprop|sgd|adagrad|learning rate|\blr\b/.test(text)) signals.push('优化器与学习率');
+    if (/residual|layer norm|normalization/.test(text)) signals.push('残差与归一化结构');
+    return signals.length ? signals.join('、') : '一般性的结构先验';
+  }
+
+  function posthocHtml(question, trace) {
+    if (!trace) return '';
+    const outcomes = [...question.choices]
+      .filter(choice => typeof choice.metric_value === 'number')
+      .sort((a, b) => a.metric_value - b.metric_value);
+    const rawChoices = question.raw_question?.choices || [];
+    const winner = question.choices.find(choice => choice.letter === question.correct_letter);
+    const picked = question.choices.find(choice => choice.letter === trace.predicted_letter);
+    const winnerRaw = rawChoices.find(choice => choice.letter === question.correct_letter);
+    const pickedRaw = rawChoices.find(choice => choice.letter === trace.predicted_letter);
+    const ranking = outcomes.map(choice => `${choice.letter} ${fmt(choice.metric_value)}`).join(' < ');
+    const pickedMetric = picked?.metric_value;
+    const winnerMetric = winner?.metric_value;
+    const ratio = typeof pickedMetric === 'number' && typeof winnerMetric === 'number' && winnerMetric > 0
+      ? pickedMetric / winnerMetric
+      : null;
+    const second = outcomes[1];
+    const lead = second && winner ? second.metric_value - winner.metric_value : null;
+    const correct = trace.is_correct === true;
+    const outcomeText = correct
+      ? `模型选择 ${esc(trace.predicted_letter)}，与真实最优项一致。最优指标为 ${fmt(winnerMetric)}；相对第二名领先 ${fmt(lead)}。`
+      : `模型选择 ${esc(trace.predicted_letter)}，真实最优项是 ${esc(question.correct_letter)}。被选项指标为 ${fmt(pickedMetric)}，最优项为 ${fmt(winnerMetric)}${ratio === null ? '' : `，前者约为后者的 ${fmt(ratio)} 倍`}。`;
+    const signal = decisionSignals(trace.reason);
+    const critique = correct
+      ? `它在 reason 中主要依赖“${esc(signal)}”，这次与真实短程训练结果同向。但这是事后验证，不代表同一启发式在其他题上必然成立。`
+      : `它在 reason 中主要依赖“${esc(signal)}”。事后看，这组定性先验的权重给错了：真实曲线支持的是 ${esc(choiceBrief(winnerRaw))}，而不是 ${esc(choiceBrief(pickedRaw))}。`;
+    const familyText = question.family === 'bigram_lm'
+      ? '对短预算语言模型，不能只把“更激进的学习率”或“更大容量”单独当作胜负手；稳定性、有效宽度和优化速度必须一起判断。'
+      : question.family === 'multivariate_regression'
+        ? '对多变量非线性回归，目标函数复杂度确实让容量重要，但有限训练步数下，容量能否被当前优化器和学习率真正利用，比静态参数量更关键。'
+        : '对一维平滑函数，网络看起来“够大”并不等于短程训练一定最好；深度、残差、优化器和学习率的组合会让同等预算下的收敛速度相差很大。';
+    const lessonText = trace.lesson
+      ? `看到反馈后，模型记录了 lesson。它适合作为后续题的局部经验，但其中若包含某个 candidate 的精确排名，就应视为题集内记忆，而不是普遍架构规律。`
+      : '该记录没有保存反馈后的 lesson，因此这里无法判断模型是否把这次结果正确迁移到了后续题。';
+    return `<div class="case-section posthoc">
+      <h3>事后诸葛亮分析 · 编辑点评</h3>
+      <p class="small">以下分析使用了模型作答时不可见的 answer key、真实指标与曲线；不是模型原始回答。</p>
+      <p class="ranking">真实排序（${esc(question.metric)}，越低越好）：${esc(ranking)}</p>
+      <p>${outcomeText}</p>
+      <p>${critique}</p>
+      <p>${esc(familyText)}</p>
+      <p>${esc(lessonText)}</p>
+    </div>`;
+  }
+
+  function renderStudy(study) {
+    const root = document.getElementById(study.id);
+    if (!root) return;
+    let activeN = study.question_ns[0];
+
+    function paint() {
+      const question = payload.questions[String(activeN)];
+      const trace = study.traces.find(t => Number(t.n) === Number(activeN));
+      const allTraces = study.traces.map(item => traceHtml(item, activeN)).join('');
+      const buttons = study.question_ns.map(n => (
+        `<button type="button" data-case-n="${n}" class="${Number(n) === Number(activeN) ? 'active' : ''}">n=${n}</button>`
+      )).join('');
+      const rawRecord = trace
+        ? `<div class="case-section">
+            <h3>模型实际提交的完整原始回答</h3>
+            ${provenanceHtml(trace)}
+            ${trace.record_note ? `<p class="record-note">${esc(trace.record_note)}</p>` : ''}
+            <pre class="raw-response">${prettyJson(trace.raw_response)}</pre>
+          </div>
+          <div class="case-section">
+            <h3>${esc(study.trace_title)}</h3>
+            <p class="small">下方展示这一 setting 中所有抽样 trace；当前选中的题目会高亮。</p>
+            <div class="trace-list">${allTraces}</div>
+          </div>`
+        : `<div class="case-section"><p>当前题没有找到对应的原始回答记录。</p></div>`;
+      const fullRaw = study.full_raw_response
+        ? `<details class="raw-details">
+            <summary>${esc(study.full_raw_label)}</summary>
+            ${study.full_raw_note ? `<p class="record-note">${esc(study.full_raw_note)}</p>` : ''}
+            <div class="provenance"><span>artifact：<code>${esc(study.full_raw_source)}</code></span></div>
+            <pre class="raw-response">${prettyJson(study.full_raw_response)}</pre>
+          </details>`
+        : '';
+      root.innerHTML = `
+        <div class="case-section">
+          <h3>${esc(study.title)}</h3>
+          <p>${esc(study.subtitle)}</p>
+          <div class="question-switcher">${buttons}</div>
+          <div class="translation-box"><strong>展示边界：</strong>这里保留模型实际提交的完整最终回答与其中的 reason/lesson；服务端未作为回答提交的隐藏推理不属于可审计原文。</div>
+        </div>
+        ${questionHtml(question, trace)}
+        ${rawRecord}
+        ${posthocHtml(question, trace)}
+        ${fullRaw}`;
+      root.querySelectorAll('[data-case-n]').forEach(button => {
+        button.addEventListener('click', () => {
+          activeN = Number(button.getAttribute('data-case-n'));
+          paint();
+        });
+      });
     }
 
-    function renderCumulativeChart() {
-      const svg = document.getElementById("cumulative-chart");
-      const legend = document.getElementById("cumulative-legend");
-      if (!svg || !legend) return;
+    paint();
+  }
 
-      const width = 980;
-      const height = 360;
-      const pad = { left: 58, right: 24, top: 22, bottom: 44 };
-      const xMax = 65;
-      const yMin = 0.45;
-      const yMax = 1.0;
-      const x = (n) => pad.left + ((n - 1) / (xMax - 1)) * (width - pad.left - pad.right);
-      const y = (v) => pad.top + ((yMax - v) / (yMax - yMin)) * (height - pad.top - pad.bottom);
+  payload.studies.forEach(renderStudy);
+})();
+</script>
+<script>
+(function () {
+  const series = [
+    { name: '单题盲答 5.4', color: '#b23a3a', data: [100,100,66.7,75,80,83.3,85.7,75,77.8,80,81.8,83.3,84.6,85.7,80,75,76.5,77.8,78.9,80,81,77.3,78.3,75,72,69.2,66.7,64.3,65.5,66.7,67.7,65.6,66.7,67.6,68.6,66.7,64.9,65.8,66.7,65,63.4,61.9,60.5,59.1,60,58.7,57.4,56.3,57.1,56,54.9,53.8,52.8,51.9,50.9,50,49.1,48.3,49.2,48.3] },
+    { name: '整套盲答 5.4 均值', color: '#6a4a8c', data: [100,100,80,85,88,73.3,70,61.3,65.6,69,71.8,74.2,76.1,77.9,79.3,74.4,75.9,71.7,73.1,74.5,75.7,75.9,76.1,77.1,75.2,75.4,76.3,73.6,74.5,75,74.8,75.3,76.1,75,75.7,74.4,74.9,75.3,75.9,76.3,74.6,75,73.5,72.3,70.9,69.8,69.6,69,69.4,68.2,67.5,66.2,66.8,65.6,65.1,64.3,64.8,64.7,65.1,65.2] },
+    { name: '单题盲答 5.5', color: '#c0544c', data: [0,50,33.3,50,60,66.7,71.4,62.5,55.6,60,54.5,58.3,61.5,64.3,66.7,62.5,64.7,66.7,63.2,65,66.7,63.6,65.2,62.5,60,57.7,59.3,60.7,62.1,60,61.3,59.4,60.6,61.8,62.9,63.9,62.2,63.2,64.1,62.5,61,59.5,58.1,56.8,57.8,56.5,55.3,54.2,53.1,52,51,50,49.1,48.1,47.3,48.2,47.4,46.6,47.5,46.7] },
+    { name: '整套盲答 5.5 均值', color: '#2c6e9c', data: [100,100,77.8,83.3,73.3,61.1,61.9,58.3,63,66.7,69.7,72.2,74.3,76.2,77.8,72.9,74.5,70.4,71.9,73.3,74.6,71.2,72.5,69.4,69.3,66.7,64.2,65.5,65.5,66.7,67.7,65.6,64.7,65.7,63.8,64.8,64.9,65.8,66.7,67.5,65.9,66.7,65.1,63.6,64.4,64.5,63.8,62.5,63.2,62,60.8,60.3,61,59.9,59.4,58.3,57.3,58,58.7,57.8] },
+    { name: '顺序做10题 5.5', color: '#3f8f5e', data: [0,50,33.3,50,60,50,57.1,62.5,66.7,70,63.6,58.3,61.5,64.3,60,62.5,64.7,61.1,63.2,65,66.7,63.6,65.2,62.5,64,61.5,63,64.3,65.5,63.3,64.5,65.6,66.7,67.6,65.7,66.7,64.9,65.8,66.7,67.5,65.9,66.7,65.1,63.6,64.4,65.2,63.8,62.5,63.3,62,60.8,61.5,62.3,63,63.6,64.3,63.2,63.8,64.4,65] },
+    { name: '顺序做全部题目 5.5', color: '#1f7a4d', data: [33.3,66.7,44.4,58.3,66.7,55.6,57.1,54.2,59.3,63.3,66.6,69.5,71.8,73.8,68.9,70.9,72.6,70.4,71.9,73.3,74.6,71.2,72.5,73.6,74.7,71.8,72.9,73.8,74.7,75.5,73.1,74,74.7,75.5,76.2,76.9,77.5,78.1,78.6,79.2,77.2,77.8,76,75.8,76.3,76.8,75.2,74.3,74.9,75.3,75.8,76.3,76.7,77.1,77.6,78,78.4,78.7,79.1,79.4] },
+    { name: '单题盲答 5.6-SOL', color: '#8f3f7c', data: [0,50,33.3,50,40,50,57.1,50,44.4,50,45.5,50,53.8,57.1,60,56.2,58.8,61.1,57.9,60,61.9,59.1,60.9,58.3,56,53.8,51.9,50,51.7,50,51.6,53.1,54.5,55.9,54.3,55.6,54.1,55.3,53.8,52.5,51.2,52.4,51.2,50,51.1,50,48.9,47.9,46.9,46,45.1,44.2,43.4,42.6,41.8,42.9,42.1,41.4,42.4,41.7] },
+    { name: '整套盲答 5.6-SOL 均值', color: '#7851a9', data: [50,75,50,62.5,50,41.7,35.8,31.2,27.7,35,41,37.5,42.4,46.4,46.7,44.8,48,45.4,43,45.8,48.4,46.2,48.6,46.5,45.3,43.6,41.9,43.4,45.4,46.7,48.4,46.9,45.5,47.1,45.7,47.2,45.9,47.4,47.5,47.1,45.9,46,44.9,43.9,45.2,44.2,43.3,42.4,41.5,40.7,39.8,39.1,39.9,39.2,38.5,39.6,38.9,39.1,40.1,39.5] },
+    { name: '顺序做10题 5.6-SOL', color: '#9a7d2f', data: [100,100,66.7,75,80,66.7,71.4,62.5,66.7,70,63.6,58.3,61.5,64.3,60,56.2,52.9,55.6,57.9,60,61.9,59.1,60.9,58.3,56,53.8,55.6,57.1,58.6,56.7,58.1,56.2,57.6,58.8,60,61.1,62.2,63.2,64.1,65,63.4,61.9,60.5,61.4,62.2,60.9,59.6,58.3,59.2,60,58.8,59.6,60.4,61.1,61.8,62.5,61.4,62.1,62.7,63.3] },
+    { name: '顺序做全部题目 5.6-SOL', color: '#0e8a86', data: [16.7,58.3,44.4,58.3,66.7,55.6,61.9,54.2,59.3,63.3,66.6,69.5,71.8,73.8,68.9,69.8,71.6,67.6,65.8,67.5,69.1,65.9,67.4,67.4,66.7,64.7,66.1,67.3,68.4,67.8,65.6,66.7,67.7,68.6,69.5,70.4,71.2,71.9,72.2,71.7,69.9,69.4,67.8,68.6,69.3,69.9,68.8,67.4,68,68.3,69,68.9,69.5,69.8,70,70.5,70.8,71.3,71.8,72.2] }
+  ];
 
-      svg.innerHTML = "";
-      [0.5, 0.6, 0.7, 0.8, 0.9, 1.0].forEach((tick) => {
-        const yy = y(tick);
-        svg.appendChild(svgEl("line", { x1: pad.left, y1: yy, x2: width - pad.right, y2: yy, stroke: "#e3e9f1", "stroke-width": 1 }));
-        svg.appendChild(svgEl("text", { x: 14, y: yy + 4, fill: "#5a6472", "font-size": 12 }, ));
-        svg.lastChild.textContent = `${Math.round(tick * 100)}%`;
-      });
+  const svg = document.getElementById('cumulative-chart');
+  if (!svg) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = 1040, H = 390;
+  const margin = { left: 58, right: 22, top: 20, bottom: 46 };
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+  const minY = 30, maxY = 100;
+  const x = i => margin.left + (i / 59) * plotW;
+  const y = v => margin.top + (maxY - v) / (maxY - minY) * plotH;
 
-      [1, 10, 20, 30, 40, 50, 60, 65].forEach((tick) => {
-        const xx = x(tick);
-        svg.appendChild(svgEl("line", { x1: xx, y1: pad.top, x2: xx, y2: height - pad.bottom, stroke: "#f0f3f7", "stroke-width": 1 }));
-        svg.appendChild(svgEl("text", { x: xx, y: height - 16, fill: "#5a6472", "font-size": 12, "text-anchor": "middle" }));
-        svg.lastChild.textContent = tick;
-      });
+  function el(name, attrs) {
+    const n = document.createElementNS(NS, name);
+    Object.entries(attrs || {}).forEach(([k, v]) => n.setAttribute(k, v));
+    return n;
+  }
 
-      svg.appendChild(svgEl("line", { x1: pad.left, y1: height - pad.bottom, x2: width - pad.right, y2: height - pad.bottom, stroke: "#9aa6b2", "stroke-width": 1.2 }));
-      svg.appendChild(svgEl("line", { x1: pad.left, y1: pad.top, x2: pad.left, y2: height - pad.bottom, stroke: "#9aa6b2", "stroke-width": 1.2 }));
+  svg.innerHTML = '';
+  svg.appendChild(el('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent' }));
 
-      cumulativeSeries.forEach((series) => {
-        const points = series.values.map((value, index) => `${x(index + 1)},${y(value)}`).join(" ");
-        svg.appendChild(svgEl("polyline", {
-          points,
-          fill: "none",
-          stroke: series.color,
-          "stroke-width": series.strokeWidth,
-          "stroke-linecap": "round",
-          "stroke-linejoin": "round",
-          opacity: series.name === "审计平均" ? 1 : 0.9
-        }));
-      });
+  [40, 50, 60, 70, 80, 90, 100].forEach(v => {
+    svg.appendChild(el('line', { x1: margin.left, y1: y(v), x2: W - margin.right, y2: y(v), stroke: 'var(--border)', 'stroke-width': 1 }));
+    const t = el('text', { x: margin.left - 12, y: y(v) + 4, fill: 'var(--dim)', 'font-size': 12, 'font-family': 'var(--font-mono)', 'text-anchor': 'end' });
+    t.textContent = `${v}%`;
+    svg.appendChild(t);
+  });
 
-      legend.innerHTML = "";
-      cumulativeSeries.forEach((series) => {
-        const item = document.createElement("span");
-        item.className = "legend-item";
-        item.style.color = series.color;
-        item.innerHTML = `<span class="legend-swatch"></span><span>${series.name}</span>`;
-        legend.appendChild(item);
-      });
-    }
+  [1, 10, 20, 30, 40, 50, 60].forEach(v => {
+    const xx = x(v - 1);
+    svg.appendChild(el('line', { x1: xx, y1: margin.top, x2: xx, y2: H - margin.bottom, stroke: 'var(--border)', 'stroke-width': 1, opacity: 0.55 }));
+    const t = el('text', { x: xx, y: H - 18, fill: 'var(--dim)', 'font-size': 12, 'font-family': 'var(--font-mono)', 'text-anchor': 'middle' });
+    t.textContent = String(v);
+    svg.appendChild(t);
+  });
 
-    renderCumulativeChart();
+  svg.appendChild(el('line', { x1: margin.left, y1: H - margin.bottom, x2: W - margin.right, y2: H - margin.bottom, stroke: 'var(--dim)', 'stroke-width': 1 }));
+  svg.appendChild(el('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: H - margin.bottom, stroke: 'var(--dim)', 'stroke-width': 1 }));
 
-    const quizButton = document.getElementById("quiz-launch");
-    const quizStatus = document.getElementById("quiz-status");
-    const quizUrl = "http://127.0.0.1:8501";
-    const healthUrl = `${quizUrl}/_stcore/health`;
-    const startCommand = ".venv/bin/python tools/start_quiz.py";
+  series.forEach(s => {
+    const d = s.data.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+    svg.appendChild(el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.name.includes('全部题目') ? 3 : 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    const end = s.data[s.data.length - 1];
+    const label = el('text', { x: W - margin.right - 2, y: y(end) - 5, fill: s.color, 'font-size': 11, 'font-family': 'var(--font-mono)', 'text-anchor': 'end' });
+    label.textContent = `${end.toFixed(1)}%`;
+    svg.appendChild(label);
+  });
 
-    async function openQuiz() {
-      quizStatus.textContent = "正在检查本地做题服务...";
-      try {
-        await fetch(healthUrl, { mode: "no-cors", cache: "no-store" });
-        quizStatus.textContent = "服务已在 8501 运行，正在打开做题页面。";
-        window.open(quizUrl, "_blank", "noopener,noreferrer");
-      } catch (error) {
-        quizStatus.textContent = `服务还没启动。请在仓库根目录运行：${startCommand}`;
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(startCommand);
-          quizStatus.textContent += " 命令已复制。";
-        }
-      }
-    }
+  const xLabel = el('text', { x: W / 2, y: H - 4, fill: 'var(--dim)', 'font-size': 12, 'font-family': 'var(--font-mono)', 'text-anchor': 'middle' });
+  xLabel.textContent = '题序（过滤后 1-60）';
+  svg.appendChild(xLabel);
 
-    quizButton.addEventListener("click", openQuiz);
-  </script>
+  const legend = document.getElementById('cumulative-legend');
+  legend.innerHTML = '';
+  series.forEach(s => {
+    const item = document.createElement('span');
+    item.className = 'legend-item';
+    item.style.color = s.color;
+    item.innerHTML = '<span class="swatch"></span><span></span>';
+    item.lastChild.textContent = s.name;
+    legend.appendChild(item);
+  });
+})();
+</script>
+
 </body>
 </html>

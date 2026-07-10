@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" role="img">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="64" y="18" font-family="Arial, sans-serif" font-size="13" fill="#344054">q_c7387f · lower test_mse wins</text>
+<line x1="64" y1="274.0" x2="736" y2="274.0" stroke="#e6e8ef" stroke-width="1"/>
+<text x="56" y="278.0" text-anchor="end" font-family="monospace" font-size="10" fill="#667085">1e-12</text>
+<line x1="64" y1="212.5" x2="736" y2="212.5" stroke="#e6e8ef" stroke-width="1"/>
+<text x="56" y="216.5" text-anchor="end" font-family="monospace" font-size="10" fill="#667085">0.465</text>
+<line x1="64" y1="151.0" x2="736" y2="151.0" stroke="#e6e8ef" stroke-width="1"/>
+<text x="56" y="155.0" text-anchor="end" font-family="monospace" font-size="10" fill="#667085">0.931</text>
+<line x1="64" y1="89.5" x2="736" y2="89.5" stroke="#e6e8ef" stroke-width="1"/>
+<text x="56" y="93.5" text-anchor="end" font-family="monospace" font-size="10" fill="#667085">1.4</text>
+<line x1="64" y1="28.0" x2="736" y2="28.0" stroke="#e6e8ef" stroke-width="1"/>
+<text x="56" y="32.0" text-anchor="end" font-family="monospace" font-size="10" fill="#667085">1.86</text>
+<line x1="64.0" y1="28" x2="64.0" y2="274" stroke="#f1f3f7" stroke-width="1"/>
+<text x="64.0" y="302" text-anchor="middle" font-family="monospace" font-size="10" fill="#667085">32</text>
+<line x1="232.0" y1="28" x2="232.0" y2="274" stroke="#f1f3f7" stroke-width="1"/>
+<text x="232.0" y="302" text-anchor="middle" font-family="monospace" font-size="10" fill="#667085">536</text>
+<line x1="400.0" y1="28" x2="400.0" y2="274" stroke="#f1f3f7" stroke-width="1"/>
+<text x="400.0" y="302" text-anchor="middle" font-family="monospace" font-size="10" fill="#667085">1040</text>
+<line x1="568.0" y1="28" x2="568.0" y2="274" stroke="#f1f3f7" stroke-width="1"/>
+<text x="568.0" y="302" text-anchor="middle" font-family="monospace" font-size="10" fill="#667085">1544</text>
+<line x1="736.0" y1="28" x2="736.0" y2="274" stroke="#f1f3f7" stroke-width="1"/>
+<text x="736.0" y="302" text-anchor="middle" font-family="monospace" font-size="10" fill="#667085">2048</text>
+<line x1="64" y1="274" x2="736" y2="274" stroke="#98a2b3" stroke-width="1"/>
+<line x1="64" y1="28" x2="64" y2="274" stroke="#98a2b3" stroke-width="1"/>
+<polyline points="64.0,184.0 74.7,184.1 85.3,184.1 96.0,184.2 106.7,184.2 117.3,184.2 128.0,184.3 138.7,184.3 149.3,184.3 160.0,184.4 170.7,184.4 181.3,184.5 192.0,184.5 202.7,184.6 213.3,184.6 224.0,184.7 234.7,184.7 245.3,184.7 256.0,184.8 266.7,184.8 277.3,184.9 288.0,184.9 298.7,184.9 309.3,185.0 320.0,185.0 330.7,185.1 341.3,185.1 352.0,185.1 362.7,185.2 373.3,185.2 384.0,185.3 394.7,185.3 405.3,185.3 416.0,185.4 426.7,185.4 437.3,185.5 448.0,185.5 458.7,185.6 469.3,185.6 480.0,185.7 490.7,185.7 501.3,185.7 512.0,185.8 522.7,185.8 533.3,185.8 544.0,185.9 554.7,185.9 565.3,186.0 576.0,186.0 586.7,186.0 597.3,186.1 608.0,186.1 618.7,186.2 629.3,186.2 640.0,186.2 650.7,186.3 661.3,186.3 672.0,186.4 682.7,186.4 693.3,186.4 704.0,186.5 714.7,186.5 725.3,186.6 736.0,186.6" fill="none" stroke="#2f6f9f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="736.0" cy="186.6" r="4" fill="#2f6f9f"/>
+<text x="680.0" y="190.6" font-family="monospace" font-size="11" fill="#2f6f9f">A 0.661</text>
+<polyline points="64.0,183.2 74.7,195.6 85.3,192.1 96.0,188.3 106.7,199.2 117.3,213.9 128.0,222.2 138.7,221.6 149.3,223.5 160.0,226.4 170.7,229.1 181.3,221.4 192.0,211.3 202.7,214.3 213.3,218.9 224.0,219.9 234.7,219.8 245.3,217.3 256.0,212.3 266.7,208.8 277.3,211.7 288.0,217.1 298.7,221.5 309.3,225.2 320.0,227.2 330.7,228.3 341.3,229.1 352.0,230.6 362.7,228.4 373.3,227.0 384.0,227.5 394.7,228.5 405.3,229.5 416.0,229.9 426.7,232.4 437.3,234.0 448.0,234.3 458.7,233.4 469.3,231.6 480.0,229.8 490.7,227.8 501.3,227.3 512.0,229.1 522.7,231.6 533.3,233.9 544.0,234.2 554.7,233.6 565.3,233.0 576.0,231.4 586.7,230.0 597.3,229.9 608.0,229.9 618.7,229.2 629.3,230.8 640.0,231.9 650.7,232.0 661.3,231.6 672.0,232.2 682.7,232.5 693.3,232.2 704.0,232.2 714.7,233.0 725.3,232.9 736.0,233.3" fill="none" stroke="#b35f2a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="736.0" cy="233.3" r="4" fill="#b35f2a"/>
+<text x="680.0" y="237.3" font-family="monospace" font-size="11" fill="#b35f2a">B 0.308</text>
+<polyline points="64.0,45.2 74.7,183.3 85.3,220.8 96.0,230.5 106.7,232.2 117.3,233.7 128.0,234.7 138.7,235.7 149.3,235.2 160.0,235.4 170.7,237.0 181.3,239.8 192.0,237.1 202.7,241.6 213.3,240.4 224.0,241.1 234.7,242.4 245.3,240.5 256.0,240.1 266.7,242.6 277.3,244.2 288.0,243.0 298.7,243.8 309.3,243.5 320.0,244.7 330.7,245.9 341.3,246.9 352.0,244.8 362.7,247.4 373.3,248.5 384.0,248.7 394.7,247.7 405.3,248.1 416.0,249.0 426.7,249.6 437.3,249.8 448.0,250.6 458.7,249.4 469.3,250.6 480.0,252.2 490.7,251.8 501.3,252.9 512.0,252.3 522.7,252.0 533.3,253.2 544.0,252.9 554.7,254.3 565.3,253.0 576.0,255.5 586.7,255.7 597.3,255.4 608.0,256.2 618.7,256.4 629.3,256.5 640.0,257.7 650.7,257.7 661.3,257.3 672.0,258.3 682.7,258.6 693.3,259.5 704.0,258.3 714.7,259.9 725.3,259.3 736.0,260.1" fill="none" stroke="#3f8f5e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="736.0" cy="260.1" r="4" fill="#3f8f5e"/>
+<text x="680.0" y="264.1" font-family="monospace" font-size="11" fill="#3f8f5e">C 0.105</text>
+<rect x="64" y="304" width="18" height="3" fill="#2f6f9f"/>
+<text x="88" y="308" font-family="monospace" font-size="10" fill="#344054">A c_48066b</text>
+<rect x="224" y="304" width="18" height="3" fill="#b35f2a"/>
+<text x="248" y="308" font-family="monospace" font-size="10" fill="#344054">B c_e66390</text>
+<rect x="384" y="304" width="18" height="3" fill="#3f8f5e"/>
+<text x="408" y="308" font-family="monospace" font-size="10" fill="#344054">C c_07710d winner</text>
+</svg>

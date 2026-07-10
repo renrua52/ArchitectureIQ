@@ -26,6 +26,7 @@ from custom_settings import (  # noqa: E402
     build_model_spec,
     build_optimizer_spec,
     custom_setting_run_id,
+    form_values_from_candidate_spec,
     list_custom_setting_runs,
     run_custom_setting,
 )
@@ -193,6 +194,81 @@ def test_build_custom_setting_spec() -> None:
     assert spec["model"]["activations"] == ["relu", "gelu"]
     assert spec["optimizer"]["betas"] == [0.8, 0.99]
     assert spec["loss"]["lambda"] == 5e-4
+
+
+def test_inherited_form_values_rebuild_exact_candidate_spec() -> None:
+    profile = load_profile("v1")
+    dataset_spec = _regression_dataset_spec()
+    source_model = build_model_spec(
+        "mlp",
+        {
+            "depth": 3,
+            "width": 128,
+            "residual": True,
+            "activations": ["relu", "gelu", "silu"],
+            "layer_norm": [True, False, True],
+        },
+        dataset_spec["params"],
+    )
+    source_optimizer = build_optimizer_spec(
+        "AdamW",
+        lr=3e-4,
+        weight_decay=1e-3,
+        betas=(0.85, 0.995),
+    )
+    source_loss = build_loss_spec("mse_l1", lambda_value=1e-2)
+    source = build_custom_setting_spec(
+        profile,
+        dataset_spec,
+        budget=2048,
+        batch_size=32,
+        model=source_model,
+        optimizer=source_optimizer,
+        loss=source_loss,
+    )
+
+    values = form_values_from_candidate_spec(
+        source,
+        source_letter="B",
+        evaluation={"n_seeds": 10, "base_seed": 7},
+    )
+    rebuilt_model = build_model_spec(
+        values["model_type"],
+        {
+            "depth": values["mlp_depth"],
+            "width": values["mlp_width"],
+            "residual": values["mlp_residual"],
+            "activations": [
+                values[f"mlp_activation_{index}"]
+                for index in range(values["mlp_depth"])
+            ],
+            "layer_norm": [
+                values[f"mlp_norm_{index}"]
+                for index in range(values["mlp_depth"])
+            ],
+        },
+        dataset_spec["params"],
+    )
+    rebuilt_optimizer = build_optimizer_spec(
+        values["optimizer_type"],
+        lr=values["learning_rate"],
+        weight_decay=values["weight_decay"],
+        betas=(values["beta1"], values["beta2"]),
+    )
+    rebuilt = build_custom_setting_spec(
+        profile,
+        dataset_spec,
+        budget=values["budget"],
+        batch_size=values["batch_size"],
+        model=rebuilt_model,
+        optimizer=rebuilt_optimizer,
+        loss=build_loss_spec(values["loss"], lambda_value=values["loss_lambda"]),
+    )
+
+    assert values["n_seeds"] == 10
+    assert values["base_seed"] == 7
+    assert rebuilt == source
+    assert rebuilt["candidate_id"] == source["candidate_id"]
 
 
 def test_build_custom_setting_rejects_invalid_budget() -> None:

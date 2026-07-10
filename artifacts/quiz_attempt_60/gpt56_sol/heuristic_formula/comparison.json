@@ -1,0 +1,79 @@
+{
+  "experiment": "gpt-5.6-sol full-set blind: qualitative baseline versus explicit heuristic-formula prompt",
+  "protocol_control": {
+    "questions": 60,
+    "choices_per_question": 3,
+    "same_sanitized_set": true,
+    "full_set_in_one_context": true,
+    "labels_or_feedback_visible_while_solving": false,
+    "training_or_simulation_allowed": false,
+    "reasoning_effort": "high",
+    "only_prompt_variable": "The heuristic condition must define, audit, revise, and apply explicit family-specific scoring formulas and save per-choice calculations."
+  },
+  "baseline": {
+    "replicates": 6,
+    "correct_counts": [22, 21, 25, 25, 27, 22],
+    "mean_correct": 23.666666666666668,
+    "mean_accuracy": 0.39444444444444443,
+    "population_stdev_accuracy": 0.03557291243018251,
+    "by_family_mean_accuracy": {
+      "bigram_lm": 0.4583333333333333,
+      "multivariate_regression": 0.48333333333333334,
+      "univariate_regression": 0.24166666666666667
+    },
+    "majority_vote": {"correct": 24, "total": 60, "accuracy": 0.4},
+    "prompt": "../blind/prompt.md",
+    "score_source": "../blind/summary.json"
+  },
+  "heuristic_formula_initial_pass": {
+    "replicates": 3,
+    "correct_counts": [20, 22, 19],
+    "mean_correct": 20.333333333333332,
+    "mean_accuracy": 0.3388888888888889,
+    "by_family_mean_accuracy": {
+      "bigram_lm": 0.43333333333333335,
+      "multivariate_regression": 0.45,
+      "univariate_regression": 0.13333333333333333
+    },
+    "majority_vote": {"correct": 21, "total": 60, "accuracy": 0.35}
+  },
+  "heuristic_formula_final_pass": {
+    "replicates": 3,
+    "correct_counts": [18, 21, 20],
+    "mean_correct": 19.666666666666668,
+    "mean_accuracy": 0.3277777777777778,
+    "population_stdev_accuracy": 0.02078698548207745,
+    "by_family_mean_accuracy": {
+      "bigram_lm": 0.4,
+      "multivariate_regression": 0.45,
+      "univariate_regression": 0.13333333333333333
+    },
+    "majority_vote": {"correct": 19, "total": 60, "accuracy": 0.31666666666666665},
+    "prompt": "prompt.md",
+    "score_source": "scored_summary.json",
+    "complete_traces": ["agent_A_trace.json", "agent_B_trace.json", "agent_C_trace.json"]
+  },
+  "label_free_revision_effect": {
+    "formula_revisions_by_agent": [10, 6, 9],
+    "answers_changed_by_agent": [3, 1, 1],
+    "initial_correct_total": 61,
+    "final_correct_total": 59,
+    "net_correct_change": -2,
+    "mean_accuracy_change_percentage_points": -1.1111111111111112
+  },
+  "comparison": {
+    "final_formula_minus_baseline_mean_percentage_points": -6.666666666666665,
+    "final_formula_majority_minus_baseline_majority_percentage_points": -8.333333333333337,
+    "conclusion": "The explicit uncalibrated heuristic-formula prompt did not improve GPT-5.6-SOL on this set. It made the process much more auditable but amplified shared assumptions, especially an excessive penalty on large models under short budgets."
+  },
+  "validation": {
+    "all_trace_json_parsed": true,
+    "all_initial_pass_counts_are_60": true,
+    "all_final_prediction_counts_are_60": true,
+    "all_question_ids_unique_per_pass": true,
+    "all_selected_candidate_ids_match_selected_letters": true,
+    "missing_answers": 0,
+    "invalid_answers": 0,
+    "agents_confirmed_no_forbidden_files_or_empirical_experiments": true
+  }
+}

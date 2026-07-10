@@ -1,0 +1,100 @@
+/* ============================================================
+   themes.css —【设计】备选主题皮肤
+   ------------------------------------------------------------
+   用法: 在 <html> 上加属性, 一行切换整套配色, 比如
+     <html lang="zh-Hans" data-theme="academic">
+   不写属性 = 默认深色(theme.css)。也可用键盘 T 循环切换。
+   canvas 颜色会自动跟着变(js/canvas.js 读 CSS 变量)。
+
+   可选值: light / academic / warm / projector
+   ============================================================ */
+
+/* ===== light · 浅色简洁(投屏/打印友好) ===== */
+[data-theme="light"] {
+  --bg: #f7f5f0;
+  --bg-panel: #ffffff;
+  --bg-elev: #f0ece3;
+  --text: #2a2620;
+  --dim: #8a8175;
+  --accent: #b07d3b;
+  --live: #3f8f5e;
+  --dead: #c0544c;
+  --blue: #3d6ea5;
+  --purple: #7a5ca8;
+  --code-bg: #efeae0;
+  --border: #ddd6c8;
+  --canvas-bg: #ffffff;
+  --accent-soft: rgba(176,125,59,0.14);
+  --live-soft:   rgba(63,143,94,0.14);
+  --dead-soft:   rgba(192,84,76,0.14);
+  --blue-soft:   rgba(61,110,165,0.14);
+  --purple-soft: rgba(122,92,168,0.14);
+  --shadow: 0 6px 24px rgba(0,0,0,0.10);
+}
+
+/* ===== academic · 暖白纸 + 学术深蓝(严肃论文风) ===== */
+[data-theme="academic"] {
+  --bg: #fbfaf7;
+  --bg-panel: #ffffff;
+  --bg-elev: #f4f1ea;
+  --text: #1f2a37;
+  --dim: #6b7685;
+  --accent: #1f4e79;
+  --live: #2f7d4f;
+  --dead: #b23a3a;
+  --blue: #2c6e9c;
+  --purple: #6a4a8c;
+  --code-bg: #eef1f5;
+  --border: #d7dde6;
+  --canvas-bg: #ffffff;
+  --accent-soft: rgba(31,78,121,0.12);
+  --live-soft:   rgba(47,125,79,0.12);
+  --dead-soft:   rgba(178,58,58,0.12);
+  --blue-soft:   rgba(44,110,156,0.12);
+  --purple-soft: rgba(106,74,140,0.12);
+  --shadow: 0 6px 24px rgba(31,42,55,0.10);
+}
+
+/* ===== warm · 暖棕深色(护眼/沉浸) ===== */
+[data-theme="warm"] {
+  --bg: #1a1410;
+  --bg-panel: #241c15;
+  --bg-elev: #2e2419;
+  --text: #f0e6d6;
+  --dim: #a8957c;
+  --accent: #e0a458;
+  --live: #a8c98a;
+  --dead: #e09a8a;
+  --blue: #9ab8c8;
+  --purple: #c4a8d0;
+  --code-bg: #2a2017;
+  --border: #3a2e22;
+  --canvas-bg: #14100b;
+  --accent-soft: rgba(224,164,88,0.16);
+  --live-soft:   rgba(168,201,138,0.16);
+  --dead-soft:   rgba(224,154,138,0.16);
+  --blue-soft:   rgba(154,184,200,0.16);
+  --purple-soft: rgba(196,168,208,0.16);
+}
+
+/* ===== projector · 纯黑高对比(会议室投影仪) ===== */
+[data-theme="projector"] {
+  --bg: #000000;
+  --bg-panel: #0d0d0d;
+  --bg-elev: #1a1a1a;
+  --text: #ffffff;
+  --dim: #b8b8b8;
+  --accent: #ffcf4d;
+  --live: #5fe39a;
+  --dead: #ff7a6e;
+  --blue: #6db8ff;
+  --purple: #cda8ff;
+  --code-bg: #141414;
+  --border: #333333;
+  --canvas-bg: #000000;
+  --accent-soft: rgba(255,207,77,0.20);
+  --live-soft:   rgba(95,227,154,0.20);
+  --dead-soft:   rgba(255,122,110,0.20);
+  --blue-soft:   rgba(109,184,255,0.20);
+  --purple-soft: rgba(205,168,255,0.20);
+}

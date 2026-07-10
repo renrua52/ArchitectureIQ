@@ -44,6 +44,7 @@ from custom_settings import (  # noqa: E402
     build_optimizer_spec,
     compatible_model_types,
     enforce_custom_setting_retention,
+    form_values_from_candidate_spec,
     list_custom_setting_runs,
     run_custom_setting,
 )
@@ -961,56 +962,29 @@ def _apply_inherited_setting(
 ) -> None:
     choice = next(choice for choice in bundle.choices if choice["letter"] == source_letter)
     spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
-    budget = spec["budget"]
-    model = spec["model"]
-    optimizer = spec["optimizer"]
-    loss = spec["loss"]
-
-    values: dict[str, Any] = {
-        "label": f"From {source_letter}",
-        "budget": int(budget["total_samples_seen"]),
-        "batch_size": int(budget["batch_size"]),
-        "model_type": model["type"],
-        "optimizer_type": optimizer["type"],
-        "learning_rate": float(optimizer["lr"]),
-        "weight_decay": float(optimizer.get("weight_decay", 0.0)),
-        "loss": loss["loss_id"],
-    }
-    if model["type"] == "mlp":
-        values.update(
-            {
-                "mlp_depth": int(model["depth"]),
-                "mlp_width": int(model["width"]),
-                "mlp_residual": bool(model.get("residual", False)),
-            }
-        )
-        for index, activation in enumerate(model["activations"]):
-            values[f"mlp_activation_{index}"] = activation
-        for index, use_norm in enumerate(model["layer_norm"]):
-            values[f"mlp_norm_{index}"] = bool(use_norm)
-    elif model["type"] == "transformer_lm":
-        d_model = model["d_model"] if "d_model" in model else model["embed_dim"]
-        d_ff = model["d_ff"] if "d_ff" in model else model["ff_dim"]
-        values.update(
-            {
-                "transformer_d_model": int(d_model),
-                "transformer_layers": int(model["num_layers"]),
-                "transformer_heads": int(model["num_heads"]),
-                "transformer_d_ff": int(d_ff),
-            }
-        )
-
-    if optimizer["type"] == "SGD":
-        values["momentum"] = float(optimizer.get("momentum", 0.0))
-    elif optimizer["type"] in {"Adam", "AdamW"}:
-        betas = optimizer.get("betas", [0.9, 0.999])
-        values["beta1"] = float(betas[0])
-        values["beta2"] = float(betas[1])
-    if "lambda" in loss:
-        values["loss_lambda"] = float(loss["lambda"])
+    values = form_values_from_candidate_spec(
+        spec,
+        source_letter=source_letter,
+        evaluation=q.get("evaluation"),
+    )
 
     for name, value in values.items():
         st.session_state[_setting_key(q, name)] = value
+    st.session_state[_setting_key(q, "inherited_letter")] = source_letter
+    st.session_state[_setting_key(q, "inherited_candidate_id")] = choice["candidate_id"]
+
+
+def _inherit_source_changed(bundle: QuestionBundle, q: dict[str, Any]) -> None:
+    source_label = st.session_state[_setting_key(q, "inherit_source")]
+    if source_label.startswith("Choice "):
+        source_letter = source_label.split()[1]
+        _apply_inherited_setting(bundle, q, source_letter)
+        st.session_state.setting_notice = (
+            f"Loaded every editable parameter from Choice {source_letter}."
+        )
+        return
+    st.session_state.pop(_setting_key(q, "inherited_letter"), None)
+    st.session_state.pop(_setting_key(q, "inherited_candidate_id"), None)
 
 
 def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) -> None:
@@ -1034,28 +1008,23 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
             f"Choice {choice['letter']} · {choice['candidate_id']}"
             for choice in bundle.choices
         ]
-        source_col, inherit_col = st.columns([4, 1])
-        with source_col:
-            source_label = st.selectbox(
-                "Initialize from",
-                source_labels,
-                key=_setting_key(q, "inherit_source"),
+        st.selectbox(
+            "Initialize from",
+            source_labels,
+            key=_setting_key(q, "inherit_source"),
+            on_change=_inherit_source_changed,
+            args=(bundle, q),
+            help="Selecting A/B/C immediately replaces every editable field below.",
+        )
+        inherited_letter = st.session_state.get(_setting_key(q, "inherited_letter"))
+        inherited_candidate_id = st.session_state.get(
+            _setting_key(q, "inherited_candidate_id")
+        )
+        if inherited_letter and inherited_candidate_id:
+            st.caption(
+                f"Loaded Choice {inherited_letter} · `{inherited_candidate_id}`. "
+                "Any field you change below will create a derived spec."
             )
-        with inherit_col:
-            st.markdown("<div style='height: 1.75rem'></div>", unsafe_allow_html=True)
-            inherit_clicked = st.button(
-                "Inherit",
-                use_container_width=True,
-                disabled=source_label == no_inheritance,
-                key=_setting_key(q, "inherit"),
-            )
-        if inherit_clicked:
-            source_letter = source_label.split()[1]
-            _apply_inherited_setting(bundle, q, source_letter)
-            st.session_state.setting_notice = (
-                f"Loaded all editable parameters from Choice {source_letter}."
-            )
-            st.rerun()
 
         name_col, budget_col, batch_col = st.columns([2, 1, 1])
         with name_col:
@@ -1175,6 +1144,20 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                     optimizer=optimizer,
                     loss=loss,
                 )
+                inherited_candidate_id = st.session_state.get(
+                    _setting_key(q, "inherited_candidate_id")
+                )
+                inherited_letter = st.session_state.get(
+                    _setting_key(q, "inherited_letter")
+                )
+                inherited_from = None
+                if inherited_candidate_id and inherited_letter:
+                    inherited_from = {
+                        "letter": inherited_letter,
+                        "candidate_id": inherited_candidate_id,
+                        "exact_spec_match": spec["candidate_id"]
+                        == inherited_candidate_id,
+                    }
                 with st.spinner(f"Training {label or 'custom setting'}…"):
                     result = run_custom_setting(
                         bundle.question_root,
@@ -1184,12 +1167,21 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                         label=label,
                         n_seeds=n_seeds,
                         base_seed=base_seed,
+                        inherited_from=inherited_from,
                     )
             except Exception as exc:
                 st.error(f"Could not generate the curve: {exc}")
             else:
+                inheritance_note = ""
+                if result.get("inherited_from"):
+                    inheritance_note = (
+                        " Exact spec match."
+                        if result["inherited_from"]["exact_spec_match"]
+                        else " Inherited values were modified."
+                    )
                 st.session_state.setting_notice = (
                     f"Generated curve for {result['label']} ({result['candidate_id']})."
+                    f"{inheritance_note}"
                 )
                 st.rerun()
 

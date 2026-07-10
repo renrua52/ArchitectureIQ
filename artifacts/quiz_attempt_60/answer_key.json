@@ -1,0 +1,1562 @@
+[
+  {
+    "question_id": "q_094b12",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "A",
+    "metric": "test_ce",
+    "gap": 0.22566900253295907,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_1c667d",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_1c667d"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_2e1fc1",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_2e1fc1"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_54a92a",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_54a92a"
+      }
+    ]
+  },
+  {
+    "question_id": "q_19d0d6",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.062307810783385875,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_9d4360",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_9d4360"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_4e6738",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_4e6738"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_bbc43e",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_bbc43e"
+      }
+    ]
+  },
+  {
+    "question_id": "q_44d7aa",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.07051193714141846,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_9d4360",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_9d4360"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_314ef5",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_314ef5"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_e38ba5",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_e38ba5"
+      }
+    ]
+  },
+  {
+    "question_id": "q_530159",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.16149811744689968,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_392d73",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_392d73"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_6dc8a1",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_6dc8a1"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_18c742",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_18c742"
+      }
+    ]
+  },
+  {
+    "question_id": "q_6823eb",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "A",
+    "metric": "test_ce",
+    "gap": 0.1056286096572876,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_6d4451",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_6d4451"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_9d4360",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_9d4360"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_314ef5",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_314ef5"
+      }
+    ]
+  },
+  {
+    "question_id": "q_70c35c",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.060591173171996804,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_a8361c",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_a8361c"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_ab85ec",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_ab85ec"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_5ecead",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_5ecead"
+      }
+    ]
+  },
+  {
+    "question_id": "q_7185fa",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "A",
+    "metric": "test_ce",
+    "gap": 0.07727553844451895,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_a47b05",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_a47b05"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_30f47a",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_30f47a"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_f2d289",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_f2d289"
+      }
+    ]
+  },
+  {
+    "question_id": "q_7cac4a",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.11645534038543737,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_55f852",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_55f852"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_52bbb5",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_52bbb5"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_a56d9b",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_a56d9b"
+      }
+    ]
+  },
+  {
+    "question_id": "q_834cc0",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.06033833026886004,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_e960e4",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_e960e4"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_30f47a",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_30f47a"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_6d4451",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_6d4451"
+      }
+    ]
+  },
+  {
+    "question_id": "q_a97b67",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "A",
+    "metric": "test_ce",
+    "gap": 0.08850908279418945,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_e8dfe8",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_e8dfe8"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_1d408b",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_1d408b"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_bd4507",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_bd4507"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b0b228",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.052286696434021174,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_ca03bf",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_ca03bf"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_30f47a",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_30f47a"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_ab85ec",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_ab85ec"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b9bf98",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.11360793113708478,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_52bbb5",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_52bbb5"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_a47b05",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_a47b05"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_30f47a",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_30f47a"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b9f2a5",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.27082376480102566,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_54a92a",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_54a92a"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_18c742",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_18c742"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_bbc43e",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_bbc43e"
+      }
+    ]
+  },
+  {
+    "question_id": "q_bc3c03",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.27952349185943604,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_bd4507",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_bd4507"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_52bbb5",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_52bbb5"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_c9461b",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_c9461b"
+      }
+    ]
+  },
+  {
+    "question_id": "q_cad232",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.1682471990585328,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_b22545",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_b22545"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_541556",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_541556"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_972f8f",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_972f8f"
+      }
+    ]
+  },
+  {
+    "question_id": "q_cb2b16",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.06590731143951434,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_ca03bf",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_ca03bf"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_49edad",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_49edad"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_27decb",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_27decb"
+      }
+    ]
+  },
+  {
+    "question_id": "q_d4e25d",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.09496452808380162,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_e960e4",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_e960e4"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_18c742",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_18c742"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_91d842",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_91d842"
+      }
+    ]
+  },
+  {
+    "question_id": "q_f241b4",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "B",
+    "metric": "test_ce",
+    "gap": 0.08052604198455837,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_4e6738",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_4e6738"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_588f95",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_588f95"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_9d4360",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_9d4360"
+      }
+    ]
+  },
+  {
+    "question_id": "q_f2dd89",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "C",
+    "metric": "test_ce",
+    "gap": 0.07860090732574454,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_9d4360",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_9d4360"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_66e0f7",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_66e0f7"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_953007",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_953007"
+      }
+    ]
+  },
+  {
+    "question_id": "q_fec4c1",
+    "question_run_id": "run_20q_3c_dc3e83",
+    "family": "bigram_lm",
+    "correct_letter": "A",
+    "metric": "test_ce",
+    "gap": 0.3683600187301632,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_a47b05",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_a47b05"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_15e261",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_15e261"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_5ecead",
+        "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_5ecead"
+      }
+    ]
+  },
+  {
+    "question_id": "q_141be2",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.28458577692508696,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_4c36fa",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_4c36fa"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_308419",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_308419"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_530b72",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_530b72"
+      }
+    ]
+  },
+  {
+    "question_id": "q_26712d",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.18850710391998282,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_4c36fa",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_4c36fa"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_d80c2d",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_d80c2d"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_977a24",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_977a24"
+      }
+    ]
+  },
+  {
+    "question_id": "q_3105ef",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.24950523674488068,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_93afad",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_93afad"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_50dbb9",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_50dbb9"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_124107",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_124107"
+      }
+    ]
+  },
+  {
+    "question_id": "q_357cf7",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.36324597299098965,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_3eb757",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_3eb757"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_50dbb9",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_50dbb9"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_55af76",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_55af76"
+      }
+    ]
+  },
+  {
+    "question_id": "q_39bd2f",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.1161028206348419,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_1e92c0",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_1e92c0"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_aac3ae",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_aac3ae"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_3b747d",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_3b747d"
+      }
+    ]
+  },
+  {
+    "question_id": "q_5d4cf6",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.11038320660591122,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_626149",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_626149"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_942f42",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_942f42"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_93afad",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_93afad"
+      }
+    ]
+  },
+  {
+    "question_id": "q_6723e5",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.12628258764743805,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_ff77b8",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_ff77b8"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_1be19e",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_1be19e"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_626149",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_626149"
+      }
+    ]
+  },
+  {
+    "question_id": "q_6e182b",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.12014351917637717,
+    "win_rate": 0.8,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_1ba9d8",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_1ba9d8"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_3462a9",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_3462a9"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_cfa531",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_cfa531"
+      }
+    ]
+  },
+  {
+    "question_id": "q_a2bf05",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.3414208620786666,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_a5eb24",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_a5eb24"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_4c36fa",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_4c36fa"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_15214e",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_15214e"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b1c718",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.17797350585460658,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_124107",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_124107"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_5aaf10",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_5aaf10"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_fa8cac",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_fa8cac"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b5691a",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.14194819331169128,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_768327",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_768327"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_124107",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_124107"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_753f80",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_753f80"
+      }
+    ]
+  },
+  {
+    "question_id": "q_c0bf1a",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.1837276309728622,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_50dbb9",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_50dbb9"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_fa8cac",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_fa8cac"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_b64766",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_b64766"
+      }
+    ]
+  },
+  {
+    "question_id": "q_c2f34a",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.41903683841228484,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_b64766",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_b64766"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_788d6f",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_788d6f"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_eb8427",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_eb8427"
+      }
+    ]
+  },
+  {
+    "question_id": "q_c84ce1",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.2674940973520279,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_93afad",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_93afad"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_f0ca59",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_f0ca59"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_50dbb9",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_50dbb9"
+      }
+    ]
+  },
+  {
+    "question_id": "q_cb4f85",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.1006744086742401,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_4c36fa",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_4c36fa"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_626149",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_626149"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_1e92c0",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_1e92c0"
+      }
+    ]
+  },
+  {
+    "question_id": "q_d578fb",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.17077802717685697,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_977a24",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_977a24"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_f0ca59",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_f0ca59"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_aac3ae",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_aac3ae"
+      }
+    ]
+  },
+  {
+    "question_id": "q_d63396",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.26982206106185913,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_3b747d",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_3b747d"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_768327",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_768327"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_b527c5",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_b527c5"
+      }
+    ]
+  },
+  {
+    "question_id": "q_f2ef1f",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.2434707820415497,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_ecb155",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_ecb155"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_50f30b",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_50f30b"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_dab0bc",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_dab0bc"
+      }
+    ]
+  },
+  {
+    "question_id": "q_fe023b",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.1748713865876198,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_10b5d3",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_10b5d3"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_cfa531",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_cfa531"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_012583",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_012583"
+      }
+    ]
+  },
+  {
+    "question_id": "q_fe3518",
+    "question_run_id": "run_20q_3c_e11590",
+    "family": "multivariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.08077577054500584,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_f2bb03",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_f2bb03"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_cfa531",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_cfa531"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_a5eb24",
+        "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_a5eb24"
+      }
+    ]
+  },
+  {
+    "question_id": "q_073f9b",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.05361939817667008,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_a62e84",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_a62e84"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_428635",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_428635"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_0edfea",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_0edfea"
+      }
+    ]
+  },
+  {
+    "question_id": "q_0e556f",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.2314257889986038,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_950b41",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_950b41"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_e66390",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_e66390"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_a62e84",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_a62e84"
+      }
+    ]
+  },
+  {
+    "question_id": "q_417b4e",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.36580123752355576,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_d1ba7c",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_d1ba7c"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_8bd954",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_8bd954"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_d73254",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_d73254"
+      }
+    ]
+  },
+  {
+    "question_id": "q_59c2dc",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.06832351982593535,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_a0ef35",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_a0ef35"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_661956",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_661956"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_8bd954",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_8bd954"
+      }
+    ]
+  },
+  {
+    "question_id": "q_5f12d9",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.45131409019231794,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_81b3d5",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_81b3d5"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_0edfea",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_0edfea"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_e4cf91",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_e4cf91"
+      }
+    ]
+  },
+  {
+    "question_id": "q_70b2fe",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.17408796697854995,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_6167ee",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_6167ee"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_a0ef35",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_a0ef35"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_aa502d",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_aa502d"
+      }
+    ]
+  },
+  {
+    "question_id": "q_79e34e",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.11178497374057769,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_9615f0",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_9615f0"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_480e2e",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_480e2e"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_835f12",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_835f12"
+      }
+    ]
+  },
+  {
+    "question_id": "q_993e97",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.05802624523639678,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_ee77e6",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_ee77e6"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_ab987f",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_ab987f"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_c6d415",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_c6d415"
+      }
+    ]
+  },
+  {
+    "question_id": "q_aa6cc5",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.1239677783101797,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_8bd954",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_8bd954"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_b467b2",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_b467b2"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_c21fb2",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_c21fb2"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b24cf4",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.05361939817667008,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_e5228f",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_e5228f"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_428635",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_428635"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_a62e84",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_a62e84"
+      }
+    ]
+  },
+  {
+    "question_id": "q_b87c20",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.21056538224220273,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_950b41",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_950b41"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_d84ef5",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_d84ef5"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_4b8dd3",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_4b8dd3"
+      }
+    ]
+  },
+  {
+    "question_id": "q_c1c26a",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.07175449109636248,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_8fca47",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_8fca47"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_f1be6a",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_f1be6a"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_a0ef35",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_a0ef35"
+      }
+    ]
+  },
+  {
+    "question_id": "q_c7387f",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.20274771563708782,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_48066b",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_48066b"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_e66390",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_e66390"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_07710d",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_07710d"
+      }
+    ]
+  },
+  {
+    "question_id": "q_cc87ba",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.14001776836812496,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_84ff13",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_84ff13"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_e4cf91",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_e4cf91"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_701404",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_701404"
+      }
+    ]
+  },
+  {
+    "question_id": "q_d0fad7",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.10570336543023585,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_6167ee",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_6167ee"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_cc7de7",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_cc7de7"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_b467b2",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_b467b2"
+      }
+    ]
+  },
+  {
+    "question_id": "q_dc1205",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "gap": 0.19291288144886493,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_d73254",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_d73254"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_661956",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_661956"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_f1be6a",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_f1be6a"
+      }
+    ]
+  },
+  {
+    "question_id": "q_e18192",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "gap": 0.07294312454760074,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_7ff33d",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_7ff33d"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_835f12",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_835f12"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_b7fd68",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_b7fd68"
+      }
+    ]
+  },
+  {
+    "question_id": "q_e86092",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.06439758576452731,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_701404",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_701404"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_6e2a14",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_6e2a14"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_e84d0f",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_e84d0f"
+      }
+    ]
+  },
+  {
+    "question_id": "q_f745a6",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.09777762964367867,
+    "win_rate": 1.0,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_bb6049",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_bb6049"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_563cb7",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_563cb7"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_aab743",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_aab743"
+      }
+    ]
+  },
+  {
+    "question_id": "q_ff5ef6",
+    "question_run_id": "run_20q_3c_b09206",
+    "family": "univariate_regression",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "gap": 0.12441003173589707,
+    "win_rate": 0.9,
+    "choices": [
+      {
+        "letter": "A",
+        "candidate_id": "c_428635",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_428635"
+      },
+      {
+        "letter": "B",
+        "candidate_id": "c_24d92e",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_24d92e"
+      },
+      {
+        "letter": "C",
+        "candidate_id": "c_5317f5",
+        "candidate_path": "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb/c_5317f5"
+      }
+    ]
+  }
+]

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<!-- 想换主题: 给 <html> 加 data-theme="light|academic|warm|projector"; 不写=默认深色。也可演示时按 T 循环。 -->
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>演示标题 — 副标题</title>
+
+<!-- ===== MathJax (公式渲染, 支持 $...$ 和 $$...$$) ===== -->
+<script>
+window.MathJax = {
+  tex: {inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']]},
+  svg: {fontCache: 'global'}
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- ===== 骨架样式 (加载顺序即层叠顺序, 勿乱序) ===== -->
+<link rel="stylesheet" href="css/theme.css">       <!-- 设计: 默认配色/字体 token -->
+<link rel="stylesheet" href="css/themes.css">      <!-- 设计: 备选主题皮肤 -->
+<link rel="stylesheet" href="css/base.css">        <!-- 设计: reset + 排版 -->
+<link rel="stylesheet" href="css/components.css">  <!-- 设计: 内容组件 -->
+<link rel="stylesheet" href="css/navigation.css">  <!-- 导航: 演示外壳 -->
+</head>
+<body>
+
+<div id="progress"></div>
+<button class="icon-btn" id="fsBtn" title="全屏 (F)">⛶</button>
+<div class="toc" id="toc"></div>
+
+<div class="deck" id="deck">
+
+<!-- ============================================================
+     幕 = 一个 <div class="slide">。第一幕加 active。
+     data-title 是右上目录与导航的名字。
+     · 加 class="fragment" 的元素会在翻页时逐个点出。
+     · 幕内放 <div class="notes"> 写演讲者备注(按 S 查看, 观众看不到)。
+     完整组件画廊见 showcase.html。
+     ============================================================ -->
+
+<!-- ============ 0. 封面 ============ -->
+<div class="slide active" data-title="封面">
+  <div style="display:flex; flex-direction:column; justify-content:center; min-height:80vh;">
+    <div class="act-label">Subtitle / Kicker line in mono</div>
+    <h1 style="font-size:50px; margin-bottom:18px;">演示主标题</h1>
+    <div style="font-size:19px; color:var(--dim); line-height:1.55; max-width:760px;">
+      一句话副标题, 可以放公式 $E = mc^2$,<br>
+      也可以分两三行说明这次演示讲什么.
+    </div>
+    <div style="margin-top:40px; font-family:var(--font-mono); font-size:13px; color:var(--dim); line-height:1.9;">
+      N 幕 · 作者 / 日期<br>
+      <span style="color:var(--accent);">←</span> / <span style="color:var(--accent);">→</span> 翻页 · 数字键跳转 · <kbd>?</kbd> 看快捷键
+    </div>
+  </div>
+  <div class="notes">封面停留 5 秒, 简单自我介绍, 再开始。</div>
+</div>
+
+<!-- ============ 1. 正文 + fragment 逐条点出 + 备注 ============ -->
+<div class="slide" data-title="正文页">
+  <div class="act-label">幕 1 · Section kicker</div>
+  <h1>标准正文页</h1>
+  <div class="subtitle">A one-line subtitle in monospace</div>
+
+  <p>这是一段正文。<strong>strong 用主强调色</strong>, 行内代码 <code>code</code>, 高亮 <mark>mark</mark>, 行内公式 $a^2 + b^2 = c^2$。</p>
+
+  <h2>逐条点出 (按 → 一条条出现)</h2>
+  <ul>
+    <li class="fragment">第一条要点 — 翻页时才出现</li>
+    <li class="fragment">第二条要点, 带公式 $\int_0^\infty e^{-x}\,dx = 1$</li>
+    <li class="fragment">第三条要点</li>
+  </ul>
+
+  <div class="callout fragment">
+    <div class="callout-title">提示框 · 默认(金)</div>
+    <p>callout 加 <code>live</code>(绿) / <code>dead</code>(红) / <code>blue</code> 换色。这一块也是 fragment。</p>
+  </div>
+
+  <div class="notes">讲到第二条时停一下问观众。callout 是收尾金句。</div>
+</div>
+
+<!-- ============ 2. Canvas 动画 (新版 animate API) ============ -->
+<div class="slide" data-title="Canvas 动画">
+  <div class="act-label">幕 2 · Interactive canvas</div>
+  <h1>Canvas 动画与滑块</h1>
+  <div class="subtitle">拖滑块实时改参数, 看动画响应</div>
+
+  <p>动画跟内容绑定, 写在页面底部 inline <code>&lt;script&gt;</code>, 用 <code>js/canvas.js</code> 的 <code>animate()</code> + <code>makePlot()</code>。</p>
+
+  <div class="demo">
+    <div class="demo-title">动画 · 阻尼正弦 (滑块控制频率与衰减)</div>
+    <canvas id="cvDemo" width="1000" height="320"></canvas>
+    <div class="controls">
+      <label>频率: <input type="range" id="freq" min="1" max="100" value="30"><span class="val" id="freqV">3.0</span></label>
+      <label>衰减: <input type="range" id="decay" min="0" max="100" value="20"><span class="val" id="decayV">0.20</span></label>
+      <button class="btn-small" id="resetDemo">重置相位</button>
+    </div>
+  </div>
+
+  <div class="callout blue">
+    <div class="callout-title">写动画三步</div>
+    <p>① <code>animate('cvId', 幕序号, s =&gt; {...})</code> 注册。② 回调里用 <code>s.ctx / s.t / s.dt</code> 绘制。③ 只在该幕 active 时自动跑, 无需手写 RAF 与 active 判断。</p>
+  </div>
+</div>
+
+<!-- ============ 末. 总结 ============ -->
+<div class="slide" data-title="总结">
+  <div class="act-label">Epilogue</div>
+  <h1>总结页</h1>
+  <div class="subtitle">Key takeaways</div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num live">3×</div><div class="stat-label">效率提升</div></div>
+    <div class="stat"><div class="stat-num">0.91</div><div class="stat-label">相关系数</div></div>
+    <div class="stat"><div class="stat-num blue">N</div><div class="stat-label">幕</div></div>
+  </div>
+
+  <div class="callout live">
+    <div class="callout-title">读完这页你会的</div>
+    <ul>
+      <li>……</li>
+      <li>……</li>
+    </ul>
+  </div>
+  <div class="notes">收尾: 回到封面的核心问题, 给一句 take-home。</div>
+</div>
+
+</div>
+
+<!-- ============ 底部导航 ============ -->
+<div class="nav">
+  <button class="btn" id="prev">← 上一步</button>
+  <div class="dots" id="dots"></div>
+  <div style="display:flex; align-items:center; gap:18px;">
+    <span class="counter" id="counter">1 / 1</span>
+    <button class="btn" id="next">下一步 →</button>
+  </div>
+</div>
+
+<!-- ============ 演讲者备注面板 (按 S) ============ -->
+<div id="notesPanel"></div>
+
+<!-- ============ 快捷键帮助 (按 ?) ============ -->
+<div id="helpOverlay">
+  <div class="panel">
+    <h3>快捷键</h3>
+    <div class="row"><span><kbd>←</kbd> <kbd>→</kbd> <kbd>空格</kbd></span><span>上一步 / 下一步</span></div>
+    <div class="row"><span><kbd>0</kbd>–<kbd>9</kbd></span><span>跳到对应幕</span></div>
+    <div class="row"><span><kbd>Home</kbd> <kbd>End</kbd></span><span>首幕 / 末幕</span></div>
+    <div class="row"><span><kbd>F</kbd></span><span>全屏</span></div>
+    <div class="row"><span><kbd>S</kbd></span><span>演讲者备注</span></div>
+    <div class="row"><span><kbd>T</kbd></span><span>循环主题</span></div>
+    <div class="row"><span><kbd>?</kbd></span><span>本帮助</span></div>
+    <div class="row"><span>⌘P</span><span>导出 PDF(所有幕)</span></div>
+  </div>
+</div>
+
+<!-- ===== 骨架脚本 (顺序: 工具 → 引擎 → 本页动画) ===== -->
+<script src="js/canvas.js"></script>   <!-- 引擎: 动画工具 + 主题感知 colors -->
+<script src="js/engine.js"></script>   <!-- 引擎: 翻页/fragment/全屏/备注, 暴露 window.slides -->
+
+<!-- ===== 本演示专属的动画 (跟内容绑定, 留在这里) ===== -->
+<script>
+/* Anim: demo — 阻尼正弦。复制这个模式写自己的动画。 */
+(function () {
+  let freq = 3.0, decay = 0.2, phase = 0;
+  const fEl = document.getElementById('freq'), dEl = document.getElementById('decay');
+  const fV = document.getElementById('freqV'), dV = document.getElementById('decayV');
+  function read() {
+    freq = parseInt(fEl.value) / 10; decay = parseInt(dEl.value) / 100;
+    fV.textContent = freq.toFixed(1); dV.textContent = decay.toFixed(2);
+  }
+  fEl.oninput = read; dEl.oninput = read; read();
+  document.getElementById('resetDemo').onclick = () => { phase = 0; };
+
+  // 注册到第 2 幕(从 0 数), 统一 RAF 自动只在该幕 active 时绘制
+  animate('cvDemo', 2, (s) => {
+    phase += s.dt * 2;
+    clearBg(s);
+    const box = { x: 40, y: 20, w: s.w - 60, h: s.h - 50 };
+    const p = makePlot(s.ctx, box, [0, 1], [-1, 1]);
+    p.grid(8, 4);
+    p.frame();
+    // y = e^{-decay·x·6} · sin(2π·freq·x + φ)
+    p.fn(x => Math.exp(-decay * x * 6) * Math.sin(2 * Math.PI * freq * x + phase), colors.accent, 2);
+    p.fn(x => Math.exp(-decay * x * 6), colors.dim, 1);      // 包络上界
+    p.fn(x => -Math.exp(-decay * x * 6), colors.dim, 1);     // 包络下界
+    s.ctx.fillStyle = colors.accent; s.ctx.font = '12px JetBrains Mono';
+    s.ctx.fillText(`e^(-${decay.toFixed(2)}·6x)·sin(2π·${freq.toFixed(1)}x + φ)`, box.x + 8, box.y + 16);
+  });
+})();
+</script>
+
+</body>
+</html>

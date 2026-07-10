@@ -1,0 +1,40 @@
+/* ============================================================
+   theme.css —【设计】默认主题的配色与字体 token
+   ------------------------------------------------------------
+   这是「换皮肤」的基准。备选皮肤在 themes.css 里用
+   [data-theme="..."] 覆盖这些变量, 在 <html> 上设属性即可切换。
+   Canvas 动画的颜色由 js/canvas.js 自动读取这些变量, 无需手动同步。
+   ============================================================ */
+:root {
+  /* —— 主色板 —— */
+  --bg: #0f1419;          /* 页面背景 */
+  --bg-panel: #161b22;    /* 卡片/面板背景 */
+  --bg-elev: #1c2330;     /* 更高一层(嵌套卡片/hover) */
+  --text: #e8e4d8;        /* 正文 */
+  --dim: #8b8378;         /* 次要文字 */
+  --accent: #d4a574;      /* 主强调色 (金) */
+  --live: #a8d8b9;        /* 正向/成功 (绿) */
+  --dead: #d8a8a8;        /* 反向/失败 (红) */
+  --blue: #8db4d8;        /* 中性强调 (蓝) */
+  --purple: #b9a8d8;      /* 第四强调 (紫) */
+  --code-bg: #1c2229;     /* 代码/标签底 */
+  --border: #2a3038;      /* 边框/网格 */
+  --canvas-bg: #0a0e12;   /* canvas 画布底色 */
+
+  /* —— 强调色的半透明底(标签/高亮用) —— */
+  --accent-soft: rgba(212,165,116,0.15);
+  --live-soft:   rgba(168,216,185,0.15);
+  --dead-soft:   rgba(216,168,168,0.15);
+  --blue-soft:   rgba(141,180,216,0.15);
+  --purple-soft: rgba(185,168,216,0.15);
+
+  /* —— 字体 —— */
+  --font-serif: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', 'Crimson Pro', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* —— 形状 —— */
+  --radius: 8px;          /* 卡片圆角 */
+  --radius-sm: 4px;       /* 小元素圆角 */
+  --shadow: 0 6px 24px rgba(0,0,0,0.35);
+  --maxw: 1200px;         /* 幕内容最大宽度 */
+}

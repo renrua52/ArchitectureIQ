@@ -1,0 +1,397 @@
+{
+  "experiment": "replicate_blind_agent_A",
+  "source_used": "artifacts/quiz_attempt/questions_sanitized.json",
+  "answer_or_scoring_files_viewed": false,
+  "predictions": [
+    {
+      "question_id": "q_094b12",
+      "predicted_candidate_id": "c_1c667d",
+      "predicted_letter": "A",
+      "reason": "Adam at 3e-4 with the largest feedforward width looks safer than RMSprop 0.01 or a small low-lr AdamW model."
+    },
+    {
+      "question_id": "q_19d0d6",
+      "predicted_candidate_id": "c_4e6738",
+      "predicted_letter": "B",
+      "reason": "Largest model with RMSprop 0.001 should train faster than the low-lr RMSprop or SGD alternatives."
+    },
+    {
+      "question_id": "q_44d7aa",
+      "predicted_candidate_id": "c_e38ba5",
+      "predicted_letter": "C",
+      "reason": "High-capacity transformer with Adam 0.003 should make the most progress in the short budget."
+    },
+    {
+      "question_id": "q_530159",
+      "predicted_candidate_id": "c_18c742",
+      "predicted_letter": "C",
+      "reason": "Large AdamW model at 3e-4 is a stronger bet than SGD or Adagrad for cross-entropy."
+    },
+    {
+      "question_id": "q_6823eb",
+      "predicted_candidate_id": "c_314ef5",
+      "predicted_letter": "C",
+      "reason": "Deep d128 RMSprop 0.001 model should edge out the smaller low-lr baseline and the slightly shallower Adam model."
+    },
+    {
+      "question_id": "q_70c35c",
+      "predicted_candidate_id": "c_a8361c",
+      "predicted_letter": "A",
+      "reason": "RMSprop 0.001 with the largest architecture is more stable than AdamW 0.01 and faster than tiny-lr SGD."
+    },
+    {
+      "question_id": "q_7185fa",
+      "predicted_candidate_id": "c_f2d289",
+      "predicted_letter": "C",
+      "reason": "The larger AdamW model at 3e-4 should generalize better than the smaller higher-lr options."
+    },
+    {
+      "question_id": "q_7cac4a",
+      "predicted_candidate_id": "c_55f852",
+      "predicted_letter": "A",
+      "reason": "Adam 0.003 on a wide d128 model should learn much faster than SGD or Adagrad here."
+    },
+    {
+      "question_id": "q_834cc0",
+      "predicted_candidate_id": "c_6d4451",
+      "predicted_letter": "C",
+      "reason": "Adam 3e-4 with d128 capacity is the most balanced choice versus SGD or smaller RMSprop."
+    },
+    {
+      "question_id": "q_a97b67",
+      "predicted_candidate_id": "c_e8dfe8",
+      "predicted_letter": "A",
+      "reason": "AdamW 0.003 with a large model should outperform the SGD candidates despite some lr risk."
+    },
+    {
+      "question_id": "q_b0b228",
+      "predicted_candidate_id": "c_30f47a",
+      "predicted_letter": "B",
+      "reason": "RMSprop 0.003 is a better short-run optimizer than tiny-lr SGD and less risky than AdamW 0.01."
+    },
+    {
+      "question_id": "q_b9bf98",
+      "predicted_candidate_id": "c_a47b05",
+      "predicted_letter": "B",
+      "reason": "AdamW 0.001 with moderate capacity is likely more reliable than SGD or RMSprop at 0.003."
+    },
+    {
+      "question_id": "q_b9f2a5",
+      "predicted_candidate_id": "c_18c742",
+      "predicted_letter": "B",
+      "reason": "Large AdamW at 3e-4 dominates a small low-lr model and an SGD alternative."
+    },
+    {
+      "question_id": "q_bc3c03",
+      "predicted_candidate_id": "c_c9461b",
+      "predicted_letter": "C",
+      "reason": "Adam 3e-4 should beat both SGD choices under the fixed short training budget."
+    },
+    {
+      "question_id": "q_cad232",
+      "predicted_candidate_id": "c_972f8f",
+      "predicted_letter": "C",
+      "reason": "RMSprop 3e-4 on a d128 model is safer than SGD and likely more effective than small Adagrad."
+    },
+    {
+      "question_id": "q_cb2b16",
+      "predicted_candidate_id": "c_49edad",
+      "predicted_letter": "B",
+      "reason": "Adam 3e-4 with d128 capacity is the most reliable optimizer-model pairing in this set."
+    },
+    {
+      "question_id": "q_d4e25d",
+      "predicted_candidate_id": "c_18c742",
+      "predicted_letter": "B",
+      "reason": "AdamW 3e-4 on the large model should clearly beat the SGD candidates."
+    },
+    {
+      "question_id": "q_f241b4",
+      "predicted_candidate_id": "c_4e6738",
+      "predicted_letter": "A",
+      "reason": "Large RMSprop 0.001 is more stable than AdamW 0.01 and faster than low-lr RMSprop."
+    },
+    {
+      "question_id": "q_f2dd89",
+      "predicted_candidate_id": "c_953007",
+      "predicted_letter": "C",
+      "reason": "Adam 3e-4 with the widest feedforward block should generalize better than the smaller RMSprop choices."
+    },
+    {
+      "question_id": "q_fec4c1",
+      "predicted_candidate_id": "c_a47b05",
+      "predicted_letter": "A",
+      "reason": "AdamW 0.001 is much more favorable than either SGD configuration."
+    },
+    {
+      "question_id": "q_141be2",
+      "predicted_candidate_id": "c_530b72",
+      "predicted_letter": "C",
+      "reason": "Adam 0.003 should fit the regression target faster than slow SGD or very low-lr Adagrad."
+    },
+    {
+      "question_id": "q_26712d",
+      "predicted_candidate_id": "c_d80c2d",
+      "predicted_letter": "B",
+      "reason": "RMSprop 0.01 may be aggressive, but it should make more progress than the very slow alternatives."
+    },
+    {
+      "question_id": "q_3105ef",
+      "predicted_candidate_id": "c_124107",
+      "predicted_letter": "C",
+      "reason": "RMSprop 0.001 with residual width 64 is the most balanced regression setup."
+    },
+    {
+      "question_id": "q_357cf7",
+      "predicted_candidate_id": "c_50dbb9",
+      "predicted_letter": "B",
+      "reason": "Adagrad 0.01 with residual connections should beat plain SGD and the much slower Adagrad option."
+    },
+    {
+      "question_id": "q_39bd2f",
+      "predicted_candidate_id": "c_1e92c0",
+      "predicted_letter": "A",
+      "reason": "Adagrad 0.003 is a moderate stable choice compared with very slow or very high-lr RMSprop."
+    },
+    {
+      "question_id": "q_5d4cf6",
+      "predicted_candidate_id": "c_942f42",
+      "predicted_letter": "B",
+      "reason": "AdamW 0.003 should train substantially faster than Adam 1e-4 or SGD."
+    },
+    {
+      "question_id": "q_6723e5",
+      "predicted_candidate_id": "c_ff77b8",
+      "predicted_letter": "A",
+      "reason": "Momentum SGD at 0.01 with residual layers should improve faster than shallow SGD or low-lr Adam."
+    },
+    {
+      "question_id": "q_6e182b",
+      "predicted_candidate_id": "c_3462a9",
+      "predicted_letter": "B",
+      "reason": "Wide residual SGD with momentum and lr 0.01 should beat the low-lr RMSprop candidates."
+    },
+    {
+      "question_id": "q_a2bf05",
+      "predicted_candidate_id": "c_15214e",
+      "predicted_letter": "C",
+      "reason": "RMSprop 0.003 is less risky than AdamW 0.01 and much faster than tiny-lr SGD."
+    },
+    {
+      "question_id": "q_b1c718",
+      "predicted_candidate_id": "c_124107",
+      "predicted_letter": "A",
+      "reason": "RMSprop 0.001 with residual width 64 is safer than the two high-lr alternatives."
+    },
+    {
+      "question_id": "q_b5691a",
+      "predicted_candidate_id": "c_124107",
+      "predicted_letter": "B",
+      "reason": "RMSprop 0.001 is a better speed-stability tradeoff than slow RMSprop or high-lr SGD."
+    },
+    {
+      "question_id": "q_c0bf1a",
+      "predicted_candidate_id": "c_fa8cac",
+      "predicted_letter": "B",
+      "reason": "Lower weight decay on the Adagrad 0.01 model should help relative to the similar option, while RMSprop is too slow."
+    },
+    {
+      "question_id": "q_c2f34a",
+      "predicted_candidate_id": "c_eb8427",
+      "predicted_letter": "C",
+      "reason": "AdamW 0.001 should fit faster than both very low-lr alternatives."
+    },
+    {
+      "question_id": "q_c84ce1",
+      "predicted_candidate_id": "c_f0ca59",
+      "predicted_letter": "B",
+      "reason": "Adagrad 0.01 with more width/depth and no weight decay should edge the smaller similar candidate."
+    },
+    {
+      "question_id": "q_cb4f85",
+      "predicted_candidate_id": "c_1e92c0",
+      "predicted_letter": "C",
+      "reason": "Adagrad 0.003 should make more progress than slow SGD or Adam 1e-4."
+    },
+    {
+      "question_id": "q_d578fb",
+      "predicted_candidate_id": "c_f0ca59",
+      "predicted_letter": "B",
+      "reason": "Adagrad 0.01 is the fastest plausible optimizer among the stable-looking options."
+    },
+    {
+      "question_id": "q_d63396",
+      "predicted_candidate_id": "c_b527c5",
+      "predicted_letter": "C",
+      "reason": "Large Adagrad 0.001 is a safer bet than RMSprop 0.01 and faster than RMSprop 1e-4."
+    },
+    {
+      "question_id": "q_f2ef1f",
+      "predicted_candidate_id": "c_ecb155",
+      "predicted_letter": "A",
+      "reason": "Wide AdamW 0.003 should learn faster than SGD and the lower-lr narrow AdamW model."
+    },
+    {
+      "question_id": "q_fe023b",
+      "predicted_candidate_id": "c_10b5d3",
+      "predicted_letter": "A",
+      "reason": "Large residual Adam model at 3e-4 offers the best capacity and stable optimizer."
+    },
+    {
+      "question_id": "q_fe3518",
+      "predicted_candidate_id": "c_f2bb03",
+      "predicted_letter": "A",
+      "reason": "Wide Adam 3e-4 is more stable than AdamW 0.01 and higher capacity than the RMSprop option."
+    },
+    {
+      "question_id": "q_1e33eb",
+      "predicted_candidate_id": "c_3f2cdd",
+      "predicted_letter": "A",
+      "reason": "With optimizer fixed, the much wider residual model should have better capacity for the univariate target."
+    },
+    {
+      "question_id": "q_962290",
+      "predicted_candidate_id": "c_f01f04",
+      "predicted_letter": "B",
+      "reason": "The residual depth-3 width-128 model should outperform the tiny one-layer model."
+    },
+    {
+      "question_id": "q_999477",
+      "predicted_candidate_id": "c_b816db",
+      "predicted_letter": "B",
+      "reason": "Depth-3 width-256 residual capacity is preferable to the tiny shallow model."
+    },
+    {
+      "question_id": "q_9f309a",
+      "predicted_candidate_id": "c_b816db",
+      "predicted_letter": "B",
+      "reason": "The wider residual model should fit more expressive univariate structure than the narrow non-residual model."
+    },
+    {
+      "question_id": "q_a5e26b",
+      "predicted_candidate_id": "c_ecb411",
+      "predicted_letter": "B",
+      "reason": "Width 256 gives more useful capacity than the narrow depth-3 option under the same optimizer."
+    },
+    {
+      "question_id": "q_073f9b",
+      "predicted_candidate_id": "c_a62e84",
+      "predicted_letter": "A",
+      "reason": "Adam 3e-4 with width 256 should train faster than Adagrad 3e-4 and the tiny AdamW model."
+    },
+    {
+      "question_id": "q_0e556f",
+      "predicted_candidate_id": "c_a62e84",
+      "predicted_letter": "C",
+      "reason": "Adam 3e-4 on a wide model is more reliable than either SGD setup."
+    },
+    {
+      "question_id": "q_417b4e",
+      "predicted_candidate_id": "c_d1ba7c",
+      "predicted_letter": "A",
+      "reason": "Aggressive RMSprop should make more short-budget progress than low-lr SGD or a tiny AdamW model."
+    },
+    {
+      "question_id": "q_59c2dc",
+      "predicted_candidate_id": "c_661956",
+      "predicted_letter": "B",
+      "reason": "At the same Adam lr, the wider residual model should beat the narrower shallow model."
+    },
+    {
+      "question_id": "q_5f12d9",
+      "predicted_candidate_id": "c_e4cf91",
+      "predicted_letter": "C",
+      "reason": "Momentum SGD at 0.003 with deeper capacity should outperform tiny AdamW 1e-4 and low-lr SGD."
+    },
+    {
+      "question_id": "q_70b2fe",
+      "predicted_candidate_id": "c_6167ee",
+      "predicted_letter": "A",
+      "reason": "Adam 0.003 should adapt faster than low-lr Adam and be less path-dependent than Adagrad."
+    },
+    {
+      "question_id": "q_79e34e",
+      "predicted_candidate_id": "c_9615f0",
+      "predicted_letter": "A",
+      "reason": "RMSprop 3e-4 is a safer balance than Adam 0.01 and faster than Adam 1e-4."
+    },
+    {
+      "question_id": "q_993e97",
+      "predicted_candidate_id": "c_ab987f",
+      "predicted_letter": "B",
+      "reason": "RMSprop 0.003 should train faster than either Adagrad candidate."
+    },
+    {
+      "question_id": "q_aa6cc5",
+      "predicted_candidate_id": "c_b467b2",
+      "predicted_letter": "B",
+      "reason": "Large residual Adam at 3e-4 is the strongest capacity and optimizer pairing."
+    },
+    {
+      "question_id": "q_b24cf4",
+      "predicted_candidate_id": "c_a62e84",
+      "predicted_letter": "C",
+      "reason": "Adam 3e-4 on a wide model should outperform slow RMSprop and Adagrad at 3e-4."
+    },
+    {
+      "question_id": "q_b87c20",
+      "predicted_candidate_id": "c_d84ef5",
+      "predicted_letter": "B",
+      "reason": "AdamW 0.001 should make more progress than the very low-lr SGD or RMSprop options."
+    },
+    {
+      "question_id": "q_c1c26a",
+      "predicted_candidate_id": "c_8fca47",
+      "predicted_letter": "A",
+      "reason": "Wide momentum SGD at 0.01 is aggressive but likely better than high-lr AdamW or tiny-lr Adam."
+    },
+    {
+      "question_id": "q_c7387f",
+      "predicted_candidate_id": "c_07710d",
+      "predicted_letter": "C",
+      "reason": "Adagrad 0.01 with residual depth should outperform the SGD alternatives."
+    },
+    {
+      "question_id": "q_cc87ba",
+      "predicted_candidate_id": "c_84ff13",
+      "predicted_letter": "A",
+      "reason": "Adam 0.003 is a faster and more reliable regression optimizer than the SGD or Adagrad choices."
+    },
+    {
+      "question_id": "q_d0fad7",
+      "predicted_candidate_id": "c_cc7de7",
+      "predicted_letter": "B",
+      "reason": "Wide shallow AdamW 0.003 should learn quickly with less depth-related instability than the alternatives."
+    },
+    {
+      "question_id": "q_dc1205",
+      "predicted_candidate_id": "c_661956",
+      "predicted_letter": "B",
+      "reason": "Wide Adam 1e-4 is safer than AdamW 0.01 and higher capacity than the tiny AdamW option."
+    },
+    {
+      "question_id": "q_e18192",
+      "predicted_candidate_id": "c_7ff33d",
+      "predicted_letter": "A",
+      "reason": "RMSprop 0.01 should make the most short-budget progress despite some overshoot risk."
+    },
+    {
+      "question_id": "q_e86092",
+      "predicted_candidate_id": "c_701404",
+      "predicted_letter": "A",
+      "reason": "Large Adagrad 0.001 offers better capacity and step size than the low-lr AdamW or RMSprop options."
+    },
+    {
+      "question_id": "q_f745a6",
+      "predicted_candidate_id": "c_bb6049",
+      "predicted_letter": "A",
+      "reason": "AdamW 0.001 with residual width 64 should beat the SGD candidates."
+    },
+    {
+      "question_id": "q_ff5ef6",
+      "predicted_candidate_id": "c_5317f5",
+      "predicted_letter": "C",
+      "reason": "Adagrad 0.01 is likely more stable than AdamW 0.01 and faster than Adagrad 3e-4."
+    }
+  ]
+}

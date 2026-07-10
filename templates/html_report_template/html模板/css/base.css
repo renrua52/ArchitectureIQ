@@ -1,0 +1,73 @@
+/* ============================================================
+   base.css —【设计】reset + 全局排版
+   ------------------------------------------------------------
+   依赖 theme.css 的变量。负责 body 基调与标题/正文/列表/
+   代码/公式的通用排版。不含任何「组件」或「导航」样式。
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+/* ===== 幕内标题排版 ===== */
+.act-label {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--dim);
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+h1 { font-size: 34px; font-weight: 600; line-height: 1.25; margin-bottom: 8px; }
+.subtitle {
+  font-family: var(--font-mono);
+  font-size: 13px; color: var(--accent);
+  margin-bottom: 24px; padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+h2 { font-size: 20px; font-weight: 600; margin: 22px 0 10px; color: var(--accent); }
+h3 { font-size: 17px; font-weight: 600; margin: 16px 0 6px; }
+
+/* ===== 正文流 ===== */
+p { margin: 10px 0; }
+ul, ol { margin: 8px 0 8px 24px; }
+li { margin: 4px 0; }
+strong { color: var(--accent); }
+
+/* ===== 行内代码 ===== */
+code {
+  font-family: var(--font-mono); font-size: 0.88em;
+  background: var(--code-bg); color: var(--accent);
+  padding: 1px 5px; border-radius: var(--radius-sm);
+}
+
+/* ===== 多行代码块 ===== */
+pre {
+  background: var(--code-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 18px; margin: 14px 0;
+  overflow-x: auto; font-size: 13px; line-height: 1.55;
+}
+pre code { background: none; color: var(--text); padding: 0; font-size: inherit; }
+
+/* ===== 高亮 / 键位 ===== */
+mark {
+  background: var(--accent-soft); color: var(--accent);
+  padding: 0 3px; border-radius: 2px;
+}
+kbd {
+  font-family: var(--font-mono); font-size: 0.82em;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: var(--radius-sm);
+  padding: 1px 6px; color: var(--text);
+}
+
+/* ===== 居中公式块 ===== */
+.eq { text-align: center; margin: 16px 0; font-size: 17px; }
+
+/* ===== 链接 ===== */
+a { color: var(--blue); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover { border-bottom-color: var(--blue); }

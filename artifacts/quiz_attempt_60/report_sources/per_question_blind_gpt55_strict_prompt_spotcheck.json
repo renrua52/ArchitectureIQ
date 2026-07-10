@@ -1,0 +1,63 @@
+{
+  "experiment": "gpt-5.5 per-question blind strict-prompt spot check",
+  "model": "gpt-5.5",
+  "reasoning_effort": "high",
+  "date": "2026-07-10",
+  "protocol": {
+    "scope": "Three representative per-question blind items: original n=33,39,60.",
+    "context": "Each fresh subagent received exactly one question JSON pasted into the prompt, not a file path.",
+    "explicit_restrictions": [
+      "Do not run shell commands, Python, Node, jq, scripts, training, local simulations, approximate experiments, data reconstruction, or any tool calls.",
+      "Do not read or infer from answer keys, feedback files, scoring files, result summaries, curves, previous attempts, or repository files.",
+      "Answer only from the question text and qualitative reasoning."
+    ],
+    "scoring_note": "The answer key was used only by the parent agent after the subagents returned predictions."
+  },
+  "results": [
+    {
+      "original_n": 33,
+      "question_id": "q_c2f34a",
+      "agent_id": "019f49b2-ea77-7b01-a067-f6b14fb82d3e",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_b64766",
+      "confidence": 0.57,
+      "correct_letter": "A",
+      "correct_candidate_id": "c_b64766",
+      "is_correct": true,
+      "reason": "B is likely too slow with plain SGD at lr 0.0001. C has the best optimizer/lr, but its one-hidden-layer width-16 model is quite capacity-limited for this mixed smooth-plus-periodic 4D target with interactions. A has much higher capacity and an adaptive optimizer; even with the smaller RMSprop learning rate, 160 steps over 256 samples should let it capture more of the nonlinear structure than C.",
+      "protocol_confirmation": "I answered only from the question text and qualitative reasoning; I did not run experiments, use tools, inspect files, or consult answer keys or prior results."
+    },
+    {
+      "original_n": 39,
+      "question_id": "q_fe023b",
+      "agent_id": "019f49b2-eb07-7750-aafd-4c228919e12d",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_10b5d3",
+      "confidence": 0.48,
+      "correct_letter": "A",
+      "correct_candidate_id": "c_10b5d3",
+      "is_correct": true,
+      "reason": "The target is noiseless but moderately complex, with tanh terms plus several sinusoidal interactions, so capacity matters. A has much higher width, residual connections, Adam, low weight decay, and enough stability from partial layer norm; despite the lower learning rate and only 160 steps, it should fit the smooth/high-frequency structure better than the smaller alternatives. B is likely limited by RMSprop plus high weight decay, while C trains faster with Adam at 0.003 but has much lower capacity and stronger regularization.",
+      "protocol_confirmation": "I answered only from the provided question text and qualitative reasoning; I did not run experiments, use tools, inspect files, or consult answer keys."
+    },
+    {
+      "original_n": 60,
+      "question_id": "q_d0fad7",
+      "agent_id": "019f49b2-eb90-75b2-a486-917324e42885",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_cc7de7",
+      "confidence": 0.58,
+      "correct_letter": "C",
+      "correct_candidate_id": "c_b467b2",
+      "is_correct": false,
+      "reason": "The target is a smooth one-dimensional cosine plus a linear term, so a wide single-hidden-layer network has enough capacity and should train quickly. With only 64 steps, candidate B's high width, simpler optimization landscape, AdamW at lr 0.003, and no weight decay look more favorable than A's narrow deep model with weight decay or C's much lower learning rate despite larger capacity.",
+      "protocol_confirmation": "I answered only from the provided question text and qualitative reasoning; I did not run experiments or use tools."
+    }
+  ],
+  "score": {
+    "correct": 2,
+    "total": 3,
+    "accuracy": 0.6666666666666666,
+    "impact_on_60_question_gpt55_per_question_blind": "The 60-question gpt-5.5 per-question blind total remains 28/60 = 46.7%."
+  }
+}

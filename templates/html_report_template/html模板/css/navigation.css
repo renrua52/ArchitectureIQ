@@ -1,0 +1,126 @@
+/* ============================================================
+   navigation.css —【导航】演示外壳
+   ------------------------------------------------------------
+   依赖 theme.css。负责「翻页演示」这层框架的所有样式:
+     .deck / .slide   幕容器与淡入切换
+     .nav             底部导航条 (按钮 / 圆点 / 计数)
+     .toc             右上角目录
+   行为逻辑在 js/engine.js, 这里只管外观。
+   ============================================================ */
+
+/* ===== 幕容器与切换 ===== */
+.deck { position: relative; height: 100vh; width: 100vw; }
+.slide {
+  position: absolute; inset: 0;
+  padding: 44px 64px 88px;
+  overflow-y: auto;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.35s ease;
+  max-width: var(--maxw); margin: 0 auto;
+}
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide::-webkit-scrollbar { width: 8px; }
+.slide::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ===== 底部导航条 ===== */
+.nav {
+  position: fixed; bottom: 0; left: 0; right: 0; padding: 14px 28px;
+  background: linear-gradient(to top, var(--bg), rgba(15,20,25,0.85));
+  display: flex; align-items: center; justify-content: space-between; z-index: 10;
+}
+.btn {
+  background: var(--bg-panel); border: 1px solid var(--border); color: var(--text);
+  padding: 7px 16px; font-family: inherit; font-size: 13px; cursor: pointer; border-radius: 4px;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.dots { display: flex; gap: 7px; }
+.dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+  cursor: pointer; transition: all 0.2s;
+}
+.dot.active { background: var(--accent); transform: scale(1.4); }
+.counter { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+
+/* ===== 右上角目录 (hover 展开) ===== */
+.toc {
+  position: fixed; top: 16px; right: 16px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px;
+  font-size: 12px; z-index: 11; max-width: 210px; opacity: 0.35; transition: opacity 0.2s;
+}
+.toc:hover { opacity: 1; }
+.toc-item {
+  display: block; color: var(--dim); padding: 2px 0; cursor: pointer;
+  font-family: var(--font-mono);
+}
+.toc-item:hover { color: var(--accent); }
+.toc-item.current { color: var(--text); }
+.toc-item .num { color: var(--accent); margin-right: 5px; }
+
+/* ===== 顶部进度条 ===== */
+#progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: var(--accent); z-index: 12; transition: width 0.35s ease;
+}
+
+/* ===== 全屏按钮 (右上角, 目录左侧) ===== */
+.icon-btn {
+  position: fixed; top: 16px; right: 236px; z-index: 11;
+  background: var(--bg-panel); border: 1px solid var(--border); color: var(--dim);
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 15px; opacity: 0.35; transition: opacity 0.2s;
+}
+.icon-btn:hover { opacity: 1; border-color: var(--accent); color: var(--accent); }
+
+/* ===== 分步出现 (fragment) — 默认隐藏, 翻页时逐个点出 ===== */
+.fragment {
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.fragment.revealed { opacity: 1; transform: none; }
+
+/* ===== 演讲者备注面板 (按 S 切换) ===== */
+.notes { display: none; }                 /* 备注本身不直接显示 */
+#notesPanel {
+  position: fixed; left: 0; right: 0; bottom: 56px; z-index: 13;
+  background: var(--bg-elev); border-top: 1px solid var(--accent);
+  padding: 14px 28px; max-height: 38vh; overflow-y: auto;
+  font-size: 14px; color: var(--text); display: none;
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.3);
+}
+#notesPanel.show { display: block; }
+#notesPanel .notes-head {
+  font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;
+}
+
+/* ===== 快捷键帮助浮层 (按 ? 切换) ===== */
+#helpOverlay {
+  position: fixed; inset: 0; z-index: 20; display: none;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+  align-items: center; justify-content: center;
+}
+#helpOverlay.show { display: flex; }
+#helpOverlay .panel {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 26px 34px; max-width: 440px;
+  box-shadow: var(--shadow);
+}
+#helpOverlay h3 { margin-top: 0; color: var(--accent); }
+#helpOverlay .row { display: flex; justify-content: space-between; gap: 24px; padding: 5px 0; font-size: 14px; }
+#helpOverlay .row span:last-child { color: var(--dim); }
+
+/* ============================================================
+   打印 / 导出 PDF — 浏览器 ⌘P → 存为 PDF
+   所有幕纵向平铺, fragment 全展开, 隐藏导航 UI。
+   ============================================================ */
+@media print {
+  html, body { height: auto; overflow: visible; background: #fff; }
+  .deck { height: auto; }
+  .slide {
+    position: static; inset: auto; opacity: 1 !important; pointer-events: auto;
+    page-break-after: always; min-height: 100vh; max-width: 100%;
+  }
+  .fragment { opacity: 1 !important; transform: none !important; }
+  .nav, .toc, #progress, #notesPanel, #helpOverlay, .icon-btn { display: none !important; }
+}
