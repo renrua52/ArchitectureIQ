@@ -1,6 +1,8 @@
 # ArchitectureIQ
 
-A prototype benchmark for the **modeling intuition** of LLMs (and humans): given synthetic dataset specs and candidate training setups (model, optimizer, loss), pick which setup achieves the best test metric under a fixed sample budget.
+A prototype benchmark for the **modeling intuition** of LLMs (and humans): given a dataset instance and several **candidates** (model + optimizer + loss + budget), pick which **choice** achieves the best selection metric after its stated training budget.
+
+Design: [plan-v2.md](./plan-v2.md) · Terminology: [AGENT.md](./AGENT.md#terminology)
 
 Interactive experiment report: [README.html](./README.html) (Chinese).
 
@@ -151,7 +153,7 @@ architecture-iq generate-question -i
 | `--seed`              | `0`                            | RNG seed for question assembly (see below)     |
 | `-i`, `--interactive` | off                            | Prompt for dataset, candidate sets, and counts |
 
-**What `--seed` controls:** the RNG for **assembling questions from an existing candidate pool** (no ground truth is re-run). Specifically:
+**What `--seed` controls:** the RNG for **assembling questions from existing candidate set(s)** (no ground truth is re-run). Specifically:
 
 - **Subset selection** — when more significant subsets exist than `--num-questions`, which ones are kept (order after shuffling the passing list).
 - **Letter assignment** — shuffles which choice letter (A, B, …) each candidate gets; the significance winner stays correct but its letter may move.

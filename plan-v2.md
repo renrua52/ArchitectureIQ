@@ -1,8 +1,8 @@
 # ArchitectureIQ Benchmark Plan
 
-This document defines the **general** ArchitectureIQ benchmark architecture — pools, schemas, invariants, and pipeline — so new dataset families, model families, and question types can be added without redesign. [plan.md](./plan.md) is the original sketch; this file makes the design explicit and extensible.
+This document defines the **general** ArchitectureIQ benchmark architecture — pools, schemas, invariants, and pipeline — so new dataset families, model types, and question types can be added without redesign. [plan.md](./plan.md) is the original sketch; this file makes the design explicit and extensible. **Terminology:** [AGENT.md](./AGENT.md#terminology).
 
-**V1** is not a different benchmark — it is the **first implementation profile**: one dataset family, one model family, and a small set of optimizers/losses. Everything below is written as if the full system already exists; [V1 Profile](#v1-profile-first-implementation) at the end records what V1 actually ships.
+**V1** is not a different benchmark — it is the **first implementation profile**: one dataset family, one model type, and a small set of optimizers/losses. Everything below is written as if the full system already exists; [V1 Profile](#v1-profile-first-implementation) at the end records what V1 actually ships.
 
 ---
 
@@ -31,7 +31,7 @@ The codebase and on-disk layout should treat **pools** as first-class registries
 | Pool | Key | Scoped by |
 |------|-----|-----------|
 | Dataset | `family` → many `dataset_id` instances | — |
-| Model | `model.type` | compatible with dataset family |
+| Model | `model.type` (model type) | compatible with dataset family |
 | Optimizer | `optimizer.type` | global (any candidate) |
 | Loss | `loss_id` | **dataset family** (each family declares its loss pool) |
 | Training budget | `total_samples_seen` | global predefined grid |
@@ -56,7 +56,9 @@ Every valid multiple-choice question MUST satisfy all of the following, regardle
 | Invariant | Rule |
 |-----------|------|
 | Same dataset instance | Identical train and test tensors (format defined by dataset family) for all choices |
-| Same sample budget | Each choice sees exactly `training_steps × batch_size` training samples (resampling policy defined by family) |
+| Stated budget per choice | Each choice's `total_samples_seen = training_steps × batch_size` is explicit in its spec and prompt |
+| Shared budget within one set | All candidates in a single generated set share the same `total_samples_seen` (set at `--budget`) |
+| Cross-budget across sets | `generate-question` may union candidates from multiple sets with different budgets; `question.json` marks `budget.mixed` and prompts state per-choice budgets |
 | Same selection metric | Rank choices by the metric declared in `dataset_spec.json` (`selection_metric`) |
 | One correct answer | Exactly one choice is labeled correct; ties or ambiguous rankings reject the question |
 | No metric leakage | Prompts describe setups only — no final metrics, curves, or seed statistics |
@@ -64,9 +66,9 @@ Every valid multiple-choice question MUST satisfy all of the following, regardle
 
 Family-specific rules (domain, input dimensionality, metric name, fail thresholds) live in **family config**, not in question logic.
 
-**Training budget definition:** `total_samples_seen = training_steps × batch_size`. One optimizer step consumes one mini-batch. Budget is fixed per question; all choices in a question share it.
+**Training budget definition:** `total_samples_seen = training_steps × batch_size`. One optimizer step consumes one mini-batch. Within a candidate set, `total_samples_seen` is fixed; across sets, questions may intentionally mix budgets.
 
-**Budget grid (global):** Candidate generation and question assembly MUST pick from a predefined set of budgets — never a one-off random budget at sample time. The grid is configurable per profile; see [V1 Profile](#v1-profile-first-implementation).
+**Budget grid (global):** Candidate generation picks from a predefined set of budgets in the profile — never a one-off random budget at sample time. Cross-budget questions combine candidates trained at different grid values.
 
 ---
 
@@ -161,7 +163,7 @@ For every family:
 
 # Model Pool
 
-The **model pool** is a registry of **model families** (`model.type`). Each type defines a parameter schema, code generator, and NL template.
+The **model pool** is a registry of **model types** (`model.type`). Each type defines a parameter schema, code generator, and NL template.
 
 ## Model family interface
 
@@ -328,7 +330,7 @@ Stored on `question.json`:
 
 ## Question types (tags)
 
-Types describe **what is held constant vs varied** across choices. They apply to any dataset/model family the pools support.
+Types describe **what is held constant vs varied** across choices. They apply to any dataset family / model type the pools support.
 
 | Tag | Typically held constant | Typically varied |
 |-----|-------------------------|------------------|
