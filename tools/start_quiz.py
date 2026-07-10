@@ -66,6 +66,21 @@ def wait_until_running(port: int, timeout: float) -> bool:
     return False
 
 
+def wait_for_process(process: subprocess.Popen[bytes]) -> int:
+    """Wait for Streamlit and treat Ctrl-C as a clean local shutdown."""
+    try:
+        return process.wait()
+    except KeyboardInterrupt:
+        if process.poll() is None:
+            process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        return 0
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -131,7 +146,7 @@ def main() -> int:
     process = subprocess.Popen(cmd, cwd=root)
     if wait_until_running(args.port, timeout=8):
         print(f"ArchitectureIQ quiz is ready: {url}")
-    return process.wait()
+    return wait_for_process(process)
 
 
 if __name__ == "__main__":

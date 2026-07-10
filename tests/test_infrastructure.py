@@ -94,6 +94,30 @@ def test_start_quiz_materializes_bundled_demo(tmp_path: Path) -> None:
     assert (tmp_path / "data" / "datasets").is_dir()
 
 
+def test_start_quiz_treats_keyboard_interrupt_as_clean_shutdown() -> None:
+    class InterruptingProcess:
+        terminated = False
+
+        def wait(self, timeout: float | None = None) -> int:
+            if timeout is None and not self.terminated:
+                raise KeyboardInterrupt
+            return 0
+
+        def poll(self) -> None:
+            return None
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def kill(self) -> None:
+            raise AssertionError("a responsive process should not be killed")
+
+    process = InterruptingProcess()
+
+    assert _START_QUIZ.wait_for_process(process) == 0
+    assert process.terminated is True
+
+
 def test_path_helpers_encode_current_and_legacy_layouts() -> None:
     dataset_path = dataset_dir("univariate_regression", "sym_test")
     set_path = candidate_set_dir(dataset_path, "set_1024_var_fix_fix_abc123")
