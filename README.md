@@ -12,7 +12,8 @@ From the repository root, run:
 
 The quiz opens automatically at <http://127.0.0.1:8501>. Press **Ctrl-C** in
 the terminal to stop it. Running the command again while the quiz is already
-active reuses the existing service.
+active reuses the existing service. On a fresh clone, the launcher installs a
+bundled demo question into the gitignored `data/` directory automatically.
 
 ### First-time setup
 

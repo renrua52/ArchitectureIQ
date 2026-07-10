@@ -14,17 +14,20 @@ pip install -e ".[inspector]"
 ## Run
 
 ```bash
-python tools/question_inspector/run.py
+.venv/bin/python tools/start_quiz.py
 ```
+
+On a fresh clone, the launcher copies the bundled demo question into `data/`
+before starting Streamlit. Existing generated questions are left unchanged.
 
 Optional: open a specific question or run first:
 
 ```bash
-python tools/question_inspector/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX/q_XXXXXX
-python tools/question_inspector/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX
+.venv/bin/python tools/start_quiz.py --question-run data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX/q_XXXXXX
+.venv/bin/python tools/start_quiz.py --question-run data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX
 ```
 
-Or directly:
+Or run Streamlit directly:
 
 ```bash
 streamlit run tools/question_inspector/app.py

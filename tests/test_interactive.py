@@ -23,9 +23,19 @@ from architecture_iq.interactive import (
 )
 from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries
+from architecture_iq.util import write_json
 
-REPO = Path(__file__).resolve().parents[1]
-DATA = REPO / "data"
+def make_dataset_fixture(data_dir: Path) -> Path:
+    dataset = data_dir / "datasets" / "univariate_regression" / "sym_test"
+    write_json(
+        dataset / "dataset_spec.json",
+        {
+            "dataset_id": "sym_test",
+            "family": "univariate_regression",
+            "params": {"expression": "x"},
+        },
+    )
+    return dataset
 
 
 def test_prompt_grid_value_random() -> None:
@@ -191,10 +201,10 @@ def test_prompt_dataset_family_random() -> None:
     assert family in profile.pools["dataset_families"]
 
 
-@pytest.mark.skipif(not (DATA / "datasets").is_dir(), reason="no datasets")
-def test_prompt_dataset_instance_existing_only() -> None:
+def test_prompt_dataset_instance_existing_only(tmp_path: Path) -> None:
     profile = load_profile("v1")
     lines: list[str] = []
+    make_dataset_fixture(tmp_path)
 
     def capture(text: str) -> None:
         lines.append(text)
@@ -202,6 +212,7 @@ def test_prompt_dataset_instance_existing_only() -> None:
     path, family = prompt_dataset_instance(
         profile,
         family="univariate_regression",
+        data_dir=tmp_path,
         allow_create=False,
         input_fn=lambda _: "1",
         write=capture,
@@ -212,12 +223,14 @@ def test_prompt_dataset_instance_existing_only() -> None:
     assert not any("Create new" in line for line in lines)
 
 
-def test_prompt_dataset_instance_rejects_create_when_disabled() -> None:
+def test_prompt_dataset_instance_rejects_create_when_disabled(tmp_path: Path) -> None:
     profile = load_profile("v1")
+    make_dataset_fixture(tmp_path)
     with pytest.raises(ValueError, match="Dataset creation is not available"):
         prompt_dataset_instance(
             profile,
             family="univariate_regression",
+            data_dir=tmp_path,
             allow_create=False,
             input_fn=lambda _: "n",
             write=lambda _: None,
@@ -257,9 +270,9 @@ def test_resolve_dataset_family_requires_explicit_choice() -> None:
     assert picked in profile.pools["dataset_families"]
 
 
-@pytest.mark.skipif(not (DATA / "datasets").is_dir(), reason="no datasets")
-def test_list_dataset_instances() -> None:
-    instances = list_dataset_instances(DATA)
+def test_list_dataset_instances(tmp_path: Path) -> None:
+    make_dataset_fixture(tmp_path)
+    instances = list_dataset_instances(tmp_path)
     assert instances
     assert all(entry.path.is_dir() for entry in instances)
     assert all(entry.family for entry in instances)

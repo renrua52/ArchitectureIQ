@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_835f12",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_mse": 0.032009413838386534,
+  "std_test_mse": 0.011075456425428194,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_mse": 0.029610227793455124,
+      "mean_test_mse": 0.029610227793455124
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_mse": 0.05111474543809891,
+      "mean_test_mse": 0.05111474543809891
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_mse": 0.03349170833826065,
+      "mean_test_mse": 0.03349170833826065
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.01877313293516636,
+      "mean_test_mse": 0.01877313293516636
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_mse": 0.021490927785634995,
+      "mean_test_mse": 0.021490927785634995
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_mse": 0.04378748685121536,
+      "mean_test_mse": 0.04378748685121536
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_mse": 0.029117150232195854,
+      "mean_test_mse": 0.029117150232195854
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_mse": 0.023283910006284714,
+      "mean_test_mse": 0.023283910006284714
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.021866850554943085,
+      "mean_test_mse": 0.021866850554943085
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 0.047557998448610306,
+      "mean_test_mse": 0.047557998448610306
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+  }
+}

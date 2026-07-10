@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 import time
@@ -17,6 +18,7 @@ DEFAULT_RUN = (
     "data/datasets/univariate_regression/sym_62678b/"
     "questions/run_20q_3c_b09206/q_79e34e"
 )
+BUNDLED_DEMO_DATA = "examples/quiz_demo/bundle"
 
 
 def repo_root() -> Path:
@@ -37,6 +39,22 @@ def is_running(port: int) -> bool:
             return response.status == 200 and response.read().strip() == b"ok"
     except (OSError, urllib.error.URLError):
         return False
+
+
+def resolve_question_run(root: Path, requested: str) -> tuple[Path, bool]:
+    """Resolve a question path, materializing the bundled demo when needed."""
+    question_run = (root / requested).resolve()
+    if question_run.exists():
+        return question_run, False
+
+    if Path(requested) == Path(DEFAULT_RUN):
+        bundled_data = root / BUNDLED_DEMO_DATA
+        if bundled_data.is_dir():
+            shutil.copytree(bundled_data, root / "data", dirs_exist_ok=True)
+            if question_run.exists():
+                return question_run, True
+
+    raise FileNotFoundError(question_run)
 
 
 def wait_until_running(port: int, timeout: float) -> bool:
@@ -80,10 +98,13 @@ def main() -> int:
             webbrowser.open(url)
         return 0
 
-    question_run = (root / args.question_run).resolve()
-    if not question_run.exists():
-        print(f"Question run not found: {question_run}", file=sys.stderr)
+    try:
+        question_run, installed_demo = resolve_question_run(root, args.question_run)
+    except FileNotFoundError as exc:
+        print(f"Question run not found: {exc}", file=sys.stderr)
         return 1
+    if installed_demo:
+        print("Installed the bundled demo question under data/.")
 
     app = root / "tools" / "question_inspector" / "app.py"
     cmd = [

@@ -34,15 +34,14 @@ from architecture_iq.profile import load_profile  # noqa: E402
 
 
 REPO = Path(__file__).resolve().parents[1]
-DATA = REPO / "data"
+DATA = REPO / "examples" / "quiz_demo" / "bundle"
 
 
 @pytest.fixture
-def question_path() -> Path | None:
-    questions = sorted((DATA / "questions").glob("q_*/question.json"))
-    if not questions:
-        return None
-    return questions[0].parent
+def question_path() -> Path:
+    questions = list_question_dirs(DATA)
+    assert questions, "the bundled demo must contain at least one question"
+    return questions[0]
 
 
 def test_expression_to_latex() -> None:
@@ -65,7 +64,6 @@ def test_expression_to_latex_multivariate_subscripts() -> None:
     assert "3 x" not in latex
 
 
-@pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")
 def test_load_question_bundle(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     assert bundle.question["question_id"].startswith("q_")
@@ -75,7 +73,6 @@ def test_load_question_bundle(question_path: Path) -> None:
         assert (choice["candidate_dir"] / "candidate_spec.json").is_file()
 
 
-@pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")
 def test_load_dataset_tensors(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     tx, ty, vx, vy = load_dataset_tensors(bundle.dataset_dir)
@@ -387,7 +384,6 @@ def test_custom_settings_keep_latest_and_best_history(
     assert len(setting_dirs) == 2
 
 
-@pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")
 def test_load_candidate_curves(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     choice = bundle.choices[0]
@@ -409,7 +405,6 @@ def test_load_candidate_curves(question_path: Path) -> None:
     assert len(loaded["eval_samples"]) == loaded["curves"].shape[1]
 
 
-@pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")
 def test_list_question_dirs() -> None:
     pool = list_question_dirs(DATA)
     assert pool
@@ -417,7 +412,6 @@ def test_list_question_dirs() -> None:
     assert all((p / "question.json").is_file() for p in pool)
 
 
-@pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")
 def test_question_label(question_path: Path) -> None:
     label = question_label(question_path)
     assert question_path.name in label

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 from pathlib import Path
 
 import architecture_iq.manifest as manifest
@@ -51,6 +52,13 @@ assert _SESSION_SPEC.loader is not None
 _SESSION = importlib.util.module_from_spec(_SESSION_SPEC)
 _SESSION_SPEC.loader.exec_module(_SESSION)
 
+_START_QUIZ_PATH = Path(__file__).resolve().parents[1] / "tools" / "start_quiz.py"
+_START_QUIZ_SPEC = importlib.util.spec_from_file_location("start_quiz", _START_QUIZ_PATH)
+assert _START_QUIZ_SPEC is not None
+assert _START_QUIZ_SPEC.loader is not None
+_START_QUIZ = importlib.util.module_from_spec(_START_QUIZ_SPEC)
+_START_QUIZ_SPEC.loader.exec_module(_START_QUIZ)
+
 
 def test_short_hash_is_stable_for_dict_order() -> None:
     left = {"b": 2, "a": [1, Path("x")]}
@@ -67,6 +75,23 @@ def test_write_json_round_trip_creates_parent_dirs(tmp_path: Path) -> None:
 
     assert target.read_text(encoding="utf-8").endswith("\n")
     assert read_json(target) == payload
+
+
+def test_start_quiz_materializes_bundled_demo(tmp_path: Path) -> None:
+    repo = Path(__file__).resolve().parents[1]
+    shutil.copytree(
+        repo / _START_QUIZ.BUNDLED_DEMO_DATA,
+        tmp_path / _START_QUIZ.BUNDLED_DEMO_DATA,
+    )
+
+    question_run, installed = _START_QUIZ.resolve_question_run(
+        tmp_path,
+        _START_QUIZ.DEFAULT_RUN,
+    )
+
+    assert installed is True
+    assert (question_run / "question.json").is_file()
+    assert (tmp_path / "data" / "datasets").is_dir()
 
 
 def test_path_helpers_encode_current_and_legacy_layouts() -> None:
