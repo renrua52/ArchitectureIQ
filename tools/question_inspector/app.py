@@ -11,6 +11,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
+import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifact_loader  # noqa: E402
@@ -31,10 +32,23 @@ from artifact_loader import (  # noqa: E402
     read_text_file,
 )
 import candidate_curves  # noqa: E402
+import custom_settings  # noqa: E402
 
 reload(candidate_curves)
+reload(custom_settings)
 from candidate_curves import load_candidate_curves  # noqa: E402
+from custom_settings import (  # noqa: E402
+    build_custom_setting_spec,
+    build_loss_spec,
+    build_model_spec,
+    build_optimizer_spec,
+    compatible_model_types,
+    enforce_custom_setting_retention,
+    list_custom_setting_runs,
+    run_custom_setting,
+)
 from expression_latex import expression_to_latex  # noqa: E402
+from architecture_iq.profile import load_profile  # noqa: E402
 
 st.set_page_config(
     page_title="ArchitectureIQ Question Inspector",
@@ -138,6 +152,7 @@ def _init_state() -> None:
         "data_root": "data",
         "question_pool": [],
         "quiz_results": {},
+        "setting_notice": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -149,6 +164,7 @@ def _reset_quiz_state() -> None:
     st.session_state.focus_letter = None
     st.session_state.info_letter = None
     st.session_state.inspect_file = "candidate_spec.json"
+    st.session_state.setting_notice = None
 
 
 def _score_stats() -> tuple[int, int]:
@@ -429,45 +445,152 @@ def _choice_color(index: int) -> str:
     return palette[index % len(palette)]
 
 
-def _render_combined_curves(bundle: QuestionBundle, q: dict[str, Any], *, metric: str) -> None:
+def _setting_color(index: int) -> str:
+    palette = ("#0f766e", "#c026d3", "#ca8a04", "#4f46e5", "#be123c", "#0369a1")
+    return palette[index % len(palette)]
+
+
+def _curve_window_key(q: dict[str, Any]) -> str:
+    return f"curve_x_window_{q['question_id']}"
+
+
+def _curve_series_from_candidate(
+    candidate_dir: Path,
+    *,
+    label: str,
+    color: str,
+    linestyle: str = "-",
+) -> dict[str, Any] | None:
+    curves_path = candidate_dir / "results" / "curves.npz"
+    spec = read_json_file(candidate_dir / "candidate_spec.json")
+    budget = spec.get("budget", {})
+    total_samples_seen = budget.get("total_samples_seen")
+    batch_size = budget.get("batch_size")
+    if total_samples_seen is None or batch_size is None:
+        return None
+
+    loaded = load_candidate_curves(
+        curves_path,
+        total_samples_seen=int(total_samples_seen),
+        batch_size=int(batch_size),
+    )
+    if "error" in loaded:
+        return None
+
+    curves = loaded["curves"]
+    x = np.asarray(loaded["eval_samples"], dtype=np.int64)
+    if curves.size == 0 or not np.isfinite(curves).any():
+        return None
+
+    mean = np.nanmean(curves, axis=0)
+    std = np.nanstd(curves, axis=0)
+    valid = np.isfinite(mean)
+    if not valid.any():
+        return None
+    return {
+        "label": label,
+        "color": color,
+        "linestyle": linestyle,
+        "x": x[valid],
+        "mean": mean[valid],
+        "std": std[valid],
+    }
+
+
+def _collect_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
+    series: list[dict[str, Any]] = []
+    for index, choice in enumerate(bundle.choices):
+        item = _curve_series_from_candidate(
+            choice["candidate_dir"],
+            label=f"{choice['letter']} · {choice['candidate_id']}",
+            color=_choice_color(index),
+        )
+        if item is not None:
+            series.append(item)
+    return series
+
+
+def _collect_custom_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
+    series: list[dict[str, Any]] = []
+    for index, setting in enumerate(list_custom_setting_runs(bundle.question_root)):
+        item = _curve_series_from_candidate(
+            setting["candidate_dir"],
+            label=f"Custom · {setting['label']}",
+            color=_setting_color(index),
+            linestyle="--",
+        )
+        if item is not None:
+            item["setting"] = setting
+            series.append(item)
+    return series
+
+
+def _render_curve_controls(
+    series: list[dict[str, Any]],
+    q: dict[str, Any],
+) -> tuple[int, int, bool, bool]:
+    all_x = np.concatenate([item["x"] for item in series])
+    min_x = int(np.nanmin(all_x))
+    max_x = int(np.nanmax(all_x))
+    window_key = _curve_window_key(q)
+
+    col_range, col_log_x, col_log_y = st.columns([5, 1, 1])
+    with col_range:
+        if min_x == max_x:
+            x_min, x_max = min_x, max_x
+            st.caption(f"Samples shown: {min_x}")
+        else:
+            unique_x = np.unique(all_x)
+            step = (
+                max(1, int(np.gcd.reduce(np.diff(unique_x))))
+                if len(unique_x) > 1
+                else 1
+            )
+            x_min, x_max = st.slider(
+                "Samples shown",
+                min_value=min_x,
+                max_value=max_x,
+                value=(min_x, max_x),
+                step=step,
+                key=window_key,
+            )
+    with col_log_x:
+        use_log_x = st.checkbox("Log X", value=False, key=f"log_x_{q['question_id']}")
+    with col_log_y:
+        use_log_y = st.checkbox("Log Y", value=False, key=f"log_y_{q['question_id']}")
+
+    return int(x_min), int(x_max), use_log_x, use_log_y
+
+
+def _render_combined_curves(
+    bundle: QuestionBundle,
+    q: dict[str, Any],
+    *,
+    metric: str,
+    include_candidates: bool,
+) -> None:
     st.markdown("#### Learning curves")
-    use_log_y = st.checkbox("Log Y", value=False, key=f"log_y_{q['question_id']}")
+    custom_series = _collect_custom_curve_series(bundle)
+    series = (_collect_curve_series(bundle) if include_candidates else []) + custom_series
+    if not series:
+        st.info("No learning curve data available yet.")
+        return
+
+    x_min, x_max, use_log_x, use_log_y = _render_curve_controls(series, q)
     fig, ax = plt.subplots(figsize=(8, 4))
     any_plotted = False
 
-    for index, choice in enumerate(bundle.choices):
-        letter = choice["letter"]
-        color = _choice_color(index)
-        curves_path = choice["candidate_dir"] / "results" / "curves.npz"
-        spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
-        budget = spec.get("budget", {})
-        total_samples_seen = budget.get("total_samples_seen")
-        batch_size = budget.get("batch_size")
-        if total_samples_seen is None or batch_size is None:
+    for item in series:
+        x_valid = item["x"]
+        in_window = (x_valid >= x_min) & (x_valid <= x_max)
+        if use_log_x:
+            in_window &= x_valid > 0
+        if not in_window.any():
             continue
 
-        loaded = load_candidate_curves(
-            curves_path,
-            total_samples_seen=int(total_samples_seen),
-            batch_size=int(batch_size),
-        )
-        if "error" in loaded:
-            continue
-
-        curves = loaded["curves"]
-        x = np.asarray(loaded["eval_samples"], dtype=np.int64)
-        if curves.size == 0 or not np.isfinite(curves).any():
-            continue
-
-        mean = np.nanmean(curves, axis=0)
-        std = np.nanstd(curves, axis=0)
-        valid = np.isfinite(mean)
-        if not valid.any():
-            continue
-
-        x_valid = x[valid]
-        mean_valid = mean[valid]
-        std_valid = std[valid]
+        x_valid = x_valid[in_window]
+        mean_valid = item["mean"][in_window]
+        std_valid = item["std"][in_window]
         lower = mean_valid - std_valid
         upper = mean_valid + std_valid
         line = mean_valid
@@ -480,29 +603,36 @@ def _render_combined_curves(bundle: QuestionBundle, q: dict[str, Any], *, metric
             x_valid,
             lower,
             upper,
-            color=color,
+            color=item["color"],
             alpha=0.22,
             linewidth=0,
         )
         ax.plot(
             x_valid,
             line,
-            color=color,
+            color=item["color"],
             linewidth=2.2,
-            label=f"{letter} · {choice['candidate_id']}",
+            linestyle=item.get("linestyle", "-"),
+            label=item["label"],
         )
         any_plotted = True
 
     if not any_plotted:
         plt.close(fig)
-        st.info("No learning curve data available for these candidates.")
+        st.info("No learning curve points in the selected range.")
         return
 
     ax.set_xlabel("Samples seen")
     ax.set_ylabel(_metric_display_name(metric))
+    ax.set_xlim(x_min, x_max)
+    if use_log_x:
+        ax.set_xscale("log")
     if use_log_y:
         ax.set_yscale("log")
-    ax.set_title("Learning curves (mean ± std across seeds)")
+    title = "Learning curves (mean ± std across seeds)"
+    if custom_series and not include_candidates:
+        title = "Custom setting curves (mean ± std across seeds)"
+    ax.set_title(title)
     ax.grid(True, alpha=0.25)
     ax.legend(loc="best", fontsize=9)
     fig.tight_layout()
@@ -579,6 +709,500 @@ def _question_budget(q: dict[str, Any]) -> int:
     if isinstance(budget, dict):
         return int(budget["total_samples_seen"])
     return int(budget)
+
+
+def _setting_key(q: dict[str, Any], name: str) -> str:
+    return f"custom_setting_{q['question_id']}_{name}"
+
+
+def _ensure_setting_value(q: dict[str, Any], name: str, default: Any) -> str:
+    key = _setting_key(q, name)
+    if key not in st.session_state:
+        st.session_state[key] = default
+    return key
+
+
+def _default_batch_size(bundle: QuestionBundle) -> int:
+    if bundle.choices:
+        spec = read_json_file(bundle.choices[0]["candidate_dir"] / "candidate_spec.json")
+        value = spec.get("budget", {}).get("batch_size")
+        if value is not None:
+            return int(value)
+    return 32
+
+
+def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    st.markdown("**Architecture parameters**")
+    depth_col, width_col, residual_col = st.columns(3)
+    with depth_col:
+        depth = int(
+            st.number_input(
+                "Depth",
+                min_value=1,
+                max_value=12,
+                step=1,
+                key=_ensure_setting_value(
+                    q,
+                    "mlp_depth",
+                    int(profile.mlp["depth"][1]),
+                ),
+            )
+        )
+    with width_col:
+        width = int(
+            st.number_input(
+                "Width",
+                min_value=4,
+                max_value=2048,
+                step=4,
+                key=_ensure_setting_value(
+                    q,
+                    "mlp_width",
+                    int(profile.mlp["width"][1]),
+                ),
+            )
+        )
+    with residual_col:
+        residual = st.checkbox(
+            "Residual connections",
+            key=_ensure_setting_value(q, "mlp_residual", False),
+        )
+
+    st.caption("Choose the activation and layer norm independently for each hidden block.")
+    activations: list[str] = []
+    layer_norm: list[bool] = []
+    layer_columns = st.columns(min(depth, 4))
+    for index in range(depth):
+        with layer_columns[index % len(layer_columns)]:
+            st.markdown(f"Layer {index + 1}")
+            activations.append(
+                st.selectbox(
+                    "Activation",
+                    list(profile.mlp["activations"]),
+                    key=_ensure_setting_value(
+                        q,
+                        f"mlp_activation_{index}",
+                        profile.mlp["activations"][0],
+                    ),
+                    label_visibility="collapsed",
+                )
+            )
+            layer_norm.append(
+                st.checkbox(
+                    "Layer norm",
+                    key=_ensure_setting_value(q, f"mlp_norm_{index}", False),
+                )
+            )
+    return {
+        "depth": depth,
+        "width": width,
+        "residual": residual,
+        "activations": activations,
+        "layer_norm": layer_norm,
+    }
+
+
+def _render_transformer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    st.markdown("**Architecture parameters**")
+    d_model_col, layers_col, heads_col, d_ff_col = st.columns(4)
+    with d_model_col:
+        d_model = int(
+            st.number_input(
+                "Model width",
+                min_value=8,
+                max_value=1024,
+                step=8,
+                key=_ensure_setting_value(
+                    q,
+                    "transformer_d_model",
+                    int(profile.transformer_lm["d_model"][0]),
+                ),
+            )
+        )
+    with layers_col:
+        num_layers = int(
+            st.number_input(
+                "Layers",
+                min_value=1,
+                max_value=12,
+                step=1,
+                key=_ensure_setting_value(
+                    q,
+                    "transformer_layers",
+                    int(profile.transformer_lm["num_layers"][0]),
+                ),
+            )
+        )
+    with heads_col:
+        num_heads = int(
+            st.number_input(
+                "Attention heads",
+                min_value=1,
+                max_value=32,
+                step=1,
+                key=_ensure_setting_value(
+                    q,
+                    "transformer_heads",
+                    int(profile.transformer_lm["num_heads"][0]),
+                ),
+            )
+        )
+    with d_ff_col:
+        d_ff = int(
+            st.number_input(
+                "Feed-forward width",
+                min_value=8,
+                max_value=4096,
+                step=8,
+                key=_ensure_setting_value(
+                    q,
+                    "transformer_d_ff",
+                    int(profile.transformer_lm["d_ff"][0]),
+                ),
+            )
+        )
+    return {
+        "d_model": d_model,
+        "num_layers": num_layers,
+        "num_heads": num_heads,
+        "d_ff": d_ff,
+    }
+
+
+def _render_optimizer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    st.markdown("**Optimizer parameters**")
+    opt_col, lr_col, wd_col = st.columns(3)
+    optimizers = list(profile.pools["optimizers"])
+    default_index = optimizers.index("Adam") if "Adam" in optimizers else 0
+    with opt_col:
+        optimizer_type = st.selectbox(
+            "Optimizer",
+            optimizers,
+            key=_ensure_setting_value(
+                q,
+                "optimizer_type",
+                optimizers[default_index],
+            ),
+        )
+    with lr_col:
+        lr = float(
+            st.number_input(
+                "Learning rate",
+                min_value=1e-8,
+                max_value=10.0,
+                step=1e-4,
+                format="%.6g",
+                key=_ensure_setting_value(q, "learning_rate", 1e-3),
+            )
+        )
+    with wd_col:
+        weight_decay = float(
+            st.number_input(
+                "Weight decay",
+                min_value=0.0,
+                max_value=10.0,
+                step=1e-5,
+                format="%.6g",
+                key=_ensure_setting_value(q, "weight_decay", 0.0),
+            )
+        )
+
+    momentum: float | None = None
+    betas: tuple[float, float] | None = None
+    if optimizer_type == "SGD":
+        momentum = float(
+            st.number_input(
+                "Momentum",
+                min_value=0.0,
+                max_value=0.999999,
+                step=0.05,
+                format="%.6g",
+                key=_ensure_setting_value(q, "momentum", 0.0),
+            )
+        )
+    elif optimizer_type in {"Adam", "AdamW"}:
+        beta1_col, beta2_col = st.columns(2)
+        with beta1_col:
+            beta1 = float(
+                st.number_input(
+                    "Beta 1",
+                    min_value=0.0,
+                    max_value=0.999999,
+                    step=0.01,
+                    format="%.6g",
+                    key=_ensure_setting_value(q, "beta1", 0.9),
+                )
+            )
+        with beta2_col:
+            beta2 = float(
+                st.number_input(
+                    "Beta 2",
+                    min_value=0.0,
+                    max_value=0.999999,
+                    step=0.001,
+                    format="%.6g",
+                    key=_ensure_setting_value(q, "beta2", 0.999),
+                )
+            )
+        betas = (beta1, beta2)
+    return {
+        "optimizer_type": optimizer_type,
+        "lr": lr,
+        "weight_decay": weight_decay,
+        "momentum": momentum,
+        "betas": betas,
+    }
+
+
+def _apply_inherited_setting(
+    bundle: QuestionBundle,
+    q: dict[str, Any],
+    source_letter: str,
+) -> None:
+    choice = next(choice for choice in bundle.choices if choice["letter"] == source_letter)
+    spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
+    budget = spec["budget"]
+    model = spec["model"]
+    optimizer = spec["optimizer"]
+    loss = spec["loss"]
+
+    values: dict[str, Any] = {
+        "label": f"From {source_letter}",
+        "budget": int(budget["total_samples_seen"]),
+        "batch_size": int(budget["batch_size"]),
+        "model_type": model["type"],
+        "optimizer_type": optimizer["type"],
+        "learning_rate": float(optimizer["lr"]),
+        "weight_decay": float(optimizer.get("weight_decay", 0.0)),
+        "loss": loss["loss_id"],
+    }
+    if model["type"] == "mlp":
+        values.update(
+            {
+                "mlp_depth": int(model["depth"]),
+                "mlp_width": int(model["width"]),
+                "mlp_residual": bool(model.get("residual", False)),
+            }
+        )
+        for index, activation in enumerate(model["activations"]):
+            values[f"mlp_activation_{index}"] = activation
+        for index, use_norm in enumerate(model["layer_norm"]):
+            values[f"mlp_norm_{index}"] = bool(use_norm)
+    elif model["type"] == "transformer_lm":
+        d_model = model["d_model"] if "d_model" in model else model["embed_dim"]
+        d_ff = model["d_ff"] if "d_ff" in model else model["ff_dim"]
+        values.update(
+            {
+                "transformer_d_model": int(d_model),
+                "transformer_layers": int(model["num_layers"]),
+                "transformer_heads": int(model["num_heads"]),
+                "transformer_d_ff": int(d_ff),
+            }
+        )
+
+    if optimizer["type"] == "SGD":
+        values["momentum"] = float(optimizer.get("momentum", 0.0))
+    elif optimizer["type"] in {"Adam", "AdamW"}:
+        betas = optimizer.get("betas", [0.9, 0.999])
+        values["beta1"] = float(betas[0])
+        values["beta2"] = float(betas[1])
+    if "lambda" in loss:
+        values["loss_lambda"] = float(loss["lambda"])
+
+    for name, value in values.items():
+        st.session_state[_setting_key(q, name)] = value
+
+
+def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) -> None:
+    profile = load_profile(str(q.get("profile", "v1")))
+    dataset_spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
+    family = str(dataset_spec["family"])
+    runs = enforce_custom_setting_retention(bundle.question_root)
+
+    notice = st.session_state.setting_notice
+    if notice:
+        st.success(notice)
+        st.session_state.setting_notice = None
+
+    with st.expander("＋ Add custom setting", expanded=not runs):
+        st.caption(
+            "Train a setting on this question's dataset. Its curve is added without "
+            "changing the original choices or score."
+        )
+        no_inheritance = "No inheritance (keep editor values)"
+        source_labels = [no_inheritance] + [
+            f"Choice {choice['letter']} · {choice['candidate_id']}"
+            for choice in bundle.choices
+        ]
+        source_col, inherit_col = st.columns([4, 1])
+        with source_col:
+            source_label = st.selectbox(
+                "Initialize from",
+                source_labels,
+                key=_setting_key(q, "inherit_source"),
+            )
+        with inherit_col:
+            st.markdown("<div style='height: 1.75rem'></div>", unsafe_allow_html=True)
+            inherit_clicked = st.button(
+                "Inherit",
+                use_container_width=True,
+                disabled=source_label == no_inheritance,
+                key=_setting_key(q, "inherit"),
+            )
+        if inherit_clicked:
+            source_letter = source_label.split()[1]
+            _apply_inherited_setting(bundle, q, source_letter)
+            st.session_state.setting_notice = (
+                f"Loaded all editable parameters from Choice {source_letter}."
+            )
+            st.rerun()
+
+        name_col, budget_col, batch_col = st.columns([2, 1, 1])
+        with name_col:
+            label = st.text_input(
+                "Name prefix",
+                key=_ensure_setting_value(q, "label", "Setting"),
+                help="A unique sequence suffix is added automatically.",
+            )
+        with budget_col:
+            budget = int(
+                st.number_input(
+                    "Total samples",
+                    min_value=1,
+                    max_value=10_000_000,
+                    step=1,
+                    key=_ensure_setting_value(q, "budget", _question_budget(q)),
+                )
+            )
+        with batch_col:
+            batch_size = int(
+                st.number_input(
+                    "Batch size",
+                    min_value=1,
+                    max_value=65_536,
+                    step=1,
+                    key=_ensure_setting_value(
+                        q,
+                        "batch_size",
+                        _default_batch_size(bundle),
+                    ),
+                )
+            )
+
+        model_types = compatible_model_types(profile, family)
+        model_type = st.selectbox(
+            "Architecture",
+            model_types,
+            key=_ensure_setting_value(q, "model_type", model_types[0]),
+        )
+        if model_type == "mlp":
+            model_params = _render_mlp_setting_fields(profile, q)
+        else:
+            model_params = _render_transformer_setting_fields(profile, q)
+
+        optimizer_params = _render_optimizer_setting_fields(profile, q)
+
+        loss_col, lambda_col, seeds_col, base_seed_col = st.columns(4)
+        losses = list(profile.pools["losses"][family])
+        with loss_col:
+            loss_id = st.selectbox(
+                "Loss",
+                losses,
+                key=_ensure_setting_value(q, "loss", losses[0]),
+            )
+        lambda_value: float | None = None
+        with lambda_col:
+            if loss_id.endswith("_l1") or loss_id.endswith("_l2"):
+                lambda_value = float(
+                    st.number_input(
+                        "Loss lambda",
+                        min_value=0.0,
+                        max_value=10.0,
+                        step=1e-4,
+                        format="%.6g",
+                        key=_ensure_setting_value(q, "loss_lambda", 1e-3),
+                    )
+                )
+            else:
+                st.text_input("Loss lambda", value="—", disabled=True)
+        with seeds_col:
+            n_seeds = int(
+                st.number_input(
+                    "Runs",
+                    min_value=1,
+                    max_value=20,
+                    step=1,
+                    key=_ensure_setting_value(q, "n_seeds", 3),
+                    help="Independent random seeds used for the mean and standard deviation.",
+                )
+            )
+        with base_seed_col:
+            base_seed = int(
+                st.number_input(
+                    "Base seed",
+                    min_value=0,
+                    max_value=2_147_483_647,
+                    step=1,
+                    key=_ensure_setting_value(q, "base_seed", 0),
+                )
+            )
+
+        st.caption(
+            f"This run performs {budget // batch_size if batch_size else 0} optimizer "
+            f"steps × {n_seeds} seed(s)."
+        )
+        if st.button(
+            "Confirm and generate curve",
+            type="primary",
+            key=_setting_key(q, "confirm"),
+        ):
+            try:
+                model = build_model_spec(model_type, model_params, dataset_spec.get("params", {}))
+                optimizer = build_optimizer_spec(
+                    optimizer_params["optimizer_type"],
+                    lr=optimizer_params["lr"],
+                    weight_decay=optimizer_params["weight_decay"],
+                    momentum=optimizer_params["momentum"],
+                    betas=optimizer_params["betas"],
+                )
+                loss = build_loss_spec(loss_id, lambda_value=lambda_value)
+                spec = build_custom_setting_spec(
+                    profile,
+                    dataset_spec,
+                    budget=budget,
+                    batch_size=batch_size,
+                    model=model,
+                    optimizer=optimizer,
+                    loss=loss,
+                )
+                with st.spinner(f"Training {label or 'custom setting'}…"):
+                    result = run_custom_setting(
+                        bundle.question_root,
+                        bundle.dataset_dir,
+                        profile,
+                        spec,
+                        label=label,
+                        n_seeds=n_seeds,
+                        base_seed=base_seed,
+                    )
+            except Exception as exc:
+                st.error(f"Could not generate the curve: {exc}")
+            else:
+                st.session_state.setting_notice = (
+                    f"Generated curve for {result['label']} ({result['candidate_id']})."
+                )
+                st.rerun()
+
+        if runs:
+            st.divider()
+            st.markdown("**Retained settings (maximum 2)**")
+            for index, run in enumerate(runs):
+                role = "latest" if index == 0 else "best historical loss"
+                st.caption(
+                    f"{run['label']} · {role} · {run['candidate_id']} · "
+                    f"loss {run['final_metric']:.6g} · "
+                    f"{run['n_seeds']} seed(s), base {run['base_seed']}"
+                )
 
 
 def _inspect_paths(candidate_dir: Path, *, show_summary: bool) -> dict[str, Path]:
@@ -812,9 +1436,19 @@ def _render_question_page(
                 focus_letter=focus_letter,
             )
 
+    _render_custom_setting_builder(bundle, q)
+    custom_runs = list_custom_setting_runs(bundle.question_root)
+
     if committed:
         _render_answer_banner(q, st.session_state.committed_letter, metric=metric)
-        _render_combined_curves(bundle, q, metric=metric)
+    if committed or custom_runs:
+        _render_combined_curves(
+            bundle,
+            q,
+            metric=metric,
+            include_candidates=committed,
+        )
+    if committed:
         _render_ranked_metrics(bundle, q)
 
     inspect_letter = st.session_state.info_letter or st.session_state.focus_letter

@@ -69,6 +69,7 @@ def run_ground_truth(
     dataset_path: Path | None = None,
     *,
     sync_files: bool = True,
+    fail_threshold_override: float | None = None,
 ) -> dict[str, Any]:
     from architecture_iq.util import read_json
 
@@ -88,7 +89,11 @@ def run_ground_truth(
     final_key = final_metric_key(selection_metric)
     sig_cfg = dataset_spec.get("significance", {})
     gt_cfg = profile.ground_truth
-    fail_threshold = float(sig_cfg.get("fail_threshold", gt_cfg["fail_threshold"]))
+    fail_threshold = (
+        float(fail_threshold_override)
+        if fail_threshold_override is not None
+        else float(sig_cfg.get("fail_threshold", gt_cfg["fail_threshold"]))
+    )
     batch_size = int(spec["budget"]["batch_size"])
 
     n_seeds = profile.n_seeds

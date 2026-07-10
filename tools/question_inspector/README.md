@@ -1,6 +1,7 @@
 # Question Inspector
 
-Standalone Streamlit UI for inspecting ArchitectureIQ **output files only**. It does not import `architecture_iq`.
+Streamlit UI for inspecting ArchitectureIQ questions and trying custom training
+settings. Existing question and candidate artifacts are never modified.
 
 ## Install
 
@@ -35,6 +36,14 @@ streamlit run tools/question_inspector/app.py
 - **Prompt** tab — full rendered benchmark prompt (`prompt.txt`)
 - **Sidebar** — pick from existing questions, **Next**, **Random**
 - **Quiz** — click **Select** on a choice to lock in your answer; metrics and ranked results appear immediately
+- **Custom settings** — while solving, choose architecture, optimizer, loss, budget,
+  batch size, and seed parameters, or inherit all editable values from Choice A/B/C;
+  confirm to train and add a new curve
 - **After answering** — use **View** or the info button on any choice to browse files (`summary.json` included once answered)
 
 Set **Data root** to the directory containing `datasets/` (default: `data`). Questions from dataset-scoped runs and legacy `data/questions/` appear in the sidebar dropdown.
+
+Custom runs are isolated under
+`<question>/custom_settings/<setting_id>/`. Every run receives a unique sequence id
+and display name. At most two runs are retained: the newest run and the historical run
+with the lowest final loss. Custom runs do not alter the choices, answer key, or score.

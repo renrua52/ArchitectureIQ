@@ -20,7 +20,17 @@ from artifact_loader import (  # noqa: E402
     question_label,
 )
 from candidate_curves import all_step_samples, load_candidate_curves, reconstruct_eval_samples  # noqa: E402
+from custom_settings import (  # noqa: E402
+    build_custom_setting_spec,
+    build_loss_spec,
+    build_model_spec,
+    build_optimizer_spec,
+    custom_setting_run_id,
+    list_custom_setting_runs,
+    run_custom_setting,
+)
 from expression_latex import expression_to_latex  # noqa: E402
+from architecture_iq.profile import load_profile  # noqa: E402
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -138,6 +148,243 @@ def test_reconstruct_eval_samples_sparse() -> None:
         960,
         1024,
     ]
+
+
+def _regression_dataset_spec() -> dict:
+    return {
+        "schema_version": "1.0",
+        "family": "multivariate_regression",
+        "dataset_id": "mvar_test",
+        "params": {"input_dim": 4},
+        "selection_metric": "test_mse",
+    }
+
+
+def test_build_custom_setting_spec() -> None:
+    profile = load_profile("v1")
+    dataset_spec = _regression_dataset_spec()
+    model = build_model_spec(
+        "mlp",
+        {
+            "depth": 2,
+            "width": 48,
+            "residual": True,
+            "activations": ["relu", "gelu"],
+            "layer_norm": [False, True],
+        },
+        dataset_spec["params"],
+    )
+    optimizer = build_optimizer_spec(
+        "AdamW",
+        lr=2e-3,
+        weight_decay=1e-4,
+        betas=(0.8, 0.99),
+    )
+    loss = build_loss_spec("mse_l2", lambda_value=5e-4)
+    spec = build_custom_setting_spec(
+        profile,
+        dataset_spec,
+        budget=960,
+        batch_size=32,
+        model=model,
+        optimizer=optimizer,
+        loss=loss,
+    )
+
+    assert spec["budget"]["training_steps"] == 30
+    assert spec["model"]["input_dim"] == 4
+    assert spec["model"]["activations"] == ["relu", "gelu"]
+    assert spec["optimizer"]["betas"] == [0.8, 0.99]
+    assert spec["loss"]["lambda"] == 5e-4
+
+
+def test_build_custom_setting_rejects_invalid_budget() -> None:
+    profile = load_profile("v1")
+    dataset_spec = _regression_dataset_spec()
+    model = build_model_spec(
+        "mlp",
+        {
+            "depth": 1,
+            "width": 16,
+            "residual": False,
+            "activations": ["relu"],
+            "layer_norm": [False],
+        },
+        dataset_spec["params"],
+    )
+    with pytest.raises(ValueError, match="divisible"):
+        build_custom_setting_spec(
+            profile,
+            dataset_spec,
+            budget=100,
+            batch_size=32,
+            model=model,
+            optimizer=build_optimizer_spec("SGD", lr=1e-3, weight_decay=0),
+            loss=build_loss_spec("mse"),
+        )
+
+
+def test_transformer_setting_validates_attention_heads() -> None:
+    with pytest.raises(ValueError, match="divisible"):
+        build_model_spec(
+            "transformer_lm",
+            {"d_model": 30, "num_layers": 1, "num_heads": 8, "d_ff": 64},
+            {"vocab_size": 32, "context_length": 16},
+        )
+
+
+def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import custom_settings
+    import numpy as np
+
+    profile = load_profile("v1")
+    dataset_spec = _regression_dataset_spec()
+    model = build_model_spec(
+        "mlp",
+        {
+            "depth": 1,
+            "width": 16,
+            "residual": False,
+            "activations": ["relu"],
+            "layer_norm": [False],
+        },
+        dataset_spec["params"],
+    )
+    spec = build_custom_setting_spec(
+        profile,
+        dataset_spec,
+        budget=64,
+        batch_size=16,
+        model=model,
+        optimizer=build_optimizer_spec("Adam", lr=1e-3, weight_decay=0),
+        loss=build_loss_spec("mse"),
+    )
+
+    def fake_ground_truth(
+        candidate_path,
+        run_profile,
+        dataset_path,
+        *,
+        fail_threshold_override,
+    ):
+        assert run_profile.n_seeds == 2
+        assert run_profile.base_seed == 11
+        assert fail_threshold_override == float("inf")
+        results = candidate_path / "results"
+        results.mkdir(parents=True)
+        np.savez(
+            results / "curves.npz",
+            curves=np.asarray([[1.0, 0.5], [0.9, 0.4]]),
+            samples=np.asarray([16, 32]),
+        )
+        return {"selection_metric": "test_mse", "mean_test_mse": 0.45}
+
+    monkeypatch.setattr(custom_settings, "run_ground_truth", fake_ground_truth)
+    question_root = tmp_path / "q_test"
+    dataset_path = tmp_path / "dataset"
+    result = run_custom_setting(
+        question_root,
+        dataset_path,
+        profile,
+        spec,
+        label="My setting",
+        n_seeds=2,
+        base_seed=11,
+    )
+
+    expected_id = custom_setting_run_id(
+        spec,
+        n_seeds=2,
+        base_seed=11,
+        sequence=1,
+    )
+    assert result["custom_setting_id"] == expected_id
+    assert result["candidate_dir"].parent == question_root / "custom_settings"
+    runs = list_custom_setting_runs(question_root)
+    assert len(runs) == 1
+    assert runs[0]["label"] == "My setting #0001"
+
+
+def test_custom_settings_keep_latest_and_best_history(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import custom_settings
+    import numpy as np
+
+    profile = load_profile("v1")
+    dataset_spec = _regression_dataset_spec()
+    model = build_model_spec(
+        "mlp",
+        {
+            "depth": 1,
+            "width": 16,
+            "residual": False,
+            "activations": ["relu"],
+            "layer_norm": [False],
+        },
+        dataset_spec["params"],
+    )
+    spec = build_custom_setting_spec(
+        profile,
+        dataset_spec,
+        budget=64,
+        batch_size=16,
+        model=model,
+        optimizer=build_optimizer_spec("Adam", lr=1e-3, weight_decay=0),
+        loss=build_loss_spec("mse"),
+    )
+    metrics = iter([0.5, 0.3, 0.4, 0.2])
+
+    def fake_ground_truth(
+        candidate_path,
+        run_profile,
+        dataset_path,
+        *,
+        fail_threshold_override,
+    ):
+        metric = next(metrics)
+        results = candidate_path / "results"
+        results.mkdir(parents=True)
+        np.savez(
+            results / "curves.npz",
+            curves=np.asarray([[1.0, metric]]),
+            samples=np.asarray([16, 32]),
+        )
+        return {"selection_metric": "test_mse", "mean_test_mse": metric}
+
+    monkeypatch.setattr(custom_settings, "run_ground_truth", fake_ground_truth)
+    question_root = tmp_path / "q_test"
+    dataset_path = tmp_path / "dataset"
+    results = [
+        run_custom_setting(
+            question_root,
+            dataset_path,
+            profile,
+            spec,
+            label="Trial",
+            n_seeds=1,
+            base_seed=0,
+        )
+        for _ in range(4)
+    ]
+
+    assert len({result["custom_setting_id"] for result in results}) == 4
+    assert [result["label"] for result in results] == [
+        "Trial #0001",
+        "Trial #0002",
+        "Trial #0003",
+        "Trial #0004",
+    ]
+    retained = list_custom_setting_runs(question_root)
+    assert [run["label"] for run in retained] == ["Trial #0004", "Trial #0002"]
+    assert [run["final_metric"] for run in retained] == [0.2, 0.3]
+    setting_dirs = [
+        path
+        for path in (question_root / "custom_settings").iterdir()
+        if path.is_dir()
+    ]
+    assert len(setting_dirs) == 2
 
 
 @pytest.mark.skipif(not (DATA / "questions").is_dir(), reason="no generated questions")

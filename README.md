@@ -2,21 +2,37 @@
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given synthetic dataset specs and candidate training setups (model, optimizer, loss), pick which setup achieves the best test metric under a fixed sample budget.
 
-Design: [plan-v2.md](./plan-v2.md)
+## Start the quiz
 
-## Install
+From the repository root, run:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+.venv/bin/python tools/start_quiz.py
+```
+
+The quiz opens automatically at <http://127.0.0.1:8501>. Press **Ctrl-C** in
+the terminal to stop it. Running the command again while the quiz is already
+active reuses the existing service.
+
+### First-time setup
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev,inspector]"
 ```
 
 Requires Python 3.10+ and PyTorch 2.x.
 
-## Quick start
+Design: [plan-v2.md](./plan-v2.md)
+
+## Generate benchmark artifacts
+
+Activate the virtual environment, then create datasets, candidate sets, and
+questions through the interactive CLI:
 
 ```bash
+source .venv/bin/activate
+
 # Create a dataset
 architecture-iq create-dataset -i
 
@@ -202,18 +218,22 @@ See `src/architecture_iq/runtime/loader.py`.
 
 ## Question inspector
 
-Standalone Streamlit UI for browsing and taking questions (reads `data/` artifacts only):
+Streamlit UI for browsing and taking questions. Original benchmark artifacts remain
+read-only; user-created training settings are stored separately under the current
+question's `custom_settings/` directory.
+
+While solving, expand **Add custom setting** to choose the architecture, optimizer,
+loss, training budget, and seed count. Confirming the form trains that setting on the
+current dataset and adds its learning curve to the page. A custom setting can inherit
+all editable values from Choice A/B/C. The inspector retains at most two custom runs:
+the newest run and the historical run with the lowest final loss.
+
+The startup command at the top opens the default question. To open a specific
+question or question run first, pass its path to the launcher:
 
 ```bash
-pip install -e ".[inspector]"
-python tools/question_inspector/run.py
-```
-
-Optional: open a specific question or run first:
-
-```bash
-python tools/question_inspector/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX/q_XXXXXX
-python tools/question_inspector/run.py data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX
+.venv/bin/python tools/start_quiz.py --question-run data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX/q_XXXXXX
+.venv/bin/python tools/start_quiz.py --question-run data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_2c_XXXXXX
 ```
 
 See [tools/question_inspector/README.md](./tools/question_inspector/README.md).
@@ -253,4 +273,3 @@ See [tools/llm_eval/README.md](./tools/llm_eval/README.md).
 ```bash
 pytest
 ```
-
