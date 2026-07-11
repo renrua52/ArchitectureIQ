@@ -2,7 +2,7 @@
   "questions": [
     {
       "id": "q_0d358c",
-      "index": 3,
+      "index": 0,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -10,7 +10,7 @@
     },
     {
       "id": "q_108458",
-      "index": 4,
+      "index": 1,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -18,7 +18,7 @@
     },
     {
       "id": "q_1287eb",
-      "index": 5,
+      "index": 2,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -26,7 +26,7 @@
     },
     {
       "id": "q_138d4d",
-      "index": 6,
+      "index": 3,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -34,7 +34,7 @@
     },
     {
       "id": "q_1605a8",
-      "index": 7,
+      "index": 4,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -42,7 +42,7 @@
     },
     {
       "id": "q_18443c",
-      "index": 8,
+      "index": 5,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -50,7 +50,7 @@
     },
     {
       "id": "q_1a8fb6",
-      "index": 9,
+      "index": 6,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -58,7 +58,7 @@
     },
     {
       "id": "q_1ad458",
-      "index": 10,
+      "index": 7,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -66,7 +66,7 @@
     },
     {
       "id": "q_233c0b",
-      "index": 11,
+      "index": 8,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -74,7 +74,7 @@
     },
     {
       "id": "q_2383a5",
-      "index": 12,
+      "index": 9,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -82,7 +82,7 @@
     },
     {
       "id": "q_24ea32",
-      "index": 13,
+      "index": 10,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -90,7 +90,7 @@
     },
     {
       "id": "q_2a302a",
-      "index": 14,
+      "index": 11,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -98,7 +98,7 @@
     },
     {
       "id": "q_2d54ee",
-      "index": 15,
+      "index": 12,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -106,7 +106,7 @@
     },
     {
       "id": "q_2ddbac",
-      "index": 16,
+      "index": 13,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -114,7 +114,7 @@
     },
     {
       "id": "q_2e18fc",
-      "index": 17,
+      "index": 14,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -122,7 +122,7 @@
     },
     {
       "id": "q_30886e",
-      "index": 18,
+      "index": 15,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -130,7 +130,7 @@
     },
     {
       "id": "q_31ecd9",
-      "index": 19,
+      "index": 16,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -138,7 +138,7 @@
     },
     {
       "id": "q_338daa",
-      "index": 20,
+      "index": 17,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -146,7 +146,7 @@
     },
     {
       "id": "q_3f0f07",
-      "index": 21,
+      "index": 18,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -154,7 +154,7 @@
     },
     {
       "id": "q_4259f5",
-      "index": 22,
+      "index": 19,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -162,7 +162,7 @@
     },
     {
       "id": "q_432d38",
-      "index": 23,
+      "index": 20,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -170,7 +170,7 @@
     },
     {
       "id": "q_50bce5",
-      "index": 24,
+      "index": 21,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -178,7 +178,7 @@
     },
     {
       "id": "q_52cf5d",
-      "index": 25,
+      "index": 22,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -186,7 +186,7 @@
     },
     {
       "id": "q_554f77",
-      "index": 26,
+      "index": 23,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -194,7 +194,7 @@
     },
     {
       "id": "q_617c61",
-      "index": 27,
+      "index": 24,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -202,7 +202,7 @@
     },
     {
       "id": "q_622faf",
-      "index": 28,
+      "index": 25,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -210,7 +210,7 @@
     },
     {
       "id": "q_670e2d",
-      "index": 29,
+      "index": 26,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -218,7 +218,7 @@
     },
     {
       "id": "q_6878e6",
-      "index": 30,
+      "index": 27,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -226,7 +226,7 @@
     },
     {
       "id": "q_6ed9a8",
-      "index": 31,
+      "index": 28,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -234,7 +234,7 @@
     },
     {
       "id": "q_71cefd",
-      "index": 32,
+      "index": 29,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -242,7 +242,7 @@
     },
     {
       "id": "q_71cf2e",
-      "index": 33,
+      "index": 30,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -250,7 +250,7 @@
     },
     {
       "id": "q_7685d5",
-      "index": 34,
+      "index": 31,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -258,7 +258,7 @@
     },
     {
       "id": "q_79d6bc",
-      "index": 35,
+      "index": 32,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -266,7 +266,7 @@
     },
     {
       "id": "q_832469",
-      "index": 36,
+      "index": 33,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -274,7 +274,7 @@
     },
     {
       "id": "q_85ca2e",
-      "index": 37,
+      "index": 34,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -282,7 +282,7 @@
     },
     {
       "id": "q_86d298",
-      "index": 38,
+      "index": 35,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -290,7 +290,7 @@
     },
     {
       "id": "q_905946",
-      "index": 39,
+      "index": 36,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -298,7 +298,7 @@
     },
     {
       "id": "q_9170a6",
-      "index": 40,
+      "index": 37,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -306,7 +306,7 @@
     },
     {
       "id": "q_9b47f0",
-      "index": 41,
+      "index": 38,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -314,7 +314,7 @@
     },
     {
       "id": "q_9e86e2",
-      "index": 42,
+      "index": 39,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -322,7 +322,7 @@
     },
     {
       "id": "q_a900d1",
-      "index": 43,
+      "index": 40,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -330,7 +330,7 @@
     },
     {
       "id": "q_abbee1",
-      "index": 44,
+      "index": 41,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -338,7 +338,7 @@
     },
     {
       "id": "q_ada9ae",
-      "index": 45,
+      "index": 42,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -346,7 +346,7 @@
     },
     {
       "id": "q_b27027",
-      "index": 46,
+      "index": 43,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -354,7 +354,7 @@
     },
     {
       "id": "q_bd3696",
-      "index": 47,
+      "index": 44,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -362,7 +362,7 @@
     },
     {
       "id": "q_bda303",
-      "index": 48,
+      "index": 45,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -370,7 +370,7 @@
     },
     {
       "id": "q_c23b18",
-      "index": 49,
+      "index": 46,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -378,7 +378,7 @@
     },
     {
       "id": "q_c3a26d",
-      "index": 50,
+      "index": 47,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -386,7 +386,7 @@
     },
     {
       "id": "q_cd0e18",
-      "index": 51,
+      "index": 48,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -394,7 +394,7 @@
     },
     {
       "id": "q_ce4d92",
-      "index": 52,
+      "index": 49,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -402,7 +402,7 @@
     },
     {
       "id": "q_d8b9d1",
-      "index": 53,
+      "index": 50,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -410,7 +410,7 @@
     },
     {
       "id": "q_de799f",
-      "index": 54,
+      "index": 51,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -418,7 +418,7 @@
     },
     {
       "id": "q_dff460",
-      "index": 55,
+      "index": 52,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -426,7 +426,7 @@
     },
     {
       "id": "q_e1349d",
-      "index": 56,
+      "index": 53,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -434,7 +434,7 @@
     },
     {
       "id": "q_e3100b",
-      "index": 57,
+      "index": 54,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -442,7 +442,7 @@
     },
     {
       "id": "q_e9c906",
-      "index": 58,
+      "index": 55,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -450,7 +450,7 @@
     },
     {
       "id": "q_eb3ff7",
-      "index": 59,
+      "index": 56,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -458,7 +458,7 @@
     },
     {
       "id": "q_f33b17",
-      "index": 60,
+      "index": 57,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -466,7 +466,7 @@
     },
     {
       "id": "q_f3fc8e",
-      "index": 61,
+      "index": 58,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,
@@ -474,7 +474,7 @@
     },
     {
       "id": "q_fc8550",
-      "index": 62,
+      "index": 59,
       "type": "architecture_only",
       "datasetId": "sym_743ca5",
       "budget": 256,

@@ -171,6 +171,8 @@ function App() {
             <p>Observe the evidence</p>
             <h1>{question.title}</h1>
             <div className="chips">
+              <span>Question {currentIndex + 1} / {questions.length}</span>
+              <span>ID {question.id}</span>
               <span>{question.family?.replace(/_/g, " ")}</span>
               <span>Dataset {question.datasetId}</span>
               <span>Budget {String(question.budget?.total_samples_seen ?? "-")} samples</span>
@@ -283,7 +285,7 @@ function TopBar({
         <small>{progress}%</small>
       </div>
       <div className="top-actions">
-        <button onClick={onNext}>Next</button>
+        <button onClick={onNext}>Next question</button>
         <button onClick={onRandom}>Random</button>
         <span className="score-pill">
           Score {score.correct} / {score.total}

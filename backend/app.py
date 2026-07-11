@@ -51,6 +51,25 @@ def _question_dirs(data_root: str | None = None) -> list[Path]:
     return list_question_dirs(root)
 
 
+def _active_question_dirs(data_root: str | None = None) -> list[Path]:
+    """Return the primary quiz run, preferring the largest generated run."""
+    dirs = _question_dirs(data_root)
+    if not dirs:
+        return []
+
+    by_run: dict[Path, list[Path]] = {}
+    for question_dir in dirs:
+        by_run.setdefault(question_dir.parent, []).append(question_dir)
+
+    def run_rank(item: tuple[Path, list[Path]]) -> tuple[int, float, str]:
+        run_path, questions = item
+        latest_mtime = max((q / "question.json").stat().st_mtime for q in questions)
+        return (len(questions), latest_mtime, run_path.name)
+
+    _, active = max(by_run.items(), key=run_rank)
+    return sorted(active)
+
+
 def _bundle(question_id: str, data_root: str | None = None) -> QuestionBundle:
     for question_dir in _question_dirs(data_root):
         qfile = question_dir / "question.json"
@@ -176,7 +195,7 @@ def health() -> dict[str, str]:
 @app.get("/api/questions")
 def list_questions(data_root: str | None = Query(default=None)) -> dict[str, Any]:
     questions = []
-    for index, question_dir in enumerate(_question_dirs(data_root)):
+    for index, question_dir in enumerate(_active_question_dirs(data_root)):
         question = read_json_file(question_dir / "question.json")
         budget = question.get("budget", {})
         questions.append(
