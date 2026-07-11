@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -182,36 +182,20 @@ function App() {
           </section>
 
           <section className="quiz-grid">
-            <EvidencePanel question={question} tab={tab} onTab={setTab} reveal={Boolean(answer)} />
-            <SharedPanel question={question} />
-          </section>
-
-          <section className="bottom-rail" style={{ "--choice-count": question.choices.length } as React.CSSProperties}>
-            {question.choices.map((choice, index) => (
-              <CandidateCard
-                key={choice.letter}
-                choice={choice}
-                color={choiceColors[index % choiceColors.length]}
-                selected={selected === choice.letter}
-                answer={answer}
-                onSelect={() => {
-                  if (!answer) {
-                    setSelected(choice.letter);
-                  }
-                }}
-              />
-            ))}
-            <CommitPanel
-              choices={question.choices}
+            <EvidencePanel
+              question={question}
+              tab={tab}
+              onTab={setTab}
               selected={selected}
               answer={answer}
-              onPick={(letter) => {
+              onSelect={(letter) => {
                 if (!answer) {
                   setSelected(letter);
                 }
               }}
               onLock={lockAnswer}
             />
+            <SharedPanel question={question} />
           </section>
 
           {answer ? <ResultPanel answer={answer} /> : null}
@@ -299,20 +283,26 @@ function EvidencePanel({
   question,
   tab,
   onTab,
-  reveal
+  selected,
+  answer,
+  onSelect,
+  onLock
 }: {
   question: Question;
   tab: EvidenceTab;
   onTab: (tab: EvidenceTab) => void;
-  reveal: boolean;
+  selected: string | null;
+  answer: AnswerResult | null;
+  onSelect: (letter: string) => void;
+  onLock: () => void;
 }) {
   return (
     <div className="panel evidence-panel">
       <div className="panel-head">
         <div>
           <span className="dot" />
-          <strong>Evidence 01</strong>
-          <small>Question artifacts</small>
+          <strong>Evidence · {question.id}</strong>
+          <small>{question.choices.map((choice) => `${choice.letter} ${choice.candidateId}`).join("  ·  ")}</small>
         </div>
         <nav className="tabs" aria-label="Evidence tabs">
           {(["matrix", "protocol", "prompt"] as EvidenceTab[]).map((item) => (
@@ -322,63 +312,198 @@ function EvidencePanel({
           ))}
         </nav>
       </div>
-      {tab === "matrix" ? <ScatterPlot question={question} /> : null}
+      <div className="matchup-strip" aria-label="Current question matchup">
+        {question.choices.map((choice, index) => {
+          const isSelected = selected === choice.letter;
+          const isCorrect = answer?.correctLetter === choice.letter;
+          const isWrongPick = answer?.picked === choice.letter && !answer.correct;
+          return (
+            <button
+              key={choice.letter}
+              className={[
+                "matchup-choice",
+                isSelected ? "selected" : "",
+                isCorrect ? "correct" : "",
+                isWrongPick ? "wrong" : ""
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              disabled={Boolean(answer)}
+              onClick={() => onSelect(choice.letter)}
+              style={{ "--accent": choiceColors[index % choiceColors.length] } as React.CSSProperties}
+            >
+              <span>{choice.letter}</span>
+              <strong>{choice.candidateId}</strong>
+              <small>{displayVariant(choice.variant).map((field) => `${titleCase(field.label)} ${field.value}`).join(" · ")}</small>
+            </button>
+          );
+        })}
+      </div>
+      {tab === "matrix" ? <DatasetPlot question={question} answer={answer} /> : null}
       {tab === "protocol" ? <Protocol question={question} /> : null}
       {tab === "prompt" ? <pre className="prompt-box">{question.prompt}</pre> : null}
-      {!reveal ? <div className="hint-chip">No result data before commitment.</div> : null}
+      <div className="evidence-actions">
+        <div className="hint-chip">
+          {answer
+            ? answer.correct
+              ? `Locked ${answer.picked}. Correct.`
+              : `Locked ${answer.picked}. Winner: ${answer.correctLetter}.`
+            : selected
+              ? `Selected ${selected}.`
+              : "No result data before commitment."}
+        </div>
+        <button className="lock-button evidence-lock" disabled={!selected || Boolean(answer)} onClick={onLock}>
+          {answer ? "Answer locked" : "Lock answer →"}
+        </button>
+      </div>
     </div>
   );
 }
 
-function ScatterPlot({ question }: { question: Question }) {
-  const points = useMemo(() => [...question.dataset.train, ...question.dataset.test], [question]);
-  const bounds = useMemo(() => {
-    const xs = points.map((point) => point.x);
-    const ys = points.map((point) => point.y);
-    return {
-      minX: Math.min(...xs),
-      maxX: Math.max(...xs),
-      minY: Math.min(...ys),
-      maxY: Math.max(...ys)
-    };
-  }, [points]);
+function DatasetPlot({ question, answer }: { question: Question; answer: AnswerResult | null }) {
+  const train = question.dataset.train ?? [];
+  const test = question.dataset.test ?? [];
+  const allPoints = [...train, ...test];
+  const width = 930;
+  const height = 430;
+  const plot = { x: 72, y: 54, width: 770, height: 300 };
+  const domain = pointDomain(allPoints);
+  const xTicks = makeTicks(domain.xMin, domain.xMax, 7);
+  const yTicks = makeTicks(domain.yMin, domain.yMax, 5);
 
-  const mapX = (x: number) => 50 + ((x - bounds.minX) / Math.max(0.0001, bounds.maxX - bounds.minX)) * 800;
-  const mapY = (y: number) => 330 - ((y - bounds.minY) / Math.max(0.0001, bounds.maxY - bounds.minY)) * 270;
+  const pointPosition = (point: Point) => ({
+    x: plot.x + ((point.x - domain.xMin) / (domain.xMax - domain.xMin || 1)) * plot.width,
+    y: plot.y + plot.height - ((point.y - domain.yMin) / (domain.yMax - domain.yMin || 1)) * plot.height
+  });
 
   return (
     <div className="plot-frame">
-      <svg viewBox="0 0 930 390" role="img" aria-label="Dataset train and test evidence scatter plot">
-        <rect x="32" y="24" width="840" height="320" rx="12" fill="#fffefa" stroke="#24262c" strokeWidth="2" />
-        {Array.from({ length: 9 }).map((_, index) => (
-          <line key={`v-${index}`} x1={70 + index * 90} x2={70 + index * 90} y1="42" y2="326" stroke="#d9d2e9" />
-        ))}
-        {Array.from({ length: 5 }).map((_, index) => (
-          <line key={`h-${index}`} x1="54" x2="848" y1={74 + index * 56} y2={74 + index * 56} stroke="#d9d2e9" />
-        ))}
-        {question.dataset.train.map((point, index) => (
-          <circle key={`train-${index}`} cx={mapX(point.x)} cy={mapY(point.y)} r="4" fill="#734cff" opacity="0.72" />
-        ))}
-        {question.dataset.test.map((point, index) => (
-          <circle key={`test-${index}`} cx={mapX(point.x)} cy={mapY(point.y)} r="4" fill="#20a87e" opacity="0.72" />
-        ))}
-        <text x="54" y="368" fill="#6e7078" fontSize="14">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Dataset plot for ${question.id}`}>
+        <rect x="28" y="24" width="874" height="372" rx="18" fill="#fffefa" stroke="#24262c" strokeWidth="2" />
+        <text x="54" y="42" fill="#6d7080" fontSize="13" fontWeight="800">
+          Dataset {question.datasetId}
+        </text>
+        <text x="844" y="42" textAnchor="end" fill="#6d7080" fontSize="13" fontWeight="800">
+          train {train.length} · test {test.length}
+        </text>
+        <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} rx="10" fill="#f4f0ff" stroke="#24262c" strokeWidth="1.5" />
+        {xTicks.map((tick) => {
+          const x = plot.x + ((tick - domain.xMin) / (domain.xMax - domain.xMin || 1)) * plot.width;
+          return (
+            <g key={`x-${tick}`}>
+              <line x1={x} x2={x} y1={plot.y} y2={plot.y + plot.height} stroke="#d8d1e9" />
+              <text x={x} y={plot.y + plot.height + 26} textAnchor="middle" fill="#6e7078" fontSize="11" fontWeight="700">
+                {formatTick(tick)}
+              </text>
+            </g>
+          );
+        })}
+        {yTicks.map((tick) => {
+          const y = plot.y + plot.height - ((tick - domain.yMin) / (domain.yMax - domain.yMin || 1)) * plot.height;
+          return (
+            <g key={`y-${tick}`}>
+              <line x1={plot.x} x2={plot.x + plot.width} y1={y} y2={y} stroke="#d8d1e9" />
+              <text x={plot.x - 14} y={y + 4} textAnchor="end" fill="#6e7078" fontSize="11" fontWeight="700">
+                {formatTick(tick)}
+              </text>
+            </g>
+          );
+        })}
+        <line x1={plot.x} x2={plot.x + plot.width} y1={plot.y + plot.height} y2={plot.y + plot.height} stroke="#24262c" strokeWidth="1.5" />
+        <line x1={plot.x} x2={plot.x} y1={plot.y} y2={plot.y + plot.height} stroke="#24262c" strokeWidth="1.5" />
+        <text x={plot.x} y={plot.y + plot.height + 52} fill="#26364c" fontSize="13" fontWeight="800">
           x
         </text>
-        <text x="14" y="40" fill="#6e7078" fontSize="14">
+        <text x={plot.x - 24} y={plot.y + 4} fill="#26364c" fontSize="13" fontWeight="800">
           y
         </text>
-        <g transform="translate(778 54)">
-          <circle cx="0" cy="0" r="5" fill="#734cff" />
-          <text x="14" y="5" fill="#4f5158" fontSize="14">
+        {train.map((point, index) => {
+          const pos = pointPosition(point);
+          return <circle key={`train-${index}`} cx={pos.x} cy={pos.y} r="4.1" fill="#734cff" opacity="0.78" />;
+        })}
+        {test.map((point, index) => {
+          const pos = pointPosition(point);
+          return <circle key={`test-${index}`} cx={pos.x} cy={pos.y} r="4.1" fill="#20a87e" opacity="0.78" />;
+        })}
+        <g transform="translate(664 76)">
+          <rect x="0" y="0" width="146" height="66" rx="14" fill="#fffefa" stroke="#d9d2e9" />
+          <circle cx="20" cy="22" r="5" fill="#734cff" />
+          <text x="34" y="27" fill="#26364c" fontSize="13" fontWeight="800">
             train
           </text>
-          <circle cx="0" cy="24" r="5" fill="#20a87e" />
-          <text x="14" y="29" fill="#4f5158" fontSize="14">
+          <circle cx="20" cy="46" r="5" fill="#20a87e" />
+          <text x="34" y="51" fill="#26364c" fontSize="13" fontWeight="800">
             test
           </text>
         </g>
+        {answer ? (
+          <g transform="translate(54 366)">
+            <rect x="0" y="0" width="242" height="36" rx="18" fill={answer.correct ? "#20a87e" : "#d94b45"} />
+            <text x="121" y="23" textAnchor="middle" fill="#fff" fontSize="13" fontWeight="850">
+              {answer.correct ? "Correct" : `Winner: ${answer.correctLetter}`}
+            </text>
+          </g>
+        ) : null}
       </svg>
+      {answer ? <InlineComparison answer={answer} /> : null}
+    </div>
+  );
+}
+
+function pointDomain(points: Point[]) {
+  const xValues = points.map((point) => point.x).filter(Number.isFinite);
+  const yValues = points.map((point) => point.y).filter(Number.isFinite);
+  const xMin = Math.min(...xValues, 0);
+  const xMax = Math.max(...xValues, 1);
+  const yMin = Math.min(...yValues, 0);
+  const yMax = Math.max(...yValues, 1);
+  const xPad = Math.max((xMax - xMin) * 0.08, 0.1);
+  const yPad = Math.max((yMax - yMin) * 0.12, 0.1);
+  return {
+    xMin: xMin - xPad,
+    xMax: xMax + xPad,
+    yMin: yMin - yPad,
+    yMax: yMax + yPad
+  };
+}
+
+function makeTicks(min: number, max: number, count: number) {
+  if (count <= 1) {
+    return [min];
+  }
+  return Array.from({ length: count }, (_, index) => min + ((max - min) * index) / (count - 1));
+}
+
+function formatTick(value: number) {
+  const abs = Math.abs(value);
+  if (abs >= 100 || abs === 0) {
+    return value.toFixed(0);
+  }
+  if (abs >= 10) {
+    return value.toFixed(1);
+  }
+  return value.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function InlineComparison({ answer }: { answer: AnswerResult }) {
+  return (
+    <div className="inline-comparison">
+      <div>
+        <strong>{answer.correct ? "Correct" : "Not this time"}</strong>
+        <span>
+          You picked {answer.picked}. Winner: {answer.correctLetter}.
+        </span>
+      </div>
+      <div className="comparison-list">
+        {answer.ranked.map((row, index) => (
+          <div key={row.letter}>
+            <span>#{index + 1}</span>
+            <strong>{row.letter}</strong>
+            <em>{row.candidateId}</em>
+            <small>{row.label}</small>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -419,80 +544,6 @@ function SharedPanel({ question }: { question: Question }) {
         <strong>What should you notice?</strong>
         <span>Reason about capacity, optimizer dynamics, and whether each setup can use the fixed budget efficiently.</span>
       </div>
-    </aside>
-  );
-}
-
-function CandidateCard({
-  choice,
-  color,
-  selected,
-  answer,
-  onSelect
-}: {
-  choice: Choice;
-  color: string;
-  selected: boolean;
-  answer: AnswerResult | null;
-  onSelect: () => void;
-}) {
-  const isCorrect = answer?.correctLetter === choice.letter;
-  const isWrongPick = answer?.picked === choice.letter && !answer.correct;
-  const border = isCorrect ? "#20a87e" : isWrongPick ? "#d94b45" : selected ? color : "#24262c";
-  const shown = displayVariant(choice.variant);
-
-  return (
-    <button className="candidate-card" style={{ "--accent": color, borderColor: border } as React.CSSProperties} onClick={onSelect}>
-      <div className="candidate-top">
-        <div>
-          <span className="letter">{choice.letter}</span>
-          <small>{choice.candidateId}</small>
-        </div>
-        <span className={`radio-dot ${selected ? "selected" : ""}`} />
-      </div>
-      <div className="mini-network" aria-hidden="true" />
-      <div className="candidate-fields">
-        {shown.map((field) => (
-          <InfoRow key={field.label} label={titleCase(field.label)} value={field.value} />
-        ))}
-      </div>
-    </button>
-  );
-}
-
-function CommitPanel({
-  choices,
-  selected,
-  answer,
-  onPick,
-  onLock
-}: {
-  choices: Choice[];
-  selected: string | null;
-  answer: AnswerResult | null;
-  onPick: (letter: string) => void;
-  onLock: () => void;
-}) {
-  return (
-    <aside className="commit-panel">
-      <h3>Choose one setup</h3>
-      <p>
-        {answer
-          ? answer.correct
-            ? `Locked ${answer.picked}. Correct.`
-            : `Locked ${answer.picked}. Correct answer: ${answer.correctLetter}.`
-          : "No result data is shown before commitment."}
-      </p>
-      <div className="commit-buttons">
-        {choices.map((choice) => (
-          <button key={choice.letter} className={selected === choice.letter ? "active" : ""} onClick={() => onPick(choice.letter)}>
-            {choice.letter}
-          </button>
-        ))}
-      </div>
-      <button className="lock-button" disabled={!selected || Boolean(answer)} onClick={onLock}>
-        {answer ? "Answer locked" : "Lock answer →"}
-      </button>
     </aside>
   );
 }
