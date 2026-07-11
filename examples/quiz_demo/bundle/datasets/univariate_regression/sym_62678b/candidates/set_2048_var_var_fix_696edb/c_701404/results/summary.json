@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_701404",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_mse": 0.042804818227887155,
+  "std_test_mse": 0.010230296218133731,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_mse": 0.03715085610747337,
+      "mean_test_mse": 0.03715085610747337
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_mse": 0.040741175413131714,
+      "mean_test_mse": 0.040741175413131714
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_mse": 0.034758634865283966,
+      "mean_test_mse": 0.034758634865283966
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.0581449493765831,
+      "mean_test_mse": 0.0581449493765831
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_mse": 0.03596322983503342,
+      "mean_test_mse": 0.03596322983503342
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_mse": 0.05082780495285988,
+      "mean_test_mse": 0.05082780495285988
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_mse": 0.027376096695661545,
+      "mean_test_mse": 0.027376096695661545
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_mse": 0.05811537057161331,
+      "mean_test_mse": 0.05811537057161331
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.050436899065971375,
+      "mean_test_mse": 0.050436899065971375
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 0.03453316539525986,
+      "mean_test_mse": 0.03453316539525986
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+  }
+}

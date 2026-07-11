@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run_20q_3c_dc3e83",
+  "dataset_id": "bg_0021c1",
+  "family": "bigram_lm",
+  "candidate_sets": [
+    "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+  ],
+  "num_questions": 20,
+  "num_choices": 3,
+  "question_ids": [
+    "q_fec4c1",
+    "q_834cc0",
+    "q_cad232",
+    "q_cb2b16",
+    "q_19d0d6",
+    "q_f241b4",
+    "q_094b12",
+    "q_bc3c03",
+    "q_44d7aa",
+    "q_f2dd89",
+    "q_b9f2a5",
+    "q_6823eb",
+    "q_7185fa",
+    "q_70c35c",
+    "q_a97b67",
+    "q_530159",
+    "q_7cac4a",
+    "q_b9bf98",
+    "q_d4e25d",
+    "q_b0b228"
+  ],
+  "seed": 682054329,
+  "profile": "v1",
+  "created_at": "2026-07-07T20:53:39+00:00"
+}

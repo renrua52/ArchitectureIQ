@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_50dbb9",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_mse": 0.6626226961612701,
+  "std_test_mse": 0.07198807323018237,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_mse": 0.698559045791626,
+      "mean_test_mse": 0.698559045791626
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_mse": 0.658870279788971,
+      "mean_test_mse": 0.658870279788971
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_mse": 0.699021577835083,
+      "mean_test_mse": 0.699021577835083
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.5737928152084351,
+      "mean_test_mse": 0.5737928152084351
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_mse": 0.5054071545600891,
+      "mean_test_mse": 0.5054071545600891
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_mse": 0.6223134994506836,
+      "mean_test_mse": 0.6223134994506836
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_mse": 0.7569770812988281,
+      "mean_test_mse": 0.7569770812988281
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_mse": 0.726956844329834,
+      "mean_test_mse": 0.726956844329834
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.7014673352241516,
+      "mean_test_mse": 0.7014673352241516
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 0.682861328125,
+      "mean_test_mse": 0.682861328125
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+  }
+}

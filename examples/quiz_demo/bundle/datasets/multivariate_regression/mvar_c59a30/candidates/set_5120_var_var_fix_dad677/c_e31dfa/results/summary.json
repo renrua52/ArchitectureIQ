@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_e31dfa",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 7,
+  "excluded": true,
+  "mean_test_mse": 1.2237731615702312,
+  "std_test_mse": 0.4581993288997454,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": true,
+      "final_test_mse": 2.251011848449707,
+      "mean_test_mse": 2.251011848449707
+    },
+    {
+      "seed": 1,
+      "failed": true,
+      "final_test_mse": 3.818618059158325,
+      "mean_test_mse": 3.818618059158325
+    },
+    {
+      "seed": 2,
+      "failed": true,
+      "final_test_mse": 3.402108669281006,
+      "mean_test_mse": 3.402108669281006
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.856093168258667,
+      "mean_test_mse": 0.856093168258667
+    },
+    {
+      "seed": 4,
+      "failed": true,
+      "final_test_mse": 5.021940231323242,
+      "mean_test_mse": 5.021940231323242
+    },
+    {
+      "seed": 5,
+      "failed": true,
+      "final_test_mse": 2.1194982528686523,
+      "mean_test_mse": 2.1194982528686523
+    },
+    {
+      "seed": 6,
+      "failed": true,
+      "final_test_mse": 5.576938152313232,
+      "mean_test_mse": 5.576938152313232
+    },
+    {
+      "seed": 7,
+      "failed": true,
+      "final_test_mse": 3.0302538871765137,
+      "mean_test_mse": 3.0302538871765137
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.9455217123031616,
+      "mean_test_mse": 0.9455217123031616
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 1.8697046041488647,
+      "mean_test_mse": 1.8697046041488647
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+  }
+}

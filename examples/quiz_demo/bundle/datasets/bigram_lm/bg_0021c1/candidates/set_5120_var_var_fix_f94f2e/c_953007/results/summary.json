@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_953007",
+  "selection_metric": "test_ce",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_ce": 3.3148813486099242,
+  "std_test_ce": 0.008542096875253351,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_ce": 3.305600881576538
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_ce": 3.3251051902770996
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_ce": 3.321173667907715
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_ce": 3.312326669692993
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_ce": 3.3207955360412598
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_ce": 3.314554214477539
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_ce": 3.3158838748931885
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_ce": 3.308384895324707
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_ce": 3.326693058013916
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_ce": 3.298295497894287
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+  }
+}

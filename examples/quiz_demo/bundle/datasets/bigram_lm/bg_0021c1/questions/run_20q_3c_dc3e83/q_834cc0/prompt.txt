@@ -1,0 +1,293 @@
+You are taking the ArchitectureIQ benchmark.
+
+Each question describes a synthetic dataset and several candidate training setups (model, optimizer, loss). All choices train on the same data with the same sample budget. Your task is to identify which setup will achieve the **best test MSE** on the held-out test set after the fixed training budget — using architecture and learning-mechanics reasoning only (no training results are provided).
+
+## Dataset
+Bigram language modeling: each example is a length-`L` window of token IDs. Labels are the next token at each position, sampled from a **single fixed** bigram law `P(y|x)` shared by train and test. Only the random windows differ between splits.
+
+### Synthesis (PyTorch)
+```python
+def target(seq: torch.Tensor) -> torch.Tensor:
+    """Next-token labels: input sequence shifted by one (seq shape [N, L+1] -> [N, L])."""
+    return seq[:, 1:].to(torch.int64)
+
+
+def synthesize(
+    *,
+    train_size: int = 800,
+    test_size: int = 200,
+    sequence_seed: int = 1410009409,
+    table_seed: int = 1410019409,
+    vocab_size: int = 32,
+    context_length: int = 16,
+    alpha: float = 1.0,
+    layout: str = 'lm',
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    import numpy as np
+
+    def _transition(v: int, seed: int, scale: float) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        logits = rng.standard_normal((v, v)) * scale
+        logits -= logits.max(axis=1, keepdims=True)
+        p = np.exp(logits)
+        return (p / p.sum(axis=1, keepdims=True)).astype(np.float64)
+
+    def _stationary(probs: np.ndarray) -> np.ndarray:
+        v = probs.shape[0]
+        pi = np.full(v, 1.0 / v, dtype=np.float64)
+        for _ in range(256):
+            pi = pi @ probs
+            pi /= pi.sum()
+        return pi
+
+    def _sample_sequences(n: int, length: int, probs: np.ndarray, pi: np.ndarray, seed: int):
+        rng = np.random.default_rng(seed)
+        v = probs.shape[0]
+        seq = np.empty((n, length), dtype=np.int64)
+        for i in range(n):
+            s = [int(rng.choice(v, p=pi))]
+            while len(s) < length:
+                s.append(int(rng.choice(v, p=probs[s[-1]])))
+            seq[i] = np.asarray(s, dtype=np.int64)
+        return seq
+
+    probs = _transition(vocab_size, table_seed, alpha)
+    pi = _stationary(probs)
+    if layout == "lm":
+        seq_train = _sample_sequences(train_size, context_length + 1, probs, pi, sequence_seed)
+        seq_test = _sample_sequences(test_size, context_length + 1, probs, pi, sequence_seed + 1)
+    else:
+        raise ValueError("Only layout='lm' is supported in generated synthesize.py")
+
+    train_seq = torch.from_numpy(seq_train)
+    test_seq = torch.from_numpy(seq_test)
+    x_train = train_seq[:, :-1].to(torch.int64)
+    y_train = target(train_seq)
+    x_test = test_seq[:, :-1].to(torch.int64)
+    y_test = target(test_seq)
+    return x_train, y_train, x_test, y_test
+```
+
+### Data splits and training protocol
+- Vocab size: 32
+- Context length: 16
+- Layout: causal LM windows (`x` shape `[N, L]`, `y` shape `[N, L]`)
+- One fixed bigram transition matrix `P(y|x)` shared by train and test
+- Train rows: 800; test rows: 200
+- Sequence seed: 1410009409; table seed: 1410019409
+- Evaluation: **test cross-entropy** on held-out windows
+
+## Sample budget (same for all choices)
+- total_samples_seen: 5120
+
+Each choice specifies its own `training_steps` and `batch_size` below; they must satisfy `training_steps × batch_size = total_samples_seen`.
+
+## Evaluation metric
+- Ground-truth ranking uses **test_ce** on the held-out test split.
+- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.
+- The correct choice has the lowest **mean** test_ce across seeds.
+
+## Choices
+
+### Choice A
+
+**Training schedule**
+- training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)
+
+**Model (natural language)**
+- Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 32
+- num_layers: 1
+- num_heads: 4
+- d_ff: 64
+
+**Model code**
+```python
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.context_length = 16
+        self.token_embed = nn.Embedding(32, 32)
+        self.pos_embed = nn.Embedding(16, 32)
+        layer = nn.TransformerEncoderLayer(
+            d_model=32,
+            nhead=4,
+            dim_feedforward=64,
+            dropout=0.0,
+            batch_first=True,
+            activation="gelu",
+        )
+        self.encoder = nn.TransformerEncoder(layer, num_layers=1)
+        self.head = nn.Linear(32, 32)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, seq_len = x.shape
+        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(b, -1)
+        h = self.token_embed(x) + self.pos_embed(positions)
+        mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
+        h = self.encoder(h, mask=mask)
+        return self.head(h)
+```
+
+**Optimizer**
+- Optimizer: SGD
+- Learning rate: 0.01
+- Weight decay: 1e-05
+- Momentum: 0.9
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.SGD(params, lr=0.01, momentum=0.9, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: cross-entropy on next-token labels
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    if pred.ndim == 3:
+        vocab = pred.shape[-1]
+        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))
+    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))
+```
+
+### Choice B
+
+**Training schedule**
+- training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)
+
+**Model (natural language)**
+- Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 64
+- num_layers: 2
+- num_heads: 2
+- d_ff: 64
+
+**Model code**
+```python
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.context_length = 16
+        self.token_embed = nn.Embedding(32, 64)
+        self.pos_embed = nn.Embedding(16, 64)
+        layer = nn.TransformerEncoderLayer(
+            d_model=64,
+            nhead=2,
+            dim_feedforward=64,
+            dropout=0.0,
+            batch_first=True,
+            activation="gelu",
+        )
+        self.encoder = nn.TransformerEncoder(layer, num_layers=2)
+        self.head = nn.Linear(64, 32)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, seq_len = x.shape
+        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(b, -1)
+        h = self.token_embed(x) + self.pos_embed(positions)
+        mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
+        h = self.encoder(h, mask=mask)
+        return self.head(h)
+```
+
+**Optimizer**
+- Optimizer: RMSprop
+- Learning rate: 0.003
+- Weight decay: 1e-05
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.RMSprop(params, lr=0.003, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: cross-entropy on next-token labels
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    if pred.ndim == 3:
+        vocab = pred.shape[-1]
+        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))
+    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))
+```
+
+### Choice C
+
+**Training schedule**
+- training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)
+
+**Model (natural language)**
+- Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 128
+- num_layers: 2
+- num_heads: 4
+- d_ff: 64
+
+**Model code**
+```python
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.context_length = 16
+        self.token_embed = nn.Embedding(32, 128)
+        self.pos_embed = nn.Embedding(16, 128)
+        layer = nn.TransformerEncoderLayer(
+            d_model=128,
+            nhead=4,
+            dim_feedforward=64,
+            dropout=0.0,
+            batch_first=True,
+            activation="gelu",
+        )
+        self.encoder = nn.TransformerEncoder(layer, num_layers=2)
+        self.head = nn.Linear(128, 32)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, seq_len = x.shape
+        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(b, -1)
+        h = self.token_embed(x) + self.pos_embed(positions)
+        mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
+        h = self.encoder(h, mask=mask)
+        return self.head(h)
+```
+
+**Optimizer**
+- Optimizer: Adam
+- Learning rate: 0.0003
+- Weight decay: 0.0001
+- Betas: [0.9, 0.999]
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.Adam(params, lr=0.0003, betas=(0.9, 0.999), weight_decay=0.0001)
+```
+
+**Loss**
+- Loss: cross-entropy on next-token labels
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    if pred.ndim == 3:
+        vocab = pred.shape[-1]
+        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))
+    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))
+```
+
+## Your answer
+Reply with a single letter (A, B, C).

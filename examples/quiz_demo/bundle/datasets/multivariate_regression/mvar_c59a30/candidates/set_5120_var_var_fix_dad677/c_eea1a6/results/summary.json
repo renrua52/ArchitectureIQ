@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_eea1a6",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_mse": 0.36935266852378845,
+  "std_test_mse": 0.0888619514662077,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_mse": 0.3538464307785034,
+      "mean_test_mse": 0.3538464307785034
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_mse": 0.5555124282836914,
+      "mean_test_mse": 0.5555124282836914
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_mse": 0.2884843647480011,
+      "mean_test_mse": 0.2884843647480011
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.5177452564239502,
+      "mean_test_mse": 0.5177452564239502
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_mse": 0.38846972584724426,
+      "mean_test_mse": 0.38846972584724426
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_mse": 0.34164416790008545,
+      "mean_test_mse": 0.34164416790008545
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_mse": 0.2978516221046448,
+      "mean_test_mse": 0.2978516221046448
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_mse": 0.3209339380264282,
+      "mean_test_mse": 0.3209339380264282
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.335793137550354,
+      "mean_test_mse": 0.335793137550354
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 0.2932456135749817,
+      "mean_test_mse": 0.2932456135749817
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+  }
+}

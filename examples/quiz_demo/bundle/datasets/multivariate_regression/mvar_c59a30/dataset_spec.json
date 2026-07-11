@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "family": "multivariate_regression",
+  "params": {
+    "instance_seed": 200531225,
+    "input_dim": 4,
+    "sampler": {
+      "id": "symbolic_expr_mv",
+      "seed": 200531225,
+      "max_depth": 3,
+      "retry": 0
+    },
+    "expression": "tanh(2*x0) + tanh(2*(x1 / 0.5)) + cos(6.283185307179586*x2) * -0.8333 + (x3 + 0.1667) + sin(6.283185307179586*x1) * cos(6.283185307179586*x3) + x3 * sin(6.283185307179586*x0)",
+    "domain": [
+      0.0,
+      1.0
+    ],
+    "train_size": 256,
+    "test_size": 256,
+    "noise": {
+      "enabled": false
+    },
+    "point_sampling": {
+      "distribution": "uniform",
+      "seed": 200532225
+    }
+  },
+  "selection_metric": "test_mse",
+  "significance": {
+    "gap_min": 0.05,
+    "fail_threshold": 2.0
+  },
+  "files": {
+    "synthesize": "synthesize.py",
+    "train": "train.pt",
+    "test": "test.pt"
+  },
+  "dataset_id": "mvar_c59a30"
+}

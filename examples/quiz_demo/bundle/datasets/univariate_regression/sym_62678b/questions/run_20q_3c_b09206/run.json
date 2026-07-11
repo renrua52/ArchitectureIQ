@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run_20q_3c_b09206",
+  "dataset_id": "sym_62678b",
+  "family": "univariate_regression",
+  "candidate_sets": [
+    "datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb"
+  ],
+  "num_questions": 20,
+  "num_choices": 3,
+  "question_ids": [
+    "q_5f12d9",
+    "q_70b2fe",
+    "q_f745a6",
+    "q_79e34e",
+    "q_cc87ba",
+    "q_e18192",
+    "q_aa6cc5",
+    "q_b24cf4",
+    "q_e86092",
+    "q_59c2dc",
+    "q_993e97",
+    "q_c7387f",
+    "q_b87c20",
+    "q_c1c26a",
+    "q_dc1205",
+    "q_d0fad7",
+    "q_073f9b",
+    "q_0e556f",
+    "q_417b4e",
+    "q_ff5ef6"
+  ],
+  "seed": 42,
+  "profile": "v1",
+  "created_at": "2026-07-07T20:44:29+00:00"
+}

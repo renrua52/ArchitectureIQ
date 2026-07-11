@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "mvar_c59a30",
+  "family": "multivariate_regression",
+  "budget": {
+    "training_steps": 160,
+    "batch_size": 32,
+    "total_samples_seen": 5120
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 5,
+    "width": 32,
+    "residual": true,
+    "layer_norm": [
+      false,
+      false,
+      true,
+      true,
+      false
+    ],
+    "activations": [
+      "gelu",
+      "leaky_relu",
+      "leaky_relu",
+      "silu",
+      "leaky_relu"
+    ],
+    "input_dim": 4
+  },
+  "optimizer": {
+    "type": "RMSprop",
+    "lr": 0.003,
+    "weight_decay": 0.0001
+  },
+  "loss": {
+    "loss_id": "mse"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_c8eca7"
+}
