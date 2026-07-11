@@ -26,6 +26,22 @@ SETTING_INDEX = "index.json"
 MAX_RETAINED_SETTINGS = 2
 
 
+def question_custom_settings_dir(question_root: Path) -> Path:
+    """On-disk custom-settings folder under a question (legacy / tests)."""
+    return question_root / CUSTOM_SETTINGS_DIR
+
+
+def clear_custom_settings_storage(storage_root: Path) -> None:
+    """Remove all temporary custom-setting runs under ``storage_root``."""
+    if storage_root.is_dir():
+        shutil.rmtree(storage_root)
+
+
+def clear_legacy_question_custom_settings(question_root: Path) -> None:
+    """Delete persisted custom settings under a question artifact directory."""
+    clear_custom_settings_storage(question_custom_settings_dir(question_root))
+
+
 def compatible_model_types(profile: Profile, family: str) -> list[str]:
     """Return profile model types that can train on ``family``."""
     ensure_registries()
@@ -248,7 +264,7 @@ def custom_setting_run_id(
 
 
 def _reserve_setting_identity(
-    question_root: Path,
+    storage_root: Path,
     spec: dict[str, Any],
     *,
     label_prefix: str,
@@ -256,9 +272,8 @@ def _reserve_setting_identity(
     base_seed: int,
 ) -> tuple[str, str, int]:
     """Reserve a monotonically increasing id and display name."""
-    root = question_root / CUSTOM_SETTINGS_DIR
-    root.mkdir(parents=True, exist_ok=True)
-    index_path = root / SETTING_INDEX
+    storage_root.mkdir(parents=True, exist_ok=True)
+    index_path = storage_root / SETTING_INDEX
     index: dict[str, Any] = {}
     if index_path.is_file():
         try:
@@ -267,7 +282,7 @@ def _reserve_setting_identity(
             index = {}
     existing_sequences = [
         int(run.get("sequence", 0))
-        for run in list_custom_setting_runs(question_root)
+        for run in list_custom_setting_runs(storage_root)
     ]
     sequence = max(
         1,
@@ -281,7 +296,7 @@ def _reserve_setting_identity(
             base_seed=base_seed,
             sequence=sequence,
         )
-        if not (root / run_id).exists():
+        if not (storage_root / run_id).exists():
             break
         sequence += 1
     prefix = label_prefix.strip() or "Setting"
@@ -313,12 +328,12 @@ def _run_final_metric(candidate_dir: Path, manifest: dict[str, Any]) -> float:
 
 
 def prune_custom_setting_runs(
-    question_root: Path,
+    storage_root: Path,
     *,
     newest_id: str,
 ) -> list[dict[str, Any]]:
     """Keep only the newest run and the lowest-loss historical run."""
-    runs = list_custom_setting_runs(question_root)
+    runs = list_custom_setting_runs(storage_root)
     newest = next(
         (run for run in runs if run["custom_setting_id"] == newest_id),
         None,
@@ -329,7 +344,7 @@ def prune_custom_setting_runs(
         best_historical = min(historical, key=lambda run: run["final_metric"])
         keep_ids.add(best_historical["custom_setting_id"])
 
-    root = (question_root / CUSTOM_SETTINGS_DIR).resolve()
+    root = storage_root.resolve()
     for run in runs:
         if run["custom_setting_id"] in keep_ids:
             continue
@@ -337,25 +352,25 @@ def prune_custom_setting_runs(
         if candidate_dir.parent == root:
             shutil.rmtree(candidate_dir)
 
-    retained = list_custom_setting_runs(question_root)
+    retained = list_custom_setting_runs(storage_root)
     if newest is None:
         return retained[:MAX_RETAINED_SETTINGS]
     return retained
 
 
-def enforce_custom_setting_retention(question_root: Path) -> list[dict[str, Any]]:
+def enforce_custom_setting_retention(storage_root: Path) -> list[dict[str, Any]]:
     """Apply the two-run retention rule to settings created by older versions."""
-    runs = list_custom_setting_runs(question_root)
+    runs = list_custom_setting_runs(storage_root)
     if len(runs) <= MAX_RETAINED_SETTINGS:
         return runs
     return prune_custom_setting_runs(
-        question_root,
+        storage_root,
         newest_id=runs[0]["custom_setting_id"],
     )
 
 
 def run_custom_setting(
-    question_root: Path,
+    storage_root: Path,
     dataset_path: Path,
     profile: Profile,
     spec: dict[str, Any],
@@ -369,13 +384,13 @@ def run_custom_setting(
     if n_seeds <= 0:
         raise ValueError("Number of seeds must be greater than zero.")
     run_id, unique_label, sequence = _reserve_setting_identity(
-        question_root,
+        storage_root,
         spec,
         label_prefix=label,
         n_seeds=n_seeds,
         base_seed=base_seed,
     )
-    output_dir = question_root / CUSTOM_SETTINGS_DIR / run_id
+    output_dir = storage_root / run_id
 
     ensure_registries()
     write_candidate(spec, output_dir, get_model_type(spec["model"]["type"]))
@@ -410,7 +425,7 @@ def run_custom_setting(
         **({"inherited_from": inherited_from} if inherited_from else {}),
     }
     write_json(output_dir / SETTING_MANIFEST, manifest)
-    retained = prune_custom_setting_runs(question_root, newest_id=run_id)
+    retained = prune_custom_setting_runs(storage_root, newest_id=run_id)
     return {
         **manifest,
         "candidate_dir": output_dir,
@@ -419,9 +434,9 @@ def run_custom_setting(
     }
 
 
-def list_custom_setting_runs(question_root: Path) -> list[dict[str, Any]]:
+def list_custom_setting_runs(storage_root: Path) -> list[dict[str, Any]]:
     """Load completed custom settings for a question, newest first."""
-    root = question_root / CUSTOM_SETTINGS_DIR
+    root = storage_root
     if not root.is_dir():
         return []
     runs: list[dict[str, Any]] = []

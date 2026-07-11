@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import random
+import secrets
 import shutil
 import sys
+import tempfile
 from importlib import reload
 from pathlib import Path
 from typing import Any
@@ -44,6 +46,8 @@ from custom_settings import (  # noqa: E402
     build_loss_spec,
     build_model_spec,
     build_optimizer_spec,
+    clear_custom_settings_storage,
+    clear_legacy_question_custom_settings,
     compatible_model_types,
     enforce_custom_setting_retention,
     form_values_from_candidate_spec,
@@ -204,9 +208,60 @@ def _render_score_panel() -> None:
 
 
 def _switch_question(question_path: Path, data_root: str) -> None:
-    st.session_state.question_path = str(question_path.resolve())
+    previous_path = st.session_state.get("question_path")
+    if previous_path:
+        previous_root = Path(previous_path)
+        if previous_root.is_dir():
+            try:
+                previous_q = read_json_file(previous_root / "question.json")
+                _discard_custom_settings(previous_q["question_id"], previous_root)
+            except (FileNotFoundError, KeyError, OSError):
+                clear_legacy_question_custom_settings(previous_root)
+
+    question_path = question_path.resolve()
+    clear_legacy_question_custom_settings(question_path)
+
+    st.session_state.question_path = str(question_path)
     st.session_state.bundle = _load_selected_question(question_path, data_root)
     _reset_quiz_state()
+
+
+def _custom_settings_session_tag() -> str:
+    return st.session_state.setdefault(
+        "custom_settings_session_tag",
+        secrets.token_hex(8),
+    )
+
+
+def _custom_settings_storage_path(question_id: str) -> Path:
+    bucket: dict[str, str] = st.session_state.setdefault(
+        "custom_settings_storage",
+        {},
+    )
+    existing = bucket.get(question_id)
+    if existing:
+        return Path(existing)
+    storage = (
+        Path(tempfile.gettempdir())
+        / "architectureiq_inspector"
+        / _custom_settings_session_tag()
+        / question_id
+    )
+    storage.mkdir(parents=True, exist_ok=True)
+    bucket[question_id] = str(storage)
+    return storage
+
+
+def _discard_custom_settings(question_id: str, question_root: Path) -> None:
+    bucket: dict[str, str] = st.session_state.get("custom_settings_storage", {})
+    existing = bucket.pop(question_id, None)
+    if existing:
+        clear_custom_settings_storage(Path(existing))
+    clear_legacy_question_custom_settings(question_root)
+
+
+def _custom_settings_storage_for(q: dict[str, Any]) -> Path:
+    return _custom_settings_storage_path(str(q["question_id"]))
 
 
 def _pool_contains(pool: list[Path], path: Path) -> bool:
@@ -302,6 +357,7 @@ def _render_question_picker(data_root: str) -> None:
         st.rerun()
 
     if st.session_state.bundle is None:
+        clear_legacy_question_custom_settings(picked_path)
         st.session_state.bundle = _load_selected_question(picked_path, data_root)
 
     st.caption(f"{len(pool)} question(s) · `{picked_path.name}`")
@@ -524,7 +580,9 @@ def _collect_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
 
 def _collect_custom_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
     series: list[dict[str, Any]] = []
-    for index, setting in enumerate(list_custom_setting_runs(bundle.question_root)):
+    for index, setting in enumerate(
+        list_custom_setting_runs(_custom_settings_storage_for(bundle.question))
+    ):
         item = _curve_series_from_candidate(
             setting["candidate_dir"],
             label=f"Custom · {setting['label']}",
@@ -1009,7 +1067,7 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
     profile = load_profile(str(q.get("profile", "v1")))
     dataset_spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
     family = str(dataset_spec["family"])
-    runs = enforce_custom_setting_retention(bundle.question_root)
+    runs = enforce_custom_setting_retention(_custom_settings_storage_for(q))
 
     notice = st.session_state.setting_notice
     if notice:
@@ -1178,7 +1236,7 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                     }
                 with st.spinner(f"Training {label or 'custom setting'}…"):
                     result = run_custom_setting(
-                        bundle.question_root,
+                        _custom_settings_storage_for(q),
                         bundle.dataset_dir,
                         profile,
                         spec,
@@ -1447,7 +1505,7 @@ def _render_question_page(
             )
 
     _render_custom_setting_builder(bundle, q)
-    custom_runs = list_custom_setting_runs(bundle.question_root)
+    custom_runs = list_custom_setting_runs(_custom_settings_storage_for(q))
 
     if committed:
         _render_answer_banner(q, st.session_state.committed_letter, metric=metric)

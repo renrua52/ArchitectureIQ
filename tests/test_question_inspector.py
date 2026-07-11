@@ -28,6 +28,7 @@ from custom_settings import (  # noqa: E402
     custom_setting_run_id,
     form_values_from_candidate_spec,
     list_custom_setting_runs,
+    question_custom_settings_dir,
     run_custom_setting,
 )
 from expression_latex import expression_to_latex  # noqa: E402
@@ -354,9 +355,10 @@ def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.Monk
 
     monkeypatch.setattr(custom_settings, "run_ground_truth", fake_ground_truth)
     question_root = tmp_path / "q_test"
+    storage_root = question_custom_settings_dir(question_root)
     dataset_path = tmp_path / "dataset"
     result = run_custom_setting(
-        question_root,
+        storage_root,
         dataset_path,
         profile,
         spec,
@@ -372,8 +374,8 @@ def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.Monk
         sequence=1,
     )
     assert result["custom_setting_id"] == expected_id
-    assert result["candidate_dir"].parent == question_root / "custom_settings"
-    runs = list_custom_setting_runs(question_root)
+    assert result["candidate_dir"].parent == storage_root
+    runs = list_custom_setting_runs(storage_root)
     assert len(runs) == 1
     assert runs[0]["label"] == "My setting #0001"
 
@@ -428,10 +430,11 @@ def test_custom_settings_keep_latest_and_best_history(
 
     monkeypatch.setattr(custom_settings, "run_ground_truth", fake_ground_truth)
     question_root = tmp_path / "q_test"
+    storage_root = question_custom_settings_dir(question_root)
     dataset_path = tmp_path / "dataset"
     results = [
         run_custom_setting(
-            question_root,
+            storage_root,
             dataset_path,
             profile,
             spec,
@@ -449,12 +452,12 @@ def test_custom_settings_keep_latest_and_best_history(
         "Trial #0003",
         "Trial #0004",
     ]
-    retained = list_custom_setting_runs(question_root)
+    retained = list_custom_setting_runs(storage_root)
     assert [run["label"] for run in retained] == ["Trial #0004", "Trial #0002"]
     assert [run["final_metric"] for run in retained] == [0.2, 0.3]
     setting_dirs = [
         path
-        for path in (question_root / "custom_settings").iterdir()
+        for path in storage_root.iterdir()
         if path.is_dir()
     ]
     assert len(setting_dirs) == 2
