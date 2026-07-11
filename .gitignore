@@ -11,6 +11,8 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+node_modules/
+*.tsbuildinfo
 downloads/
 eggs/
 .eggs/
@@ -217,4 +219,3 @@ __marimo__/
 # Benchmark generated artifacts
 data/
 llm_runs/
-

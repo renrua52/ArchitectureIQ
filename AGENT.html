@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ArchitectureIQ Vanilla Frontend Brief</title>
+  <style>
+    :root {
+      --ink: #111217;
+      --muted: #7d7f87;
+      --line: #22242a;
+      --line-soft: #d8d5ce;
+      --paper: #f8f7f2;
+      --panel: #fffefa;
+      --wash: #eeeae2;
+      --accent: #734cff;
+      --accent-soft: #eee8ff;
+      --dark: #111216;
+      --green: #22a981;
+      --orange: #f26e4f;
+      --shadow: 0 18px 60px rgba(31, 29, 24, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(115, 76, 255, 0.20), transparent 25rem),
+        radial-gradient(circle at 92% 96%, rgba(242, 110, 79, 0.13), transparent 28rem),
+        var(--wash);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 72px;
+    }
+
+    header {
+      display: grid;
+      gap: 18px;
+      margin-bottom: 32px;
+      padding: 28px;
+      border: 2px solid var(--line);
+      border-radius: 26px;
+      background: rgba(255, 254, 250, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    section {
+      margin-top: 32px;
+      padding: 28px;
+      border: 1.5px solid var(--line-soft);
+      border-radius: 22px;
+      background: rgba(255, 254, 250, 0.78);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      max-width: 850px;
+      font-size: clamp(2rem, 6vw, 4.4rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 14px;
+      font-size: clamp(1.45rem, 3vw, 2.25rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    p {
+      color: #3b3d44;
+    }
+
+    a {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    ul,
+    ol {
+      margin: 10px 0 0;
+      padding-left: 1.2rem;
+    }
+
+    li {
+      margin: 7px 0;
+      color: #34363d;
+    }
+
+    code {
+      padding: 0.1rem 0.28rem;
+      border: 1px solid #ddd8ce;
+      border-radius: 6px;
+      background: #f4f1ea;
+      color: #16171b;
+      font-size: 0.92em;
+    }
+
+    figure {
+      margin: 22px 0 0;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 2px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    figcaption {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .eyebrow {
+      margin-bottom: 10px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .lead {
+      max-width: 790px;
+      margin-bottom: 0;
+      color: #4d4f57;
+      font-size: 1.08rem;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border: 1.6px solid var(--line);
+      border-radius: 999px;
+      background: #fffefa;
+      color: #31333a;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      min-height: 100%;
+      padding: 20px;
+      border: 1.6px solid var(--line);
+      border-radius: 18px;
+      background: #fffefa;
+    }
+
+    .token-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .token-list li {
+      margin: 0;
+      padding: 12px;
+      border: 1px solid #dfdbd2;
+      border-radius: 12px;
+      background: #faf8f1;
+    }
+
+    .swatch {
+      display: inline-block;
+      width: 0.9rem;
+      height: 0.9rem;
+      margin-right: 0.45rem;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      border-radius: 50%;
+      vertical-align: -0.12rem;
+    }
+
+    .sequence {
+      counter-reset: step;
+      padding: 0;
+      list-style: none;
+    }
+
+    .sequence li {
+      position: relative;
+      margin: 0 0 12px;
+      padding: 16px 16px 16px 52px;
+      border: 1px solid #dfdbd2;
+      border-radius: 14px;
+      background: #fffefa;
+    }
+
+    .sequence li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .callout {
+      border-color: #a892ff;
+      background: var(--accent-soft);
+    }
+
+    @media (max-width: 760px) {
+      main {
+        padding: 18px 12px 48px;
+      }
+
+      header,
+      section {
+        padding: 20px;
+        border-radius: 18px;
+      }
+
+      .grid,
+      .three,
+      .token-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <div class="eyebrow">Frontend branch: frontend/vanilla</div>
+        <h1>ArchitectureIQ Vanilla Frontend Plan</h1>
+        <p class="lead">
+          Implement the question inspector as a polished experience with an easy welcoming first page, followed by a
+          single-screen benchmark quiz inspired by the supplied reference: rounded lab panels, sparse typography, thin
+          charcoal outlines, soft off-white surfaces, lavender emphasis, and a pre-commit flow that hides result metrics
+          until the user locks an answer.
+        </p>
+      </div>
+      <div class="meta" aria-label="Implementation scope">
+        <span class="pill">Welcome page</span>
+        <span class="pill">Streamlit app</span>
+        <span class="pill">Question quiz flow</span>
+        <span class="pill">Evidence-first layout</span>
+        <span class="pill">Vanilla styling</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Visual Target</h2>
+      <p>
+        The frontend should feel like an interactive lab console rather than a dashboard. The user studies evidence,
+        compares fixed setup constraints, selects A/B/C, then commits. Before commitment, no winner data or ranked
+        metrics should be visible.
+      </p>
+      <figure>
+        <img src="assets/agent-html/vanilla-welcome-concept.png" alt="Generated vanilla ArchitectureIQ welcome page concept">
+        <figcaption>
+          Generated first-page concept: centered title, friendly subtitle, and the single required call-to-action button.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="assets/agent-html/vanilla-question-concept.png" alt="Generated vanilla ArchitectureIQ desktop question interface concept">
+        <figcaption>
+          Generated implementation concept for the vanilla branch: top progress rail, evidence matrix, shared setup
+          panel, candidate cards, and dark answer-lock area.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="assets/agent-html/vanilla-style-reference.png" alt="User-provided visual style reference for ArchitectureIQ vanilla frontend">
+        <figcaption>
+          User-provided style reference to preserve: pill header, large prompt, bordered panels, bottom choice cards,
+          lavender accents, and rounded black commit panel.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>Product Flow</h2>
+      <ol class="sequence">
+        <li>
+          Start on a welcoming first page with the title <code>Test your Architecture IQ</code>, the subtitle
+          <code>Wanna know how wise you are for picking the right setup for training tasks :)?</code>, and one centered
+          primary button labeled <code>Test my architecture IQ</code>.
+        </li>
+        <li>
+          After the user clicks the welcome button, load the first available question from <code>data/</code>, or show a
+          compact empty state that asks the user to generate question artifacts.
+        </li>
+        <li>
+          Present the question prompt as the primary object, with metadata chips for family, budget, metric, choices,
+          and current question progress.
+        </li>
+        <li>
+          Let the user inspect evidence in tabs: dataset/matrix, learning curves, protocol, and prompt/source files.
+        </li>
+        <li>
+          Keep candidate cards visible at the bottom of the viewport so A/B/C comparison and answer commitment stay
+          ergonomic.
+        </li>
+        <li>
+          On lock answer, reveal correctness, ranked metrics, per-candidate summaries, and file inspection affordances.
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Screen Inventory</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Welcome Page</h3>
+          <p>
+            First screen only: a calm centered title, the friendly subtitle, and a single lavender CTA button. No
+            navigation, sidebar, question controls, cards, or extra explanatory text should appear before the user
+            starts.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Question Shell</h3>
+          <p>
+            Replace the default Streamlit sidebar-first experience with a top capsule command bar. Include identity,
+            current question number, progress bar, score pill, random/next controls, and a compact question selector.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Evidence Panel</h3>
+          <p>
+            Move dataset plots, learning curves, prompt text, and generated file views into a bordered evidence region.
+            Use segmented tabs styled as pills rather than default tabs where possible.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Shared Setup Panel</h3>
+          <p>
+            Extract invariant budget, loss, batch, training steps, and evaluation seeds into a right-side summary panel
+            so candidate cards only show what differs.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Candidate Rail</h3>
+          <p>
+            Render candidate setup cards as a bottom comparison rail. Each card shows the letter, short candidate id,
+            small architecture glyph, and differing parameters. Selection state uses a subtle outline and corner marker.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Implementation Priorities</h2>
+      <ol class="sequence">
+        <li>
+          Add <code>st.session_state.started</code> with a default of <code>False</code>. Render the welcome page until
+          the user clicks <code>Test my architecture IQ</code>, then set it to <code>True</code> and rerun.
+        </li>
+        <li>
+          Refactor <code>tools/question_inspector/app.py</code> into layout helpers: shell, hero prompt, evidence panel,
+          shared setup panel, candidate rail, and answer lock panel. Keep artifact loading unchanged.
+        </li>
+        <li>
+          Extend <code>CUSTOM_CSS</code> with the vanilla design tokens and Streamlit selector overrides for buttons,
+          tabs, containers, dataframes, alerts, and code blocks.
+        </li>
+        <li>
+          Derive invariant and variant fields from each question's candidate specs. Put shared fields in the right
+          panel; keep candidate cards focused on differences.
+        </li>
+        <li>
+          Add an evidence tab model in session state so Matrix/Dataset, Curves, Protocol, Prompt, and Source are
+          predictable and keyboard-friendly.
+        </li>
+        <li>
+          Preserve the existing committed-answer logic, but route all pre-commit actions through the dark lock panel.
+          Metrics and ranked results stay hidden until <code>committed_letter</code> is set.
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Style System</h2>
+      <ul class="token-list">
+        <li><span class="swatch" style="background:#f8f7f2"></span><strong>Background:</strong> warm off-white with very subtle lavender and coral radial washes.</li>
+        <li><span class="swatch" style="background:#fffefa"></span><strong>Panels:</strong> near-white surfaces with thin charcoal borders and soft shadows.</li>
+        <li><span class="swatch" style="background:#734cff"></span><strong>Accent:</strong> lavender for progress, active tabs, selected card borders, and lock button.</li>
+        <li><span class="swatch" style="background:#111216"></span><strong>Commit:</strong> black rounded answer panel to create strong decision focus.</li>
+        <li><span class="swatch" style="background:#22a981"></span><strong>Candidate C:</strong> green architecture glyph and selected-state details.</li>
+        <li><span class="swatch" style="background:#f26e4f"></span><strong>Candidate B:</strong> coral architecture glyph and comparison accents.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Data And State Notes</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Keep</h3>
+          <ul>
+            <li>Existing artifact loader APIs and question discovery behavior.</li>
+            <li>Existing quiz result storage in <code>st.session_state.quiz_results</code>.</li>
+            <li>Existing file viewer support for JSON, Python, prompt text, and curves.</li>
+            <li>Existing post-commit reveal of summaries, metrics, and ranked results.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Change</h3>
+          <ul>
+            <li>Move navigation out of the sidebar into the top command bar.</li>
+            <li>Replace generic choice cards with compact visual comparison cards.</li>
+            <li>Separate shared setup constraints from candidate-specific differences.</li>
+            <li>Use a fixed-bottom answer region on desktop and an inline stacked region on mobile.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Responsive Behavior</h2>
+      <p>
+        The welcome page should remain centered and uncluttered on every viewport. Desktop quiz mode should preserve the
+        reference composition: evidence panel on the left, setup panel on the right, and a bottom choice rail. Tablet
+        collapses the right setup panel under the evidence panel. Mobile stacks prompt, evidence, setup, candidates, and
+        lock panel in that order with sticky answer controls only if they do not cover content.
+      </p>
+    </section>
+
+    <section>
+      <h2>Verification</h2>
+      <ul>
+        <li>Verify the first page shows only <code>Test your Architecture IQ</code>, the requested subtitle, and the <code>Test my architecture IQ</code> button.</li>
+        <li>Run <code>python tools/question_inspector/run.py</code> with the included demo question artifacts.</li>
+        <li>Verify pre-commit state hides metrics, winner, ranked results, and summary-derived performance values.</li>
+        <li>Verify selecting and locking A/B/C records score once and cannot double-count on rerun.</li>
+        <li>Check at desktop, tablet, and mobile widths for text overflow, panel overlap, and unusable sticky controls.</li>
+        <li>Run <code>pytest tests/test_question_inspector.py tests/test_interactive.py</code> after behavior changes.</li>
+      </ul>
+    </section>
+
+    <section class="callout">
+      <h2>Risks</h2>
+      <ul>
+        <li>Streamlit's generated DOM is brittle, so CSS overrides should be centralized and scoped to stable classes where possible.</li>
+        <li>Matplotlib plots may visually clash with the vanilla UI unless their figure backgrounds, grid colors, and label sizing are restyled.</li>
+        <li>Extracting shared versus variant fields needs a small deterministic helper to avoid hiding meaningful candidate differences.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
