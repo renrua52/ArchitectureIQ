@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "mvar_c59a30",
+  "family": "multivariate_regression",
+  "budget": {
+    "training_steps": 160,
+    "batch_size": 32,
+    "total_samples_seen": 5120
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 6,
+    "width": 128,
+    "residual": true,
+    "layer_norm": [
+      true,
+      false,
+      true,
+      true,
+      false,
+      true
+    ],
+    "activations": [
+      "silu",
+      "gelu",
+      "silu",
+      "relu",
+      "gelu",
+      "relu"
+    ],
+    "input_dim": 4
+  },
+  "optimizer": {
+    "type": "Adagrad",
+    "lr": 0.0001,
+    "weight_decay": 0.0001
+  },
+  "loss": {
+    "loss_id": "mse"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_308419"
+}

@@ -1,0 +1,307 @@
+You are taking the ArchitectureIQ benchmark.
+
+Each question describes a synthetic dataset and several candidate training setups (model, optimizer, loss). All choices train on the same data with the same sample budget. Your task is to identify which setup will achieve the **best test MSE** on the held-out test set after the fixed training budget — using architecture and learning-mechanics reasoning only (no training results are provided).
+
+## Dataset
+**Family:** univariate regression on `[0, 1]`.
+
+- Input and target are 1-D scalars.
+- Training and test points are sampled uniformly on the domain.
+- Labels are noiseless; the target is a symbolic expression of `x`.
+
+### Synthesis (PyTorch)
+```python
+def target(x: torch.Tensor) -> torch.Tensor:
+    return (torch.cos(6.283185307179586 * ((torch.tensor(0.8333, dtype=x.dtype, device=x.device) + x))) + ((x - x) + (x / torch.clamp(torch.abs(torch.tensor(-2, dtype=x.dtype, device=x.device)), min=0.1) * torch.sign(torch.tensor(-2, dtype=x.dtype, device=x.device) + 1e-12))))
+
+
+def synthesize(
+    *,
+    train_size: int = 256,
+    test_size: int = 256,
+    point_seed: int = 1042,
+    domain_low: float = 0.0,
+    domain_high: float = 1.0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    gen = torch.Generator().manual_seed(point_seed)
+    train_x = torch.rand(train_size, generator=gen) * (domain_high - domain_low) + domain_low
+    test_x = torch.rand(test_size, generator=gen) * (domain_high - domain_low) + domain_low
+    train_y = target(train_x)
+    test_y = target(test_x)
+    return train_x.unsqueeze(-1), train_y.unsqueeze(-1), test_x.unsqueeze(-1), test_y.unsqueeze(-1)
+```
+
+### Data splits and training protocol
+- Target expression (canonical): `cos(6.283185307179586*(0.8333 + x)) + (x - x + x / -2)`
+- Train split size: 256 fixed `(x, y)` pairs
+- Test split size: 256 fixed `(x, y)` pairs (held out)
+- Input domain: [0.0, 1.0], uniform sampling
+- Point-sampling seed: 1042 (materializes the fixed train/test splits)
+- Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**
+- Evaluation: **test MSE** is mean squared error on the entire fixed test split
+- Randomness: `torch.manual_seed(seed)` once before model init and the training loop
+- Reference device: CPU
+
+## Sample budget (same for all choices)
+- total_samples_seen: 2048
+
+Each choice specifies its own `training_steps` and `batch_size` below; they must satisfy `training_steps × batch_size = total_samples_seen`.
+
+## Evaluation metric
+- Ground-truth ranking uses **test_mse** on the held-out test split.
+- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.
+- The correct choice has the lowest **mean** test_mse across seeds.
+
+## Choices
+
+### Choice A
+
+**Training schedule**
+- training_steps: 64
+- batch_size: 32
+- total_samples_seen: 2048 (= training_steps × batch_size)
+
+**Model (natural language)**
+- Type: MLP
+- Depth: 5 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [False, False, False, False, False]
+- Activations: [silu, silu, gelu, silu, relu]
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.1),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(1, 16),
+        MLPBlock(width=16, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=16, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=16, activation='gelu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=16, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=16, activation='relu', use_layer_norm=False, use_residual=True),
+            nn.Linear(16, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: Adam
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999]
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.Adam(params, lr=0.003, betas=(0.9, 0.999), weight_decay=0.001)
+```
+
+**Loss**
+- Loss: mean squared error (MSE) on the minibatch
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    return torch.mean((pred - target) ** 2)
+```
+
+### Choice B
+
+**Training schedule**
+- training_steps: 64
+- batch_size: 32
+- total_samples_seen: 2048 (= training_steps × batch_size)
+
+**Model (natural language)**
+- Type: MLP
+- Depth: 1 hidden layers
+- Width: 256 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True]
+- Activations: [leaky_relu]
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.1),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(1, 256),
+        MLPBlock(width=256, activation='leaky_relu', use_layer_norm=True, use_residual=False),
+            nn.Linear(256, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0
+- Betas: [0.9, 0.999]
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.AdamW(params, lr=0.003, betas=(0.9, 0.999), weight_decay=0)
+```
+
+**Loss**
+- Loss: mean squared error (MSE) on the minibatch
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    return torch.mean((pred - target) ** 2)
+```
+
+### Choice C
+
+**Training schedule**
+- training_steps: 64
+- batch_size: 32
+- total_samples_seen: 2048 (= training_steps × batch_size)
+
+**Model (natural language)**
+- Type: MLP
+- Depth: 6 hidden layers
+- Width: 256 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [False, True, False, True, True, False]
+- Activations: [silu, silu, gelu, gelu, leaky_relu, leaky_relu]
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.1),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(1, 256),
+        MLPBlock(width=256, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=256, activation='silu', use_layer_norm=True, use_residual=True),
+        MLPBlock(width=256, activation='gelu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=256, activation='gelu', use_layer_norm=True, use_residual=True),
+        MLPBlock(width=256, activation='leaky_relu', use_layer_norm=True, use_residual=True),
+        MLPBlock(width=256, activation='leaky_relu', use_layer_norm=False, use_residual=True),
+            nn.Linear(256, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: Adam
+- Learning rate: 0.0003
+- Weight decay: 1e-05
+- Betas: [0.9, 0.999]
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.Adam(params, lr=0.0003, betas=(0.9, 0.999), weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: mean squared error (MSE) on the minibatch
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    return torch.mean((pred - target) ** 2)
+```
+
+## Your answer
+Reply with a single letter (A, B, C).

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "sym_62678b",
+  "family": "univariate_regression",
+  "budget": {
+    "training_steps": 64,
+    "batch_size": 32,
+    "total_samples_seen": 2048
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 3,
+    "width": 16,
+    "residual": false,
+    "layer_norm": [
+      true,
+      true,
+      true
+    ],
+    "activations": [
+      "leaky_relu",
+      "silu",
+      "relu"
+    ],
+    "input_dim": 1
+  },
+  "optimizer": {
+    "type": "SGD",
+    "lr": 0.001,
+    "weight_decay": 0,
+    "momentum": 0
+  },
+  "loss": {
+    "loss_id": "mse"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_aab743"
+}

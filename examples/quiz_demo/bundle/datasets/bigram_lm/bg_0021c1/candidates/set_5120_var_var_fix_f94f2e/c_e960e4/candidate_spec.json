@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "bg_0021c1",
+  "family": "bigram_lm",
+  "budget": {
+    "training_steps": 80,
+    "batch_size": 64,
+    "total_samples_seen": 5120
+  },
+  "model": {
+    "type": "transformer_lm",
+    "vocab_size": 32,
+    "context_length": 16,
+    "d_model": 32,
+    "num_layers": 1,
+    "num_heads": 4,
+    "d_ff": 64
+  },
+  "optimizer": {
+    "type": "SGD",
+    "lr": 0.01,
+    "weight_decay": 1e-05,
+    "momentum": 0.9
+  },
+  "loss": {
+    "loss_id": "cross_entropy"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_e960e4"
+}

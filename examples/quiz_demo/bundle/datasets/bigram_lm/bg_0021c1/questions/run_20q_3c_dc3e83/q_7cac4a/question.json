@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "family": "bigram_lm",
+  "dataset_id": "bg_0021c1",
+  "budget": {
+    "total_samples_seen": 5120
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "candidate_sets": [
+    "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_55f852",
+      "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_55f852",
+      "candidate_set_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_52bbb5",
+      "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_52bbb5",
+      "candidate_set_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_a56d9b",
+      "candidate_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e/c_a56d9b",
+      "candidate_set_path": "datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+    }
+  ],
+  "correct_letter": "C",
+  "significance": {
+    "passed": true,
+    "gap": 0.11645534038543737,
+    "win_rate": 1.0,
+    "metric": "test_ce"
+  },
+  "evaluation": {
+    "selection_metric": "test_ce",
+    "n_seeds": 10,
+    "base_seed": 0
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_7cac4a",
+  "profile": "v1",
+  "question_run_id": "run_20q_3c_dc3e83",
+  "question_run_path": "datasets/bigram_lm/bg_0021c1/questions/run_20q_3c_dc3e83"
+}
