@@ -7,20 +7,40 @@ import numpy as np
 import torch
 
 from architecture_iq.families.base import DatasetFamily
-from architecture_iq.families.bigram_lm.bigram import make_bigram_dataset
 from architecture_iq.profile import Profile
+from architecture_iq.runtime.loader import load_synthesize_module
 from architecture_iq.util import short_hash, write_json
 
 
 SYNTHESIZE_TEMPLATE = '''"""Bigram LM dataset — one shared transition matrix for train and test."""
 from __future__ import annotations
 
+import numpy as np
 import torch
 
 
 def target(seq: torch.Tensor) -> torch.Tensor:
     """Next-token labels: input sequence shifted by one (seq shape [N, L+1] -> [N, L])."""
     return seq[:, 1:].to(torch.int64)
+
+
+def build_transition(
+    *,
+    table_seed: int = {table_seed},
+    vocab_size: int = {vocab_size},
+    alpha: float = {alpha},
+) -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(table_seed)
+    logits = rng.standard_normal((vocab_size, vocab_size)) * alpha
+    logits -= logits.max(axis=1, keepdims=True)
+    probs = np.exp(logits)
+    probs = (probs / probs.sum(axis=1, keepdims=True)).astype(np.float64)
+
+    pi = np.full(vocab_size, 1.0 / vocab_size, dtype=np.float64)
+    for _ in range(256):
+        pi = pi @ probs
+        pi /= pi.sum()
+    return probs, pi
 
 
 def synthesize(
@@ -34,23 +54,6 @@ def synthesize(
     alpha: float = {alpha},
     layout: str = {layout!r},
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    import numpy as np
-
-    def _transition(v: int, seed: int, scale: float) -> np.ndarray:
-        rng = np.random.default_rng(seed)
-        logits = rng.standard_normal((v, v)) * scale
-        logits -= logits.max(axis=1, keepdims=True)
-        p = np.exp(logits)
-        return (p / p.sum(axis=1, keepdims=True)).astype(np.float64)
-
-    def _stationary(probs: np.ndarray) -> np.ndarray:
-        v = probs.shape[0]
-        pi = np.full(v, 1.0 / v, dtype=np.float64)
-        for _ in range(256):
-            pi = pi @ probs
-            pi /= pi.sum()
-        return pi
-
     def _sample_sequences(n: int, length: int, probs: np.ndarray, pi: np.ndarray, seed: int):
         rng = np.random.default_rng(seed)
         v = probs.shape[0]
@@ -62,8 +65,11 @@ def synthesize(
             seq[i] = np.asarray(s, dtype=np.int64)
         return seq
 
-    probs = _transition(vocab_size, table_seed, alpha)
-    pi = _stationary(probs)
+    probs, pi = build_transition(
+        table_seed=table_seed,
+        vocab_size=vocab_size,
+        alpha=alpha,
+    )
     if layout == "lm":
         seq_train = _sample_sequences(train_size, context_length + 1, probs, pi, sequence_seed)
         seq_test = _sample_sequences(test_size, context_length + 1, probs, pi, sequence_seed + 1)
@@ -133,16 +139,6 @@ class BigramLmFamily(DatasetFamily):
     def materialize(self, spec: dict[str, Any], out_dir: Path) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         params = spec["params"]
-        data = make_bigram_dataset(
-            vocab_size=params["vocab_size"],
-            context_length=params["context_length"],
-            train_size=params["train_size"],
-            test_size=params["test_size"],
-            seed=params["sequence_seed"],
-            table_seed=params["table_seed"],
-            alpha=params["alpha"],
-            layout=params["layout"],
-        )
         synth_code = SYNTHESIZE_TEMPLATE.format(
             train_size=params["train_size"],
             test_size=params["test_size"],
@@ -155,14 +151,16 @@ class BigramLmFamily(DatasetFamily):
         )
         (out_dir / "synthesize.py").write_text(synth_code, encoding="utf-8")
 
-        torch.save({"x": torch.from_numpy(data["x_train"]).to(torch.int64),
-                    "y": torch.from_numpy(data["y_train"]).to(torch.int64)}, out_dir / "train.pt")
-        torch.save({"x": torch.from_numpy(data["x_test"]).to(torch.int64),
-                    "y": torch.from_numpy(data["y_test"]).to(torch.int64)}, out_dir / "test.pt")
+        module = load_synthesize_module(out_dir / "synthesize.py")
+        tx, ty, vx, vy = module.synthesize()
+        probs, pi = module.build_transition()
+
+        torch.save({"x": tx, "y": ty}, out_dir / "train.pt")
+        torch.save({"x": vx, "y": vy}, out_dir / "test.pt")
         np.savez(
             out_dir / "transition.npz",
-            probs=data["probs"],
-            pi=data["pi"],
+            probs=probs,
+            pi=pi,
         )
         write_json(out_dir / "dataset_spec.json", spec)
 
