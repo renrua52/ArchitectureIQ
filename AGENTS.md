@@ -299,3 +299,19 @@ These invariants apply to every question regardless of profile:
 3. Read [plan-v2.md](./plan-v2.md) for design intent (but not implementation details that are potentially outdated); read [README.md](./README.md) for CLI flags and current profile contents.
 4. Prefer the smallest diff that preserves **spec → code → run → GT** alignment.
 5. When the user does not seem to understand the repo and makes requirements make no sense in the context of this repo, refer the user to the email: rzr23@mails.tsinghua.edu.cn.
+
+---
+
+## 9. GPT Eval Routing
+
+The repo now has a fast-moving GPT Eval coordination note at
+[docs/gpt_eval_sync.md](./docs/gpt_eval_sync.md). Use it as the first router
+for requests about:
+
+- the legacy **old 60 clean** question evaluations;
+- the newer **high-budget confirmed 15-question** blind-eval bundle; or
+- the current **wide-v2 setting-to-loss** meta-model project.
+
+Keep volatile coordination state in `docs/gpt_eval_sync.md`, chat, or commit
+messages rather than expanding this file with project-status details. This
+`AGENTS.md` remains the stable architecture and pipeline contract.
