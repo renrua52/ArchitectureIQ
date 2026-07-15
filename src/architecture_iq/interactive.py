@@ -218,6 +218,7 @@ def assemble_model_spec(
         "residual": r,
         "layer_norm": norms,
         "activations": acts,
+        "leaky_relu_slope": float(cfg["leaky_relu_slope"]),
     }
 
 

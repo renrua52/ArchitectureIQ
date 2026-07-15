@@ -8,21 +8,17 @@ import torch.nn as nn
 
 from architecture_iq.models.base import ModelFamily
 
-ACTIVATIONS = {
-    "relu": "nn.ReLU()",
-    "leaky_relu": "nn.LeakyReLU(0.1)",
-    "gelu": "nn.GELU()",
-    "silu": "nn.SiLU()",
-}
-
-LEAKY_RELU_SLOPE = 0.1
+LEGACY_LEAKY_RELU_SLOPE = 0.1
 
 
-def _activation_module(name: str) -> nn.Module:
+def _activation_module(
+    name: str,
+    leaky_relu_slope: float = LEGACY_LEAKY_RELU_SLOPE,
+) -> nn.Module:
     if name == "relu":
         return nn.ReLU()
     if name == "leaky_relu":
-        return nn.LeakyReLU(0.1)
+        return nn.LeakyReLU(leaky_relu_slope)
     if name == "gelu":
         return nn.GELU()
     if name == "silu":
@@ -37,13 +33,14 @@ class MLPBlock(nn.Module):
         activation: str,
         use_layer_norm: bool,
         use_residual: bool,
+        leaky_relu_slope: float = LEGACY_LEAKY_RELU_SLOPE,
     ) -> None:
         super().__init__()
         self.use_residual = use_residual
         self.use_layer_norm = use_layer_norm
         self.norm = nn.LayerNorm(width) if use_layer_norm else None
         self.linear = nn.Linear(width, width)
-        self.act = _activation_module(activation)
+        self.act = _activation_module(activation, leaky_relu_slope)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = x
@@ -65,6 +62,7 @@ class RegressionMLP(nn.Module):
         activations: list[str],
         layer_norm: list[bool],
         residual: bool,
+        leaky_relu_slope: float = LEGACY_LEAKY_RELU_SLOPE,
     ) -> None:
         super().__init__()
         if not (depth == len(activations) == len(layer_norm)):
@@ -77,6 +75,7 @@ class RegressionMLP(nn.Module):
                     activation=activations[i],
                     use_layer_norm=layer_norm[i],
                     use_residual=residual,
+                    leaky_relu_slope=leaky_relu_slope,
                 )
             )
         layers.append(nn.Linear(width, 1))
@@ -105,6 +104,9 @@ class MlpModelFamily(ModelFamily):
             activations=list(model_spec["activations"]),
             layer_norm=[bool(v) for v in model_spec["layer_norm"]],
             residual=bool(model_spec["residual"]),
+            leaky_relu_slope=float(
+                model_spec.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE)
+            ),
         )
 
     def render_model_py(self, model_spec: dict[str, Any]) -> str:
@@ -113,6 +115,9 @@ class MlpModelFamily(ModelFamily):
         width = int(model_spec["width"])
         input_dim = int(model_spec.get("input_dim", 1))
         residual = bool(model_spec["residual"])
+        leaky_relu_slope = float(
+            model_spec.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE)
+        )
         acts = model_spec["activations"]
         norms = model_spec["layer_norm"]
         blocks = []
@@ -132,7 +137,7 @@ import torch.nn as nn
 def _activation(name: str) -> nn.Module:
     mapping = {{
         "relu": nn.ReLU(),
-        "leaky_relu": nn.LeakyReLU(0.1),
+        "leaky_relu": nn.LeakyReLU({leaky_relu_slope!r}),
         "gelu": nn.GELU(),
         "silu": nn.SiLU(),
     }}
@@ -190,6 +195,7 @@ class Model(nn.Module):
             "residual": residual,
             "layer_norm": layer_norm,
             "activations": activations,
+            "leaky_relu_slope": float(cfg["leaky_relu_slope"]),
         }
         if dataset_params is not None and "input_dim" in dataset_params:
             spec["input_dim"] = int(dataset_params["input_dim"])

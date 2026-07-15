@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-LEAKY_RELU_SLOPE = 0.1
+LEGACY_LEAKY_RELU_SLOPE = 0.1
 
 SINGLE_AXIS_TYPES = frozenset({"architecture_only", "optimizer_only", "loss_only"})
 
@@ -11,7 +11,7 @@ def activation_nl(name: str) -> str:
     if name == "relu":
         return "ReLU (PyTorch defaults)"
     if name == "leaky_relu":
-        return f"LeakyReLU(negative_slope={LEAKY_RELU_SLOPE})"
+        return f"LeakyReLU(negative_slope={LEGACY_LEAKY_RELU_SLOPE})"
     if name == "gelu":
         return "GELU (PyTorch defaults)"
     if name == "silu":
@@ -31,8 +31,11 @@ def format_mlp_nl(model: dict) -> str:
         f"- Residual connections: {model['residual']}",
         f"- Layer norm per layer: {model['layer_norm']}",
         _format_activation_line(model["activations"]),
-        "- Initialization: PyTorch Linear defaults",
     ]
+    if "leaky_relu" in model.get("activations", []):
+        slope = float(model.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE))
+        lines.append(f"- LeakyReLU negative slope: {slope:g}")
+    lines.append("- Initialization: PyTorch Linear defaults")
     return "\n".join(lines)
 
 
