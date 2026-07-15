@@ -99,6 +99,9 @@ budgets:
   total_samples_seen: [1024, 2048, 5120, 10240, 20480, 40960]
 
 ground_truth:
+  # CPU is the stable legacy default. Use `generate-candidates --device cuda`
+  # to create a separate CUDA-scored candidate set.
+  device: cpu
   n_seeds: 10
   base_seed: 0
   fail_threshold: 2.0

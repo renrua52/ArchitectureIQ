@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from architecture_iq.candidates.generator import write_candidate
-from architecture_iq.profile import Profile
+from architecture_iq.profile import Profile, validate_execution_device
 from architecture_iq.registry import get_dataset_family, get_model_type
 from architecture_iq.runtime.loader import load_candidate_train
 from architecture_iq.significance.validator import final_metric_key, mean_metric_key
@@ -23,6 +23,18 @@ def _sync_candidate_files(candidate_path: Path, spec: dict[str, Any]) -> None:
     write_candidate(spec, candidate_path, model_family)
 
 
+def _resolve_execution_device(candidate_spec: dict[str, Any], profile: Profile) -> torch.device:
+    requested = validate_execution_device(
+        str(candidate_spec.get("execution", {}).get("device", profile.execution_device))
+    )
+    if requested == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA was requested for this candidate but is unavailable "
+            f"(torch={torch.__version__}, torch.version.cuda={torch.version.cuda!r})"
+        )
+    return torch.device(requested)
+
+
 def run_single_seed(
     candidate_path: Path,
     candidate_spec: dict[str, Any],
@@ -34,6 +46,7 @@ def run_single_seed(
     fail_threshold: float,
     *,
     selection_metric: str,
+    device: torch.device,
 ) -> dict[str, Any]:
     train_mod = load_candidate_train(candidate_path)
     if not hasattr(train_mod, "train_and_eval"):
@@ -50,6 +63,7 @@ def run_single_seed(
         batch_size=int(candidate_spec["budget"]["batch_size"]),
         seed=seed,
         fail_threshold=fail_threshold,
+        device=str(device),
     )
     final_key = final_metric_key(selection_metric)
     if final_key not in result:
@@ -75,6 +89,7 @@ def run_ground_truth(
 
     candidate_path = candidate_path.resolve()
     spec = read_json(candidate_path / "candidate_spec.json")
+    device = _resolve_execution_device(spec, profile)
     if sync_files:
         _sync_candidate_files(candidate_path, spec)
 
@@ -112,6 +127,7 @@ def run_ground_truth(
                 base_seed + i,
                 fail_threshold,
                 selection_metric=selection_metric,
+                device=device,
             )
         )
 
@@ -167,7 +183,13 @@ def run_ground_truth(
             "python": sys.version,
             "platform": platform.platform(),
             "torch": torch.__version__,
-            "device": str(torch.device("cpu")),
+            "requested_device": spec.get("execution", {}).get("device", profile.execution_device),
+            "device": str(device),
+            "cuda_available": torch.cuda.is_available(),
+            "cuda_runtime": torch.version.cuda,
+            "cuda_device_name": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
+            "cuda_device_capability": list(torch.cuda.get_device_capability(device)) if device.type == "cuda" else None,
+            "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
             "git_commit": git_commit_hash(ROOT),
         },
     }

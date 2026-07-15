@@ -142,6 +142,11 @@ def generate_candidates_cmd(
         help="Axis that may vary: model, optimizer, loss (repeat flag)",
     ),
     profile: str = typer.Option("v1"),
+    device: Optional[str] = typer.Option(
+        None,
+        "--device",
+        help="Execution device for newly generated candidates: cpu or cuda",
+    ),
     seed: int = typer.Option(0),
     interactive: bool = typer.Option(
         False,
@@ -160,6 +165,7 @@ def generate_candidates_cmd(
         budget=budget is not None,
         count=count is not None,
         vary=bool(vary),
+        device=device is not None,
         seed=seed != 0,
     )
 
@@ -199,6 +205,7 @@ def generate_candidates_cmd(
         fixed_shared=fixed_shared,
         seed=seed,
         on_progress=lambda i, total, cid: typer.echo(f"[{i}/{total}] {cid}"),
+        execution_device=device,
     )
     typer.echo(f"Candidate set written to {set_path}")
 

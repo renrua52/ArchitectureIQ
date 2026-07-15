@@ -9,7 +9,7 @@ from typing import Any
 from architecture_iq.losses import render_loss_py
 from architecture_iq.models.base import ModelFamily
 from architecture_iq.optimizers.factory import render_optimizer_py
-from architecture_iq.profile import Profile
+from architecture_iq.profile import Profile, validate_execution_device
 from architecture_iq.registry import get_model_type
 from architecture_iq.util import short_hash, write_json
 
@@ -25,9 +25,20 @@ from model import Model
 from optimizer import build_optimizer
 
 
+def _resolve_device(device: str) -> torch.device:
+    if device not in {"cpu", "cuda"}:
+        raise ValueError(f"Unsupported execution device {device!r}; choose 'cpu' or 'cuda'")
+    if device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA was requested but is unavailable "
+            f"(torch={torch.__version__}, torch.version.cuda={torch.version.cuda!r})"
+        )
+    return torch.device(device)
+
+
 def _test_mse(model: torch.nn.Module, test_x: torch.Tensor, test_y: torch.Tensor) -> float:
     model.eval()
-    with torch.no_grad():
+    with torch.inference_mode():
         pred = model(test_x)
         return float(torch.mean((pred - test_y) ** 2).item())
 
@@ -42,10 +53,18 @@ def train_and_eval(
     batch_size: int,
     seed: int = 0,
     fail_threshold: float = float("inf"),
+    device: str = "cpu",
 ) -> dict:
     torch.manual_seed(seed)
-    model = Model()
+    run_device = _resolve_device(device)
+    if run_device.type == "cuda":
+        torch.cuda.manual_seed_all(seed)
+    model = Model().to(run_device)
     optimizer = build_optimizer(model)
+    train_x = train_x.to(run_device)
+    train_y = train_y.to(run_device)
+    test_x = test_x.to(run_device)
+    test_y = test_y.to(run_device)
     n = train_x.shape[0]
     step_metrics: list[float] = []
     eval_samples: list[int] = []
@@ -53,13 +72,13 @@ def train_and_eval(
 
     for step in range(1, steps + 1):
         model.train()
-        idx = torch.randint(0, n, (batch_size,))
+        idx = torch.randint(0, n, (batch_size,), device=run_device)
         pred = model(train_x[idx])
         loss = loss_fn(model, pred, train_y[idx])
         if not torch.isfinite(loss):
             failed = True
             break
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
 
@@ -89,6 +108,7 @@ def train(
     steps: int,
     batch_size: int,
     seed: int = 0,
+    device: str = "cpu",
 ) -> None:
     """Minimal training entrypoint (no evaluation)."""
     train_and_eval(
@@ -100,6 +120,7 @@ def train(
         batch_size=batch_size,
         seed=seed,
         fail_threshold=float("inf"),
+        device=device,
     )
 '''
 
@@ -116,9 +137,20 @@ from model import Model
 from optimizer import build_optimizer
 
 
+def _resolve_device(device: str) -> torch.device:
+    if device not in {"cpu", "cuda"}:
+        raise ValueError(f"Unsupported execution device {device!r}; choose 'cpu' or 'cuda'")
+    if device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA was requested but is unavailable "
+            f"(torch={torch.__version__}, torch.version.cuda={torch.version.cuda!r})"
+        )
+    return torch.device(device)
+
+
 def _test_ce(model: torch.nn.Module, test_x: torch.Tensor, test_y: torch.Tensor) -> float:
     model.eval()
-    with torch.no_grad():
+    with torch.inference_mode():
         pred = model(test_x)
         if pred.ndim == 3:
             vocab = pred.shape[-1]
@@ -138,10 +170,18 @@ def train_and_eval(
     batch_size: int,
     seed: int = 0,
     fail_threshold: float = float("inf"),
+    device: str = "cpu",
 ) -> dict:
     torch.manual_seed(seed)
-    model = Model()
+    run_device = _resolve_device(device)
+    if run_device.type == "cuda":
+        torch.cuda.manual_seed_all(seed)
+    model = Model().to(run_device)
     optimizer = build_optimizer(model)
+    train_x = train_x.to(run_device)
+    train_y = train_y.to(run_device)
+    test_x = test_x.to(run_device)
+    test_y = test_y.to(run_device)
     n = train_x.shape[0]
     step_metrics: list[float] = []
     eval_samples: list[int] = []
@@ -149,13 +189,13 @@ def train_and_eval(
 
     for step in range(1, steps + 1):
         model.train()
-        idx = torch.randint(0, n, (batch_size,))
+        idx = torch.randint(0, n, (batch_size,), device=run_device)
         pred = model(train_x[idx])
         loss = loss_fn(model, pred, train_y[idx])
         if not torch.isfinite(loss):
             failed = True
             break
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
 
@@ -283,8 +323,10 @@ def build_candidate_spec(
     model: dict[str, Any],
     optimizer: dict[str, Any],
     loss: dict[str, Any],
+    execution_device: str | None = None,
 ) -> dict[str, Any]:
     steps = profile.training_steps(budget, batch_size)
+    device = validate_execution_device(execution_device or profile.execution_device)
     body = {
         "schema_version": profile.schema_version,
         "dataset_id": dataset_id,
@@ -297,6 +339,7 @@ def build_candidate_spec(
         "model": model,
         "optimizer": optimizer,
         "loss": loss,
+        "execution": {"device": device},
         "files": {
             "model": "model.py",
             "train": "train.py",
@@ -336,6 +379,7 @@ def sample_candidate(
     budget: int,
     rng: random.Random,
     fixed: dict[str, Any] | None = None,
+    execution_device: str | None = None,
 ) -> dict[str, Any]:
     fixed = fixed or {}
     batch_size = fixed.get("batch_size") or _pick_batch_size(profile, budget, rng)
@@ -354,6 +398,7 @@ def sample_candidate(
         model=model,
         optimizer=optimizer,
         loss=loss,
+        execution_device=execution_device,
     )
 
 

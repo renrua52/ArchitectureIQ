@@ -184,6 +184,7 @@ def build_question_record(
 
     question_type = infer_question_type(specs)
     invariant_axes, varying_axes = infer_axes(specs)
+    execution_device = str(specs[0].get("execution", {}).get("device", "cpu"))
 
     sig = validate_significance(summaries, profile, metric=dataset_spec["selection_metric"])
     if not sig.passed:
@@ -248,6 +249,7 @@ def build_question_record(
             "selection_metric": dataset_spec["selection_metric"],
             "n_seeds": profile.n_seeds,
             "base_seed": profile.base_seed,
+            "device": execution_device,
         },
         "prompt": {
             "template_version": profile.prompts["template_version"],

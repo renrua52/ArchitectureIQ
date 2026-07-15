@@ -46,6 +46,7 @@ def _evaluation_meta(q: dict) -> dict:
         "selection_metric": "test_mse",
         "n_seeds": profile.n_seeds,
         "base_seed": profile.base_seed,
+        "device": profile.execution_device,
     }
 
 
@@ -94,7 +95,7 @@ def render_prompt(question_path: Path) -> str:
         "```",
         "",
         "### Data splits and training protocol",
-        format_dataset_protocol(params, family=q["family"]),
+        format_dataset_protocol(params, family=q["family"], device=str(eval_meta.get("device", "cpu"))),
         "",
         budget_heading,
     ]
@@ -128,6 +129,7 @@ def render_prompt(question_path: Path) -> str:
                 n_seeds=int(eval_meta["n_seeds"]),
                 base_seed=int(eval_meta["base_seed"]),
                 selection_metric=selection_metric,
+                device=str(eval_meta.get("device", "cpu")),
             ),
             "",
             "## Choices",

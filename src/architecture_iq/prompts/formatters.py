@@ -129,7 +129,7 @@ def format_loss_nl(loss: dict) -> str:
     return f"- Loss: {loss['loss_id']}"
 
 
-def format_regression_protocol(params: dict) -> str:
+def format_regression_protocol(params: dict, *, device: str = "cpu") -> str:
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
     expression = params.get("expression", "—")
@@ -143,12 +143,12 @@ def format_regression_protocol(params: dict) -> str:
         "uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",
         "- Randomness: `torch.manual_seed(seed)` once before model init and the training loop",
-        "- Reference device: CPU",
+        f"- Reference device: {device}",
     ]
     return "\n".join(lines)
 
 
-def format_multivariate_protocol(params: dict) -> str:
+def format_multivariate_protocol(params: dict, *, device: str = "cpu") -> str:
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
     expression = params.get("expression", "—")
@@ -161,11 +161,12 @@ def format_multivariate_protocol(params: dict) -> str:
             f"- Input domain: [{domain[0]}, {domain[1]}] per coordinate, uniform sampling",
             f"- Point-sampling seed: {point_seed}",
             "- Evaluation: **test MSE** on the held-out split",
+            f"- Reference device: {device}",
         ]
     )
 
 
-def format_bigram_protocol(params: dict) -> str:
+def format_bigram_protocol(params: dict, *, device: str = "cpu") -> str:
     return "\n".join(
         [
             f"- Vocab size: {params['vocab_size']}",
@@ -175,16 +176,17 @@ def format_bigram_protocol(params: dict) -> str:
             f"- Train rows: {params['train_size']}; test rows: {params['test_size']}",
             f"- Sequence seed: {params['sequence_seed']}; table seed: {params['table_seed']}",
             "- Evaluation: **test cross-entropy** on held-out windows",
+            f"- Reference device: {device}",
         ]
     )
 
 
-def format_dataset_protocol(params: dict, *, family: str | None = None) -> str:
+def format_dataset_protocol(params: dict, *, family: str | None = None, device: str = "cpu") -> str:
     if family == "bigram_lm" or "vocab_size" in params:
-        return format_bigram_protocol(params)
+        return format_bigram_protocol(params, device=device)
     if "input_dim" in params:
-        return format_multivariate_protocol(params)
-    return format_regression_protocol(params)
+        return format_multivariate_protocol(params, device=device)
+    return format_regression_protocol(params, device=device)
 
 
 def format_training_schedule(budget: dict) -> str:
@@ -200,13 +202,14 @@ def format_training_schedule(budget: dict) -> str:
     )
 
 
-def format_ranking_protocol(*, n_seeds: int, base_seed: int, selection_metric: str) -> str:
+def format_ranking_protocol(*, n_seeds: int, base_seed: int, selection_metric: str, device: str = "cpu") -> str:
     last_seed = base_seed + n_seeds - 1
     return "\n".join(
         [
             f"- Ground-truth ranking uses **{selection_metric}** on the held-out test split.",
             f"- Each choice is trained independently for **{n_seeds}** seeds "
             f"(`{base_seed}`..`{last_seed}`), one `torch.manual_seed(seed)` per run.",
+            f"- Execution device: `{device}`.",
             f"- The correct choice has the lowest **mean** {selection_metric} across seeds.",
         ]
     )
