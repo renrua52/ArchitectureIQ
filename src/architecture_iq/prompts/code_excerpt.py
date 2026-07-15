@@ -53,8 +53,8 @@ def excerpt_optimizer_py(source: str) -> str:
 
 
 def excerpt_synthesize_py(source: str) -> str:
-    """Return ``target`` and ``synthesize`` top-level definitions (dataset ground truth + I/O generation)."""
-    names = {"target", "synthesize"}
+    """Return dataset synthesis definitions needed to reproduce materialized data."""
+    names = {"target", "build_transition", "synthesize"}
     tree = ast.parse(source)
     parts: list[str] = []
     for node in tree.body:

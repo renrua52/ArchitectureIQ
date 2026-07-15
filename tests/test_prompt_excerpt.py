@@ -97,6 +97,7 @@ def test_excerpt_synthesize_py_bigram_lm() -> None:
     )
     out = excerpt_synthesize_py(source)
     assert "def target" in out
+    assert "def build_transition(" in out
     assert "def synthesize(" in out
     assert "seq[:, 1:]" in out
     assert "if __name__" not in out
