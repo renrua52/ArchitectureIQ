@@ -1,91 +1,145 @@
 # Public deploy checklist
 
-Architecture: **static quiz (Pages)** + **thin ingest API (Render)** + **Postgres (Supabase)**.
+Architecture: **static quiz (Pages/Netlify)** + **Supabase Edge Function ingest** + **Postgres (`quiz_events`)**.
 
-## 0. Repo prep (already done in code)
+No Render / no credit card required for ingest.
 
-- [x] `/data/` gitignore is root-only; `frontend/quiz/public/data/questions.json` can be committed
-- [ ] Commit and push: frontend, telemetry service, baked `questions.json`
+---
 
-```bash
-# from repo root — refresh bake before push if needed
-.venv/bin/python tools/export_quiz_static.py
-git add .gitignore frontend/quiz services/telemetry_api tools/export_quiz_static.py
-git add frontend/quiz/public/data/questions.json
-# …plus any other quiz-related files you intend to ship
-git status   # confirm .env is NOT staged
+## 1. Supabase table (you likely finished)
+
+In **SQL Editor**, run [`services/telemetry_api/schema.sql`](../../services/telemetry_api/schema.sql).
+
+Confirm **Table Editor → `quiz_events`** exists.
+
+---
+
+## 2. Deploy Edge Function `telemetry` (Dashboard)
+
+### 2.1 Create the function
+
+1. Open [Supabase Dashboard](https://supabase.com/dashboard) → your project.  
+2. Left sidebar → **Edge Functions**.  
+3. **Deploy a new function** / **Create function**.  
+4. Name: `telemetry` (exact).  
+5. Paste the full contents of  
+   [`supabase/functions/telemetry/index.ts`](../../supabase/functions/telemetry/index.ts)  
+   into the editor (or use CLI below).  
+6. **Critical:** turn **Enforce JWT verification** / **Verify JWT** **OFF**.  
+   Auth is our own `TELEMETRY_API_KEY`, not a Supabase user JWT.  
+7. Deploy.
+
+Public URL will look like:
+
+```text
+https://YOUR_PROJECT_REF.supabase.co/functions/v1/telemetry
 ```
 
-Never commit `.env`.
+(`YOUR_PROJECT_REF` = Project Settings → General → Reference ID, same host as the project URL.)
 
-## 1. Supabase (you likely finished this)
+### 2.2 Set secrets (Dashboard)
 
-- [x] Project created  
-- [x] Run [`services/telemetry_api/schema.sql`](../../services/telemetry_api/schema.sql)  
-- [x] Keep `DATABASE_URL` private (URL-encoded password + `?sslmode=require`)
+Still under **Edge Functions** → **Secrets** (project-wide) / **Manage secrets**:
 
-Check data later in **Table Editor → `quiz_events`**.
+| Secret name | Value |
+|-------------|--------|
+| `TELEMETRY_API_KEY` | Same random string as in your local `.env` (and later `VITE_TELEMETRY_KEY`) |
+| `CORS_ORIGINS` | For now: `http://127.0.0.1:5173,http://localhost:5173` — after the static site is live, add `https://your-site.pages.dev` |
 
-## 2. Deploy ingest API (Render — required for回流)
+Do **not** paste `DATABASE_URL` or service role into the browser env.  
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically by Supabase for Edge Functions.
 
-1. Sign up at [render.com](https://render.com), connect the GitHub repo.
-2. **New → Web Service**
-   - Runtime: Python
-   - Build: `pip install -r services/telemetry_api/requirements.txt`
-   - Start: `uvicorn services.telemetry_api.app:app --host 0.0.0.0 --port $PORT`
-3. Environment variables:
-
-| Name | Value |
-|------|--------|
-| `DATABASE_URL` | Supabase URI |
-| `TELEMETRY_API_KEY` | same as local `.env` |
-| `CORS_ORIGINS` | temporary: `http://127.0.0.1:5173` — replace after Pages URL exists |
-
-4. Save the public URL, e.g. `https://YOUR-SERVICE.onrender.com`
-5. Smoke test:
+### 2.3 Smoke test
 
 ```bash
-curl -s -X POST "https://YOUR-SERVICE.onrender.com/api/telemetry/events" \
+export TELEMETRY_API_KEY='your-key-from-local-env'
+export FN='https://YOUR_PROJECT_REF.supabase.co/functions/v1/telemetry'
+
+# health
+curl -s "$FN"
+
+# insert one event
+curl -s -i -X POST "$FN" \
   -H "Authorization: Bearer $TELEMETRY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"session_id":"pubtest0001","event_type":"session_start","payload":{"schema_version":1}}'
+  -d '{"session_id":"edgetest0001","event_type":"session_start","payload":{"schema_version":1}}'
 ```
 
-Expect `{"accepted":1}` and a new row in Supabase.
+Expect HTTP **202** and body `{"accepted":1}`, plus a new row in **`quiz_events`**.
 
-## 3. Deploy static frontend (Cloudflare Pages or Netlify)
+Common failures:
 
-1. New project → link same GitHub repo  
+| Symptom | Fix |
+|---------|-----|
+| 401 | Wrong `TELEMETRY_API_KEY`, or JWT verify still ON |
+| CORS error in browser later | Add the site origin to `CORS_ORIGINS` secret, redeploy not always required for secrets—wait a few seconds and retry |
+| 500 Database error | Table missing / typo; re-run `schema.sql` |
+
+### Optional: deploy via CLI instead of paste
+
+```bash
+# once: npm i -g supabase  OR  brew install supabase/tap/supabase
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase secrets set TELEMETRY_API_KEY='...' CORS_ORIGINS='http://127.0.0.1:5173,http://localhost:5173'
+supabase functions deploy telemetry --no-verify-jwt
+```
+
+---
+
+## 3. Point local frontend at the Edge Function
+
+In repo-root `.env`:
+
+```bash
+VITE_TELEMETRY_URL=https://YOUR_PROJECT_REF.supabase.co/functions/v1/telemetry
+VITE_TELEMETRY_KEY=same-as-TELEMETRY_API_KEY
+```
+
+Restart `npm run dev`. Answer one question → Network POST → **202** → row in Supabase.
+
+(Local FastAPI still works if `VITE_TELEMETRY_URL=http://127.0.0.1:8080` — client appends `/api/telemetry/events`.)
+
+---
+
+## 4. Deploy static frontend (Cloudflare Pages or Netlify)
+
+1. Link GitHub repo.  
 2. Root directory: `frontend/quiz`  
-3. Build command: `npm install && npm run build`  
-4. Output directory: `dist`  
-5. Build environment variables:
+3. Build: `npm install && npm run build`  
+4. Output: `dist`  
+5. Build env:
 
 | Name | Value |
 |------|--------|
-| `VITE_TELEMETRY_URL` | `https://YOUR-SERVICE.onrender.com` (no trailing slash) |
+| `VITE_TELEMETRY_URL` | `https://YOUR_PROJECT_REF.supabase.co/functions/v1/telemetry` |
 | `VITE_TELEMETRY_KEY` | same as `TELEMETRY_API_KEY` |
 
 6. Deploy → copy site URL, e.g. `https://xxx.pages.dev`
 
-## 4. Wire CORS
+---
 
-In Render, set:
+## 5. Update CORS after the site is live
+
+In Supabase → Edge Functions → Secrets, set:
 
 ```text
-CORS_ORIGINS=https://xxx.pages.dev,http://127.0.0.1:5173
+CORS_ORIGINS=https://xxx.pages.dev,http://127.0.0.1:5173,http://localhost:5173
 ```
 
-Redeploy / restart the ingest service.
+Retest from the public site: Network → POST → **202**.
 
-## 5. Verify end-to-end
+---
 
-1. Open the public site, answer one question  
-2. Supabase `quiz_events` shows `session_start`, `question_view`, `answer_submit`  
-3. Browser Network tab: POST to ingest returns **202**
+## 6. End-to-end check
 
-## Optional later
+1. Open public quiz, answer one question.  
+2. Table Editor → `quiz_events`: `session_start`, `question_view`, `answer_submit`, …  
+3. Browser never sees the DB password or service role key.
 
-- Custom domain (Pages + DNS; optionally `api.yourdomain.com` → Render)  
-- Upgrade Render plan if cold starts are annoying  
-- Rotate `TELEMETRY_API_KEY` if it leaks
+---
+
+## Notes
+
+- FastAPI under `services/telemetry_api/` remains useful for **local** smoke tests without deploying a function.  
+- Rotate `TELEMETRY_API_KEY` if it leaks; update the Edge Secret + rebuild frontend `VITE_TELEMETRY_KEY`.

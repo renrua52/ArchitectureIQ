@@ -1,6 +1,10 @@
 # Telemetry ingest API
 
-Thin FastAPI service for ArchitectureIQ quiz analytics.
+Thin FastAPI service for ArchitectureIQ quiz analytics (**local / optional**).
+
+For **public** deploy without a separate host or credit card, use the Supabase
+Edge Function instead: [`supabase/functions/telemetry/`](../../supabase/functions/telemetry/)
+and [`frontend/quiz/DEPLOY.md`](../../frontend/quiz/DEPLOY.md).
 
 ## Local
 
