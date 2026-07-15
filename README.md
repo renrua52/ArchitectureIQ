@@ -304,6 +304,20 @@ Use `--run-dir path/to/run --skip-existing` to resume a partial run.
 
 See [tools/llm_eval/README.md](./tools/llm_eval/README.md).
 
+### Context-protocol boundary
+
+The historical local revealed-answer runner and its old `llm_runs/` artifacts
+are reproducibility references only. They append compact prior answer/outcome
+lines to later API prompts and should not be used as the current `main` context
+benchmark.
+
+The canonical current feedback protocol is
+`tools/sequential_feedback_session.py`: the agent must submit a prediction
+before feedback is returned, then receives the correct candidate and per-choice
+metric values and records a lesson. Its score is feedback-conditioned online
+adaptation, not a replacement for blind/static capability scores. Always report
+the exact protocol and question scope when comparing results.
+
 ## Tests
 
 ```bash

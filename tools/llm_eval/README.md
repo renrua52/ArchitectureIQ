@@ -30,6 +30,24 @@ Optional flags:
 - `--runs-root llm_runs` — parent for auto-named runs
 - `--skip-existing` — resume a partial run
 
+## Context-protocol boundary
+
+The runner in this directory is the standalone API evaluation path. The local
+`run_sequential_feedback.py` script is retained only to reproduce the historical
+2026-07-09 revealed-history comparison; its results are not the canonical score
+for the current `main` context workflow.
+
+For current sequential-feedback experiments, use
+`tools/sequential_feedback_session.py`. That CLI enforces prediction-before-feedback,
+returns the submitted question's correct candidate and per-choice metric values,
+and stores an explicit lesson for later questions. This measures online adaptation
+under feedback, so report it separately from blind or API-only LLM accuracy.
+
+When comparing any old run, state the exact model, reasoning setting, question
+scope, filtering/remapping, and protocol (`blind`, `grouped_feedback`, or
+`full_sequential_feedback`). Keep old `llm_runs/` artifacts for provenance, but
+do not silently merge them into current `main` results.
+
 ## Answer format
 
 Each prompt is augmented with instructions to reason freely, then commit with a tagged answer:

@@ -220,13 +220,18 @@ pre {
   letter-spacing: 0.04em;
 }
 
-.latex {
+.formula {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
   padding: 0.7rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  overflow: auto;
+  overflow-x: auto;
+}
+
+.formula math {
+  min-width: max-content;
+  margin-top: 0.4rem;
+  font-size: 1.08rem;
 }
 
 .plot {

@@ -31,7 +31,7 @@ from custom_settings import (  # noqa: E402
     question_custom_settings_dir,
     run_custom_setting,
 )
-from expression_latex import expression_to_latex  # noqa: E402
+from expression_latex import expression_to_latex, expression_to_mathml  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
 
 
@@ -64,6 +64,13 @@ def test_expression_to_latex_multivariate_subscripts() -> None:
     assert "x_{1}" in latex or r"x_1" in latex
     assert "x_{2}" in latex or r"x_2" in latex
     assert "3 x" not in latex
+
+
+def test_expression_to_mathml_multivariate_subscripts() -> None:
+    mathml = expression_to_mathml("x0 + sin(6.283185307179586*x1) * x2")
+    assert mathml.startswith('<math xmlns="http://www.w3.org/1998/Math/MathML"')
+    assert "<msub>" in mathml
+    assert "π" in mathml
 
 
 def test_load_question_bundle(question_path: Path) -> None:

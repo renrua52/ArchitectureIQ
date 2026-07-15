@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Sequential ArchitectureIQ eval with revealed-answer history in the prompt."""
+"""Historical API-only ArchitectureIQ eval with revealed-answer history.
+
+This local runner is preserved for reproducing the 2026-07-09 comparison, but it
+is not the canonical current ``main`` context protocol. Current sequential
+feedback experiments should use ``tools/sequential_feedback_session.py``, which
+enforces prediction-before-feedback and records per-question lessons and metric
+feedback through the CLI.
+"""
 
 from __future__ import annotations
 

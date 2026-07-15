@@ -143,11 +143,15 @@ function renderDataset(q) {
   const facts = [
     el("div", {}, [el("div", { class: "fact-label", text: "Dataset ID" }), el("div", { text: q.dataset_id })]),
     el("div", {}, [el("div", { class: "fact-label", text: "Family" }), el("div", { text: q.family })]),
-    ...((info.summary_lines || []).map((line) => el("div", { text: line }))),
   ];
-  if (info.latex_expression) {
-    facts.push(el("div", {}, [el("div", { class: "fact-label", text: "LaTeX" }), el("div", { class: "latex", text: info.latex_expression })]));
+  if (info.mathml_expression) {
+    const documentNode = new DOMParser().parseFromString(info.mathml_expression, "application/xml");
+    const math = documentNode.documentElement;
+    if (math && math.nodeName !== "parsererror") {
+      facts.push(el("div", { class: "formula" }, [el("div", { class: "fact-label", text: "Expression" }), document.importNode(math, true)]));
+    }
   }
+  facts.push(...((info.summary_lines || []).map((line) => el("div", { text: line }))));
   return el("section", { class: "section" }, [
     el("div", { class: "section-header" }, [el("h2", { text: "Dataset" })]),
     el("div", { class: "section-body dataset-grid" }, [

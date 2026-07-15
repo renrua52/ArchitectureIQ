@@ -40,7 +40,7 @@ from artifact_loader import (  # noqa: E402
     read_text_file,
 )
 from candidate_curves import load_candidate_curves  # noqa: E402
-from expression_latex import expression_to_latex  # noqa: E402
+from expression_latex import expression_to_mathml  # noqa: E402
 from prompt_format import format_model_spec_lines  # noqa: E402
 
 
@@ -414,7 +414,7 @@ def _dataset_info(spec: dict[str, Any], dataset_id: str) -> dict[str, Any]:
         "family": family,
         "selection_metric": spec.get("selection_metric"),
         "params": params,
-        "latex_expression": None,
+        "mathml_expression": None,
         "summary_lines": [],
     }
     if family == "bigram_lm":
@@ -427,16 +427,14 @@ def _dataset_info(spec: dict[str, Any], dataset_id: str) -> dict[str, Any]:
 
     expression = params.get("expression", "-")
     domain = params.get("domain", [0, 1])
-    info["latex_expression"] = expression_to_latex(expression)
+    info["mathml_expression"] = expression_to_mathml(expression)
     if family == "multivariate_regression":
         info["summary_lines"] = [
-            f"Expression: {expression}",
             f"Input dimension: {params.get('input_dim', '-')}",
             f"Domain: [{domain[0]}, {domain[1]}] per coordinate",
         ]
     else:
         info["summary_lines"] = [
-            f"Expression: {expression}",
             f"Domain: [{domain[0]}, {domain[1]}]",
         ]
     return info
