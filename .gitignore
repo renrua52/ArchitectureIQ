@@ -157,6 +157,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Node
+node_modules/
+*.tsbuildinfo
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -214,8 +218,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Benchmark generated artifacts
-data/
+# Benchmark generated artifacts (repo-root only; do not ignore frontend bake paths)
+/data/
 llm_runs/
 
 # Local analysis and report-build outputs. Curated report assets are force-added.
