@@ -69,7 +69,11 @@ def sample_candidate_set_pool(
 
     shared = deepcopy(fixed_shared) if fixed_shared is not None else {}
     if "batch_size" not in shared:
-        shared["batch_size"] = _pick_batch_size(profile, budget, rng)
+        defaults = profile.family_training_defaults(family)
+        if defaults and budget == defaults["total_samples_seen"]:
+            shared["batch_size"] = defaults["batch_size"]
+        else:
+            shared["batch_size"] = _pick_batch_size(profile, budget, rng)
     if "model" not in varying_axes and "model" not in shared:
         shared["model"] = sample_model(
             profile, rng, family=family, dataset_params=dataset_params
@@ -141,6 +145,7 @@ def write_set_manifest(
         "fixed_shared": fixed_shared,
         "seed": seed,
         "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     write_json(set_path / SET_MANIFEST, manifest)

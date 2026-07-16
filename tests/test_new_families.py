@@ -188,5 +188,5 @@ def test_bigram_shared_transition_matrix() -> None:
 
 def test_compatible_models_by_family() -> None:
     ensure_registries()
-    assert get_dataset_family("multivariate_regression").compatible_model_types() == ["mlp"]
+    assert get_dataset_family("multivariate_regression").compatible_model_types() == ["mlp", "kan"]
     assert get_dataset_family("bigram_lm").compatible_model_types() == ["transformer_lm"]

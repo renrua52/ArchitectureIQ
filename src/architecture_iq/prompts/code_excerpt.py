@@ -37,7 +37,7 @@ def extract_function_definitions(source: str, names: set[str]) -> str:
 def excerpt_model_py(source: str) -> str:
     parts: list[str] = []
     try:
-        parts.append(extract_function_definitions(source, {"_activation"}))
+        parts.append(extract_function_definitions(source, {"_activation", "_make_grid", "_bspline_bases"}))
     except ValueError:
         pass
     parts.append(extract_class_definitions(source))

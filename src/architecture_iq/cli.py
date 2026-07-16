@@ -13,6 +13,7 @@ from architecture_iq.candidates.sets import (
 from architecture_iq.datasets import (
     create_dataset,
     format_dataset_summary_lines,
+    load_dataset_spec,
     resolve_dataset_family,
 )
 from architecture_iq.interactive import (
@@ -134,7 +135,10 @@ def generate_candidates_cmd(
         None,
         help="Path to dataset instance dir (required unless --interactive)",
     ),
-    budget: Optional[int] = typer.Option(None, help="total_samples_seen"),
+    budget: Optional[int] = typer.Option(
+        None,
+        help="total_samples_seen (uses the family default when configured)",
+    ),
     count: Optional[int] = typer.Option(None, help="Number of candidates to generate"),
     vary: list[str] = typer.Option(
         [],
@@ -180,7 +184,13 @@ def generate_candidates_cmd(
         if dataset_path is None:
             raise typer.BadParameter("dataset_path is required unless --interactive is set")
         if budget is None:
-            raise typer.BadParameter("--budget is required unless --interactive is set")
+            family = load_dataset_spec(dataset_path)["family"]
+            defaults = prof.family_training_defaults(family)
+            if not defaults:
+                raise typer.BadParameter(
+                    "--budget is required unless the dataset family has a training default"
+                )
+            budget = defaults["total_samples_seen"]
         if count is None:
             raise typer.BadParameter("--count is required unless --interactive is set")
         if not vary:

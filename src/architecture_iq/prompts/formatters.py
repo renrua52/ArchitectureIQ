@@ -29,6 +29,8 @@ def format_mlp_nl(model: dict) -> str:
     ]
     if "input_dim" in model and int(model["input_dim"]) > 1:
         lines.append(f"- Input dimension: {model['input_dim']}")
+    if "output_dim" in model and int(model["output_dim"]) > 1:
+        lines.append(f"- Output logits: {model['output_dim']}")
     lines.extend(
         [
             f"- Depth: {model['depth']} hidden layers",
@@ -42,6 +44,26 @@ def format_mlp_nl(model: dict) -> str:
         slope = float(model.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE))
         lines.append(f"- LeakyReLU negative slope: {slope:g}")
     lines.append("- Initialization: PyTorch Linear defaults")
+    return "\n".join(lines)
+
+
+def format_kan_nl(model: dict) -> str:
+    lines = ["- Type: spline KAN (efficient_spline_v1)"]
+    if "input_dim" in model and int(model["input_dim"]) > 1:
+        lines.append(f"- Input dimension: {model['input_dim']}")
+    if "output_dim" in model and int(model["output_dim"]) > 1:
+        lines.append(f"- Output logits: {model['output_dim']}")
+    lines.extend(
+        [
+            f"- Depth: {model['depth']} hidden layers",
+            f"- Width: {model['width']} (all hidden layers)",
+            f"- Grid size: {model['grid_size']}",
+            f"- Spline order: {model['spline_order']}",
+            f"- Fixed grid range: {model['grid_range']}",
+            f"- Base activation: {model['base_activation']}",
+            "- Grid updates: fixed; no train/test-data adaptation",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -60,6 +82,8 @@ def format_model_nl(model: dict) -> str:
     model_type = model.get("type", "mlp")
     if model_type == "mlp":
         return format_mlp_nl(model)
+    if model_type == "kan":
+        return format_kan_nl(model)
     if model_type == "transformer_lm":
         return format_transformer_lm_nl(model)
     return f"- Type: {model_type}"
@@ -120,7 +144,7 @@ def format_loss_nl(loss: dict) -> str:
             f"(lambda={loss['lambda']}, mean absolute parameter magnitude)"
         )
     if loss["loss_id"] == "cross_entropy":
-        return "- Loss: cross-entropy on next-token labels"
+        return "- Loss: cross-entropy on minibatch target labels"
     if loss["loss_id"] == "cross_entropy_l2":
         return (
             f"- Loss: cross-entropy + L2 weight penalty (lambda={loss['lambda']})"
@@ -182,7 +206,87 @@ def format_bigram_protocol(params: dict) -> str:
     )
 
 
+def _signed_linear_combination(terms: list[tuple[float, str]]) -> str:
+    rendered: list[str] = []
+    for index, (weight, expression) in enumerate(terms):
+        sign = "-" if weight < 0 else "+"
+        magnitude = f"{abs(float(weight)):.6g}"
+        if index == 0:
+            rendered.append(f"{sign if sign == '-' else ''}{magnitude}·{expression}")
+        else:
+            rendered.append(f"{sign} {magnitude}·{expression}")
+    return " ".join(rendered)
+
+
+def format_synthetic_tabular_classification_rule(params: dict) -> str:
+    rule_family = params["rule_family"]
+    active_features = [int(feature) for feature in params["active_features"]]
+    weights = [float(weight) for weight in params["rule_weights"]]
+    active = ", ".join(f"`x_{feature}`" for feature in active_features)
+
+    if rule_family == "smooth_additive":
+        terms = [
+            (weight, f"[sin(x_{feature}) + 0.25·x_{feature}²]")
+            for feature, weight in zip(active_features, weights, strict=True)
+        ]
+        score_lines = [f"  - `s(x) = {_signed_linear_combination(terms)}`"]
+    elif rule_family == "sparse_interaction":
+        pairs = [[int(value) for value in pair] for pair in params["interaction_pairs"]]
+        terms = [
+            (weight, f"x_{left}·x_{right}")
+            for (left, right), weight in zip(pairs, weights, strict=True)
+        ]
+        score_lines = [f"  - `s(x) = {_signed_linear_combination(terms)}`"]
+    elif rule_family == "piecewise_boundary":
+        primary, secondary = active_features[:2]
+        below_weight, above_weight, offset_weight = weights
+        breakpoint = float(params["piecewise_breakpoint"])
+        above = _signed_linear_combination(
+            [(above_weight, f"x_{secondary}"), (offset_weight, f"x_{primary}")]
+        )
+        below = _signed_linear_combination(
+            [(below_weight, f"x_{secondary}"), (offset_weight, f"x_{primary}")]
+        )
+        score_lines = [
+            f"  - If `x_{primary} > {breakpoint:.6g}`: `s(x) = {above}`",
+            f"  - Otherwise: `s(x) = {below}`",
+        ]
+    else:
+        raise ValueError(f"Unknown classification rule family: {rule_family!r}")
+
+    noise_std = float(params["noise_std"])
+    threshold = float(params["decision_threshold"])
+    calibration = params["calibration"]
+    return "\n".join(
+        [
+            f"- Rule family: `{rule_family}`; active coordinates: {active}",
+            "- Feature distribution: every coordinate is sampled independently from `Normal(0, 1)`.",
+            "- Latent score:",
+            *score_lines,
+            f"- Label noise: `ε ~ Normal(0, {noise_std:.6g}²)`.",
+            f"- Label rule: `y = 1` exactly when `s(x) + ε > {threshold:.6g}`; otherwise `y = 0`.",
+            f"- Bayes decision boundary: without observing ε, predict class 1 when `s(x) > {threshold:.6g}`.",
+            f"- Threshold calibration: `{threshold:.6g}` was estimated from {calibration['size']} independent calibration rows to target a positive-class rate of {float(calibration['target_positive_rate']):.0%}.",
+            f"- Reproducibility: point/noise seed `{params['point_sampling']['seed']}`, calibration seed `{calibration['seed']}`.",
+        ]
+    )
+
+
+def format_synthetic_tabular_classification_protocol(params: dict) -> str:
+    return "\n".join(
+        [
+            "- Task: binary classification on one fixed synthetic tabular train/test split.",
+            f"- Input shape: float32 `[N, {params['input_dim']}]`; labels: int64 `[N]` in `{{0, 1}}`.",
+            f"- Train rows: {params['train_size']}; held-out test rows: {params['test_size']}.",
+            "- Every choice receives the same materialized split; minibatches sample train indices uniformly with replacement.",
+            "- Evaluation: **test cross-entropy** is primary; test accuracy is auxiliary only.",
+        ]
+    )
+
+
 def format_dataset_protocol(params: dict, *, family: str | None = None) -> str:
+    if family == "synthetic_tabular_classification":
+        return format_synthetic_tabular_classification_protocol(params)
     if family == "bigram_lm" or "vocab_size" in params:
         return format_bigram_protocol(params)
     if "input_dim" in params:

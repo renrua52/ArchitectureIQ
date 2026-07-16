@@ -81,7 +81,7 @@ def create_dataset(
     resolve_dataset_family(profile, family=family_name)
     family = get_dataset_family(family_name)
     options = family_options or {}
-    if family_name == "multivariate_regression":
+    if family_name in {"multivariate_regression", "synthetic_tabular_classification"}:
         partial = family.create_instance(profile, seed, **options)
     else:
         if options:
@@ -114,5 +114,10 @@ def format_dataset_summary_lines(spec: dict) -> list[str]:
             f"Vocab size: {params['vocab_size']}",
             f"Context length: {params['context_length']}",
             f"Layout: {params['layout']}",
+        ]
+    if family == "synthetic_tabular_classification":
+        return [
+            f"Input dimension: {params['input_dim']}", f"Classes: {params['num_classes']}",
+            f"Decision rule: {params['rule_family']}",
         ]
     return [f"{key}: {value}" for key, value in sorted(params.items())]

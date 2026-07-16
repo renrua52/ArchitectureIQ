@@ -19,6 +19,9 @@ from architecture_iq.paths import ROOT
 
 def _sync_candidate_files(candidate_path: Path, spec: dict[str, Any]) -> None:
     """Rewrite on-disk .py files from spec so execution matches candidate_spec.json."""
+    from architecture_iq.registry import ensure_registries
+
+    ensure_registries()
     model_family = get_model_type(spec["model"]["type"])
     write_candidate(spec, candidate_path, model_family)
 
@@ -54,13 +57,16 @@ def run_single_seed(
     final_key = final_metric_key(selection_metric)
     if final_key not in result:
         raise KeyError(f"train_and_eval missing {final_key!r}")
-    return {
+    seed_result: dict[str, Any] = {
         "seed": seed,
         "failed": bool(result["failed"]),
         final_key: float(result[final_key]),
         "eval_samples": list(result["eval_samples"]),
         "step_metrics": list(result["step_metrics"]),
     }
+    if "final_test_accuracy" in result:
+        seed_result["final_test_accuracy"] = float(result["final_test_accuracy"])
+    return seed_result
 
 
 def run_ground_truth(
@@ -118,6 +124,7 @@ def run_ground_truth(
     ok = [r for r in seed_results if not r["failed"]]
     failed_count = len(seed_results) - len(ok)
     finals = [r[final_key] for r in ok] or [float("inf")]
+    accuracies = [r["final_test_accuracy"] for r in ok if "final_test_accuracy" in r]
 
     max_len = max((len(r["step_metrics"]) for r in ok), default=0)
     curves = np.full((n_seeds, max_len), np.nan, dtype=np.float64)
@@ -150,6 +157,14 @@ def run_ground_truth(
             if selection_metric == "test_mse"
             else {}
         ),
+        **(
+            {
+                "mean_test_accuracy": float(np.mean(accuracies)) if accuracies else float("nan"),
+                "std_test_accuracy": float(np.std(accuracies)) if accuracies else float("nan"),
+            }
+            if any("final_test_accuracy" in r for r in seed_results)
+            else {}
+        ),
         "seed_results": [
             {
                 "seed": r["seed"],
@@ -160,6 +175,7 @@ def run_ground_truth(
                     if selection_metric == "test_mse"
                     else {}
                 ),
+                **({"final_test_accuracy": r["final_test_accuracy"]} if "final_test_accuracy" in r else {}),
             }
             for r in seed_results
         ],

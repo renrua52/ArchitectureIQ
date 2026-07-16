@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -20,6 +22,7 @@ class Profile:
     optimizer_grids: dict[str, Any]
     loss_grids: dict[str, Any]
     budgets: dict[str, Any]
+    training_defaults: dict[str, Any]
     ground_truth: dict[str, Any]
     significance: dict[str, Any]
     question_generation: dict[str, Any]
@@ -39,6 +42,7 @@ class Profile:
             optimizer_grids=raw["optimizer_grids"],
             loss_grids=raw["loss_grids"],
             budgets=raw["budgets"],
+            training_defaults=raw.get("training_defaults", {}),
             ground_truth=raw["ground_truth"],
             significance=raw["significance"],
             question_generation=raw["question_generation"],
@@ -74,12 +78,39 @@ class Profile:
     def transformer_lm(self) -> dict[str, Any]:
         return self.raw["transformer_lm"]
 
+    @property
+    def kan(self) -> dict[str, Any]:
+        return self.raw.get("kan", {})
+
+    @property
+    def profile_hash(self) -> str:
+        payload = json.dumps(self.raw, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
     def training_steps(self, total_samples_seen: int, batch_size: int) -> int:
         if total_samples_seen % batch_size != 0:
             raise ValueError(
                 f"budget {total_samples_seen} not divisible by batch_size {batch_size}"
             )
         return total_samples_seen // batch_size
+
+    def family_training_defaults(self, family: str) -> dict[str, int]:
+        defaults = self.training_defaults.get(family)
+        if defaults is None:
+            return {}
+        batch_size = int(defaults["batch_size"])
+        training_steps = int(defaults["training_steps"])
+        total_samples_seen = int(defaults["total_samples_seen"])
+        if batch_size * training_steps != total_samples_seen:
+            raise ValueError(
+                f"Invalid training default for {family!r}: "
+                f"{training_steps} × {batch_size} != {total_samples_seen}"
+            )
+        return {
+            "batch_size": batch_size,
+            "training_steps": training_steps,
+            "total_samples_seen": total_samples_seen,
+        }
 
 
 def load_profile(name: str = "v1") -> Profile:

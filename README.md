@@ -55,7 +55,7 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
-## Dataset families (v1)
+## Dataset families (V1)
 
 | Family | Task | Models | Losses | Metric |
 |--------|------|--------|--------|--------|
@@ -67,9 +67,25 @@ For `multivariate_regression`, **n** (input dimension) defaults to a random pick
 
 Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
 
+V1 is frozen and keeps the original MLP-only regression benchmark. New task/model-pool changes use a named profile instead of silently changing V1.
+
+## Experimental V2 profile: KAN regression
+
+V2 adds the synthetic tabular classification family and a self-contained spline KAN model. KAN is currently enabled for `univariate_regression` and `multivariate_regression`; its first implementation is pure PyTorch with a fixed grid and no train/test-data grid adaptation.
+
+The V2 KAN parameter pool is not yet frozen while phase-3 calibration continues.
+
+Use V2 explicitly when generating KAN candidates:
+
+```bash
+architecture-iq --profile v2 create-dataset --family univariate_regression --seed 42
+architecture-iq --profile v2 generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 1024 --count 32 --vary model
+```
+
 ## CLI reference
 
-All commands accept `--profile v1` (default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
+All commands accept `--profile NAME` (`v1` is the default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
 
 Interactive mode (`-i` / `--interactive`) prompts for every parameter. **Enter** on a choice field picks a random valid option. Interactive commands reject all other arguments except `--profile`. `generate-candidates -i` and `generate-question -i` only let you pick **existing** datasets (use `create-dataset` first).
 
@@ -93,7 +109,7 @@ architecture-iq create-dataset -i
 | `--input-dim`         | —                     | For `multivariate_regression` only: pin **n** (must be in profile `input_dims`) |
 | `-i`, `--interactive` | off                   | Prompt for family, seed, and multivariate **n** (Enter = random from pool) |
 
-**Multivariate input dimension.** By default, `multivariate_regression` samples **n** from `profiles/v1.yaml` → `dataset_configs.multivariate_regression.input_dims` (currently `[2, 3, 4, 5, 8]`). Use `--input-dim` or `-i` to pin **n**; otherwise it is chosen randomly from that list (seeded by instance seed).
+**Multivariate input dimension.** By default, `multivariate_regression` samples **n** from the active profile's `dataset_configs.multivariate_regression.input_dims` (currently `[2, 3, 4, 5, 8]` in V1 and V2). Use `--input-dim` or `-i` to pin **n**; otherwise it is chosen randomly from that list (seeded by instance seed).
 
 **What `--seed` controls:** the **instance seed** for synthetic data generation (expression formula and train/test point sampling). Same `--family` + same `--seed` reproduces the same dataset. It does **not** affect which family is picked when using `--random-family` (that draw uses a separate unseeded RNG).
 

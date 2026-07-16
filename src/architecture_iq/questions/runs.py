@@ -70,6 +70,7 @@ def write_run_manifest(
         "question_ids": question_ids,
         "seed": seed,
         "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     write_json(run_path / RUN_MANIFEST, manifest)

@@ -15,6 +15,7 @@ from architecture_iq.prompts.formatters import (
     SINGLE_AXIS_TYPES,
     format_dataset_protocol,
     format_loss_nl,
+    format_synthetic_tabular_classification_rule,
     format_model_nl,
     format_optimizer_nl,
     format_ranking_protocol,
@@ -70,8 +71,7 @@ def render_prompt(question_path: Path) -> str:
             f"Train size: {params['train_size']}, test size: {params['test_size']}."
         )
 
-    synth_source = (dataset_path / "synthesize.py").read_text(encoding="utf-8")
-    synth_code = excerpt_synthesize_py(synth_source)
+    is_classification = q["family"] == "synthetic_tabular_classification"
     total_samples_seen = _question_total_samples_seen(q["budget"])
     single_axis = q["type"] in SINGLE_AXIS_TYPES and not (
         isinstance(q["budget"], dict) and q["budget"].get("mixed")
@@ -88,16 +88,27 @@ def render_prompt(question_path: Path) -> str:
         "## Dataset",
         dataset_nl.strip(),
         "",
-        "### Synthesis (PyTorch)",
-        "```python",
-        synth_code,
-        "```",
-        "",
-        "### Data splits and training protocol",
-        format_dataset_protocol(params, family=q["family"]),
-        "",
-        budget_heading,
     ]
+    if is_classification:
+        parts.extend(
+            [
+                "### Data-generating and classification rule",
+                format_synthetic_tabular_classification_rule(params),
+                "",
+            ]
+        )
+    else:
+        synth_source = (dataset_path / "synthesize.py").read_text(encoding="utf-8")
+        synth_code = excerpt_synthesize_py(synth_source)
+        parts.extend(["### Synthesis (PyTorch)", "```python", synth_code, "```", ""])
+    parts.extend(
+        [
+            "### Data splits and training protocol",
+            format_dataset_protocol(params, family=q["family"]),
+            "",
+            budget_heading,
+        ]
+    )
     if single_axis and q["choices"]:
         first_cand = read_json(
             DATA_DIR / q["choices"][0]["candidate_path"] / "candidate_spec.json"

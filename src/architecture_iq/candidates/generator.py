@@ -179,11 +179,89 @@ def train_and_eval(
 '''
 
 
+CLASSIFICATION_TRAIN_PY = '''"""Training loop for this candidate — executed by the ground-truth runner."""
+from __future__ import annotations
+
+import math
+
+import torch
+import torch.nn.functional as F
+
+from loss import loss_fn
+from model import Model
+from optimizer import build_optimizer
+
+
+def _test_metrics(model: torch.nn.Module, test_x: torch.Tensor, test_y: torch.Tensor) -> tuple[float, float]:
+    model.eval()
+    with torch.no_grad():
+        logits = model(test_x)
+        ce = F.cross_entropy(logits, test_y.reshape(-1))
+        accuracy = (logits.argmax(dim=-1) == test_y.reshape(-1)).float().mean()
+    return float(ce.item()), float(accuracy.item())
+
+
+def train_and_eval(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
+    *,
+    steps: int,
+    batch_size: int,
+    seed: int = 0,
+    fail_threshold: float = float("inf"),
+) -> dict:
+    torch.manual_seed(seed)
+    model = Model()
+    optimizer = build_optimizer(model)
+    n = train_x.shape[0]
+    step_metrics: list[float] = []
+    eval_samples: list[int] = []
+    failed = False
+    final_accuracy = float("nan")
+
+    for step in range(1, steps + 1):
+        model.train()
+        idx = torch.randint(0, n, (batch_size,))
+        logits = model(train_x[idx])
+        loss = loss_fn(model, logits, train_y[idx])
+        if not torch.isfinite(loss):
+            failed = True
+            break
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        ce, accuracy = _test_metrics(model, test_x, test_y)
+        if not math.isfinite(ce) or not math.isfinite(accuracy):
+            failed = True
+            break
+        eval_samples.append(step * batch_size)
+        step_metrics.append(ce)
+        final_accuracy = accuracy
+
+    final_metric = step_metrics[-1] if step_metrics else float("inf")
+    if final_metric > fail_threshold:
+        failed = True
+
+    return {
+        "failed": failed,
+        "final_test_ce": final_metric,
+        "final_test_accuracy": final_accuracy,
+        "eval_samples": eval_samples,
+        "step_metrics": step_metrics,
+    }
+'''
+
+
 def _train_py_for_family(family: str) -> str:
     if family == "bigram_lm":
         return LM_TRAIN_PY
-    return REGRESSION_TRAIN_PY
 
+    if family == "synthetic_tabular_classification":
+        return CLASSIFICATION_TRAIN_PY
+    return REGRESSION_TRAIN_PY
 
 from architecture_iq.candidates.axes import SINGLE_AXIS_TYPES, choices_compatible
 
@@ -287,6 +365,8 @@ def build_candidate_spec(
     steps = profile.training_steps(budget, batch_size)
     body = {
         "schema_version": profile.schema_version,
+        "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "dataset_id": dataset_id,
         "family": family,
         "budget": {

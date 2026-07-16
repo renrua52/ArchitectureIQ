@@ -53,7 +53,7 @@ class MLPBlock(nn.Module):
         return h
 
 
-class RegressionMLP(nn.Module):
+class MLP(nn.Module):
     def __init__(
         self,
         input_dim: int,
@@ -62,6 +62,7 @@ class RegressionMLP(nn.Module):
         activations: list[str],
         layer_norm: list[bool],
         residual: bool,
+        output_dim: int = 1,
         leaky_relu_slope: float = LEGACY_LEAKY_RELU_SLOPE,
     ) -> None:
         super().__init__()
@@ -78,7 +79,7 @@ class RegressionMLP(nn.Module):
                     leaky_relu_slope=leaky_relu_slope,
                 )
             )
-        layers.append(nn.Linear(width, 1))
+        layers.append(nn.Linear(width, output_dim))
         self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -94,16 +95,19 @@ class MlpModelFamily(ModelFamily):
         norms = model_spec["layer_norm"]
         if depth != len(acts) or depth != len(norms):
             raise ValueError("MLP depth mismatch with activations or layer_norm")
+        if int(model_spec.get("output_dim", 1)) < 1:
+            raise ValueError("MLP output_dim must be positive")
 
     def build_module(self, model_spec: dict[str, Any]) -> nn.Module:
         self.validate(model_spec)
-        return RegressionMLP(
+        return MLP(
             input_dim=int(model_spec.get("input_dim", 1)),
             depth=int(model_spec["depth"]),
             width=int(model_spec["width"]),
             activations=list(model_spec["activations"]),
             layer_norm=[bool(v) for v in model_spec["layer_norm"]],
             residual=bool(model_spec["residual"]),
+            output_dim=int(model_spec.get("output_dim", 1)),
             leaky_relu_slope=float(
                 model_spec.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE)
             ),
@@ -115,6 +119,7 @@ class MlpModelFamily(ModelFamily):
         width = int(model_spec["width"])
         input_dim = int(model_spec.get("input_dim", 1))
         residual = bool(model_spec["residual"])
+        output_dim = int(model_spec.get("output_dim", 1))
         leaky_relu_slope = float(
             model_spec.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE)
         )
@@ -169,7 +174,7 @@ class Model(nn.Module):
         self.net = nn.Sequential(
             nn.Linear({input_dim}, {width}),
 {blocks_str}
-            nn.Linear({width}, 1),
+            nn.Linear({width}, {output_dim}),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -201,4 +206,5 @@ class Model(nn.Module):
             spec["input_dim"] = int(dataset_params["input_dim"])
         else:
             spec["input_dim"] = 1
+        spec["output_dim"] = int(dataset_params.get("num_classes", 1)) if dataset_params else 1
         return spec
