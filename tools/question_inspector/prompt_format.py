@@ -225,7 +225,7 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
     )
 
 
-def format_dataset_protocol(params: dict) -> str:
+def format_dataset_protocol(params: dict, *, family: str | None = None, device: str = "cpu") -> str:
     if "rule_family" in params:
         return "\n".join(
             [
@@ -234,6 +234,7 @@ def format_dataset_protocol(params: dict) -> str:
                 f"- Train rows: {params['train_size']}; held-out test rows: {params['test_size']}.",
                 "- Every choice receives the same materialized split; minibatches sample train indices uniformly with replacement.",
                 "- Evaluation: **test cross-entropy** is primary; test accuracy is auxiliary only.",
+                f"- Reference device: {device}",
             ]
         )
     point_seed = params.get("point_sampling", {}).get("seed", "—")
@@ -248,18 +249,19 @@ def format_dataset_protocol(params: dict) -> str:
         "- Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",
         "- Randomness: `torch.manual_seed(seed)` once before model init and the training loop",
-        "- Reference device: CPU",
+        f"- Reference device: {device}",
     ]
     return "\n".join(lines)
 
 
-def format_ranking_protocol(*, n_seeds: int, base_seed: int, selection_metric: str) -> str:
+def format_ranking_protocol(*, n_seeds: int, base_seed: int, selection_metric: str, device: str = "cpu") -> str:
     last_seed = base_seed + n_seeds - 1
     return "\n".join(
         [
             f"- Ground-truth ranking uses **{selection_metric}** on the held-out test split.",
             f"- Each choice is trained independently for **{n_seeds}** seeds "
             f"(`{base_seed}`..`{last_seed}`), one `torch.manual_seed(seed)` per run.",
+            f"- Execution device: {device}.",
             f"- The correct choice has the lowest **mean** {selection_metric} across seeds.",
         ]
     )

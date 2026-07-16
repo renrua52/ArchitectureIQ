@@ -11,6 +11,20 @@ import yaml
 from architecture_iq.paths import PROFILES_DIR
 
 
+VALID_EXECUTION_DEVICES = frozenset({"cpu", "cuda"})
+
+
+def validate_execution_device(device: str) -> str:
+    """Validate the benchmark execution device stored in an artifact."""
+    normalized = device.strip().lower()
+    if normalized not in VALID_EXECUTION_DEVICES:
+        raise ValueError(
+            f"Unsupported execution device {device!r}; "
+            f"choose from {sorted(VALID_EXECUTION_DEVICES)}"
+        )
+    return normalized
+
+
 @dataclass
 class Profile:
     raw: dict[str, Any]
@@ -64,6 +78,11 @@ class Profile:
     @property
     def base_seed(self) -> int:
         return int(self.ground_truth["base_seed"])
+
+    @property
+    def execution_device(self) -> str:
+        """Default device for newly generated candidates in this profile."""
+        return validate_execution_device(str(self.ground_truth.get("device", "cpu")))
 
     def family_config(self, family: str) -> dict[str, Any]:
         configs = self.raw.get("dataset_configs", {})
