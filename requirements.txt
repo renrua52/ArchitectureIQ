@@ -1,4 +1,4 @@
-# Streamlit Community Cloud (and similar PaaS) — question inspector entry:
+# CPU deployment requirements for Streamlit Community Cloud and similar PaaS:
 # tools/question_inspector/app.py
 streamlit>=1.32
 matplotlib>=3.8
@@ -7,5 +7,7 @@ numpy>=1.24
 pyyaml>=6.0
 typer>=0.12
 --extra-index-url https://download.pytorch.org/whl/cpu
+# For CUDA development, install the matching PyTorch CUDA wheel separately;
+# do not use this CPU-only index for that environment.
 torch>=2.0
 -e .

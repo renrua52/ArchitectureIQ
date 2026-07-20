@@ -14,8 +14,16 @@ If you use **Cursor**, **Claude Code**, or other coding agents on this repo, mak
 
 From the repository root, run:
 
+Linux/macOS:
+
 ```bash
 .venv/bin/python tools/start_quiz.py
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe tools\start_quiz.py
 ```
 
 The quiz opens automatically at <http://127.0.0.1:8501>. Press **Ctrl-C** in
@@ -30,7 +38,39 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev,inspector]"
 ```
 
+Windows PowerShell:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,inspector]"
+```
+
 Requires Python 3.10+ and PyTorch 2.x.
+
+### CPU and CUDA installation
+
+The `pyproject.toml` dependency list is the package dependency source of
+truth. The default `requirements.txt` is a CPU-oriented convenience entry
+point used by Streamlit Community Cloud and other CPU-only deployments. For
+local development, the editable install above uses the PyTorch wheel selected
+by pip.
+
+For CUDA, install a PyTorch build matching the installed NVIDIA driver and
+the CUDA version supported by that build, then install this project:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade --force-reinstall torch --index-url https://download.pytorch.org/whl/cu121
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,inspector]"
+```
+
+Replace `cu121` with the CUDA wheel index required by the selected PyTorch release. Verify with `python -c "import torch; print(torch.cuda.is_available())"`.
+
+Execution artifacts are device-specific. Do not mix CPU and CUDA candidate
+artifacts in one candidate set or question, and do not treat their ground
+truth values as directly interchangeable. `--device cuda` is strict: when
+CUDA is unavailable, candidate generation fails explicitly instead of
+silently falling back to CPU.
 
 ## Generate benchmark artifacts
 
@@ -39,6 +79,8 @@ questions through the interactive CLI:
 
 ```bash
 source .venv/bin/activate
+
+# PowerShell equivalent: .\.venv\Scripts\Activate.ps1
 
 # Create a dataset
 architecture-iq create-dataset -i
@@ -61,9 +103,9 @@ Artifacts are written under `data/` (gitignored).
 |--------|------|--------|--------|--------|
 | `univariate_regression` | R → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
 | `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
-| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
 
 Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
 
@@ -120,7 +162,7 @@ Generate a named candidate set with ground truth. Each run writes candidates und
 
 ```bash
 architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
-  --budget 1024 --count 32 --vary model --vary optimizer
+  --budget 1024 --count 32 --vary model --vary optimizer --device cpu
 architecture-iq generate-candidates -i
 ```
 
@@ -131,6 +173,7 @@ architecture-iq generate-candidates -i
 | `--budget`            | **required** (non-interactive) | `total_samples_seen`                                         |
 | `--count`             | **required** (non-interactive) | Number of candidates in this set                             |
 | `--vary`              | **required** (non-interactive) | Repeat: `model`, `optimizer`, or `loss` (axes that may vary) |
+| `--device`            | profile/default               | Execution device for new candidates: `cpu` or `cuda`        |
 | `--seed`              | `0`                            | RNG seed for candidate sampling (see below)                    |
 | `-i`, `--interactive` | off                            | Prompt for varying/invariant axes and fixed values           |
 
