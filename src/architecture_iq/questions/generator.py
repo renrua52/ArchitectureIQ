@@ -140,21 +140,43 @@ def _candidate_set_key(paths: list[Path]) -> frozenset[str]:
     return frozenset(p.name for p in paths)
 
 
-def _pick_distinct_subsets(
+def _pick_candidate_disjoint_subsets(
     subsets: list[list[Path]],
     num_questions: int,
 ) -> list[list[Path]]:
+    """Pick questions without reusing a candidate across selected subsets."""
     seen: set[frozenset[str]] = set()
-    picked: list[list[Path]] = []
+    unique: list[tuple[list[Path], frozenset[str]]] = []
     for subset in subsets:
         key = _candidate_set_key(subset)
         if key in seen:
             continue
         seen.add(key)
-        picked.append(subset)
-        if len(picked) >= num_questions:
-            break
-    return picked
+        unique.append((subset, key))
+
+    def search(
+        start: int,
+        used_candidate_ids: frozenset[str],
+        picked: list[list[Path]],
+    ) -> list[list[Path]] | None:
+        if len(picked) == num_questions:
+            return picked
+        if len(unique) - start < num_questions - len(picked):
+            return None
+        for index in range(start, len(unique)):
+            subset, candidate_ids = unique[index]
+            if not candidate_ids.isdisjoint(used_candidate_ids):
+                continue
+            result = search(
+                index + 1,
+                used_candidate_ids | candidate_ids,
+                [*picked, subset],
+            )
+            if result is not None:
+                return result
+        return None
+
+    return search(0, frozenset(), []) or []
 
 
 def _budget_field(specs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -329,12 +351,12 @@ def generate_questions(
             f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"
         )
 
-    selected_sets = _pick_distinct_subsets(subsets, num_questions)
+    selected_sets = _pick_candidate_disjoint_subsets(subsets, num_questions)
     if len(selected_sets) < num_questions:
         raise RuntimeError(
-            f"Requested {num_questions} distinct questions but only "
-            f"{len(selected_sets)} significant subsets exist "
-            f"({len(subsets)} total passing subsets)."
+            f"Requested {num_questions} candidate-disjoint questions but no valid "
+            f"selection exists among {len(subsets)} significant subsets. Generate "
+            "more candidates or request fewer questions."
         )
 
     dataset_spec = read_json(dataset_path / "dataset_spec.json")

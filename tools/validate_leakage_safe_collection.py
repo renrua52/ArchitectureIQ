@@ -75,6 +75,7 @@ def validate_collection(collection_dir: Path) -> dict[str, Any]:
     holdout_ids: list[str] = []
     support_datasets: set[str] = set()
     holdout_datasets: set[str] = set()
+    source_public_by_id: dict[str, dict[str, Any]] = {}
 
     for record in records:
         question_id = str(record["question_id"])
@@ -103,12 +104,24 @@ def validate_collection(collection_dir: Path) -> dict[str, Any]:
         if not (source_dir / "question.json").is_file():
             raise FileNotFoundError(f"Missing source question for {question_id}: {source_dir}")
         source_question = read_json(source_dir / "question.json")
+        if str(source_question.get("question_id", source_dir.name)) != question_id:
+            raise ValueError(f"Manifest question_id does not match source for {question_id}")
+        if str(source_question.get("dataset_id")) != dataset_id:
+            raise ValueError(
+                f"Manifest dataset_id does not match source for {question_id}"
+            )
         source_ids = [str(choice["candidate_id"]) for choice in source_question["choices"]]
         if source_ids != candidate_ids:
             raise ValueError(f"Manifest candidate_ids do not match source for {question_id}")
         prompt_rel = source_question.get("prompt", {}).get("rendered_path", "prompt.txt")
         if not (source_dir / prompt_rel).is_file():
             raise FileNotFoundError(f"Missing source prompt for {question_id}")
+
+        source_public_by_id[question_id] = {
+            "dataset_id": dataset_id,
+            "candidate_ids": source_ids,
+            "prompt": (source_dir / prompt_rel).read_text(encoding="utf-8"),
+        }
 
         if split == "support":
             support_ids.append(question_id)
@@ -136,15 +149,33 @@ def validate_collection(collection_dir: Path) -> dict[str, Any]:
                 f"{split}.json exposes private fields: {', '.join(forbidden[:5])}"
             )
         for item in payload:
+            question_id = str(item.get("question_id"))
+            expected = source_public_by_id[question_id]
+            public_candidate_ids = [
+                str(choice.get("candidate_id")) for choice in item.get("choices", [])
+            ]
+            if str(item.get("dataset_id")) != expected["dataset_id"]:
+                raise ValueError(
+                    f"Public dataset_id does not match source for {question_id}"
+                )
+            if public_candidate_ids != expected["candidate_ids"]:
+                raise ValueError(
+                    f"Public candidate_ids do not match source for {question_id}"
+                )
             prompt = str(item.get("prompt", ""))
             if not prompt.strip():
-                raise ValueError(f"Public question {item.get('question_id')} has no prompt")
+                raise ValueError(f"Public question {question_id} has no prompt")
             lowered = prompt.lower()
-            marker = next((value for value in FORBIDDEN_PROMPT_MARKERS if value in lowered), None)
+            marker = next(
+                (value for value in FORBIDDEN_PROMPT_MARKERS if value in lowered),
+                None,
+            )
             if marker is not None:
                 raise ValueError(
-                    f"Public prompt {item.get('question_id')} contains private marker {marker!r}"
+                    f"Public prompt {question_id} contains private marker {marker!r}"
                 )
+            if prompt != expected["prompt"]:
+                raise ValueError(f"Public prompt does not match source for {question_id}")
 
     split_mode = manifest.get("split_mode")
     if split_mode == "id":
