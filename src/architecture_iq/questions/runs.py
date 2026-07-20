@@ -67,6 +67,7 @@ def write_run_manifest(
         ],
         "num_questions": num_questions,
         "num_choices": num_choices,
+        "candidate_reuse_policy": "globally_disjoint_within_run",
         "question_ids": question_ids,
         "seed": seed,
         "profile": profile.name,

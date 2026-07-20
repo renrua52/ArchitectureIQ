@@ -9,7 +9,7 @@ from architecture_iq.candidates.generator import choices_compatible, sample_vari
 from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries
 from architecture_iq.questions.generator import (
-    _pick_distinct_subsets,
+    _pick_candidate_disjoint_subsets,
     eligible_candidate_paths,
     find_significant_subsets,
     select_significant_candidates,
@@ -147,9 +147,31 @@ def test_find_significant_subsets_returns_multiple() -> None:
             subsets = find_significant_subsets(pool, profile, rng, num_choices=2)
 
     assert len(subsets) >= 2
-    picked = _pick_distinct_subsets(subsets, 2)
+    picked = _pick_candidate_disjoint_subsets(subsets, 2)
     assert len(picked) == 2
-    assert _pick_distinct_subsets(subsets, 2)[0] != _pick_distinct_subsets(subsets, 2)[1]
+    assert set(picked[0]).isdisjoint(picked[1])
+
+
+def test_candidate_disjoint_picker_backtracks_past_greedy_dead_end() -> None:
+    subsets = [
+        [Path("a"), Path("c")],
+        [Path("a"), Path("b")],
+        [Path("c"), Path("d")],
+    ]
+
+    picked = _pick_candidate_disjoint_subsets(subsets, 2)
+
+    assert picked == [subsets[1], subsets[2]]
+
+
+def test_candidate_disjoint_picker_returns_empty_when_impossible() -> None:
+    subsets = [
+        [Path("a"), Path("b")],
+        [Path("a"), Path("c")],
+        [Path("b"), Path("c")],
+    ]
+
+    assert _pick_candidate_disjoint_subsets(subsets, 2) == []
 
 
 def test_select_significant_candidates_exhaustive() -> None:
