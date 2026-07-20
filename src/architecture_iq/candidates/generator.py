@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 import random
-from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from architecture_iq.losses import render_loss_py
 from architecture_iq.models.base import ModelFamily
+from architecture_iq.candidates.axes import choices_compatible as choices_compatible
 from architecture_iq.optimizers.factory import render_optimizer_py
 from architecture_iq.profile import Profile, validate_execution_device
 from architecture_iq.registry import get_model_type
@@ -321,9 +321,6 @@ def _train_py_for_family(family: str) -> str:
     if family == "synthetic_tabular_classification":
         return CLASSIFICATION_TRAIN_PY
     return REGRESSION_TRAIN_PY
-
-from architecture_iq.candidates.axes import SINGLE_AXIS_TYPES, choices_compatible
-
 
 def _spec_json(spec: dict[str, Any], key: str) -> str:
     return json.dumps(spec[key], sort_keys=True)

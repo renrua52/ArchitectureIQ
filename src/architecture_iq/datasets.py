@@ -5,11 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from architecture_iq.families.base import DatasetFamily
 from architecture_iq.paths import DATA_DIR, dataset_dir
 from architecture_iq.profile import Profile
 from architecture_iq.registry import get_dataset_family
-from architecture_iq.util import read_json, write_json
+from architecture_iq.util import read_json
 
 
 @dataclass(frozen=True)

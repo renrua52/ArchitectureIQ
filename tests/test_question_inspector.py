@@ -85,8 +85,14 @@ def test_load_question_bundle(question_path: Path) -> None:
 def test_load_dataset_tensors(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     tx, ty, vx, vy = load_dataset_tensors(bundle.dataset_dir)
-    assert tx.ndim == 2 and ty.shape == tx.shape
-    assert vx.shape == tx.shape and vy.shape == ty.shape
+    # Train and test may intentionally have different sample counts (the
+    # bundled bigram demo uses 800/200). Validate each split independently
+    # and require matching non-batch dimensions.
+    assert tx.ndim == 2
+    assert tx.shape[0] == ty.shape[0]
+    assert vx.shape[0] == vy.shape[0]
+    assert vx.shape[1:] == tx.shape[1:]
+    assert vy.shape[1:] == ty.shape[1:]
 
 
 def test_format_metrics() -> None:

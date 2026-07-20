@@ -84,7 +84,6 @@ def _prepare_out_dir(out_dir: Path, *, overwrite: bool) -> None:
 
 
 def _find_items(data_root: Path, question_ids: list[str]) -> list[QuestionItem]:
-    wanted = set(question_ids)
     items_by_id = {item.question_id: item for item in list_questions(data_root)}
     missing = [qid for qid in question_ids if qid not in items_by_id]
     if missing:

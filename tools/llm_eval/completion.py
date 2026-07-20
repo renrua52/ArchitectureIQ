@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from llm_client import LLMClient, LLMCompletion, ModelConfig, message_parts
+from llm_client import LLMClient, ModelConfig, message_parts
 from response_parser import parse_choice_letter
 
 _LENGTH_STOP_REASONS = frozenset({"length", "max_tokens"})
