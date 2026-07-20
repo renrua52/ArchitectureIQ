@@ -50,14 +50,14 @@ holdout:
 91441c6 feat: enforce leakage-safe support and holdout protocol
 ```
 
-截至本文档编写时：
+最终合并状态：
 
 - 功能已在 feature branch 完成；
-- 上述两个提交尚未合入 `main`；
-- 因此目前不存在 main merge commit，不应把本功能描述为已经进入 main；
-- 合并前应再次确认目标 main 没有新增冲突性修改。
+- 已通过 `7628956 merge: add leakage-safe evaluation collections` 合入本地 `main`；
+- 合并后的完整测试为 `165 passed`，Ruff 为 `All checks passed!`；
+- 本地 `main` 当前领先 `origin/main`，尚未推送 GitHub。
 
-建议合并时保留这两个独立提交，方便分别追踪：
+两个功能提交仍保留在 merge 历史中，方便分别追踪：
 
 1. collection builder/validator；
 2. 核心生成约束和 support/holdout 协议。
@@ -766,10 +766,8 @@ current
 
 ## 14. 后续开发建议
 
-### 第一阶段：合并并冻结当前协议
+### 第一阶段：真实数据 smoke 并冻结当前协议
 
-- 将 `4b6a7ee`、`91441c6` 合入 main；
-- 在合并后的 main 再跑 full pytest 和 Ruff；
 - 生成至少一个真实 ID collection；
 - 使用 validator 验证；
 - 用一个模型完成 support/holdout smoke；
@@ -834,19 +832,19 @@ support 返回反馈，holdout 不返回反馈
 
 ## 16. 合并检查清单
 
-- [ ] 目标 main 工作树干净；
-- [ ] `4b6a7ee` 和 `91441c6` 都在待合并历史中；
-- [ ] 没有把旧 historical sequential runner 的删除混入本次合并；
-- [ ] focused tests 通过；
-- [ ] full pytest 通过；
-- [ ] Ruff 通过；
+- [x] 目标 main 工作树干净；
+- [x] `4b6a7ee` 和 `91441c6` 已进入 main 历史；
+- [x] 没有把旧 historical sequential runner 的删除混入本次合并；
+- [x] focused tests 通过；
+- [x] full pytest 通过；
+- [x] Ruff 通过；
 - [ ] 生成一个真实 ID collection；
 - [ ] validator 返回 `valid: true`；
-- [ ] support 答案会返回 feedback；
-- [ ] holdout 答案不会返回 feedback；
-- [ ] holdout 开始后不能继续修改 lesson；
+- [x] support 答案会返回 feedback；
+- [x] holdout 答案不会返回 feedback；
+- [x] holdout 开始后不能继续修改 lesson；
 - [ ] `collection.json`、private feedback 和 session 文件不会暴露给 agent；
-- [ ] 合并后记录最终 main commit；
+- [x] 最终 main merge commit 已记录为 `7628956`；
 - [ ] 再从新 main 同步后续题目扩展和 KAN 分支。
 
-本次交付已经完成采样泄露工作的第一版协议和工具链。下一步应先将它稳定合入 main，再在这个基线上扩展题目数量，之后推进 KAN 问题包和更细粒度的 OOD 测试。
+本次交付已经完成并合入采样泄露工作的第一版协议和工具链。下一步应先完成真实 collection 与模型 smoke，再在这个基线上扩展题目数量，之后推进 KAN 问题包和更细粒度的 OOD 测试。
