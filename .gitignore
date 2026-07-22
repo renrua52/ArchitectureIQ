@@ -229,3 +229,19 @@ artifacts/ranking_questions/
 
 # Finder metadata from imported templates
 templates/**/__MACOSX/
+
+# Local frontend/build and test scratch
+node_modules/
+*.tsbuildinfo
+.tmp/
+.pytest-tmp-*/
+pytest-*/
+.prepush-tmp/
+
+# Generated release/smoke outputs. Keep only the selected v2 release record.
+outputs/*
+!outputs/
+!outputs/demo_release_integration/
+outputs/demo_release_integration/*
+!outputs/demo_release_integration/DEMO_RELEASE_INTEGRATION_FINAL_REPORT.md
+!outputs/demo_release_integration/RELEASE_FREEZE_MANIFEST.json
