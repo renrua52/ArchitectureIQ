@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+
+import numpy as np
 
 import pytest
+import torch
 
 # Import from tools directory without installing a package.
 import sys
@@ -33,6 +37,7 @@ from custom_settings import (  # noqa: E402
 )
 from expression_latex import expression_to_latex, expression_to_mathml  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
+import app as inspector_app  # noqa: E402
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -76,6 +81,8 @@ def test_expression_to_mathml_multivariate_subscripts() -> None:
 def test_load_question_bundle(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     assert bundle.question["question_id"].startswith("q_")
+    provenance = inspector_app._profile_provenance(bundle, bundle.question)
+    assert provenance == {"profile": "v1", "profile_hash": "legacy/unknown"}
     assert len(bundle.choices) == bundle.question["num_choices"]
     for choice in bundle.choices:
         assert choice["candidate_dir"].is_dir()
@@ -391,6 +398,13 @@ def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.Monk
     runs = list_custom_setting_runs(storage_root)
     assert len(runs) == 1
     assert runs[0]["label"] == "My setting #0001"
+    assert runs[0]["profile"] == profile.name
+    assert runs[0]["profile_hash"] == profile.profile_hash
+    setting_manifest = json.loads((storage_root / result["custom_setting_id"] / "setting.json").read_text())
+    summary = json.loads((storage_root / result["custom_setting_id"] / "results" / "summary.json").read_text())
+    assert setting_manifest["profile_hash"] == profile.profile_hash
+    assert summary["profile"] == profile.name
+    assert summary["profile_hash"] == profile.profile_hash
 
 
 def test_custom_settings_keep_latest_and_best_history(
@@ -497,6 +511,39 @@ def test_load_candidate_curves(question_path: Path) -> None:
     assert len(loaded["eval_samples"]) == loaded["curves"].shape[1]
 
 
+def test_curve_series_exposes_positive_log_quantiles(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate_dir = tmp_path / "c_test"
+    candidate_dir.mkdir()
+    (candidate_dir / "candidate_spec.json").write_text(
+        '{"budget": {"total_samples_seen": 96, "batch_size": 32}}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        inspector_app,
+        "load_candidate_curves",
+        lambda *_args, **_kwargs: {
+            "curves": np.asarray(
+                [[1.0, 10.0, 100.0], [3.0, 100.0, 1000.0], [5.0, 1000.0, 10000.0]]
+            ),
+            "eval_samples": [32, 64, 96],
+        },
+    )
+
+    series = inspector_app._curve_series_from_candidate(
+        candidate_dir,
+        label="candidate",
+        color="#000000",
+    )
+
+    assert series is not None
+    assert np.all(series["log_q10"] > 0)
+    assert np.all(series["log_q10"] < series["log_median"])
+    assert np.all(series["log_median"] < series["log_q90"])
+    assert np.allclose(series["log_median"], [3.0, 100.0, 1000.0])
+
 def test_list_question_dirs() -> None:
     pool = list_question_dirs(DATA)
     assert pool
@@ -508,3 +555,154 @@ def test_question_label(question_path: Path) -> None:
     label = question_label(question_path)
     assert question_path.name in label
     assert " · " in label
+
+
+
+def test_startup_question_collection_uses_manifest_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = tmp_path / "data"
+    first = data_root / "datasets" / "demo" / "first"
+    second = data_root / "datasets" / "demo" / "second"
+    for question_dir in (first, second):
+        question_dir.mkdir(parents=True)
+        (question_dir / "question.json").write_text("{}", encoding="utf-8")
+    manifest = tmp_path / "review.json"
+    manifest.write_text(
+        '{"question_paths": ["datasets/demo/second", "datasets/demo/first", '
+        '"datasets/demo/second", "datasets/demo/missing", 7]}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(inspector_app.sys, "argv", ["streamlit", str(manifest)])
+
+    assert inspector_app._discover_questions(str(data_root)) == [
+        second.resolve(),
+        first.resolve(),
+    ]
+    assert inspector_app._default_question_path(
+        [second.resolve(), first.resolve()], str(data_root)
+    ) == second.resolve()
+
+
+def test_startup_question_collection_rejects_paths_outside_data_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    data_root = tmp_path / "data"
+    data_root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "question.json").write_text("{}", encoding="utf-8")
+    manifest = tmp_path / "review.json"
+    manifest.write_text(
+        json.dumps({"question_paths": [str(outside)]}), encoding="utf-8"
+    )
+    monkeypatch.setattr(inspector_app.sys, "argv", ["streamlit", str(manifest)])
+
+    assert inspector_app._startup_question_collection(str(data_root)) == []
+def test_classification_projection_accepts_vector_labels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rendered: list[object] = []
+    monkeypatch.setattr(
+        inspector_app.st,
+        "pyplot",
+        lambda figure, **_: rendered.append(figure),
+    )
+    train_x = torch.tensor([[0.0, 1.0], [1.0, 0.0], [0.5, 0.5]])
+    train_y = torch.tensor([0, 1, 0])
+    test_x = torch.tensor([[0.25, 0.75], [0.75, 0.25]])
+    test_y = torch.tensor([1, 0])
+
+    inspector_app._plot_synthetic_tabular_classification(
+        train_x, train_y, test_x, test_y
+    )
+
+    assert len(rendered) == 1
+
+@pytest.mark.parametrize(
+    ("params", "input_dim", "expected_pair", "reason_fragment"),
+    [
+        (
+            {
+                "rule_family": "sparse_interaction",
+                "active_features": [1, 4],
+                "interaction_pairs": [[1, 4]],
+            },
+            6,
+            (1, 4),
+            "interaction",
+        ),
+        (
+            {
+                "rule_family": "piecewise_boundary",
+                "active_features": [1, 4],
+            },
+            6,
+            (1, 4),
+            "piecewise",
+        ),
+        (
+            {
+                "rule_family": "smooth_additive",
+                "active_features": [1, 4],
+            },
+            6,
+            (1, 4),
+            "additive",
+        ),
+    ],
+)
+def test_select_rule_aware_classification_pair(
+    params: dict[str, object],
+    input_dim: int,
+    expected_pair: tuple[int, int],
+    reason_fragment: str,
+) -> None:
+    first, second, reason = inspector_app._select_rule_aware_classification_pair(
+        params, input_dim
+    )
+
+    assert (first, second) == expected_pair
+    assert reason_fragment in reason.lower()
+
+
+def test_classification_probability_grid_reports_counts_probabilities_and_empty_bins() -> None:
+    features = np.asarray(
+        [[0.1, 0.1], [0.2, 0.2], [0.8, 0.8], [0.9, 0.9]]
+    )
+    labels = np.asarray([0, 1, 1, 1])
+
+    x_edges, y_edges, probability, counts = inspector_app._classification_probability_grid(
+        features, labels, 0, 1, bins=3
+    )
+
+    assert x_edges.shape == (4,)
+    assert y_edges.shape == (4,)
+    assert probability.shape == (3, 3)
+    assert counts.shape == (3, 3)
+    assert counts.sum() == features.shape[0]
+    assert np.all(np.isnan(probability[counts == 0]))
+    assert probability[0, 0] == pytest.approx(0.5)
+    assert probability[2, 2] == pytest.approx(1.0)
+    assert np.all((probability[counts > 0] >= 0.0) & (probability[counts > 0] <= 1.0))
+
+
+def test_select_observed_classification_pair_finds_high_contrast_pair() -> None:
+    rows: list[list[float]] = []
+    labels: list[int] = []
+    for first, second in ((0, 0), (0, 1), (1, 0), (1, 1)):
+        for offset in (0.02, 0.08):
+            rows.append([first + offset, second + offset, 0.25 + offset])
+            labels.append(int(first != second))
+    x = np.asarray(rows)
+    y = np.asarray(labels)
+
+    first, second, score = inspector_app._select_observed_classification_pair(x, y, bins=2)
+
+    assert {first, second} == {0, 1}
+    assert 0.0 <= score <= 1.0
+    assert score > 0.2

@@ -271,15 +271,37 @@ class Model(nn.Module):
         output_dim = int(
             dataset_params.get("num_classes", dataset_params.get("output_dim", 1))
         ) if dataset_params else 1
+        archetype = None
+        archetypes = cfg.get("archetypes", {})
+        if isinstance(archetypes, dict):
+            choices = archetypes.get(str(input_dim), archetypes.get(input_dim))
+            if choices:
+                archetype = rng.choice(choices)
+        if archetype is None:
+            architecture = {
+                "depth": rng.choice(cfg["depth"]),
+                "width": rng.choice(cfg["width"]),
+                "grid_size": rng.choice(cfg["grid_size"]),
+                "spline_order": rng.choice(cfg["spline_order"]),
+                "base_activation": rng.choice(cfg["base_activation"]),
+            }
+        else:
+            required = ("depth", "width", "grid_size", "spline_order", "base_activation")
+            missing = [key for key in required if key not in archetype]
+            if missing:
+                raise ValueError(
+                    f"KAN archetype for input_dim={input_dim} is missing: {', '.join(missing)}"
+                )
+            architecture = {key: archetype[key] for key in required}
         return {
             "type": self.name,
             "variant": str(cfg.get("variant", "efficient_spline_v1")),
             "input_dim": input_dim,
             "output_dim": output_dim,
-            "depth": int(rng.choice(cfg["depth"])),
-            "width": int(rng.choice(cfg["width"])),
-            "grid_size": int(rng.choice(cfg["grid_size"])),
-            "spline_order": int(rng.choice(cfg["spline_order"])),
+            "depth": int(architecture["depth"]),
+            "width": int(architecture["width"]),
+            "grid_size": int(architecture["grid_size"]),
+            "spline_order": int(architecture["spline_order"]),
             "grid_range": [float(grid_range[0]), float(grid_range[1])],
-            "base_activation": str(rng.choice(cfg["base_activation"])),
+            "base_activation": str(architecture["base_activation"]),
         }

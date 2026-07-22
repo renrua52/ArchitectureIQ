@@ -102,6 +102,59 @@ class Profile:
         return self.raw.get("kan", {})
 
     @property
+    def model_gates(self) -> dict[str, Any]:
+        """Profile-scoped overrides for family/model compatibility."""
+        gates = self.raw.get("model_gates", {})
+        if not isinstance(gates, dict):
+            raise ValueError("model_gates must be a mapping when present")
+        return gates
+
+    def model_types_for_family(
+        self,
+        family: str,
+        family_model_types: list[str],
+    ) -> list[str]:
+        """Return profile-allowed model types for a dataset family.
+
+        Normally this is the intersection of the profile model pool and the
+        family compatibility declaration. A newer profile may explicitly
+        replace a family's declaration through ``model_gates`` without
+        changing older profile behaviour.
+        """
+        gate = self.model_gates.get(family)
+        compatible = list(family_model_types)
+        if gate is not None:
+            if not isinstance(gate, dict):
+                raise ValueError(f"model gate for {family!r} must be a mapping")
+            override = gate.get("compatible_model_types")
+            if override is not None:
+                if not isinstance(override, list) or not all(isinstance(item, str) for item in override):
+                    raise ValueError(
+                        f"model_gates.{family}.compatible_model_types must be a list of strings"
+                    )
+                compatible = list(override)
+            additions = gate.get("additional_model_types", [])
+            if additions:
+                if not isinstance(additions, list) or not all(isinstance(item, str) for item in additions):
+                    raise ValueError(
+                        f"model_gates.{family}.additional_model_types must be a list of strings"
+                    )
+                compatible.extend(item for item in additions if item not in compatible)
+            blocked = gate.get("blocked_model_types", [])
+            if blocked:
+                if not isinstance(blocked, list) or not all(isinstance(item, str) for item in blocked):
+                    raise ValueError(
+                        f"model_gates.{family}.blocked_model_types must be a list of strings"
+                    )
+                blocked_set = set(blocked)
+                compatible = [item for item in compatible if item not in blocked_set]
+        return [
+            model_type
+            for model_type in self.pools.get("model_types", [])
+            if model_type in compatible
+        ]
+
+    @property
     def profile_hash(self) -> str:
         payload = json.dumps(self.raw, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]

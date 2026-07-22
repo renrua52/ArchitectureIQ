@@ -92,7 +92,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--question-run",
         default=DEFAULT_RUN,
-        help="Question run or question directory to open first.",
+        help="Question, run, or review-collection JSON to open.",
     )
     parser.add_argument(
         "--no-browser",

@@ -4,7 +4,7 @@ import inspect
 import platform
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -16,6 +16,20 @@ from architecture_iq.runtime.loader import load_candidate_train
 from architecture_iq.significance.validator import final_metric_key, mean_metric_key
 from architecture_iq.util import git_commit_hash, write_json
 from architecture_iq.paths import ROOT
+
+
+ProgressCallback = Callable[[dict[str, Any]], None]
+
+
+def _emit_progress(callback: ProgressCallback | None, event: dict[str, Any]) -> None:
+    """Report optional UI progress without affecting ground-truth execution."""
+    if callback is None:
+        return
+    try:
+        callback(event)
+    except Exception:
+        # Progress is observational; a UI refresh failure must not invalidate GT.
+        return
 
 
 def _sync_candidate_files(candidate_path: Path, spec: dict[str, Any]) -> None:
@@ -51,6 +65,7 @@ def run_single_seed(
     *,
     selection_metric: str,
     device: torch.device,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     train_mod = load_candidate_train(candidate_path)
     if not hasattr(train_mod, "train_and_eval"):
@@ -64,7 +79,8 @@ def run_single_seed(
         "seed": seed,
         "fail_threshold": fail_threshold,
     }
-    supports_device = "device" in inspect.signature(train_mod.train_and_eval).parameters
+    parameters = inspect.signature(train_mod.train_and_eval).parameters
+    supports_device = "device" in parameters
     if supports_device:
         kwargs["device"] = str(device)
     elif device.type != "cpu":
@@ -72,6 +88,8 @@ def run_single_seed(
             f"{candidate_path}/train.py predates device-aware execution; "
             "regenerate this CUDA candidate from candidate_spec.json"
         )
+    if progress_callback is not None and "progress_callback" in parameters:
+        kwargs["progress_callback"] = progress_callback
     result = train_mod.train_and_eval(
         train_x,
         train_y,
@@ -101,6 +119,7 @@ def run_ground_truth(
     *,
     sync_files: bool = True,
     fail_threshold_override: float | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     from architecture_iq.util import read_json
 
@@ -132,22 +151,51 @@ def run_ground_truth(
     base_seed = profile.base_seed
     seed_results: list[dict[str, Any]] = []
 
+    training_steps = int(spec["budget"]["training_steps"])
+    total_samples_seen = int(spec["budget"]["total_samples_seen"])
     for i in range(n_seeds):
-        seed_results.append(
-            run_single_seed(
-                candidate_path,
-                spec,
-                train_x,
-                train_y,
-                test_x,
-                test_y,
-                base_seed + i,
-                fail_threshold,
-                selection_metric=selection_metric,
-                device=device,
-            )
-        )
+        seed_index = i + 1
+        seed = base_seed + i
+        base_event = {
+            "seed_index": seed_index,
+            "n_seeds": n_seeds,
+            "seed": seed,
+            "training_steps": training_steps,
+            "total_samples_seen": total_samples_seen,
+            "selection_metric": selection_metric,
+        }
+        _emit_progress(progress_callback, {"phase": "seed_started", **base_event})
 
+        def report_evaluation(
+            event: dict[str, Any],
+            *,
+            context: dict[str, Any] = base_event,
+        ) -> None:
+            _emit_progress(progress_callback, {"phase": "evaluation", **context, **event})
+
+        seed_result = run_single_seed(
+            candidate_path,
+            spec,
+            train_x,
+            train_y,
+            test_x,
+            test_y,
+            seed,
+            fail_threshold,
+            selection_metric=selection_metric,
+            device=device,
+            progress_callback=report_evaluation,
+        )
+        seed_results.append(seed_result)
+        _emit_progress(
+            progress_callback,
+            {
+                "phase": "seed_finished",
+                **base_event,
+                "failed": bool(seed_result["failed"]),
+                "metric": float(seed_result[final_key]),
+            },
+        )
     ok = [r for r in seed_results if not r["failed"]]
     failed_count = len(seed_results) - len(ok)
     finals = [r[final_key] for r in ok] or [float("inf")]

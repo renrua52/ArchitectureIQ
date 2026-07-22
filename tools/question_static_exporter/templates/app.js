@@ -69,8 +69,15 @@ function score() {
   return { total, correct };
 }
 
+function isOrderedMode() {
+  return Boolean(data.collection);
+}
+
 function setQuestion(index) {
-  state.index = (index + data.questions.length) % data.questions.length;
+  if (!data.questions.length) return;
+  state.index = isOrderedMode()
+    ? Math.max(0, Math.min(index, data.questions.length - 1))
+    : (index + data.questions.length) % data.questions.length;
   state.focusLetter = null;
   state.fileScope = "prompt";
   state.fileName = null;
@@ -117,7 +124,11 @@ function renderSidebar() {
       el("label", { class: "fact-label", text: "Question" }),
       questionSelect(),
       el("div", { class: "sidebar-actions", style: "margin-top: .7rem" }, [
-        el("button", { text: "Next", onclick: () => setQuestion(state.index + 1) }),
+        el("button", {
+          text: "Next",
+          disabled: isOrderedMode() && state.index >= data.questions.length - 1,
+          onclick: () => setQuestion(state.index + 1),
+        }),
         el("button", {
           text: "Random",
           onclick: () => setQuestion(Math.floor(Math.random() * data.questions.length)),

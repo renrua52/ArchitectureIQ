@@ -10,7 +10,7 @@ from architecture_iq.models.base import ModelFamily
 from architecture_iq.candidates.axes import choices_compatible as choices_compatible
 from architecture_iq.optimizers.factory import render_optimizer_py
 from architecture_iq.profile import Profile, validate_execution_device
-from architecture_iq.registry import get_model_type
+from architecture_iq.registry import ensure_registries, get_model_type
 from architecture_iq.util import short_hash, write_json
 
 REGRESSION_TRAIN_PY = '''"""Training loop for this candidate — executed by the ground-truth runner."""
@@ -54,6 +54,7 @@ def train_and_eval(
     seed: int = 0,
     fail_threshold: float = float("inf"),
     device: str = "cpu",
+    progress_callback=None,
 ) -> dict:
     torch.manual_seed(seed)
     run_device = _resolve_device(device)
@@ -69,6 +70,7 @@ def train_and_eval(
     step_metrics: list[float] = []
     eval_samples: list[int] = []
     failed = False
+    progress_interval = max(1, steps // 100)
 
     for step in range(1, steps + 1):
         model.train()
@@ -88,6 +90,18 @@ def train_and_eval(
             break
         eval_samples.append(step * batch_size)
         step_metrics.append(metric)
+        if progress_callback is not None and (
+            step == 1 or step % progress_interval == 0 or step == steps
+        ):
+            progress_callback(
+                {
+                    "step": step,
+                    "training_steps": steps,
+                    "samples_seen": step * batch_size,
+                    "total_samples_seen": steps * batch_size,
+                    "metric": metric,
+                }
+            )
 
     final_metric = step_metrics[-1] if step_metrics else float("inf")
     if final_metric > fail_threshold:
@@ -171,6 +185,7 @@ def train_and_eval(
     seed: int = 0,
     fail_threshold: float = float("inf"),
     device: str = "cpu",
+    progress_callback=None,
 ) -> dict:
     torch.manual_seed(seed)
     run_device = _resolve_device(device)
@@ -186,6 +201,7 @@ def train_and_eval(
     step_metrics: list[float] = []
     eval_samples: list[int] = []
     failed = False
+    progress_interval = max(1, steps // 100)
 
     for step in range(1, steps + 1):
         model.train()
@@ -205,6 +221,18 @@ def train_and_eval(
             break
         eval_samples.append(step * batch_size)
         step_metrics.append(metric)
+        if progress_callback is not None and (
+            step == 1 or step % progress_interval == 0 or step == steps
+        ):
+            progress_callback(
+                {
+                    "step": step,
+                    "training_steps": steps,
+                    "samples_seen": step * batch_size,
+                    "total_samples_seen": steps * batch_size,
+                    "metric": metric,
+                }
+            )
 
     final_metric = step_metrics[-1] if step_metrics else float("inf")
     if final_metric > fail_threshold:
@@ -263,6 +291,7 @@ def train_and_eval(
     seed: int = 0,
     fail_threshold: float = float("inf"),
     device: str = "cpu",
+    progress_callback=None,
 ) -> dict:
     torch.manual_seed(seed)
     run_device = _resolve_device(device)
@@ -278,6 +307,7 @@ def train_and_eval(
     step_metrics: list[float] = []
     eval_samples: list[int] = []
     failed = False
+    progress_interval = max(1, steps // 100)
     final_accuracy = float("nan")
 
     for step in range(1, steps + 1):
@@ -299,6 +329,19 @@ def train_and_eval(
         eval_samples.append(step * batch_size)
         step_metrics.append(ce)
         final_accuracy = accuracy
+        if progress_callback is not None and (
+            step == 1 or step % progress_interval == 0 or step == steps
+        ):
+            progress_callback(
+                {
+                    "step": step,
+                    "training_steps": steps,
+                    "samples_seen": step * batch_size,
+                    "total_samples_seen": steps * batch_size,
+                    "metric": ce,
+                    "accuracy": accuracy,
+                }
+            )
 
     final_metric = step_metrics[-1] if step_metrics else float("inf")
     if final_metric > fail_threshold:
@@ -399,13 +442,25 @@ def sample_model(
     from architecture_iq.registry import get_dataset_family
 
     family_obj = get_dataset_family(family)
-    allowed = set(family_obj.compatible_model_types())
-    model_types = [m for m in profile.pools["model_types"] if m in allowed]
+    model_types = profile.model_types_for_family(
+        family,
+        family_obj.compatible_model_types(),
+    )
     if not model_types:
         raise ValueError(f"No compatible model types for family {family!r}")
     model_type = rng.choice(model_types)
     return get_model_type(model_type).sample_spec(profile, rng, dataset_params=dataset_params)
 
+
+def trainable_parameter_count(model_spec: dict[str, Any]) -> int:
+    """Count unique trainable scalar parameters for a frozen model specification."""
+    import torch
+
+    ensure_registries()
+    model_family = get_model_type(str(model_spec["type"]))
+    with torch.random.fork_rng():
+        module = model_family.build_module(model_spec)
+    return int(sum(parameter.numel() for parameter in module.parameters() if parameter.requires_grad))
 
 def build_candidate_spec(
     profile: Profile,
@@ -433,6 +488,7 @@ def build_candidate_spec(
             "total_samples_seen": budget,
         },
         "model": model,
+        "trainable_parameter_count": trainable_parameter_count(model),
         "optimizer": optimizer,
         "loss": loss,
         "execution": {"device": device},

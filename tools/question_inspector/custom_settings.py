@@ -8,7 +8,7 @@ import shutil
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from architecture_iq.candidates.generator import build_candidate_spec, write_candidate
 from architecture_iq.ground_truth.runner import run_ground_truth
@@ -45,8 +45,8 @@ def clear_legacy_question_custom_settings(question_root: Path) -> None:
 def compatible_model_types(profile: Profile, family: str) -> list[str]:
     """Return profile model types that can train on ``family``."""
     ensure_registries()
-    compatible = set(get_dataset_family(family).compatible_model_types())
-    return [name for name in profile.pools["model_types"] if name in compatible]
+    family_obj = get_dataset_family(family)
+    return profile.model_types_for_family(family, family_obj.compatible_model_types())
 
 
 def build_model_spec(
@@ -416,6 +416,7 @@ def run_custom_setting(
     n_seeds: int,
     base_seed: int,
     inherited_from: dict[str, Any] | None = None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Materialize and train one setting without modifying benchmark candidates."""
     if n_seeds <= 0:
@@ -435,19 +436,30 @@ def run_custom_setting(
     run_profile.ground_truth["n_seeds"] = int(n_seeds)
     run_profile.ground_truth["base_seed"] = int(base_seed)
     try:
+        runner_kwargs: dict[str, Any] = {
+            "dataset_path": dataset_path,
+            "fail_threshold_override": float("inf"),
+        }
+        if progress_callback is not None:
+            runner_kwargs["progress_callback"] = progress_callback
         summary = run_ground_truth(
             output_dir,
             run_profile,
-            dataset_path=dataset_path,
-            fail_threshold_override=float("inf"),
+            **runner_kwargs,
         )
     except Exception:
         if output_dir.is_dir():
             shutil.rmtree(output_dir)
         raise
 
+    summary["profile"] = profile.name
+    summary["profile_hash"] = profile.profile_hash
+    write_json(output_dir / "results" / "summary.json", summary)
+
     manifest = {
         "schema_version": profile.schema_version,
+        "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "custom_setting_id": run_id,
         "sequence": sequence,
         "label": unique_label,

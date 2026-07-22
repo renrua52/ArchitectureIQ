@@ -144,7 +144,13 @@ def _pick_candidate_disjoint_subsets(
     subsets: list[list[Path]],
     num_questions: int,
 ) -> list[list[Path]]:
-    """Pick questions without reusing a candidate across selected subsets."""
+    """Pick candidate-disjoint subsets deterministically.
+
+    Small pools retain the exact search used historically. Large pools first
+    use the current subset order greedily, then spend a bounded node budget on
+    backtracking so pathological subset counts cannot cause an unbounded
+    recursive search.
+    """
     seen: set[frozenset[str]] = set()
     unique: list[tuple[list[Path], frozenset[str]]] = []
     for subset in subsets:
@@ -153,6 +159,9 @@ def _pick_candidate_disjoint_subsets(
             continue
         seen.add(key)
         unique.append((subset, key))
+
+    if num_questions <= 0 or not unique:
+        return []
 
     def search(
         start: int,
@@ -176,9 +185,51 @@ def _pick_candidate_disjoint_subsets(
                 return result
         return None
 
-    return search(0, frozenset(), []) or []
+    exact_limit = 200
+    if len(unique) <= exact_limit:
+        return search(0, frozenset(), []) or []
 
+    picked: list[list[Path]] = []
+    used_candidate_ids: frozenset[str] = frozenset()
+    for subset, candidate_ids in unique:
+        if candidate_ids.isdisjoint(used_candidate_ids):
+            picked.append(subset)
+            used_candidate_ids = used_candidate_ids | candidate_ids
+            if len(picked) == num_questions:
+                return picked
 
+    node_budget = 20_000
+    nodes = 0
+
+    def bounded_search(
+        start: int,
+        used: frozenset[str],
+        selected: list[list[Path]],
+    ) -> list[list[Path]] | None:
+        nonlocal nodes
+        nodes += 1
+        if nodes > node_budget:
+            return None
+        if len(selected) == num_questions:
+            return selected
+        if len(unique) - start < num_questions - len(selected):
+            return None
+        for index in range(start, len(unique)):
+            subset, candidate_ids = unique[index]
+            if not candidate_ids.isdisjoint(used):
+                continue
+            result = bounded_search(
+                index + 1,
+                used | candidate_ids,
+                [*selected, subset],
+            )
+            if result is not None:
+                return result
+            if nodes > node_budget:
+                return None
+        return None
+
+    return bounded_search(0, frozenset(), []) or []
 def _budget_field(specs: list[dict[str, Any]]) -> dict[str, Any]:
     totals = {spec["budget"]["total_samples_seen"] for spec in specs}
     if len(totals) == 1:
@@ -249,6 +300,7 @@ def build_question_record(
 
     body = {
         "schema_version": profile.schema_version,
+        "profile_hash": profile.profile_hash,
         "family": dataset_spec["family"],
         "dataset_id": dataset_spec["dataset_id"],
         "budget": _budget_field(specs),

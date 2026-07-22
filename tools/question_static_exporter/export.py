@@ -58,6 +58,7 @@ class ExportOptions:
     zip_path: Path | None
     include_code: bool
     overwrite: bool
+    collection: Path | None = None
 
 
 def _json_default(value: Any) -> Any:
@@ -312,6 +313,29 @@ def _plot_dataset(bundle: Any, out_path: Path) -> bool:
                 ax.set_ylabel("y")
                 ax.set_title("Dataset points")
                 ax.legend(loc="best")
+        elif family == "synthetic_tabular_classification":
+            y_train = np.asarray(train_y).reshape(-1)
+            y_test = np.asarray(test_y).reshape(-1)
+            if train_x.ndim > 1 and train_x.shape[1] >= 2:
+                train_sc = ax.scatter(
+                    train_x[:, 0], train_x[:, 1], c=y_train, s=12,
+                    alpha=0.65, cmap="viridis", label="train",
+                )
+                ax.scatter(
+                    test_x[:, 0], test_x[:, 1], c=y_test, s=12,
+                    alpha=0.65, cmap="viridis", marker="x", label="test",
+                )
+                ax.set_xlabel("x0")
+                ax.set_ylabel("x1")
+                ax.set_title("Classification projection (color = class)")
+                fig.colorbar(train_sc, ax=ax, label="class")
+            else:
+                ax.scatter(np.asarray(train_x).reshape(-1), y_train, s=10, alpha=0.55, label="train", c="#2563eb")
+                ax.scatter(np.asarray(test_x).reshape(-1), y_test, s=10, alpha=0.55, label="test", c="#dc2626")
+                ax.set_xlabel("x")
+                ax.set_ylabel("class")
+                ax.set_title("Classification points")
+                ax.legend(loc="best")
         else:
             ax.scatter(
                 np.squeeze(train_x),
@@ -479,6 +503,7 @@ def _export_question(
     data_root: Path,
     out_assets: Path,
     include_code: bool,
+    provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     bundle = load_question_bundle(question_dir, data_root)
     q = bundle.question
@@ -544,6 +569,12 @@ def _export_question(
         "curves_plot": f"assets/{curves_plot.name}" if has_curves_plot else None,
         "significance": q.get("significance", {}),
         "evaluation": q.get("evaluation", {}),
+        "provenance": provenance or {
+            "profile": q.get("profile") or "legacy/unknown",
+            "profile_hash": q.get("profile_hash") or "legacy/unknown",
+            "track": "default",
+            "source_run": None,
+        },
     }
     return exported
 
@@ -568,11 +599,80 @@ def _zip_dir(source_dir: Path, zip_path: Path) -> None:
                 zf.write(path, path.relative_to(source_dir.parent))
 
 
+def _resolve_collection_question_path(value: Any, data_root: Path) -> Path:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"Collection question path must be a non-empty string: {value!r}")
+    path = Path(value).expanduser()
+    resolved = path.resolve() if path.is_absolute() else (data_root / path).resolve()
+    if not resolved.is_relative_to(data_root):
+        raise ValueError(f"Collection question path is outside data root: {resolved}")
+    if not (resolved / "question.json").is_file():
+        raise ValueError(f"Collection question artifact is missing: {resolved}")
+    return resolved
+
+
+def _load_collection_questions(
+    collection_path: Path,
+    data_root: Path,
+) -> tuple[dict[str, Any], list[Path], list[dict[str, Any]]]:
+    collection = json.loads(collection_path.read_text(encoding="utf-8"))
+    if not isinstance(collection, dict):
+        raise ValueError("Collection must be a JSON object")
+    raw_paths = collection.get("question_paths")
+    records = collection.get("records")
+    if isinstance(raw_paths, list) and raw_paths:
+        entries = raw_paths
+        metadata = [item if isinstance(item, dict) else {} for item in (records or [])]
+    elif isinstance(records, list) and records:
+        entries = [
+            item.get("question_path") or item.get("source_question_dir") or item.get("path")
+            if isinstance(item, dict)
+            else item
+            for item in records
+        ]
+        metadata = [item if isinstance(item, dict) else {} for item in records]
+    else:
+        raise ValueError("Collection must contain ordered question_paths or records")
+    question_dirs = [_resolve_collection_question_path(value, data_root) for value in entries]
+    if len(set(question_dirs)) != len(question_dirs):
+        raise ValueError("Collection contains duplicate question paths")
+    if len(metadata) != len(question_dirs):
+        metadata = [{} for _ in question_dirs]
+    return collection, question_dirs, metadata
+
+
+def _question_provenance(
+    question_dir: Path,
+    data_root: Path,
+    collection: dict[str, Any] | None,
+    record: dict[str, Any],
+) -> dict[str, Any]:
+    question = read_json_file(question_dir / "question.json")
+    run = read_json_file(question_dir.parent / "run.json")
+    source_run = record.get("source_run") or record.get("source_run_path")
+    if source_run is None:
+        source_run = _relative_to_root(question_dir.parent, data_root)
+    track = record.get("track") or record.get("split")
+    if track is None and collection:
+        track = collection.get("track") or collection.get("split_mode")
+    return {
+        "profile": question.get("profile") or run.get("profile") or "legacy/unknown",
+        "profile_hash": question.get("profile_hash") or run.get("profile_hash") or "legacy/unknown",
+        "track": track or "default",
+        "source_run": source_run,
+    }
+
 def export_static_quiz(options: ExportOptions) -> dict[str, Any]:
     data_root = options.data_root.resolve()
-    question_dirs = list_question_dirs(data_root)
+    collection: dict[str, Any] | None = None
+    collection_records: list[dict[str, Any]] = []
+    if options.collection is not None:
+        collection, question_dirs, collection_records = _load_collection_questions(options.collection.resolve(), data_root)
+    else:
+        question_dirs = list_question_dirs(data_root)
     if options.limit is not None:
         question_dirs = question_dirs[: options.limit]
+        collection_records = collection_records[: options.limit]
     if not question_dirs:
         raise RuntimeError(f"No questions found under {data_root}")
 
@@ -591,6 +691,12 @@ def export_static_quiz(options: ExportOptions) -> dict[str, Any]:
                     data_root=data_root,
                     out_assets=assets,
                     include_code=options.include_code,
+                    provenance=_question_provenance(
+                        question_dir,
+                        data_root,
+                        collection,
+                        collection_records[index - 1] if index - 1 < len(collection_records) else {},
+                    ),
                 )
             )
             print(f"[{index}/{len(question_dirs)}] exported {question_dir.name}")
@@ -610,7 +716,9 @@ def export_static_quiz(options: ExportOptions) -> dict[str, Any]:
             "question_count_found": len(question_dirs),
             "question_count_exported": len(questions),
             "failures": failures,
+            "collection_path": str(options.collection.resolve()) if options.collection else None,
         },
+        "collection": collection,
         "questions": questions,
     }
     _write_json_js(options.out_dir / "data.js", payload)
@@ -622,6 +730,7 @@ def export_static_quiz(options: ExportOptions) -> dict[str, Any]:
         "zip_path": str(options.zip_path.resolve()) if options.zip_path else None,
         "questions": len(questions),
         "failures": failures,
+        "collection": collection,
     }
     (options.out_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
@@ -650,6 +759,12 @@ def _parse_args() -> ExportOptions:
         "--limit", type=int, default=None, help="Export only the first N questions"
     )
     parser.add_argument(
+        "--collection",
+        type=Path,
+        default=None,
+        help="Ordered collection JSON; preserve question_paths/records order",
+    )
+    parser.add_argument(
         "--zip",
         dest="zip_path",
         type=Path,
@@ -673,6 +788,7 @@ def _parse_args() -> ExportOptions:
         zip_path=None if args.no_zip else args.zip_path,
         include_code=not args.exclude_code,
         overwrite=args.overwrite,
+        collection=args.collection,
     )
 
 
