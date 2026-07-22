@@ -19,6 +19,10 @@ import streamlit as st
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Prefer the package from this checkout over another editable worktree.
+_LOCAL_SRC = Path(__file__).resolve().parents[2] / "src"
+if _LOCAL_SRC.is_dir() and str(_LOCAL_SRC) not in sys.path:
+    sys.path.insert(0, str(_LOCAL_SRC))
 import artifact_loader  # noqa: E402
 import prompt_format  # noqa: E402
 
@@ -315,7 +319,13 @@ def _discover_questions(data_root: str) -> list[Path]:
     collection = _startup_question_collection(data_root)
     if collection is not None:
         return collection
-    return list_question_dirs(_resolve_data_root(data_root))
+    return [Path(path) for path in _cached_question_dirs(str(_resolve_data_root(data_root)))]
+
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _cached_question_dirs(data_root: str) -> tuple[str, ...]:
+    """Avoid recursively scanning every question twice on each UI rerun."""
+    return tuple(str(path) for path in list_question_dirs(Path(data_root)))
 
 
 def _default_question_path(pool: list[Path], data_root: str) -> Path | None:
@@ -978,6 +988,7 @@ def _curve_series_from_candidate(
     label: str,
     color: str,
     linestyle: str = "-",
+    diagnostics: list[str] | None = None,
 ) -> dict[str, Any] | None:
     curves_path = candidate_dir / "results" / "curves.npz"
     spec = read_json_file(candidate_dir / "candidate_spec.json")
@@ -993,27 +1004,41 @@ def _curve_series_from_candidate(
         batch_size=int(batch_size),
     )
     if "error" in loaded:
+        if diagnostics is not None:
+            diagnostics.append(f"{label}: {loaded['error']}")
         return None
+    if loaded.get("warning") and diagnostics is not None:
+        diagnostics.append(f"{label}: {loaded['warning']}")
 
     curves = loaded["curves"]
     x = np.asarray(loaded["eval_samples"], dtype=np.int64)
     if curves.size == 0 or not np.isfinite(curves).any():
+        if diagnostics is not None:
+            diagnostics.append(f"{label}: curves.npz contains no finite values")
         return None
 
-    mean = np.nanmean(curves, axis=0)
-    std = np.nanstd(curves, axis=0)
-    positive_curves = np.where(
-        np.isfinite(curves) & (curves > 0),
-        curves,
-        np.nan,
-    )
-    log_q10, log_median, log_q90 = np.nanquantile(
-        positive_curves,
-        (0.10, 0.50, 0.90),
-        axis=0,
-    )
-    valid = np.isfinite(mean)
+    finite = np.isfinite(curves)
+    valid = finite.any(axis=0)
+    mean = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    std = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    if valid.any():
+        mean[valid] = np.nanmean(curves[:, valid], axis=0)
+        std[valid] = np.nanstd(curves[:, valid], axis=0)
+    positive_curves = np.where(finite & (curves > 0), curves, np.nan)
+    positive = np.isfinite(positive_curves).any(axis=0)
+    log_q10 = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    log_median = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    log_q90 = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    if positive.any():
+        quantiles = np.nanquantile(
+            positive_curves[:, positive],
+            (0.10, 0.50, 0.90),
+            axis=0,
+        )
+        log_q10[positive], log_median[positive], log_q90[positive] = quantiles
     if not valid.any():
+        if diagnostics is not None:
+            diagnostics.append(f"{label}: curves.npz contains no finite columns")
         return None
     return {
         "label": label,
@@ -1027,20 +1052,27 @@ def _curve_series_from_candidate(
         "log_q90": log_q90[valid],
     }
 
-def _collect_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
+def _collect_curve_series(
+    bundle: QuestionBundle,
+    diagnostics: list[str] | None = None,
+) -> list[dict[str, Any]]:
     series: list[dict[str, Any]] = []
     for index, choice in enumerate(bundle.choices):
         item = _curve_series_from_candidate(
             choice["candidate_dir"],
             label=f"{choice['letter']} · {choice['candidate_id']}",
             color=_choice_color(index),
+            diagnostics=diagnostics,
         )
         if item is not None:
             series.append(item)
     return series
 
 
-def _collect_custom_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
+def _collect_custom_curve_series(
+    bundle: QuestionBundle,
+    diagnostics: list[str] | None = None,
+) -> list[dict[str, Any]]:
     series: list[dict[str, Any]] = []
     for index, setting in enumerate(
         list_custom_setting_runs(_custom_settings_storage_for(bundle.question))
@@ -1050,6 +1082,7 @@ def _collect_custom_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]
             label=f"Custom · {setting['label']}",
             color=_setting_color(index),
             linestyle="--",
+            diagnostics=diagnostics,
         )
         if item is not None:
             item["setting"] = setting
@@ -1102,8 +1135,15 @@ def _render_combined_curves(
     include_candidates: bool,
 ) -> None:
     st.markdown("#### Learning curves")
-    custom_series = _collect_custom_curve_series(bundle)
-    series = (_collect_curve_series(bundle) if include_candidates else []) + custom_series
+    diagnostics: list[str] = []
+    custom_series = _collect_custom_curve_series(bundle, diagnostics)
+    series = (_collect_curve_series(bundle, diagnostics) if include_candidates else []) + custom_series
+    if diagnostics:
+        message = "Curve diagnostics: " + " | ".join(diagnostics)
+        if series:
+            st.caption(message)
+        else:
+            st.warning(message)
     if not series:
         st.info("No learning curve data available yet.")
         return
@@ -1437,6 +1477,71 @@ def _render_transformer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[
         "d_ff": d_ff,
     }
 
+def _kan_defaults(profile: Any) -> dict[str, Any]:
+    """Resolve editable KAN defaults from the active profile, not a fixed pool."""
+    config = profile.kan
+
+    def pick(name: str, fallback: Any) -> Any:
+        values = config.get(name)
+        if not isinstance(values, list) or not values:
+            return fallback
+        return values[min(1, len(values) - 1)]
+
+    grid_range = pick("grid_range", [-1.0, 1.0])
+    if not isinstance(grid_range, list) or len(grid_range) != 2:
+        grid_range = [-1.0, 1.0]
+    # ``base_activation`` describes the legacy sampled pool. v2.2's broader
+    # KAN pool is recorded as explicit, auditable archetypes, so include its
+    # activations as editable choices too. Otherwise a valid inherited KAN
+    # candidate such as ``relu`` could not be represented by the UI.
+    activations = [str(value) for value in config.get("base_activation") or []]
+    archetypes = config.get("archetypes", {})
+    if isinstance(archetypes, dict):
+        for family_archetypes in archetypes.values():
+            if not isinstance(family_archetypes, list):
+                continue
+            for archetype in family_archetypes:
+                if isinstance(archetype, dict) and archetype.get("base_activation"):
+                    activations.append(str(archetype["base_activation"]))
+    activations = list(dict.fromkeys(activations)) or ["silu"]
+    return {
+        "variant": str(config.get("variant", "efficient_spline_v1")),
+        "depth": int(pick("depth", 1)), "width": int(pick("width", 8)),
+        "grid_size": int(pick("grid_size", 5)), "spline_order": int(pick("spline_order", 3)),
+        "grid_low": float(grid_range[0]), "grid_high": float(grid_range[1]),
+        "base_activations": activations,
+    }
+
+
+def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    """Render all KAN fields supported by ``build_model_spec``."""
+    defaults = _kan_defaults(profile)
+    st.markdown("**Architecture parameters**")
+    variant = st.text_input("KAN variant", key=_ensure_setting_value(q, "kan_variant", defaults["variant"]))
+    columns = st.columns(4)
+    values: dict[str, int] = {}
+    for column, label, name, maximum in zip(
+        columns, ("Depth", "Width", "Grid size", "Spline order"),
+        ("depth", "width", "grid_size", "spline_order"), (12, 2048, 64, 16), strict=True,
+    ):
+        with column:
+            values[name] = int(st.number_input(label, min_value=1, max_value=maximum, step=1,
+                key=_ensure_setting_value(q, f"kan_{name}", defaults[name])))
+    low_col, high_col, activation_col = st.columns(3)
+    with low_col:
+        grid_low = float(st.number_input("Grid lower bound", step=0.1, format="%.6g",
+            key=_ensure_setting_value(q, "kan_grid_low", defaults["grid_low"])))
+    with high_col:
+        grid_high = float(st.number_input("Grid upper bound", step=0.1, format="%.6g",
+            key=_ensure_setting_value(q, "kan_grid_high", defaults["grid_high"])))
+    with activation_col:
+        base_activation = st.selectbox("Base activation", defaults["base_activations"],
+            key=_ensure_setting_value(q, "kan_base_activation", defaults["base_activations"][0]))
+    return {"variant": variant, **values, "grid_range": [grid_low, grid_high], "base_activation": base_activation}
+
+
+
+
 
 def _render_optimizer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
     st.markdown("**Optimizer parameters**")
@@ -1717,8 +1822,13 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
         )
         if model_type == "mlp":
             model_params = _render_mlp_setting_fields(profile, q)
-        else:
+        elif model_type == "kan":
+            model_params = _render_kan_setting_fields(profile, q)
+        elif model_type == "transformer_lm":
             model_params = _render_transformer_setting_fields(profile, q)
+        else:
+            st.error(f"Unsupported architecture in this profile: {model_type}")
+            return
 
         optimizer_params = _render_optimizer_setting_fields(profile, q)
 
@@ -2219,6 +2329,7 @@ def _ensure_demo_data(data_root: str) -> None:
     if not bundled.is_dir():
         return
     shutil.copytree(bundled, resolved, dirs_exist_ok=True)
+    _cached_question_dirs.clear()
 
 
 def main() -> None:

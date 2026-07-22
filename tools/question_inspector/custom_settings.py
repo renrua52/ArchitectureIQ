@@ -5,20 +5,27 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import sys
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from architecture_iq.candidates.generator import build_candidate_spec, write_candidate
-from architecture_iq.ground_truth.runner import run_ground_truth
-from architecture_iq.profile import Profile
-from architecture_iq.registry import (
+# Ensure this inspector uses the package from its own checkout, even when a sibling
+# ArchitectureIQ worktree is installed editable in the active environment.
+_LOCAL_SRC = Path(__file__).resolve().parents[2] / "src"
+if _LOCAL_SRC.is_dir() and str(_LOCAL_SRC) not in sys.path:
+    sys.path.insert(0, str(_LOCAL_SRC))
+
+from architecture_iq.candidates.generator import build_candidate_spec, write_candidate  # noqa: E402
+from architecture_iq.ground_truth.runner import run_ground_truth  # noqa: E402
+from architecture_iq.profile import Profile  # noqa: E402
+from architecture_iq.registry import (  # noqa: E402
     ensure_registries,
     get_dataset_family,
     get_model_type,
 )
-from architecture_iq.util import short_hash, write_json
+from architecture_iq.util import short_hash, write_json  # noqa: E402
 
 CUSTOM_SETTINGS_DIR = "custom_settings"
 SETTING_MANIFEST = "setting.json"

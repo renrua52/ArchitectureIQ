@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 import json
 
+import os
+import subprocess
 import numpy as np
 
 import pytest
@@ -706,3 +708,38 @@ def test_select_observed_classification_pair_finds_high_contrast_pair() -> None:
     assert {first, second} == {0, 1}
     assert 0.0 <= score <= 1.0
     assert score > 0.2
+
+
+def test_kan_custom_setting_defaults_include_profile_archetype_activations() -> None:
+    """The KAN editor must expose all activations valid in a v2.2 pool."""
+    defaults = inspector_app._kan_defaults(load_profile("v2.2"))
+
+    assert {"silu", "relu", "gelu", "tanh"}.issubset(
+        set(defaults["base_activations"])
+    )
+
+def test_inspector_prefers_local_profile_source_over_stale_editable_install() -> None:
+    """Custom settings must resolve Profile from the checkout being inspected."""
+    repo = Path(__file__).resolve().parents[1]
+    tools = repo / "tools" / "question_inspector"
+    stale_src = repo.parent / "ArchitectureIQ-vanilla" / "src"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(stale_src)
+    code = (
+        "import sys; "
+        f"sys.path.insert(0, {str(tools)!r}); "
+        "import custom_settings; "
+        "import architecture_iq.profile as profile; "
+        "assert profile.__file__.startswith(" + repr(str(repo / "src")) + "); "
+        "assert hasattr(profile.Profile, 'model_types_for_family'); "
+        "assert profile.load_profile('v2.2').name == 'v2.2'"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
