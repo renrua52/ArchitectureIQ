@@ -94,7 +94,7 @@ def benchmark(
         parallel_copy = _copy_candidate(source, parallel_root, index)
         serial_out = output_dir / f"serial_{index:03d}.json"
         parallel_out = output_dir / f"parallel_{index:03d}.json"
-        serial_started = time.perf_counter()
+        time.perf_counter()
         serial_result = _run_one(
             (str(serial_copy), str(dataset_path), profile, str(serial_out))
         )

@@ -10,13 +10,11 @@ an explicit ``generate`` command is run.
 from __future__ import annotations
 
 import argparse
-import json
 import random
 import time
 from pathlib import Path
 from typing import Any
 
-import torch
 
 from architecture_iq.candidates.generator import build_candidate_spec, write_candidate
 from architecture_iq.candidates.sets import make_set_name, write_set_manifest
@@ -26,7 +24,7 @@ from architecture_iq.profile import load_profile
 from architecture_iq.prompts.renderer import write_prompt
 from architecture_iq.questions.generator import generate_questions
 from architecture_iq.registry import ensure_registries, get_dataset_family, get_model_type
-from architecture_iq.significance.validator import load_summary, validate_significance
+from architecture_iq.significance.validator import validate_significance
 from architecture_iq.util import read_json, write_json
 
 ROOT = Path(__file__).resolve().parents[1]
