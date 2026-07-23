@@ -235,6 +235,7 @@ node_modules/
 *.tsbuildinfo
 .tmp/
 .pytest-tmp-*/
+.pytest-audit*/
 pytest-*/
 .prepush-tmp/
 

@@ -2,7 +2,7 @@
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given a dataset instance and several **candidates** (model + optimizer + loss + budget), pick which **choice** achieves the best selection metric after its stated training budget.
 
-Design: [plan-v2.md](./plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology)
+Design: [plan-v2.md](./docs/architecture/plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology)
 
 Interactive experiment report: [README.html](./README.html) (Chinese).
 
@@ -268,6 +268,7 @@ architecture-iq generate-question -i
 profiles/v1.yaml          # V1 profile (pools, grids, ground-truth settings)
 AGENTS.md                 # AI agent development guide (canonical)
 CLAUDE.md                 # Same as AGENTS.md (Claude Code)
+docs/                     # Architecture, plans, reports, and release records
 prompts/templates/        # NL prompt templates
 src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
 tools/llm_eval/           # Standalone LLM evaluation runner

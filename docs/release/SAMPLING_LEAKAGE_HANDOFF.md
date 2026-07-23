@@ -664,8 +664,9 @@ Ruff:           All checks passed
 
 ```powershell
 $env:PYTHONPATH="$PWD\src;$PWD\tools\question_inspector"
+$python = if ($env:ARCHITECTUREIQ_PYTHON) { $env:ARCHITECTUREIQ_PYTHON } else { "python" }
 
-& "C:\Users\11599\anaconda-3\envs\architectureiq\python.exe" `
+& $python `
   -m pytest `
   tests/test_leakage_safe_collection.py `
   tests/test_leakage_safe_feedback_session.py `
@@ -678,8 +679,9 @@ $env:PYTHONPATH="$PWD\src;$PWD\tools\question_inspector"
 
 ```powershell
 $env:PYTHONPATH="$PWD\src;$PWD\tools\question_inspector"
+$python = if ($env:ARCHITECTUREIQ_PYTHON) { $env:ARCHITECTUREIQ_PYTHON } else { "python" }
 
-& "C:\Users\11599\anaconda-3\envs\architectureiq\python.exe" `
+& $python `
   -m pytest `
   -q `
   --basetemp .pytest-tmp-leakage-full
@@ -688,7 +690,9 @@ $env:PYTHONPATH="$PWD\src;$PWD\tools\question_inspector"
 Ruff：
 
 ```powershell
-& "C:\Users\11599\anaconda-3\envs\architectureiq\python.exe" `
+$python = if ($env:ARCHITECTUREIQ_PYTHON) { $env:ARCHITECTUREIQ_PYTHON } else { "python" }
+
+& $python `
   -m ruff check .
 ```
 

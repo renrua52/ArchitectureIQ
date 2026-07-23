@@ -1,0 +1,176 @@
+{
+  "schema_version": "demo_release_spec_v1",
+  "title": "ArchitectureIQ demo release pilot v2",
+  "data_root_layout": "data root contains datasets/",
+  "entries": [
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_0a866e/questions/run_4q_2c_0faf0d",
+      "track": "classification_v2_architecture",
+      "profile": "v2",
+      "profile_hash": "3993a8aef680d37c",
+      "question_ids": [
+        "q_6b7b54",
+        "q_64454b",
+        "q_dbe455",
+        "q_780edb"
+      ]
+    },
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_59e9e3/questions/run_4q_2c_8fe22c",
+      "track": "classification_v2_architecture",
+      "profile": "v2",
+      "profile_hash": "3993a8aef680d37c",
+      "question_ids": [
+        "q_e6537b",
+        "q_a0d3dd",
+        "q_041099",
+        "q_310359"
+      ]
+    },
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_edccef/questions/run_4q_2c_9ab940",
+      "track": "classification_v2_architecture",
+      "profile": "v2",
+      "profile_hash": "3993a8aef680d37c",
+      "question_ids": [
+        "q_04db8e",
+        "q_1ee790",
+        "q_f5320b",
+        "q_83c45b"
+      ]
+    },
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_0a866e/questions/run_2q_2c_e4eb0a",
+      "track": "classification_kan_v2.1_diagnostic",
+      "profile": "v2.1",
+      "profile_hash": "525167b7afdb6bf8",
+      "question_ids": [
+        "q_80adae",
+        "q_6fed57"
+      ]
+    },
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_59e9e3/questions/run_1q_2c_37a58f",
+      "track": "classification_kan_v2.1_diagnostic",
+      "profile": "v2.1",
+      "profile_hash": "525167b7afdb6bf8",
+      "question_ids": [
+        "q_ebc56d"
+      ]
+    },
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_edccef/questions/run_2q_2c_50ac4e",
+      "track": "classification_kan_v2.1_diagnostic",
+      "profile": "v2.1",
+      "profile_hash": "525167b7afdb6bf8",
+      "question_ids": [
+        "q_5d20d3",
+        "q_229b84"
+      ]
+    },
+    {
+      "source_run": "datasets/synthetic_tabular_classification/stabcls_0a866e/questions/run_7q_2c_f9c0dd",
+      "track": "classification_kan_v2.2_expanded",
+      "profile": "v2.2",
+      "profile_hash": "cdc6e6d564b13cc6",
+      "question_ids": [
+        "q_41ab08",
+        "q_70ebab",
+        "q_c12422",
+        "q_4420e1",
+        "q_903d2d",
+        "q_9ec784",
+        "q_b41065"
+      ]
+    },
+    {
+      "source_run": "datasets/univariate_regression/sym_40f9b4/questions/run_3q_2c_5960cd",
+      "track": "v1_optimizer",
+      "profile": "v1",
+      "profile_hash": "164f68c29f6730dc",
+      "question_ids": [
+        "q_3e42e7",
+        "q_fae3c1",
+        "q_eb3f3c"
+      ]
+    },
+    {
+      "source_run": "datasets/univariate_regression/sym_40f9b4/questions/run_7q_2c_89a700",
+      "track": "v1_optimizer",
+      "profile": "v1",
+      "profile_hash": "164f68c29f6730dc",
+      "question_ids": [
+        "q_8c1a64",
+        "q_516e8c",
+        "q_0b2cde",
+        "q_e0376d",
+        "q_71c4f7",
+        "q_dade0c",
+        "q_ad5c6c"
+      ]
+    },
+    {
+      "source_run": "datasets/univariate_regression/sym_40f9b4/questions/run_4q_2c_507ad2",
+      "track": "v1_mixed",
+      "profile": "v1",
+      "profile_hash": "164f68c29f6730dc",
+      "question_ids": [
+        "q_52bd4f",
+        "q_e1b066",
+        "q_ee74c7",
+        "q_b9731f"
+      ]
+    },
+    {
+      "source_run": "datasets/multivariate_regression/mvar_e3e90e/questions/run_4q_2c_4b3cd0",
+      "track": "v1_mixed",
+      "profile": "v1",
+      "profile_hash": "164f68c29f6730dc",
+      "question_ids": [
+        "q_bf0e7b",
+        "q_a5366a",
+        "q_54c901",
+        "q_c09b10"
+      ]
+    },
+    {
+      "source_run": "datasets/bigram_lm/bg_e2f7c8/questions/run_4q_2c_dc19e1",
+      "track": "v1_mixed",
+      "profile": "v1",
+      "profile_hash": "164f68c29f6730dc",
+      "question_ids": [
+        "q_d720c0",
+        "q_5b95d9",
+        "q_a2d4d2",
+        "q_528c8c"
+      ]
+    }
+  ],
+  "expected": {
+    "collection_id": "demo_085aa570328f",
+    "collection_sha256": "a3689d0a4517d0119140e003946b0f9ea5d02173f6b12613117d5ce13ae3c1af",
+    "question_count": 46,
+    "candidate_count": 92,
+    "profiles": [
+      "v1",
+      "v2",
+      "v2.1",
+      "v2.2"
+    ],
+    "tracks": [
+      "classification_kan_v2.1_diagnostic",
+      "classification_kan_v2.2_expanded",
+      "classification_v2_architecture",
+      "v1_mixed",
+      "v1_optimizer"
+    ],
+    "profile_hashes": {
+      "v1": "164f68c29f6730dc",
+      "v2": "3993a8aef680d37c",
+      "v2.1": "525167b7afdb6bf8",
+      "v2.2": "cdc6e6d564b13cc6"
+    },
+    "candidate_reuse_policy": "globally_disjoint",
+    "question_order_policy": "manifest_order"
+  }
+}

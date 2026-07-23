@@ -1,32 +1,33 @@
 {
-  "schema_version": "demo_release_freeze_v1",
+  "schema_version": "demo_release_freeze_v2",
+  "path_base": "repository_root",
   "collection_id": "demo_085aa570328f",
-  "collection_path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\outputs\\demo_release_integration\\demo_release_collection_v2.json",
-  "collection_sha256": "a42152d43494adac1b70d1772e5fcd86ab25504a9286d25c87899d73595696fe",
+  "collection_path": "outputs/demo_release_integration/demo_release_collection_v2.json",
+  "collection_sha256": "a3689d0a4517d0119140e003946b0f9ea5d02173f6b12613117d5ce13ae3c1af",
   "question_count": 46,
   "candidate_count": 92,
   "candidate_reuse_policy": "globally_disjoint",
   "question_order_policy": "manifest_order",
   "profiles": {
     "v1": {
-      "path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\profiles\\v1.yaml",
+      "path": "profiles/v1.yaml",
       "sha256": "48fdd295b577927c84a6b76603fa43cd44fdd8fd49720d76308cd0023b98d7ed"
     },
     "v2": {
-      "path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\profiles\\v2.yaml",
+      "path": "profiles/v2.yaml",
       "sha256": "ed3190cdb277c85647993f888455c9141074b9b62db331c3f026c2e8a5dbaf7f"
     },
     "v2.1": {
-      "path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\profiles\\v2.1.yaml",
+      "path": "profiles/v2.1.yaml",
       "sha256": "19c36557b43f777c3909da883388558ee52d042542e0072e017164653624ee5f"
     },
     "v2.2": {
-      "path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\profiles\\v2.2.yaml",
+      "path": "profiles/v2.2.yaml",
       "sha256": "575cbaed0d683f2dff58f0c53d55ed5574022f6b1b09ed130fddbde90d85fc21"
     }
   },
   "frontend_bakefile": {
-    "path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\frontend\\quiz\\public\\data\\questions.json",
+    "path": "frontend/quiz/public/data/questions.json",
     "sha256": "eb5d4cacb7a61da1728e1e0b236e3752163cf863b7a725655ace6fd380e15e97"
   },
   "public_private_boundary": {
@@ -39,5 +40,14 @@
     "outputs/demo_release_integration/performance_cpu_threads/report.json"
   ],
   "human_audit_status": "pending_user_blind_review",
-  "luna_audit_status": "pending_after_human_freeze"
+  "luna_audit_status": "pending_after_human_freeze",
+  "release_spec": {
+    "path": "release_specs/demo_085aa570328f.json",
+    "sha256": "61b104496ba8ddd21698388f74b4b92a7275906e7ee04f9911b09be6d064ca7d"
+  },
+  "external_data_bundle": {
+    "path": "outputs/demo_release_integration/demo_085aa570328f_data_root.zip",
+    "sha256": "f1daaafe0eb2a268633c074c8fdc84326b481d9ba120bf649fd06675c57bb4f9",
+    "layout": "data_root"
+  }
 }
