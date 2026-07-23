@@ -146,4 +146,4 @@ class UnivariateRegressionFamily(DatasetFamily):
         return {}
 
     def compatible_model_types(self) -> list[str]:
-        return ["mlp"]
+        return ["mlp", "kan"]

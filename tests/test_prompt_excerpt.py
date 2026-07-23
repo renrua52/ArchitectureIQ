@@ -8,7 +8,7 @@ from architecture_iq.prompts.code_excerpt import (
     excerpt_optimizer_py,
     excerpt_synthesize_py,
 )
-from architecture_iq.prompts.renderer import render_prompt, write_prompt
+from architecture_iq.prompts.renderer import render_prompt
 
 
 SAMPLE_MODEL = '''"""docstring"""

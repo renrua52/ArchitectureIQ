@@ -1,0 +1,1 @@
+Synthetic tabular binary classification. The dataset card below states the exact feature distribution, score rule, label-noise model, and decision threshold. Every candidate trains on the same materialized train/test splits.

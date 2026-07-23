@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -92,7 +93,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--question-run",
         default=DEFAULT_RUN,
-        help="Question run or question directory to open first.",
+        help="Question, run, or review-collection JSON to open.",
     )
     parser.add_argument(
         "--no-browser",
@@ -143,7 +144,10 @@ def main() -> int:
     if not args.no_browser:
         webbrowser.open(url)
 
-    process = subprocess.Popen(cmd, cwd=root)
+    env = os.environ.copy()
+    local_src = str(root / "src")
+    env["PYTHONPATH"] = local_src + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    process = subprocess.Popen(cmd, cwd=root, env=env)
     if wait_until_running(args.port, timeout=8):
         print(f"ArchitectureIQ quiz is ready: {url}")
     return wait_for_process(process)

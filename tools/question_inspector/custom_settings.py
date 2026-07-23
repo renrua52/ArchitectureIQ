@@ -5,20 +5,27 @@ from __future__ import annotations
 import json
 import math
 import shutil
+import sys
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from architecture_iq.candidates.generator import build_candidate_spec, write_candidate
-from architecture_iq.ground_truth.runner import run_ground_truth
-from architecture_iq.profile import Profile
-from architecture_iq.registry import (
+# Ensure this inspector uses the package from its own checkout, even when a sibling
+# ArchitectureIQ worktree is installed editable in the active environment.
+_LOCAL_SRC = Path(__file__).resolve().parents[2] / "src"
+if _LOCAL_SRC.is_dir() and str(_LOCAL_SRC) not in sys.path:
+    sys.path.insert(0, str(_LOCAL_SRC))
+
+from architecture_iq.candidates.generator import build_candidate_spec, write_candidate  # noqa: E402
+from architecture_iq.ground_truth.runner import run_ground_truth  # noqa: E402
+from architecture_iq.profile import Profile  # noqa: E402
+from architecture_iq.registry import (  # noqa: E402
     ensure_registries,
     get_dataset_family,
     get_model_type,
 )
-from architecture_iq.util import short_hash, write_json
+from architecture_iq.util import short_hash, write_json  # noqa: E402
 
 CUSTOM_SETTINGS_DIR = "custom_settings"
 SETTING_MANIFEST = "setting.json"
@@ -45,8 +52,8 @@ def clear_legacy_question_custom_settings(question_root: Path) -> None:
 def compatible_model_types(profile: Profile, family: str) -> list[str]:
     """Return profile model types that can train on ``family``."""
     ensure_registries()
-    compatible = set(get_dataset_family(family).compatible_model_types())
-    return [name for name in profile.pools["model_types"] if name in compatible]
+    family_obj = get_dataset_family(family)
+    return profile.model_types_for_family(family, family_obj.compatible_model_types())
 
 
 def build_model_spec(
@@ -73,6 +80,29 @@ def build_model_spec(
             "layer_norm": layer_norm,
             "activations": activations,
             "input_dim": int(dataset_params.get("input_dim", 1)),
+            "output_dim": int(dataset_params.get("num_classes", 1)),
+        }
+    elif model_type == "kan":
+        depth = int(params["depth"])
+        width = int(params["width"])
+        grid_size = int(params["grid_size"])
+        spline_order = int(params["spline_order"])
+        if min(depth, width, grid_size, spline_order) <= 0:
+            raise ValueError("KAN depth, width, grid size, and spline order must be positive.")
+        grid_range = [float(value) for value in params["grid_range"]]
+        if len(grid_range) != 2 or grid_range[0] >= grid_range[1]:
+            raise ValueError("KAN grid range must be [low, high] with low < high.")
+        spec = {
+            "type": "kan",
+            "variant": str(params.get("variant", "efficient_spline_v1")),
+            "input_dim": int(dataset_params.get("input_dim", 1)),
+            "output_dim": int(dataset_params.get("num_classes", 1)),
+            "depth": depth,
+            "width": width,
+            "grid_size": grid_size,
+            "spline_order": spline_order,
+            "grid_range": grid_range,
+            "base_activation": str(params["base_activation"]),
         }
     elif model_type == "transformer_lm":
         d_model = int(params["d_model"])
@@ -195,6 +225,20 @@ def form_values_from_candidate_spec(
             }
         )
 
+    elif model["type"] == "kan":
+        values.update(
+            {
+                "kan_variant": str(model.get("variant", "efficient_spline_v1")),
+                "kan_depth": int(model["depth"]),
+                "kan_width": int(model["width"]),
+                "kan_grid_size": int(model["grid_size"]),
+                "kan_spline_order": int(model["spline_order"]),
+                "kan_grid_range": list(model["grid_range"]),
+                "kan_grid_low": float(model["grid_range"][0]),
+                "kan_grid_high": float(model["grid_range"][1]),
+                "kan_base_activation": str(model["base_activation"]),
+            }
+        )
     if optimizer["type"] == "SGD":
         values["momentum"] = float(optimizer.get("momentum", 0.0))
     elif optimizer["type"] in {"Adam", "AdamW"}:
@@ -379,6 +423,7 @@ def run_custom_setting(
     n_seeds: int,
     base_seed: int,
     inherited_from: dict[str, Any] | None = None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Materialize and train one setting without modifying benchmark candidates."""
     if n_seeds <= 0:
@@ -398,19 +443,30 @@ def run_custom_setting(
     run_profile.ground_truth["n_seeds"] = int(n_seeds)
     run_profile.ground_truth["base_seed"] = int(base_seed)
     try:
+        runner_kwargs: dict[str, Any] = {
+            "dataset_path": dataset_path,
+            "fail_threshold_override": float("inf"),
+        }
+        if progress_callback is not None:
+            runner_kwargs["progress_callback"] = progress_callback
         summary = run_ground_truth(
             output_dir,
             run_profile,
-            dataset_path=dataset_path,
-            fail_threshold_override=float("inf"),
+            **runner_kwargs,
         )
     except Exception:
         if output_dir.is_dir():
             shutil.rmtree(output_dir)
         raise
 
+    summary["profile"] = profile.name
+    summary["profile_hash"] = profile.profile_hash
+    write_json(output_dir / "results" / "summary.json", summary)
+
     manifest = {
         "schema_version": profile.schema_version,
+        "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "custom_setting_id": run_id,
         "sequence": sequence,
         "label": unique_label,

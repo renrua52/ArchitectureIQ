@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from architecture_iq.families.base import DatasetFamily
@@ -41,13 +41,17 @@ def list_model_types() -> list[str]:
 def _register_all() -> None:
     from architecture_iq.families.bigram_lm import BigramLmFamily
     from architecture_iq.families.multivariate_regression import MultivariateRegressionFamily
+    from architecture_iq.families.synthetic_tabular_classification import SyntheticTabularClassificationFamily
     from architecture_iq.families.univariate_regression import UnivariateRegressionFamily
+    from architecture_iq.models.kan import KanModelFamily
     from architecture_iq.models.mlp import MlpModelFamily
     from architecture_iq.models.transformer_lm import TransformerLmModelFamily
 
     register_dataset_family(UnivariateRegressionFamily())
     register_dataset_family(MultivariateRegressionFamily())
     register_dataset_family(BigramLmFamily())
+    register_dataset_family(SyntheticTabularClassificationFamily())
+    register_model_type(KanModelFamily())
     register_model_type(MlpModelFamily())
     register_model_type(TransformerLmModelFamily())
 

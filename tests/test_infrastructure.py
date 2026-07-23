@@ -77,12 +77,16 @@ def test_write_json_round_trip_creates_parent_dirs(tmp_path: Path) -> None:
     assert read_json(target) == payload
 
 
-def test_start_quiz_materializes_bundled_demo(tmp_path: Path) -> None:
+def test_start_quiz_materializes_bundled_demo(tmp_path: Path, monkeypatch) -> None:
     repo = Path(__file__).resolve().parents[1]
+    demo_root = tmp_path / "demo"
+    question_relative = Path(_START_QUIZ.DEFAULT_RUN).relative_to("data")
     shutil.copytree(
-        repo / _START_QUIZ.BUNDLED_DEMO_DATA,
-        tmp_path / _START_QUIZ.BUNDLED_DEMO_DATA,
+        repo / _START_QUIZ.BUNDLED_DEMO_DATA / "datasets" / "univariate_regression"
+        / "sym_62678b" / "questions" / "run_20q_3c_b09206" / "q_79e34e",
+        demo_root / question_relative,
     )
+    monkeypatch.setattr(_START_QUIZ, "BUNDLED_DEMO_DATA", "demo")
 
     question_run, installed = _START_QUIZ.resolve_question_run(
         tmp_path,

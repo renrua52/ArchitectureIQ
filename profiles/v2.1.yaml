@@ -1,0 +1,156 @@
+profile: v2.1
+schema_version: "1.0"
+
+pools:
+  dataset_families:
+    - univariate_regression
+    - multivariate_regression
+    - bigram_lm
+    - synthetic_tabular_classification
+  model_types:
+    - mlp
+    - transformer_lm
+    - kan
+  optimizers:
+    - SGD
+    - Adam
+    - AdamW
+    - RMSprop
+    - Adagrad
+  losses:
+    univariate_regression:
+      - mse
+      - mse_l2
+      - mse_l1
+    multivariate_regression:
+      - mse
+      - mse_l2
+      - mse_l1
+    bigram_lm:
+      - cross_entropy
+      - cross_entropy_l2
+      - cross_entropy_l1
+    synthetic_tabular_classification:
+      - cross_entropy
+  question_types:
+    - architecture_only
+    - optimizer_only
+    - loss_only
+    - mixed
+  num_choices: 2
+
+dataset:
+  family: univariate_regression
+  domain: [0.0, 1.0]
+  train_size: 256
+  test_size: 256
+  sampler:
+    id: symbolic_expr
+    max_depth: 3
+    max_retries: 200
+
+dataset_configs:
+  univariate_regression:
+    domain: [0.0, 1.0]
+    train_size: 256
+    test_size: 256
+    sampler:
+      id: symbolic_expr
+      max_depth: 3
+      max_retries: 200
+  multivariate_regression:
+    input_dims: [2, 3, 4, 5, 8]
+    domain: [0.0, 1.0]
+    train_size: 256
+    test_size: 256
+    sampler:
+      id: symbolic_expr_mv
+      max_depth: 3
+      max_retries: 200
+  bigram_lm:
+    vocab_size: 32
+    context_length: 16
+    train_size: 800
+    test_size: 200
+    alpha: 1.0
+    layout: lm
+    fail_threshold: 4.0
+  synthetic_tabular_classification:
+    input_dims: [4, 8, 16]
+    rule_families: [smooth_additive, sparse_interaction, piecewise_boundary]
+    active_feature_counts: [2, 3, 4]
+    interaction_order: 2
+    noise_std: [0.05, 0.1]
+    train_size: 1024
+    test_size: 2048
+    calibration_size: 4096
+    target_positive_rate: 0.5
+
+mlp:
+  depth: [1, 2, 3, 4, 5, 6]
+  width: [16, 32, 64, 128, 256]
+  residual: [false, true]
+  activations: [relu, leaky_relu, gelu, silu]
+  leaky_relu_slope: 0.01
+
+kan:
+  variant: efficient_spline_v1
+  depth: [1, 2]
+  width: [8]
+  grid_size: [5]
+  spline_order: [3]
+  grid_range:
+    - [-1.0, 1.0]
+  base_activation: [silu]
+
+transformer_lm:
+  d_model: [32, 64, 128]
+  num_layers: [1, 2, 3]
+  num_heads: [2, 4]
+  d_ff: [64, 128, 256]
+
+optimizer_grids:
+  lr: [1.0e-4, 3.0e-4, 1.0e-3, 3.0e-3, 1.0e-2]
+  weight_decay: [0, 1.0e-5, 1.0e-4, 1.0e-3]
+  sgd_momentum: [0, 0.9]
+  adam_betas: [0.9, 0.999]
+  batch_size: [16, 32, 64]
+
+loss_grids:
+  lambda: [1.0e-4, 1.0e-3, 1.0e-2]
+
+budgets:
+  total_samples_seen: [1024, 2048, 5120, 10240, 20480, 40960]
+
+training_defaults:
+  synthetic_tabular_classification:
+    batch_size: 32
+    training_steps: 256
+    total_samples_seen: 8192
+
+ground_truth:
+  n_seeds: 10
+  base_seed: 0
+  fail_threshold: 2.0
+  max_failed_seeds: 3
+
+significance:
+  gap_min: 0.05
+  win_rate_min: 0.7
+  use_non_overlap: true
+
+question_generation:
+  max_attempts: 20
+  targeted_pool_size: 32
+
+prompts:
+  use_llm_paraphrase: false
+  template_version: "1.0"
+
+# Profile-aware compatibility gates. The family keeps its conservative default;
+# this opt-in gate enables the calibrated KAN classification path only in v2.1.
+model_gates:
+  synthetic_tabular_classification:
+    compatible_model_types:
+      - mlp
+      - kan

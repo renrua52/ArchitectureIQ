@@ -2,7 +2,7 @@
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given a dataset instance and several **candidates** (model + optimizer + loss + budget), pick which **choice** achieves the best selection metric after its stated training budget.
 
-Design: [plan-v2.md](./plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology)
+Design: [plan-v2.md](./docs/architecture/plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology)
 
 Interactive experiment report: [README.html](./README.html) (Chinese).
 
@@ -14,8 +14,16 @@ If you use **Cursor**, **Claude Code**, or other coding agents on this repo, mak
 
 From the repository root, run:
 
+Linux/macOS:
+
 ```bash
 .venv/bin/python tools/start_quiz.py
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe tools\start_quiz.py
 ```
 
 The quiz opens automatically at <http://127.0.0.1:8501>. Press **Ctrl-C** in
@@ -30,7 +38,39 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev,inspector]"
 ```
 
+Windows PowerShell:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,inspector]"
+```
+
 Requires Python 3.10+ and PyTorch 2.x.
+
+### CPU and CUDA installation
+
+The `pyproject.toml` dependency list is the package dependency source of
+truth. The default `requirements.txt` is a CPU-oriented convenience entry
+point used by Streamlit Community Cloud and other CPU-only deployments. For
+local development, the editable install above uses the PyTorch wheel selected
+by pip.
+
+For CUDA, install a PyTorch build matching the installed NVIDIA driver and
+the CUDA version supported by that build, then install this project:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade --force-reinstall torch --index-url https://download.pytorch.org/whl/cu121
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,inspector]"
+```
+
+Replace `cu121` with the CUDA wheel index required by the selected PyTorch release. Verify with `python -c "import torch; print(torch.cuda.is_available())"`.
+
+Execution artifacts are device-specific. Do not mix CPU and CUDA candidate
+artifacts in one candidate set or question, and do not treat their ground
+truth values as directly interchangeable. `--device cuda` is strict: when
+CUDA is unavailable, candidate generation fails explicitly instead of
+silently falling back to CPU.
 
 ## Generate benchmark artifacts
 
@@ -39,6 +79,8 @@ questions through the interactive CLI:
 
 ```bash
 source .venv/bin/activate
+
+# PowerShell equivalent: .\.venv\Scripts\Activate.ps1
 
 # Create a dataset
 architecture-iq create-dataset -i
@@ -55,21 +97,37 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
-## Dataset families (v1)
+## Dataset families (V1)
 
 | Family | Task | Models | Losses | Metric |
 |--------|------|--------|--------|--------|
 | `univariate_regression` | R → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
 | `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
-| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
 
 Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
 
+V1 is frozen and keeps the original MLP-only regression benchmark. New task/model-pool changes use a named profile instead of silently changing V1.
+
+## Experimental V2 profile: KAN regression
+
+V2 adds the synthetic tabular classification family and a self-contained spline KAN model. KAN is currently enabled for `univariate_regression` and `multivariate_regression`; its first implementation is pure PyTorch with a fixed grid and no train/test-data grid adaptation.
+
+The V2 KAN parameter pool is not yet frozen while phase-3 calibration continues.
+
+Use V2 explicitly when generating KAN candidates:
+
+```bash
+architecture-iq --profile v2 create-dataset --family univariate_regression --seed 42
+architecture-iq --profile v2 generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
+  --budget 1024 --count 32 --vary model
+```
+
 ## CLI reference
 
-All commands accept `--profile v1` (default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
+All commands accept `--profile NAME` (`v1` is the default). Run `architecture-iq --help` or `architecture-iq <command> --help` for details.
 
 Interactive mode (`-i` / `--interactive`) prompts for every parameter. **Enter** on a choice field picks a random valid option. Interactive commands reject all other arguments except `--profile`. `generate-candidates -i` and `generate-question -i` only let you pick **existing** datasets (use `create-dataset` first).
 
@@ -93,7 +151,7 @@ architecture-iq create-dataset -i
 | `--input-dim`         | —                     | For `multivariate_regression` only: pin **n** (must be in profile `input_dims`) |
 | `-i`, `--interactive` | off                   | Prompt for family, seed, and multivariate **n** (Enter = random from pool) |
 
-**Multivariate input dimension.** By default, `multivariate_regression` samples **n** from `profiles/v1.yaml` → `dataset_configs.multivariate_regression.input_dims` (currently `[2, 3, 4, 5, 8]`). Use `--input-dim` or `-i` to pin **n**; otherwise it is chosen randomly from that list (seeded by instance seed).
+**Multivariate input dimension.** By default, `multivariate_regression` samples **n** from the active profile's `dataset_configs.multivariate_regression.input_dims` (currently `[2, 3, 4, 5, 8]` in V1 and V2). Use `--input-dim` or `-i` to pin **n**; otherwise it is chosen randomly from that list (seeded by instance seed).
 
 **What `--seed` controls:** the **instance seed** for synthetic data generation (expression formula and train/test point sampling). Same `--family` + same `--seed` reproduces the same dataset. It does **not** affect which family is picked when using `--random-family` (that draw uses a separate unseeded RNG).
 
@@ -104,7 +162,7 @@ Generate a named candidate set with ground truth. Each run writes candidates und
 
 ```bash
 architecture-iq generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
-  --budget 1024 --count 32 --vary model --vary optimizer
+  --budget 1024 --count 32 --vary model --vary optimizer --device cpu
 architecture-iq generate-candidates -i
 ```
 
@@ -115,6 +173,7 @@ architecture-iq generate-candidates -i
 | `--budget`            | **required** (non-interactive) | `total_samples_seen`                                         |
 | `--count`             | **required** (non-interactive) | Number of candidates in this set                             |
 | `--vary`              | **required** (non-interactive) | Repeat: `model`, `optimizer`, or `loss` (axes that may vary) |
+| `--device`            | profile/default               | Execution device for new candidates: `cpu` or `cuda`        |
 | `--seed`              | `0`                            | RNG seed for candidate sampling (see below)                    |
 | `-i`, `--interactive` | off                            | Prompt for varying/invariant axes and fixed values           |
 
@@ -209,6 +268,7 @@ architecture-iq generate-question -i
 profiles/v1.yaml          # V1 profile (pools, grids, ground-truth settings)
 AGENTS.md                 # AI agent development guide (canonical)
 CLAUDE.md                 # Same as AGENTS.md (Claude Code)
+docs/                     # Architecture, plans, reports, and release records
 prompts/templates/        # NL prompt templates
 src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
 tools/llm_eval/           # Standalone LLM evaluation runner
@@ -303,6 +363,20 @@ Each run writes under `llm_runs/{timestamp}_{model}/`:
 Use `--run-dir path/to/run --skip-existing` to resume a partial run.
 
 See [tools/llm_eval/README.md](./tools/llm_eval/README.md).
+
+### Context-protocol boundary
+
+The historical local revealed-answer runner and its old `llm_runs/` artifacts
+are reproducibility references only. They append compact prior answer/outcome
+lines to later API prompts and should not be used as the current `main` context
+benchmark.
+
+The canonical current feedback protocol is
+`tools/sequential_feedback_session.py`: the agent must submit a prediction
+before feedback is returned, then receives the correct candidate and per-choice
+metric values and records a lesson. Its score is feedback-conditioned online
+adaptation, not a replacement for blind/static capability scores. Always report
+the exact protocol and question scope when comparing results.
 
 ## Tests
 

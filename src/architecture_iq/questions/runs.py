@@ -67,9 +67,11 @@ def write_run_manifest(
         ],
         "num_questions": num_questions,
         "num_choices": num_choices,
+        "candidate_reuse_policy": "globally_disjoint_within_run",
         "question_ids": question_ids,
         "seed": seed,
         "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     write_json(run_path / RUN_MANIFEST, manifest)

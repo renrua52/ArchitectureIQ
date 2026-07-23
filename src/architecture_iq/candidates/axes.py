@@ -54,6 +54,11 @@ def choices_compatible(specs: list[dict[str, Any]], question_type: str | None = 
     """Return whether specs form a valid comparison set."""
     if len(specs) < 2:
         return False
+    execution_devices = {
+        str(spec.get("execution", {}).get("device", "cpu")) for spec in specs
+    }
+    if len(execution_devices) != 1:
+        return False
     if not choices_have_contrast(specs):
         return False
     if question_type is None:

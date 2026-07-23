@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import random
 
-import pytest
 
 from architecture_iq.families.univariate_regression.sampler import (
     sample_symbolic_expression,
@@ -25,7 +23,6 @@ def test_sampler_expression_has_nonlinear():
 
 
 def test_sampler_not_trivial_constant():
-    rng = random.Random(0)
     seen = set()
     for seed in range(30):
         sampled = sample_symbolic_expression(seed=seed)

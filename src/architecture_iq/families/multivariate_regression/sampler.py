@@ -12,7 +12,6 @@ from architecture_iq.families.univariate_regression.sampler import (
     CONSTANTS,
     ExprNode,
     NodeKind,
-    to_torch_expr,
 )
 
 

@@ -16,6 +16,10 @@ def main() -> None:
         "streamlit",
         "run",
         str(app),
+        "--server.headless",
+        "true",
+        "--browser.gatherUsageStats",
+        "false",
         "--",
         *sys.argv[1:],
     ]
