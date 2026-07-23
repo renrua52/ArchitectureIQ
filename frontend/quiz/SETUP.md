@@ -41,7 +41,8 @@ Use **Project Settings → Database → Connection string → URI**.
 |------|------|
 | `frontend/quiz/` | Staged React quiz (static bake) |
 | `tools/export_quiz_static.py` | Bake `questions.json` from quiz_demo/data |
-| `supabase/functions/telemetry/` | **Public** ingest (Edge Function → `quiz_events`) |
+| `supabase/functions/telemetry/` | Experimental Edge Function ingest; not approved for external deployment |
 | `services/telemetry_api/` | Optional local FastAPI ingest |
 
-Public deploy: [`DEPLOY.md`](./DEPLOY.md).
+External deployment is not currently supported. See [`DEPLOY.md`](./DEPLOY.md)
+for the conditions that must be met first.

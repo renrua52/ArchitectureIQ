@@ -1,7 +1,10 @@
 # Edge Function: `telemetry`
 
-Preferred public ingest (no Render / no credit card). Writes to `quiz_events` via the service role.
+Experimental telemetry ingest for internal development. It is not enabled as a
+supported external-deployment path.
 
-Dashboard deploy steps: see [`../../frontend/quiz/DEPLOY.md`](../../frontend/quiz/DEPLOY.md).
-
-**JWT verification must be OFF** — auth is `Authorization: Bearer <TELEMETRY_API_KEY>`.
+The current browser-token authentication scheme is unsuitable for a hosted
+site: `VITE_*` values are visible to every browser. Before this function is
+used outside a trusted internal environment, replace that scheme with
+browser-safe authorization and complete the conditions in
+[`frontend/quiz/DEPLOY.md`](../../../frontend/quiz/DEPLOY.md).

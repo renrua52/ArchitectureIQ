@@ -2,9 +2,11 @@
 
 Thin FastAPI service for ArchitectureIQ quiz analytics (**local / optional**).
 
-For **public** deploy without a separate host or credit card, use the Supabase
-Edge Function instead: [`supabase/functions/telemetry/`](../../supabase/functions/telemetry/)
-and [`frontend/quiz/DEPLOY.md`](../../frontend/quiz/DEPLOY.md).
+The current telemetry design is for local/internal use. The experimental
+Supabase Edge Function is not approved for external deployment because a
+browser-visible `VITE_*` value cannot be used as a server credential. See
+[`frontend/quiz/DEPLOY.md`](../../frontend/quiz/DEPLOY.md) for the required
+hardening before revisiting that path.
 
 ## Local
 

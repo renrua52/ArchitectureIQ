@@ -1,8 +1,8 @@
-# Demo release integration final report（2026-07-21）
+# Demo integration internal-audit report（2026-07-21）
 
 本报告取代早期的 32 题 pilot 报告；39 题版本仍保留为 v1 历史冻结记录。当前候选 collection 为 `demo_085aa570328f`。
 
-## 当前发布候选
+## 当前内部审计候选
 
 - 46 道题，92 个 candidate；collection 内全局 candidate-disjoint（重复 0）
 - 题目顺序由 `demo_release_collection_v2.json` 固定
@@ -63,9 +63,9 @@
 - loss-only：状态明确为 `deferred`，本轮不生成正式题目；1024 和 2048 两个预算各有 7 个 Gate 1/2 pass candidate，但显著 pair 均为 0。它是 coverage gap，不是已完成题包，也不写成 `excluded` 题目记录。
 - architecture_easy / architecture_hard：本轮不再扩容，当前题数均为 0；后续若继续扩展，应新建候选/profile 轨道，不回写冻结 profile
 - 人工盲审和 Luna blind/post-reveal audit 尚未完成；Luna provider 额度不足时不伪造审计记录
-- 因此当前是“可发布 pilot”，不是 70 题完整 pilot
+- 因此当前是“内部审计 pilot 候选”，不是 70 题完整 pilot
 
-### M6：发布候选 — 代码/静态/API 完成，人工审计待执行
+### M6：内部审计候选 — 代码/静态/API 完成，人工审计待执行
 
 - React `npm ci --ignore-scripts` 成功
 - React `tsc -b` 成功
@@ -74,7 +74,7 @@
 - collection API smoke 通过
 - Streamlit Inspector、旧 static exporter 和 React surface 保持并存
 - 本轮范围为本机可信研究人员审计；为保持静态页面可直接答题，BakeFile 仍包含 reveal，但答题前 UI 不渲染答案。
-- public/private BakeFile 分离与 API-only reveal 暂列为后续公开发布加固项，不作为本轮本地审计阻塞。
+- 面向外部部署的 BakeFile 分离与 API-only reveal 暂列为后续加固项，不作为本轮本地审计阻塞。
 
 
 ## 2026-07-22 独立验收补记

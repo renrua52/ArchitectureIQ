@@ -5,6 +5,30 @@ on:
   pull_request:
 
 jobs:
+  frontend-build:
+    name: Frontend build / Node 22
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/quiz
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/quiz/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
   checks:
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
@@ -25,10 +49,13 @@ jobs:
           cache: pip
 
       - name: Install project and test dependencies
-        run: python -m pip install -e ".[dev,inspector]"
+        run: python -m pip install -e ".[dev,inspector,quiz-api]"
 
       - name: Run Ruff
         run: ruff check .
+
+      - name: Smoke test quiz API
+        run: python -m tools.quiz_api_smoke
 
       - name: Run tests
         run: python -m pytest -q

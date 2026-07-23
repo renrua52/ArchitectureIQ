@@ -1,17 +1,18 @@
-# ArchitectureIQ public quiz frontend
+# ArchitectureIQ internal quiz frontend
 
 Staged React quiz (Observe → Compare → Reveal) fed by a **static bake** of
-question artifacts. Telemetry posts to a **Supabase Edge Function** (preferred)
-or local FastAPI ingest.
+question artifacts. Telemetry can post to local FastAPI ingest.
 
-Public ship steps: [`DEPLOY.md`](./DEPLOY.md).
+The current BakeFile and telemetry design are for local/internal review only.
+External deployment is intentionally unsupported; see
+[`DEPLOY.md`](./DEPLOY.md) for the required future hardening.
 
 ## Prerequisites
 
-1. Apply [`services/telemetry_api/schema.sql`](../../services/telemetry_api/schema.sql) in Supabase.
-2. Deploy Edge Function `telemetry` (see DEPLOY.md) **or** run local FastAPI.
+1. Apply [`services/telemetry_api/schema.sql`](../../services/telemetry_api/schema.sql) in a local/internal Supabase project if telemetry is needed.
+2. Run local FastAPI ingest, or omit telemetry entirely.
 3. Copy [`.env.example`](../../.env.example) → repo-root `.env` and fill secrets.
-3. Bake questions:
+4. Bake questions:
 
 ```bash
 # from repo root
@@ -45,7 +46,7 @@ Open http://127.0.0.1:5173/
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_TELEMETRY_URL` | Full Edge Function URL, **or** FastAPI base `http://127.0.0.1:8080` |
-| `VITE_TELEMETRY_KEY` | Same value as `TELEMETRY_API_KEY` |
+| `VITE_TELEMETRY_URL` | Local FastAPI base, normally `http://127.0.0.1:8080` |
+| `VITE_TELEMETRY_KEY` | Local-only development token; never use it for a hosted site |
 
 Quiz scoring works without telemetry; events fail open if the API is down.
