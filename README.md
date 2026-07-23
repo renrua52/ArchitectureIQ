@@ -343,7 +343,7 @@ Prompts are augmented at eval time so the model can reason freely, then commit w
 Set API credentials (any OpenAI-compatible host):
 
 ```bash
-export OPENAI_API_BASE="https://api.openai.com/v1"
+export OPENAI_API_BASE="..."
 export OPENAI_API_KEY="sk-..."
 ```
 
