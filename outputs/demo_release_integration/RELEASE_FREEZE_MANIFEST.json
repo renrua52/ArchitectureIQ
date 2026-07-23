@@ -27,7 +27,7 @@
   },
   "frontend_bakefile": {
     "path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-main-integration\\frontend\\quiz\\public\\data\\questions.json",
-    "sha256": "fae4713697b483366ab7338327958c58ae25fcf260eecbec364d4f826623fed8"
+    "sha256": "eb5d4cacb7a61da1728e1e0b236e3752163cf863b7a725655ace6fd380e15e97"
   },
   "public_private_boundary": {
     "public_prompt": "question.detail.prompt",

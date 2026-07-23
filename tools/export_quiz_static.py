@@ -48,6 +48,10 @@ OUT = ROOT / "frontend" / "quiz" / "public" / "data" / "questions.json"
 MAX_POINTS = 180
 CHOICE_COLORS = ["#7c6cff", "#f26e4f", "#20a87e", "#2f7de1", "#e0b144"]
 
+CLASSIFICATION_BINS = 12
+CLASSIFICATION_PRIOR_STRENGTH = 6.0
+CLASSIFICATION_TRAIN_POINTS_PER_CLASS = 80
+CLASSIFICATION_TEST_POINTS_PER_CLASS = 40
 
 def _fmt(value: Any) -> str:
     if isinstance(value, float):
@@ -181,6 +185,56 @@ def _classification_points(x: np.ndarray, y: np.ndarray, first: int, second: int
     return points
 
 
+def _classification_probability_grid(
+    x: np.ndarray,
+    y: np.ndarray,
+    first_feature: int,
+    second_feature: int,
+    *,
+    bins: int = CLASSIFICATION_BINS,
+    prior_strength: float = CLASSIFICATION_PRIOR_STRENGTH,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build a sparse-data-stable empirical P(class 1) projection grid."""
+    if bins < 2:
+        raise ValueError("bins must be at least 2")
+    if prior_strength < 0:
+        raise ValueError("prior_strength must be non-negative")
+
+    first_values = np.asarray(x[:, first_feature], dtype=float)
+    second_values = np.asarray(x[:, second_feature], dtype=float)
+    labels = np.asarray(y).reshape(-1)
+    finite = np.isfinite(first_values) & np.isfinite(second_values) & np.isfinite(labels)
+    first_values = first_values[finite]
+    second_values = second_values[finite]
+    labels = labels[finite]
+    if not len(labels):
+        raise ValueError("No finite classification points are available")
+
+    def edges(values: np.ndarray) -> np.ndarray:
+        low, high = float(np.min(values)), float(np.max(values))
+        if low == high:
+            low -= 0.5
+            high += 0.5
+        margin = 0.05 * (high - low)
+        return np.linspace(low - margin, high + margin, bins + 1)
+
+    x_edges, y_edges = edges(first_values), edges(second_values)
+    counts, _, _ = np.histogram2d(first_values, second_values, bins=(x_edges, y_edges))
+    positive, _, _ = np.histogram2d(
+        first_values[labels == 1], second_values[labels == 1], bins=(x_edges, y_edges)
+    )
+    probability = np.full(counts.shape, np.nan, dtype=float)
+    occupied = counts > 0
+    if prior_strength:
+        prior = float(np.mean(labels == 1))
+        probability[occupied] = (
+            positive[occupied] + prior_strength * prior
+        ) / (counts[occupied] + prior_strength)
+    else:
+        np.divide(positive, counts, out=probability, where=occupied)
+    return x_edges, y_edges, probability
+
+
 def _classification_plot(train: dict[str, Any], test: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
     x_train = train["x"].detach().cpu().numpy()
     y_train = train["y"].detach().cpu().reshape(-1).numpy().astype(int)
@@ -189,29 +243,11 @@ def _classification_plot(train: dict[str, Any], test: dict[str, Any], params: di
     if x_train.ndim != 2 or x_train.shape[1] < 2:
         return {"kind": "none", "reason": "classification dataset has fewer than two features"}
     first, second, note = _classification_feature_pair(params, x_train.shape[1])
-    first_values = x_train[:, first]
-    second_values = x_train[:, second]
-    finite = np.isfinite(first_values) & np.isfinite(second_values) & np.isfinite(y_train)
-    first_values = first_values[finite]
-    second_values = second_values[finite]
-    labels = y_train[finite]
-    bins = 24
-    def edges(values: np.ndarray) -> np.ndarray:
-        low, high = float(np.min(values)), float(np.max(values))
-        if low == high:
-            low -= 0.5
-            high += 0.5
-        margin = 0.05 * (high - low)
-        return np.linspace(low - margin, high + margin, bins + 1)
-    x_edges, y_edges = edges(first_values), edges(second_values)
-    counts, _, _ = np.histogram2d(first_values, second_values, bins=(x_edges, y_edges))
-    positive, _, _ = np.histogram2d(first_values[labels == 1], second_values[labels == 1], bins=(x_edges, y_edges))
-    probability = np.full(counts.shape, np.nan, dtype=float)
-    np.divide(positive, counts, out=probability, where=counts > 0)
+    x_edges, y_edges, probability = _classification_probability_grid(x_train, y_train, first, second)
     return {
         "kind": "classification",
-        "train": _classification_points(x_train, y_train, first, second, 220),
-        "test": _classification_points(x_test, y_test, first, second, 90),
+        "train": _classification_points(x_train, y_train, first, second, CLASSIFICATION_TRAIN_POINTS_PER_CLASS),
+        "test": _classification_points(x_test, y_test, first, second, CLASSIFICATION_TEST_POINTS_PER_CLASS),
         "xEdges": x_edges.tolist(),
         "yEdges": y_edges.tolist(),
         "probability": _json_number(probability.tolist()),
@@ -219,7 +255,7 @@ def _classification_plot(train: dict[str, Any], test: dict[str, Any], params: di
         "selectionNote": note,
         "xLabel": f"feature {first}",
         "yLabel": f"feature {second}",
-        "legend": "empirical P(class 1)",
+        "legend": "smoothed empirical P(class 1): blue low, red high",
         "min": 0.0,
         "max": 1.0,
     }

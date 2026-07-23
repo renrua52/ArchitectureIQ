@@ -78,6 +78,7 @@ function App() {
     const prior = results.current[question.id];
     const already = prior !== undefined;
     setStage(already ? "reveal" : "observe");
+    setFeedback({ ...(feedbackByQuestion.current[question.id] ?? EMPTY_FEEDBACK) });
     setSelected(prior?.picked ?? null);
     setAnswered(already);
     setInfo(null);
@@ -1114,16 +1115,32 @@ function ClassificationPlot({
     )
   ).sort((a, b) => a - b);
   const legendLabels = observedLabels.length ? observedLabels : [0, 1];
-  const classPalette = ["#1d4ed8", "#b91c1c", "#15803d", "#7e22ce", "#c2410c", "#0f766e"];
+  const classPalette = ["#2563eb", "#dc2626", "#15803d", "#7e22ce", "#c2410c", "#0f766e"];
   const classColor = (label: number | undefined) => {
+    if (label === 0) return classPalette[0];
+    if (label === 1) return classPalette[1];
     const index = legendLabels.indexOf(label ?? legendLabels[0]);
     return classPalette[(index < 0 ? 0 : index) % classPalette.length];
   };
+  const probabilityFill = (value: number) => {
+    const bounded = Math.min(1, Math.max(0, value));
+    if (bounded === 0.5) return "rgba(148,163,184,0.12)";
+    const alpha = 0.1 + Math.min(0.72, Math.abs(bounded - 0.5) * 1.44);
+    return bounded < 0.5
+      ? `rgba(37,99,235,${alpha})`
+      : `rgba(220,38,38,${alpha})`;
+  };
   const trainPoints = train.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
   const testPoints = test.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  const legendY = height - 8;
+  const markerLegendX = chart.x + 8 + legendLabels.length * 100 + 8;
   return (
     <div className="viz">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Synthetic classification projection">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Synthetic classification projection: background empirical P(class 1); filled train points; cross test points"
+      >
         <rect x={chart.x} y={chart.y} width={chart.width} height={chart.height} fill="#1a1d24" />
         {probability.map((row, x) => row.map((value, y) => {
           const x0 = xEdges[x];
@@ -1138,38 +1155,36 @@ function ClassificationPlot({
           ) {
             return null;
           }
-          const alpha = 0.08 + Math.min(1, Math.max(0, value)) * 0.7;
-          const fill = value >= 0.5 ? `rgba(185,28,28,${alpha})` : `rgba(29,78,216,${1.0 - alpha * 0.35})`;
           return (
             <rect key={`prob-${x}-${y}`} x={mapX(x0)} y={mapY(y1)}
               width={Math.max(0, mapX(x1) - mapX(x0))}
               height={Math.max(0, mapY(y0) - mapY(y1))}
-              fill={fill} />
+              fill={probabilityFill(value)} />
           );
         }))}
         {xTicks.map((tick) => <g key={`x-${tick}`}><line x1={mapX(tick)} x2={mapX(tick)} y1={chart.y} y2={chart.y + chart.height} stroke="#2a2e38" /><text x={mapX(tick)} y={chart.y + chart.height + 18} textAnchor="middle" fill="#8b919f" fontSize="10">{formatTick(tick)}</text></g>)}
         {yTicks.map((tick) => <g key={`y-${tick}`}><line x1={chart.x} x2={chart.x + chart.width} y1={mapY(tick)} y2={mapY(tick)} stroke="#2a2e38" /><text x={chart.x - 8} y={mapY(tick) + 3} textAnchor="end" fill="#8b919f" fontSize="10">{formatTick(tick)}</text></g>)}
-        {trainPoints.map((point, i) => <circle key={`train-${i}`} cx={mapX(point.x)} cy={mapY(point.y)} r="3" fill={classColor(point.label)} opacity="0.48" />)}
-        {testPoints.map((point, i) => <circle key={`test-${i}`} cx={mapX(point.x)} cy={mapY(point.y)} r="4" fill="none" stroke={classColor(point.label)} strokeWidth="1.8" opacity="0.9" />)}
+        {trainPoints.map((point, i) => <circle key={`train-${i}`} cx={mapX(point.x)} cy={mapY(point.y)} r="3.1" fill={classColor(point.label)} opacity="0.7" />)}
+        {testPoints.map((point, i) => {
+          const x = mapX(point.x);
+          const y = mapY(point.y);
+          return <g key={`test-${i}`} stroke={classColor(point.label)} strokeWidth="1.7" strokeLinecap="round" opacity="0.95">
+            <line x1={x - 3.5} y1={y - 3.5} x2={x + 3.5} y2={y + 3.5} />
+            <line x1={x - 3.5} y1={y + 3.5} x2={x + 3.5} y2={y - 3.5} />
+          </g>;
+        })}
+        <text x={chart.x} y={chart.y - 6} fill="#c5c9d4" fontSize="10">background: blue = low P(class 1), red = high P(class 1)</text>
+        <text x={chart.x + chart.width} y={chart.y - 6} textAnchor="end" fill="#8b919f" fontSize="10">projection · {plot.selectionNote ?? "rule-aware feature pair"}</text>
         <text x={chart.x + chart.width / 2} y={height - 25} textAnchor="middle" fill="#8b919f" fontSize="11">{plot.xLabel ?? "feature x"}</text>
         <text x="14" y={chart.y + chart.height / 2} textAnchor="middle" fill="#8b919f" fontSize="11" transform={`rotate(-90 14 ${chart.y + chart.height / 2})`}>{plot.yLabel ?? "feature y"}</text>
         {legendLabels.map((label, index) => {
-          const x = chart.x + 8 + index * 110;
-          return (
-            <g key={`legend-${label}`}>
-              <circle cx={x} cy={height - 8} r="4" fill={classColor(label)} />
-              <text x={x + 10} y={height - 4} fill="#c5c9d4" fontSize="10">{`class ${label} · train`}</text>
-            </g>
-          );
+          const x = chart.x + 8 + index * 100;
+          return <g key={`legend-${label}`}><circle cx={x} cy={legendY} r="4" fill={classColor(label)} /><text x={x + 10} y={legendY + 4} fill="#c5c9d4" fontSize="10">{`class ${label}`}</text></g>;
         })}
-        <text
-          x={legendLabels.length <= 2 ? chart.x + 265 : chart.x + 8 + legendLabels.length * 110 + 8}
-          y={height - 4}
-          fill="#8b919f"
-          fontSize="10"
-        >
-          test outlined · {plot.selectionNote ?? "rule-aware feature pair"}
-        </text>
+        <circle cx={markerLegendX} cy={legendY} r="4" fill="#c5c9d4" />
+        <text x={markerLegendX + 10} y={legendY + 4} fill="#c5c9d4" fontSize="10">filled = train</text>
+        <g stroke="#c5c9d4" strokeWidth="1.5" strokeLinecap="round"><line x1={markerLegendX + 100} y1={legendY - 4} x2={markerLegendX + 108} y2={legendY + 4} /><line x1={markerLegendX + 100} y1={legendY + 4} x2={markerLegendX + 108} y2={legendY - 4} /></g>
+        <text x={markerLegendX + 114} y={legendY + 4} fill="#c5c9d4" fontSize="10">cross = test</text>
       </svg>
     </div>
   );
