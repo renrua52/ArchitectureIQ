@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "ruff>=0.4"]
+dev = ["pytest>=7.0", "ruff>=0.4", "jsonschema>=4.0"]
 inspector = ["streamlit>=1.32", "matplotlib>=3.8", "sympy>=1.12"]
 quiz-api = [
     "fastapi>=0.110,<1.0",

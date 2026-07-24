@@ -1,42 +1,42 @@
-# ArchitectureIQ internal quiz frontend
+# ArchitectureIQ quiz frontend
 
-Staged React quiz (Observe → Compare → Reveal) fed by a **static bake** of
-question artifacts. Telemetry can post to local FastAPI ingest.
+React quiz (Observe → Compare → Reveal) fed by a **static BakeFile**.
 
-The current BakeFile and telemetry design are for local/internal review only.
-External deployment is intentionally unsupported; see
-[`DEPLOY.md`](./DEPLOY.md) for the required future hardening.
+**Contract:** [`contracts/README.md`](../../contracts/README.md) · split rules:
+[`docs/FRONTEND_BACKEND.md`](../../docs/FRONTEND_BACKEND.md)
+
+This package must not import `architecture_iq` or read raw `q_*` artifact dirs.
+
+Deployment notes / limitations: [`DEPLOY.md`](./DEPLOY.md).
 
 ## Prerequisites
 
-1. Apply [`services/telemetry_api/schema.sql`](../../services/telemetry_api/schema.sql) in a local/internal Supabase project if telemetry is needed.
-2. Run local FastAPI ingest, or omit telemetry entirely.
-3. Copy [`.env.example`](../../.env.example) → repo-root `.env` and fill secrets.
-4. Bake questions:
+1. Node 20+ recommended.
+2. A BakeFile at `public/data/questions.json` (repo ships the 46-question demo bake).
+   For a tiny fixture:
+
+```bash
+cp ../../contracts/examples/mini_bake.json public/data/questions.json
+```
+
+3. Optional telemetry: copy [`.env.example`](../../.env.example) → repo-root `.env`
+   and set `VITE_TELEMETRY_URL` / `VITE_TELEMETRY_KEY` (hosted Edge Function or local
+   FastAPI). Scoring works with telemetry omitted.
+
+Backend-owned bake regeneration (not required for FE-only work):
 
 ```bash
 # from repo root
 .venv/bin/python tools/export_quiz_static.py
-# optional: only univariate run
-.venv/bin/python tools/export_quiz_static.py --run run_20q_3c_b09206
+.venv/bin/python tools/validate_quiz_bake.py
 ```
 
 ## Dev
 
-Terminal A — telemetry ingest:
-
-```bash
-pip install -r services/telemetry_api/requirements.txt
-set -a && source .env && set +a
-uvicorn services.telemetry_api.app:app --host 127.0.0.1 --port 8080
-```
-
-Terminal B — frontend (load Vite env from root `.env` by exporting `VITE_*`):
-
 ```bash
 cd frontend/quiz
 npm install
-set -a && source ../../.env && set +a
+# optional: set -a && source ../../.env && set +a
 npm run dev
 ```
 
@@ -46,7 +46,7 @@ Open http://127.0.0.1:5173/
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_TELEMETRY_URL` | Local FastAPI base, normally `http://127.0.0.1:8080` |
-| `VITE_TELEMETRY_KEY` | Local-only development token; never use it for a hosted site |
+| `VITE_TELEMETRY_URL` | Telemetry ingest base or full Edge Function URL |
+| `VITE_TELEMETRY_KEY` | Bearer token for ingest POSTs |
 
-Quiz scoring works without telemetry; events fail open if the API is down.
+Events fail open if ingest is down.

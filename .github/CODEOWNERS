@@ -1,0 +1,22 @@
+# CODEOWNERS
+# Update GitHub usernames when FE/BE owners are assigned.
+# Until then, default owner is the repo maintainer.
+
+* @renrua52
+
+# Shared BakeFile contract — require explicit review when owners are listed.
+/contracts/ @renrua52
+
+# Frontend quiz (React)
+/frontend/quiz/ @renrua52
+
+# Pipeline / export
+/src/architecture_iq/ @renrua52
+/profiles/ @renrua52
+/tools/export_quiz_static.py @renrua52
+/tools/validate_quiz_bake.py @renrua52
+/examples/quiz_demo/ @renrua52
+
+# Frozen Streamlit path — avoid new product work here
+/tools/question_inspector/ @renrua52
+/tools/start_quiz.py @renrua52

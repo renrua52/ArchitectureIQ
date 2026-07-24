@@ -12,9 +12,31 @@ If you use **Cursor**, **Claude Code**, or other coding agents on this repo, mak
 
 ## Start the quiz
 
-From the repository root, run:
+**Product UI (React):** static BakeFile under `frontend/quiz/`. See
+[`docs/FRONTEND_BACKEND.md`](./docs/FRONTEND_BACKEND.md) and
+[`contracts/README.md`](./contracts/README.md).
 
-Linux/macOS:
+```bash
+cd frontend/quiz
+npm install
+npm run dev
+```
+
+Open <http://127.0.0.1:5173/>. Optional: copy
+`contracts/examples/mini_bake.json` over `frontend/quiz/public/data/questions.json`
+for a 4-question fixture.
+
+Validate any BakeFile:
+
+```bash
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python tools/validate_quiz_bake.py
+```
+
+### Legacy Streamlit inspector (frozen)
+
+The Streamlit question inspector is **frozen** — no new product features. Prefer
+the React quiz above. For archaeological local inspection only:
 
 ```bash
 .venv/bin/python tools/start_quiz.py
@@ -26,10 +48,8 @@ Windows PowerShell:
 .\.venv\Scripts\python.exe tools\start_quiz.py
 ```
 
-The quiz opens automatically at <http://127.0.0.1:8501>. Press **Ctrl-C** in
-the terminal to stop it. Running the command again while the quiz is already
-active reuses the existing service. On a fresh clone, the launcher installs a
-bundled demo question into the gitignored `data/` directory automatically.
+The legacy launcher opens <http://127.0.0.1:8501>. On a fresh clone it may copy a
+bundled demo question into gitignored `data/`.
 
 ### First-time setup
 
@@ -288,7 +308,11 @@ Ground truth **executes the on-disk Python files**, not parallel framework short
 
 See `src/architecture_iq/runtime/loader.py`.
 
-## Question inspector
+## Question inspector (frozen)
+
+> **Frozen.** Do not add product features here. The public/internal quiz path is
+> `frontend/quiz/` + BakeFile (`contracts/`). See
+> [`docs/FRONTEND_BACKEND.md`](./docs/FRONTEND_BACKEND.md).
 
 Streamlit UI for browsing and taking questions. Original benchmark artifacts remain
 read-only; user-created training settings are stored separately under the current

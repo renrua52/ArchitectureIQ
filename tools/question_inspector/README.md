@@ -1,5 +1,9 @@
 # Question Inspector
 
+> **Status: frozen.** No new product features. Use `frontend/quiz/` + BakeFile
+> (`contracts/`) for the quiz. Collaboration notes:
+> [`docs/FRONTEND_BACKEND.md`](../../docs/FRONTEND_BACKEND.md).
+
 Streamlit UI for inspecting ArchitectureIQ questions and trying custom training
 settings. Existing question and candidate artifacts are never modified.
 

@@ -258,10 +258,19 @@ Same for dataset-side experiments: use `synthesize.py` / family `materialize`, n
 
 ### Question inspector (`tools/question_inspector/`)
 
+**Frozen for product work** — prefer `frontend/quiz/` + BakeFile (`contracts/`).
+Do not add new quiz-product features to Streamlit.
+
 - **Reads artifacts only** by default — does not import `architecture_iq` (see inspector README).
 - **`prompt_format.py` mirrors `prompts/formatters.py`** for display parity. If you change formatters, update the mirror and run `tests/test_prompt_format_parity.py`.
 - **`code_excerpt.py` in tools/** mirrors prompt excerpt logic for the UI — keep in sync or consolidate via import if dependency direction is resolved deliberately.
 - Plotting reads materialized dataset files and `curves.npz` from disk; do not re-run training in the inspector unless wired through `run_ground_truth` as above.
+
+### Frontend / BakeFile contract
+
+Quiz UI consumes only a BakeFile (`contracts/quiz_bake.schema.json`). Pipeline code
+exports via `tools/export_quiz_static.py`. Validate with
+`tools/validate_quiz_bake.py`. See `docs/FRONTEND_BACKEND.md`.
 
 ### Prompt rendering
 
