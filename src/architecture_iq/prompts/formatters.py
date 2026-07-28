@@ -66,6 +66,18 @@ def format_kan_nl(model: dict) -> str:
     )
     return "\n".join(lines)
 
+def format_gru_lm_nl(model: dict) -> str:
+    return "\n".join(
+        [
+            "- Type: causal unidirectional GRU LM",
+            f"- Vocab size: {model['vocab_size']}",
+            f"- Context length: {model['context_length']}",
+            f"- d_model (embedding and hidden size): {model['d_model']}",
+            f"- num_layers: {model['num_layers']}",
+            "- No attention, position embedding, or dropout",
+        ]
+    )
+
 
 def format_optimizer_nl(opt: dict) -> str:
     lines = [f"- Optimizer: {opt['type']}", f"- Learning rate: {opt['lr']}"]
@@ -86,6 +98,8 @@ def format_model_nl(model: dict) -> str:
         return format_kan_nl(model)
     if model_type == "transformer_lm":
         return format_transformer_lm_nl(model)
+    if model_type == "gru_lm":
+        return format_gru_lm_nl(model)
     return f"- Type: {model_type}"
 
 

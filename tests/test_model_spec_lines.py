@@ -57,3 +57,17 @@ def test_inspector_transformer_lm_spec_lines_match_package() -> None:
         "d_ff": 128,
     }
     assert insp.format_model_spec_lines(model) == format_model_spec_lines(model)
+
+
+def test_inspector_gru_lm_spec_lines_match_package() -> None:
+    model = {
+        "type": "gru_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 64,
+        "num_layers": 2,
+    }
+    lines = format_model_spec_lines(model)
+    assert insp.format_model_spec_lines(model) == lines
+    assert "causal unidirectional GRU" in "\n".join(lines)
+    assert "No attention" in "\n".join(lines)
