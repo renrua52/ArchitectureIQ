@@ -87,6 +87,18 @@ def test_old_profiles_and_default_compatibility_are_unchanged() -> None:
     assert sampled["type"] in {"transformer_lm", "gru_lm"}
 
 
+def test_architecture_pilot_profile_uses_adam_and_large_gru_pool() -> None:
+    profile = load_profile("v2.4-gru-architecture-pilot")
+    assert profile.pools["dataset_families"] == ["bigram_lm"]
+    assert profile.pools["model_types"] == ["transformer_lm", "gru_lm"]
+    assert profile.pools["optimizers"] == ["Adam"]
+    assert profile.pools["losses"]["bigram_lm"] == ["cross_entropy"]
+    assert profile.optimizer_grids["lr"] == [1.0e-3]
+    assert profile.optimizer_grids["weight_decay"] == [0.0]
+    assert profile.optimizer_grids["batch_size"] == [32]
+    assert len(profile.gru_lm["d_model"]) * len(profile.gru_lm["num_layers"]) >= 100
+
+
 def test_parameter_audit_matches_module() -> None:
     model_spec = _model_spec()
     expected = 2 * 7 * 5 + 2 * (6 * 5 * 5 + 6 * 5) + 7
