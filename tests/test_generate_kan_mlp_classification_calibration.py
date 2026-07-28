@@ -17,7 +17,7 @@ SPEC.loader.exec_module(CAL)
 
 
 def test_classification_pairs_cover_dimensions_and_match_parameters() -> None:
-    for input_dim in (4, 8, 16):
+    for input_dim in (2, 4, 8, 16):
         pairs = CAL.pair_specs(input_dim)
         assert len(pairs) == 2
         for name, kan, mlp in pairs:
