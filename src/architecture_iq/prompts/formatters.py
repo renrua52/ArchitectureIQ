@@ -239,6 +239,9 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
             for (left, right), weight in zip(pairs, weights, strict=True)
         ]
         score_lines = [f"  - `s(x) = {_signed_linear_combination(terms)}`"]
+    elif rule_family == "xor":
+        left, right = active_features[:2]
+        score_lines = [f"  - `s(x) = -x_{left}·x_{right}`"]
     elif rule_family == "piecewise_boundary":
         primary, secondary = active_features[:2]
         below_weight, above_weight, offset_weight = weights
@@ -267,6 +270,14 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
             *score_lines,
             f"- Label noise: `ε ~ Normal(0, {noise_std:.6g}²)`.",
             f"- Label rule: `y = 1` exactly when `s(x) + ε > {threshold:.6g}`; otherwise `y = 0`.",
+            *(
+                [
+                    "- XOR interpretation (nominal only): with `ε = 0` and threshold `0`, opposite-sign active coordinates are class 1 and same-sign active coordinates are class 0.",
+                    "- With the calibrated threshold and label noise above, individual labels (especially near either axis) need not follow that nominal quadrant interpretation.",
+                ]
+                if rule_family == "xor"
+                else []
+            ),
             f"- Bayes decision boundary: without observing ε, predict class 1 when `s(x) > {threshold:.6g}`.",
             f"- Threshold calibration: `{threshold:.6g}` was estimated from {calibration['size']} independent calibration rows to target a positive-class rate of {float(calibration['target_positive_rate']):.0%}.",
             f"- Reproducibility: point/noise seed `{params['point_sampling']['seed']}`, calibration seed `{calibration['seed']}`.",

@@ -12,7 +12,10 @@ from architecture_iq.profile import Profile
 from architecture_iq.util import short_hash, write_json
 
 
+# Keep this legacy tuple stable: callers that omit an explicit rule set must not
+# begin sampling XOR merely because the framework learns to support it.
 RULE_FAMILIES = ("smooth_additive", "sparse_interaction", "piecewise_boundary")
+SUPPORTED_RULE_FAMILIES = (*RULE_FAMILIES, "xor")
 
 
 SYNTHESIZE_TEMPLATE = '''"""Synthetic tabular binary-classification dataset — source of truth."""
@@ -41,6 +44,9 @@ def target(
         for (left, right), weight in zip(interaction_pairs, rule_weights):
             score = score + weight * x[:, left] * x[:, right]
         return score
+    if rule_family == "xor":
+        left, right = active_features
+        return -x[:, left] * x[:, right]
     if rule_family == "piecewise_boundary":
         primary, secondary = active_features[:2]
         below_weight, above_weight, offset_weight = rule_weights
@@ -78,13 +84,26 @@ if __name__ == "__main__":
 '''
 
 
-def balanced_rule_family_schedule(count: int, *, seed: int = 0) -> list[str]:
+def balanced_rule_family_schedule(
+    count: int,
+    *,
+    seed: int = 0,
+    allowed_rules: tuple[str, ...] | list[str] | None = None,
+) -> list[str]:
     """Return a deterministic, near-equal rule-family allocation for benchmark builds."""
     if count < 0:
         raise ValueError("count must be non-negative")
-    full, remainder = divmod(count, len(RULE_FAMILIES))
-    schedule = list(RULE_FAMILIES) * full
-    extras = list(RULE_FAMILIES)
+    rules = tuple(RULE_FAMILIES if allowed_rules is None else allowed_rules)
+    if not rules:
+        raise ValueError("allowed_rules must be non-empty")
+    if len(set(rules)) != len(rules):
+        raise ValueError("allowed_rules must not contain duplicates")
+    unknown = set(rules) - set(SUPPORTED_RULE_FAMILIES)
+    if unknown:
+        raise ValueError(f"allowed_rules contain unsupported values: {sorted(unknown)}")
+    full, remainder = divmod(count, len(rules))
+    schedule = list(rules) * full
+    extras = list(rules)
     random.Random(seed).shuffle(extras)
     schedule.extend(extras[:remainder])
     random.Random(seed + 1).shuffle(schedule)
@@ -112,6 +131,9 @@ def _raw_score_for_calibration(
         for (left, right), weight in zip(interaction_pairs, rule_weights, strict=True):
             score = score + weight * x[:, left] * x[:, right]
         return score
+    if rule_family == "xor":
+        left, right = active_features
+        return -x[:, left] * x[:, right]
     if rule_family == "piecewise_boundary":
         primary, secondary = active_features[:2]
         below_weight, above_weight, offset_weight = rule_weights
@@ -147,16 +169,28 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
             raise ValueError(f"input_dim must be one of {input_dims}, got {input_dim}")
         resolved_input_dim = input_dim if input_dim is not None else rng.choice(input_dims)
         allowed_rules = [str(value) for value in cfg["rule_families"]]
-        if set(allowed_rules) != set(RULE_FAMILIES):
-            raise ValueError(f"rule_families must contain exactly {list(RULE_FAMILIES)}")
+        if not allowed_rules:
+            raise ValueError("rule_families must be non-empty")
+        if len(set(allowed_rules)) != len(allowed_rules):
+            raise ValueError("rule_families must not contain duplicates")
+        unknown_rules = set(allowed_rules) - set(SUPPORTED_RULE_FAMILIES)
+        if unknown_rules:
+            raise ValueError(
+                f"rule_families contain unsupported values: {sorted(unknown_rules)}"
+            )
         if rule_family is not None and rule_family not in allowed_rules:
             raise ValueError(f"rule_family must be one of {allowed_rules}, got {rule_family!r}")
         # Consecutive instance seeds cycle evenly; batch builders may instead use the schedule above.
         resolved_rule = rule_family or allowed_rules[seed % len(allowed_rules)]
 
         requested_active = rng.choice([int(value) for value in cfg["active_feature_counts"]])
-        min_features = 2 if resolved_rule in {"sparse_interaction", "piecewise_boundary"} else 1
-        active_count = max(min_features, min(requested_active, resolved_input_dim))
+        if resolved_rule == "xor":
+            if resolved_input_dim < 2:
+                raise ValueError("xor requires input_dim >= 2")
+            active_count = 2
+        else:
+            min_features = 2 if resolved_rule in {"sparse_interaction", "piecewise_boundary"} else 1
+            active_count = max(min_features, min(requested_active, resolved_input_dim))
         active_features = sorted(rng.sample(range(resolved_input_dim), active_count))
         interaction_pairs: list[list[int]] = []
         piecewise_breakpoint = 0.0
@@ -167,6 +201,9 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
             pair_count = min(len(all_pairs), max(1, active_count - 1))
             interaction_pairs = [list(pair) for pair in rng.sample(all_pairs, pair_count)]
             rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in interaction_pairs]
+        elif resolved_rule == "xor":
+            interaction_pairs = [[active_features[0], active_features[1]]]
+            rule_weights = [-1.0]
         else:
             piecewise_breakpoint = rng.uniform(-0.5, 0.5)
             rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in range(3)]

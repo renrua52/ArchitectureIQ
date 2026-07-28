@@ -63,6 +63,7 @@ def test_kan_nl_parity_output() -> None:
     [
         ("smooth_additive", [0, 2], [], [-1.0, 0.75], 0.0),
         ("sparse_interaction", [0, 2, 3], [[0, 2], [2, 3]], [-1.0, 0.75], 0.0),
+        ("xor", [0, 2], [[0, 2]], [-1.0], 0.0),
         ("piecewise_boundary", [0, 2], [], [-1.0, 0.75, 0.5], -0.25),
     ],
 )
@@ -91,6 +92,10 @@ def test_classification_rule_card_parity(
     assert "Label rule" in text
     assert "Bayes decision boundary" in text
     assert "def " not in text
+    if rule_family == "xor":
+        assert "s(x) = -x_0·x_2" in text
+        assert "nominal only" in text
+        assert "need not follow" in text
 
 
 def test_ranking_protocol() -> None:

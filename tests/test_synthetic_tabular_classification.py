@@ -188,3 +188,98 @@ def test_classification_kan_candidate_executes_and_reports_logits(tmp_path: Path
     assert "mean_test_ce" in summary and "std_test_ce" in summary
     assert "mean_test_accuracy" in summary and "std_test_accuracy" in summary
     assert all("final_test_accuracy" in row for row in summary["seed_results"])
+
+
+def test_xor_pilot_profile_contract() -> None:
+    profile = load_profile("v2.3-xor-pilot")
+    cfg = profile.family_config("synthetic_tabular_classification")
+    assert profile.name == "v2.3-xor-pilot"
+    assert cfg["input_dims"] == [2]
+    assert cfg["rule_families"] == ["xor"]
+    assert cfg["active_feature_counts"] == [2]
+    assert cfg["interaction_order"] == 2
+    assert cfg["noise_std"] == [0.05]
+    assert cfg["train_size"] == 1024
+    assert cfg["test_size"] == 2048
+    assert cfg["calibration_size"] == 4096
+    assert cfg["target_positive_rate"] == 0.5
+    ensure_registries()
+    family = get_dataset_family("synthetic_tabular_classification")
+    assert profile.model_types_for_family(family.name, family.compatible_model_types()) == ["mlp", "kan"]
+
+    for name in ("v2", "v2.1", "v2.2"):
+        legacy = load_profile(name)
+        legacy_cfg = legacy.family_config("synthetic_tabular_classification")
+        assert legacy_cfg["rule_families"] == ["smooth_additive", "sparse_interaction", "piecewise_boundary"]
+    legacy_schedule = balanced_rule_family_schedule(5, seed=7)
+    assert set(legacy_schedule) <= set(RULE_FAMILIES)
+    assert balanced_rule_family_schedule(5, seed=7, allowed_rules=("xor",)) == ["xor"] * 5
+
+
+def test_xor_materialization_is_reproducible_and_quadrant_balanced(tmp_path: Path) -> None:
+    profile = load_profile("v2.3-xor-pilot")
+    ensure_registries()
+    family = get_dataset_family("synthetic_tabular_classification")
+    partial = family.create_instance(profile, 42, input_dim=2, rule_family="xor")
+    spec = family.build_spec_with_id(partial)
+    first = tmp_path / "xor_first"
+    second = tmp_path / "xor_second"
+    family.materialize({**partial, **spec}, first)
+    family.materialize({**partial, **spec}, second)
+    saved = family.load_tensors(first)
+    regenerated = load_synthesize_module(first / "synthesize.py").synthesize()
+    repeated = family.load_tensors(second)
+    assert all(torch.equal(a, b) for a, b in zip(saved, regenerated, strict=True))
+    assert all(torch.equal(a, b) for a, b in zip(saved, repeated, strict=True))
+    train_x, train_y, test_x, test_y = saved
+    assert train_x.shape == (1024, 2) and test_x.shape == (2048, 2)
+    assert train_x.dtype == test_x.dtype == torch.float32
+    assert train_y.shape == (1024,) and test_y.shape == (2048,)
+    assert train_y.dtype == test_y.dtype == torch.int64
+    assert set(train_y.unique().tolist()) <= {0, 1}
+    assert set(test_y.unique().tolist()) <= {0, 1}
+    assert 0.35 <= float(train_y.float().mean()) <= 0.65
+    assert 0.35 <= float(test_y.float().mean()) <= 0.65
+
+
+def test_xor_rendered_target_has_negative_product_semantics(tmp_path: Path) -> None:
+    profile = load_profile("v2.3-xor-pilot")
+    ensure_registries()
+    family = get_dataset_family("synthetic_tabular_classification")
+    partial = family.create_instance(profile, 7, input_dim=2, rule_family="xor")
+    spec = family.build_spec_with_id(partial)
+    out = tmp_path / "xor_target"
+    family.materialize({**partial, **spec}, out)
+    target = load_synthesize_module(out / "synthesize.py").target
+    points = torch.tensor([[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]])
+    assert torch.equal(target(points), torch.tensor([-1.0, 1.0, 1.0, -1.0]))
+
+
+def test_xor_pilot_mlp_and_kan_forward() -> None:
+    profile = load_profile("v2.3-xor-pilot")
+    ensure_registries()
+    for model_type in ("mlp", "kan"):
+        model_family = get_model_type(model_type)
+        model = model_family.sample_spec(profile, random.Random(3), dataset_params={"input_dim": 2, "num_classes": 2})
+        assert model["input_dim"] == 2 and model["output_dim"] == 2
+        assert model_family.build_module(model)(torch.zeros(5, 2)).shape == (5, 2)
+
+
+def test_xor_pilot_candidate_ground_truth_smoke(tmp_path: Path) -> None:
+    profile = load_profile("v2.3-xor-pilot")
+    profile.ground_truth["n_seeds"] = 1
+    ensure_registries()
+    family = get_dataset_family("synthetic_tabular_classification")
+    partial = family.create_instance(profile, 11, input_dim=2, rule_family="xor")
+    dataset_spec = family.build_spec_with_id(partial)
+    dataset_path = tmp_path / "xor_dataset"
+    family.materialize({**partial, **dataset_spec}, dataset_path)
+    model = {"type": "mlp", "input_dim": 2, "output_dim": 2, "depth": 1, "width": 16, "residual": False, "layer_norm": [False], "activations": ["relu"]}
+    candidate_spec = build_candidate_spec(profile, dataset_id=dataset_spec["dataset_id"], family="synthetic_tabular_classification", budget=128, batch_size=16, model=model, optimizer={"type": "Adam", "lr": 0.001, "weight_decay": 0.0, "betas": [0.9, 0.999]}, loss={"loss_id": "cross_entropy"})
+    candidate_path = tmp_path / "xor_candidate"
+    write_candidate(candidate_spec, candidate_path, get_model_type("mlp"))
+    summary = run_ground_truth(candidate_path, profile, dataset_path)
+    assert summary["execution"] == "candidate_py_files"
+    assert summary["selection_metric"] == "test_ce"
+    assert len(summary["seed_results"]) == 1
+    assert torch.isfinite(torch.tensor(float(summary["mean_test_ce"])))

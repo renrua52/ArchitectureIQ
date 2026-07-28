@@ -2174,6 +2174,9 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
             if isinstance(pair, list) and len(pair) == 2
         ]
         return rf"s(\mathbf{{x}}) = {_signed_latex_sum(terms)}"
+    if family == "xor" and len(features) >= 2:
+        left, right = features[:2]
+        return rf"s(\mathbf{{x}}) = -x_{{{left}}} \cdot x_{{{right}}}"
     if family == "piecewise_boundary" and len(features) >= 2 and len(weights) >= 3:
         primary, secondary = features[:2]
         below_weight, above_weight, offset_weight = weights[:3]
