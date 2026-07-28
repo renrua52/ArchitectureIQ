@@ -374,6 +374,7 @@ def generate_questions(
     num_questions: int = 1,
     num_choices: int | None = None,
     seed: int = 0,
+    require_distinct_model_types: bool = False,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
@@ -398,6 +399,17 @@ def generate_questions(
         num_choices=n_choices,
         selection_metric=dataset_spec["selection_metric"],
     )
+    if require_distinct_model_types:
+        subsets = [
+            subset
+            for subset in subsets
+            if len(
+                {
+                    read_json(candidate_path / "candidate_spec.json")["model"]["type"]
+                    for candidate_path in subset
+                }
+            ) == n_choices
+        ]
     if not subsets:
         raise RuntimeError(
             f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"
