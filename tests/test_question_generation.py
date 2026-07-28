@@ -256,7 +256,7 @@ def test_build_question_record_persists_profile_hash(tmp_path: Path, monkeypatch
             encoding="utf-8",
         )
 
-    monkeypatch.setattr(question_generator, "DATA_DIR", data_root)
+    monkeypatch.setattr(question_generator, "DATA_DIR", tmp_path / "default-data")
     monkeypatch.setattr(question_generator, "choices_compatible", lambda specs: True)
     monkeypatch.setattr(question_generator, "infer_question_type", lambda specs: "architecture_only")
     monkeypatch.setattr(question_generator, "infer_axes", lambda specs: (frozenset({"optimizer", "loss", "batch_size"}), frozenset({"model"})))
@@ -278,9 +278,11 @@ def test_build_question_record_persists_profile_hash(tmp_path: Path, monkeypatch
         candidate_paths=candidate_paths,
         candidate_set_paths=[set_path],
         rng=__import__("random").Random(0),
+        artifact_root=data_root,
     )
 
     assert record["profile"] == "v1"
+    assert Path(record["choices"][0]["candidate_path"]).parts[:2] == ("datasets", "univariate_regression")
     assert record["profile_hash"] == profile.profile_hash
     assert record["question_id"].startswith("q_")
 

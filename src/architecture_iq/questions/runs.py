@@ -55,8 +55,9 @@ def write_run_manifest(
     num_choices: int,
     seed: int,
     question_ids: list[str],
+    artifact_root: Path | None = None,
 ) -> None:
-    data_root = DATA_DIR.resolve()
+    data_root = (artifact_root or DATA_DIR).resolve()
     manifest = {
         "schema_version": profile.schema_version,
         "run_id": run_name,

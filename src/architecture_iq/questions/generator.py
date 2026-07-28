@@ -245,6 +245,7 @@ def build_question_record(
     candidate_paths: list[Path],
     candidate_set_paths: list[Path],
     rng: random.Random,
+    artifact_root: Path | None = None,
 ) -> dict[str, Any]:
     summaries = [load_summary(p) for p in candidate_paths]
     specs = [read_json(p / "candidate_spec.json") for p in candidate_paths]
@@ -283,7 +284,7 @@ def build_question_record(
     letters = _letters(len(ordered_paths))
     choices = []
     correct_letter = "A"
-    data_root = DATA_DIR.resolve()
+    data_root = (artifact_root or DATA_DIR).resolve()
     for letter, path in zip(letters, ordered_paths):
         path = path.resolve()
         spec = read_json(path / "candidate_spec.json")
@@ -346,6 +347,7 @@ def _write_question(
     run_path: Path,
     run_name: str,
     rng: random.Random,
+    artifact_root: Path | None = None,
 ) -> tuple[dict[str, Any], Path]:
     record = build_question_record(
         profile,
@@ -354,8 +356,9 @@ def _write_question(
         candidate_paths=candidate_paths,
         candidate_set_paths=candidate_set_paths,
         rng=rng,
+        artifact_root=artifact_root,
     )
-    data_root = DATA_DIR.resolve()
+    data_root = (artifact_root or DATA_DIR).resolve()
     record["question_run_id"] = run_name
     record["question_run_path"] = str(run_path.resolve().relative_to(data_root))
 
@@ -374,6 +377,7 @@ def generate_questions(
     num_questions: int = 1,
     num_choices: int | None = None,
     seed: int = 0,
+    artifact_root: Path | None = None,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
@@ -436,6 +440,7 @@ def generate_questions(
                 run_path=run_path,
                 run_name=run_name,
                 rng=rng,
+                artifact_root=artifact_root,
             )
         )
 
@@ -450,5 +455,6 @@ def generate_questions(
         num_choices=n_choices,
         seed=seed,
         question_ids=[record["question_id"] for record, _ in results],
+        artifact_root=artifact_root,
     )
     return run_path, results

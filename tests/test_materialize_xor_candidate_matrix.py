@@ -50,3 +50,25 @@ def test_xor_matrix_rejects_non_xor_dataset() -> None:
         assert "rule_family" in str(exc)
     else:
         raise AssertionError("expected matrix dataset validation to fail")
+
+
+def test_xor_v2_batch01_is_a_full_exact_matrix() -> None:
+    ensure_registries()
+    matrix, digest = MATRIX.load_matrix(ROOT / "configs" / "xor_architecture_matrix_v2_batch01.yaml")
+    comparisons = MATRIX.resolve_comparisons(
+        matrix,
+        dataset_spec={
+            "family": "synthetic_tabular_classification",
+            "params": {"input_dim": 2, "num_classes": 2, "rule_family": "xor"},
+        },
+        profile=load_profile("v2.5-xor-screen"),
+    )
+
+    assert len(digest) == 64
+    assert len(comparisons) == 24
+    assert comparisons[0][0].startswith("b01_c01_")
+    assert all([model["type"] for model in models] == ["mlp", "kan"] for _, models in comparisons)
+    for _, models in comparisons:
+        mlp = models[0]
+        assert len(mlp["activations"]) == mlp["depth"]
+        assert len(mlp["layer_norm"]) == mlp["depth"]
