@@ -49,13 +49,16 @@ def _sample_family_models(
     seed: int,
     count: int,
     dataset_params: dict[str, Any],
+    excluded_model_keys: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    if count < 1:
-        raise ValueError("count must be positive")
+    if count < 0:
+        raise ValueError("count must be non-negative")
+    if count == 0:
+        return []
     rng = random.Random(seed)
     sampler = get_model_type(model_type)
     sampled: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    seen = set(excluded_model_keys or ())
     for _ in range(count * 1000):
         model = sampler.sample_spec(profile, rng, dataset_params=dataset_params)
         key = _canonical_model(model)
@@ -67,8 +70,8 @@ def _sample_family_models(
         if len(sampled) == count:
             return sampled
     raise RuntimeError(
-        f"Could not sample {count} unique {model_type} specs from seed {seed}; "
-        f"only found {len(sampled)}"
+        f"Could not sample {count} unique new {model_type} specs from seed {seed}; "
+        f"only found {len(sampled)} after excluding {len(excluded_model_keys or ())} frozen specs"
     )
 
 
@@ -78,7 +81,11 @@ def sample_matrix(
     dataset_spec: dict[str, Any],
     mlp_seed: int,
     kan_seed: int,
-    count: int,
+    count: int = 16,
+    mlp_count: int | None = None,
+    kan_count: int | None = None,
+    excluded_model_keys: dict[str, set[str]] | None = None,
+    excluded_matrix_hashes: list[str] | None = None,
 ) -> dict[str, Any]:
     params = dataset_spec.get("params", {})
     if (
@@ -88,6 +95,12 @@ def sample_matrix(
         or params.get("num_classes") != 2
     ):
         raise ValueError("sampled pool requires a two-dimensional binary XOR dataset")
+    mlp_count = count if mlp_count is None else int(mlp_count)
+    kan_count = count if kan_count is None else int(kan_count)
+    counts = {"mlp": mlp_count, "kan": kan_count}
+    if any(value < 0 for value in counts.values()) or not any(counts.values()):
+        raise ValueError("at least one non-negative family count must be positive")
+    excluded_model_keys = excluded_model_keys or {}
     models: list[dict[str, Any]] = []
     for model_type, seed in (("mlp", mlp_seed), ("kan", kan_seed)):
         for index, model in enumerate(
@@ -95,15 +108,17 @@ def sample_matrix(
                 profile,
                 model_type=model_type,
                 seed=seed,
-                count=count,
+                count=counts[model_type],
                 dataset_params=params,
+                excluded_model_keys=excluded_model_keys.get(model_type),
             ),
             start=1,
         ):
             models.append({"id": f"{model_type}_{index:02d}", "model": model})
+    shape = f"{count}x{count}" if mlp_count == kan_count == count else f"m{mlp_count}-k{kan_count}"
     return {
         "schema_version": "xor_sampled_candidate_pool_v1",
-        "matrix_id": f"xor-sampled-{count}x{count}-m{mlp_seed}-k{kan_seed}",
+        "matrix_id": f"xor-sampled-{shape}-m{mlp_seed}-k{kan_seed}",
         "family": "synthetic_tabular_classification",
         "dataset_constraints": {
             "input_dim": 2,
@@ -114,7 +129,9 @@ def sample_matrix(
             "sampler": "family_specific_model_sampler_v1",
             "mlp_seed": int(mlp_seed),
             "kan_seed": int(kan_seed),
-            "models_per_family": int(count),
+            "models_per_family": int(count) if mlp_count == kan_count == count else None,
+            "models_by_family": counts,
+            "excluded_matrix_hashes": sorted(excluded_matrix_hashes or []),
         },
         "shared_training": copy.deepcopy(_SHARED_TRAINING),
         "candidate_pool": models,
@@ -241,7 +258,16 @@ def main() -> None:
     parser.add_argument("--matrix", type=Path, required=True)
     parser.add_argument("--mlp-seed", type=int, default=20260729)
     parser.add_argument("--kan-seed", type=int, default=20260730)
-    parser.add_argument("--count", type=int, default=16)
+    parser.add_argument("--count", type=int, default=16, help="default count for each family")
+    parser.add_argument("--mlp-count", type=int)
+    parser.add_argument("--kan-count", type=int)
+    parser.add_argument(
+        "--exclude-matrix",
+        type=Path,
+        action="append",
+        default=[],
+        help="frozen matrix whose same-family specs must not be resampled",
+    )
     parser.add_argument("--set-name")
     parser.add_argument("--create-dataset-seed", type=int)
     parser.add_argument("--materialize-only", action="store_true")
@@ -256,14 +282,39 @@ def main() -> None:
         )
     dataset_spec = read_json(args.dataset_path.resolve() / "dataset_spec.json")
     if args.materialize_only:
+        if args.exclude_matrix:
+            parser.error("--exclude-matrix is only valid while sampling a new matrix")
         matrix, _ = load_matrix(args.matrix)
     else:
+        excluded_model_keys: dict[str, set[str]] = {"mlp": set(), "kan": set()}
+        excluded_matrix_hashes: list[str] = []
+        for excluded_path in args.exclude_matrix:
+            excluded_matrix, excluded_hash = load_matrix(excluded_path)
+            if excluded_matrix.get("dataset_constraints") != {
+                "input_dim": 2,
+                "num_classes": 2,
+                "rule_family": "xor",
+            }:
+                raise ValueError(f"exclude matrix is not a two-dimensional binary XOR pool: {excluded_path}")
+            excluded_matrix_hashes.append(excluded_hash)
+            for entry in excluded_matrix["candidate_pool"]:
+                model = entry.get("model")
+                if not isinstance(model, dict):
+                    raise ValueError(f"exclude matrix has invalid candidate entry: {excluded_path}")
+                model_type = str(model.get("type", ""))
+                if model_type not in excluded_model_keys:
+                    raise ValueError(f"exclude matrix has unsupported model type {model_type!r}")
+                excluded_model_keys[model_type].add(_canonical_model(model))
         matrix = sample_matrix(
             profile,
             dataset_spec=dataset_spec,
             mlp_seed=args.mlp_seed,
             kan_seed=args.kan_seed,
             count=args.count,
+            mlp_count=args.mlp_count,
+            kan_count=args.kan_count,
+            excluded_model_keys=excluded_model_keys,
+            excluded_matrix_hashes=excluded_matrix_hashes,
         )
         write_matrix(matrix, args.matrix)
     set_path = materialize_pool(

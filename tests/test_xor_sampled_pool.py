@@ -54,6 +54,41 @@ def test_family_specific_sampler_freezes_16_unique_specs_per_family(tmp_path: Pa
     assert loaded_digest == digest
 
 
+def test_supplemental_one_family_sampling_excludes_frozen_specs() -> None:
+    ensure_registries()
+    profile = load_profile("v2.5-xor-holdout")
+    initial = POOL.sample_matrix(
+        profile,
+        dataset_spec=_DATASET_SPEC,
+        mlp_seed=11,
+        kan_seed=12,
+        count=4,
+    )
+    frozen_mlps = {
+        POOL._canonical_model(entry["model"])
+        for entry in initial["candidate_pool"]
+        if entry["model"]["type"] == "mlp"
+    }
+    supplemental = POOL.sample_matrix(
+        profile,
+        dataset_spec=_DATASET_SPEC,
+        mlp_seed=13,
+        kan_seed=12,
+        mlp_count=4,
+        kan_count=0,
+        excluded_model_keys={"mlp": frozen_mlps},
+        excluded_matrix_hashes=["frozen-matrix-sha256"],
+    )
+
+    supplemental_models = [entry["model"] for entry in supplemental["candidate_pool"]]
+    assert len(supplemental_models) == 4
+    assert {model["type"] for model in supplemental_models} == {"mlp"}
+    assert not frozen_mlps.intersection(
+        POOL._canonical_model(model) for model in supplemental_models
+    )
+    assert supplemental["sampling"]["models_by_family"] == {"mlp": 4, "kan": 0}
+    assert supplemental["sampling"]["excluded_matrix_hashes"] == ["frozen-matrix-sha256"]
+
 def test_winner_cap_selects_unique_pairs_with_no_family_above_seventy_percent() -> None:
     subsets: list[list[Path]] = []
     winner_types: dict[frozenset[str], str] = {}

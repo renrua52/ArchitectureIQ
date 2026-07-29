@@ -29,7 +29,7 @@ XOR 继续不使用 `gap_min`。每个 pair 仍必须满足：两边 test CE 有
 1. 分别调用 MLP sampler 与 KAN sampler，直到各得到 16 个去重 model spec；不得调用会先随机选择模型类型的 generic `sample_model()`。记录 family-specific sampler seed。显式固定 batch size `32`、cross-entropy 与统一 Adam (`lr=1e-3`、weight decay `0`、betas `[0.9, 0.999]`)；将这 32 个实际 materialized specs、seeds、shared training spec 与 hash 冻结为该 run 的 matrix。随机性只用于起始候选池，不在组题时随机重采样。
 2. 每个唯一候选按固定 screening/holdout seed 分区重新训练一次；同一候选在多个 pair 中引用同一组 GT，禁止按 pair 重训或事后调参。
 3. 从通过 holdout 的 pair 中选择 100 个：pair 唯一、全部跨 MLP--KAN，且任一赢家家族占比不得超过 70%。不要求严格 50/50。
-4. 若某赢家家族超过 70%，先删除该方向的冗余 pair；若剩余不足 100，则用新的、记录在案的 sampler seed 补采样和训练候选，再只从新通过的 pair 中补足。不得降低显著性门槛或重训旧 pair 以追求方向平衡。
+4. 若某赢家家族超过 70%，先删除该方向的冗余 pair；若剩余不足 100，则用新的、记录在案的 family-specific sampler seed 补采样和训练候选。补充 matrix 必须记录其排除的既有 matrix hash，并排除同家族已冻结 spec；可只补赢家稀缺家族，并复用对方家族已有的 GT。不得降低显著性门槛、重训旧 pair 或修改 profile 以追求方向平衡。
 5. 一次性生成 100 道题、审计报告和 Inspector-compatible `review_collection.json`。审计重算 provenance、architecture-only 不变量、赢家、显著性、pair 唯一、赢家占比和 prompt 泄漏；候选复用只记录直方图。
 6. 将完整 100 题 run 在 Inspector 中逐题人工审查。交付时提供已验证的 PowerShell 启动命令，使启动后直接加载该 collection；不额外创建启动脚本、数据库或中间 collection 实体。
 
