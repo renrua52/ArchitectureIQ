@@ -1674,25 +1674,27 @@ def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
     status = st.empty()
     chart = st.empty()
     histories: dict[int, tuple[list[int], list[float]]] = {}
-    last_chart_at = 0.0
+    completed_seeds: set[int] = set()
 
-    def render_chart(metric: str) -> None:
+    def render_chart(metric: str, n_seeds: int) -> None:
         fig, ax = plt.subplots(figsize=(7.2, 2.9))
         for seed_index, (samples, values) in sorted(histories.items()):
-            if samples:
+            if seed_index in completed_seeds and samples:
                 ax.plot(samples, values, linewidth=1.5, label=f"seed {seed_index}")
         ax.set_xlabel("Samples seen")
         ax.set_ylabel(_metric_display_name(metric))
-        ax.set_title("Live custom-setting learning curve")
+        ax.set_title(
+            "Custom-setting learning curves "
+            f"(completed seeds: {len(completed_seeds)} / {n_seeds})"
+        )
         ax.grid(True, alpha=0.25)
-        if len(histories) <= 8:
+        if len(completed_seeds) <= 8:
             ax.legend(loc="best", fontsize="small")
         fig.tight_layout()
         chart.pyplot(fig, clear_figure=True)
         plt.close(fig)
 
     def callback(event: dict[str, Any]) -> None:
-        nonlocal last_chart_at
         phase = str(event.get("phase", ""))
         seed_index = int(event.get("seed_index", 1))
         n_seeds = max(1, int(event.get("n_seeds", 1)))
@@ -1729,15 +1731,14 @@ def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
                 f"latest {_metric_display_name(metric)} {value:.6g} · "
                 f"elapsed {_format_elapsed(elapsed)}{eta_text}"
             )
-            now = time.monotonic()
-            if now - last_chart_at >= 0.12 or fraction >= 1.0:
-                render_chart(metric)
-                last_chart_at = now
             return
 
         if phase == "seed_finished":
+            completed_seeds.add(seed_index)
+            render_chart(metric, n_seeds)
             status.caption(
                 f"Finished seed {seed_index} / {n_seeds} · "
+                f"updated completed-seed curves · "
                 f"elapsed {_format_elapsed(elapsed)}{eta_text}"
             )
 

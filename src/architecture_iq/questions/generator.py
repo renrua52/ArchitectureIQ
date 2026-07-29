@@ -16,6 +16,8 @@ from architecture_iq.candidates.sets import list_candidates_in_set
 from architecture_iq.paths import DATA_DIR
 from architecture_iq.profile import Profile
 from architecture_iq.questions.runs import (
+    CANDIDATE_REUSE_POLICIES,
+    DEFAULT_CANDIDATE_REUSE_POLICY,
     make_run_name,
     question_in_run_dir,
     question_run_dir,
@@ -140,6 +142,59 @@ def _candidate_set_key(paths: list[Path]) -> frozenset[str]:
     return frozenset(p.name for p in paths)
 
 
+def _unique_subsets(subsets: list[list[Path]]) -> list[list[Path]]:
+    seen: set[frozenset[str]] = set()
+    unique: list[list[Path]] = []
+    for subset in subsets:
+        key = _candidate_set_key(subset)
+        if key not in seen:
+            seen.add(key)
+            unique.append(subset)
+    return unique
+
+
+def _pick_unique_subsets(subsets: list[list[Path]], num_questions: int) -> list[list[Path]]:
+    """Pick distinct candidate sets while allowing candidates across questions to recur."""
+    return _unique_subsets(subsets)[:num_questions]
+
+
+def _pick_unique_subsets_with_winner_cap(
+    subsets: list[list[Path]],
+    num_questions: int,
+    *,
+    winner_model_types: dict[frozenset[str], str],
+    max_winner_model_type_fraction: float,
+) -> list[list[Path]]:
+    """Pick distinct pairs while capping the share won by either model family."""
+    if not 0.5 <= max_winner_model_type_fraction <= 1.0:
+        raise ValueError("max_winner_model_type_fraction must be in [0.5, 1.0]")
+    unique = _unique_subsets(subsets)
+    winner_groups: dict[str, list[list[Path]]] = {}
+    for subset in unique:
+        winner_type = winner_model_types[_candidate_set_key(subset)]
+        winner_groups.setdefault(winner_type, []).append(subset)
+    if len(winner_groups) != 2:
+        raise ValueError("winner-cap selection requires exactly two winner model types")
+
+    cap = math.floor(num_questions * max_winner_model_type_fraction)
+    minimum_per_type = num_questions - cap
+    if any(len(group) < minimum_per_type for group in winner_groups.values()):
+        return []
+
+    selected: list[list[Path]] = []
+    for winner_type in sorted(winner_groups):
+        selected.extend(winner_groups[winner_type][:minimum_per_type])
+    remaining = num_questions - len(selected)
+    for winner_type in sorted(winner_groups, key=lambda item: len(winner_groups[item]), reverse=True):
+        already_selected = minimum_per_type
+        available = min(cap - already_selected, len(winner_groups[winner_type]) - already_selected)
+        take = min(remaining, available)
+        selected.extend(winner_groups[winner_type][already_selected : already_selected + take])
+        remaining -= take
+        if remaining == 0:
+            return selected
+    return []
+
 def _pick_candidate_disjoint_subsets(
     subsets: list[list[Path]],
     num_questions: int,
@@ -230,6 +285,106 @@ def _pick_candidate_disjoint_subsets(
         return None
 
     return bounded_search(0, frozenset(), []) or []
+
+
+def _pick_bounded_reuse_pairs(
+    subsets: list[list[Path]],
+    num_questions: int,
+    *,
+    max_candidate_uses: int,
+    model_types: dict[Path, str],
+    required_model_types: frozenset[str],
+) -> list[list[Path]]:
+    """Pick distinct two-choice pairs subject to a per-candidate use cap.
+
+    The declared model types make the graph bipartite. A max-flow selection
+    avoids a greedy ordering falsely reporting that an available pool is full.
+    """
+    if num_questions <= 0 or max_candidate_uses < 1:
+        return []
+    if len(required_model_types) != 2:
+        raise ValueError("Bounded reuse requires exactly two model types")
+
+    left_type, right_type = sorted(required_model_types)
+    pairs: list[tuple[Path, Path]] = []
+    for subset in _unique_subsets(subsets):
+        if len(subset) != 2:
+            continue
+        first, second = subset
+        if model_types[first] == left_type and model_types[second] == right_type:
+            pairs.append((first, second))
+        elif model_types[first] == right_type and model_types[second] == left_type:
+            pairs.append((second, first))
+
+    left_nodes = sorted({left for left, _ in pairs}, key=lambda path: path.name)
+    right_nodes = sorted({right for _, right in pairs}, key=lambda path: path.name)
+    source = 0
+    left_start = 1
+    right_start = left_start + len(left_nodes)
+    sink = right_start + len(right_nodes)
+    graph: list[list[list[int]]] = [[] for _ in range(sink + 1)]
+
+    def add_edge(start: int, end: int, capacity: int) -> int:
+        edge_index = len(graph[start])
+        graph[start].append([end, capacity, len(graph[end])])
+        graph[end].append([start, 0, edge_index])
+        return edge_index
+
+    left_index = {path: left_start + index for index, path in enumerate(left_nodes)}
+    right_index = {path: right_start + index for index, path in enumerate(right_nodes)}
+    for path in left_nodes:
+        add_edge(source, left_index[path], max_candidate_uses)
+    for path in right_nodes:
+        add_edge(right_index[path], sink, max_candidate_uses)
+
+    pair_edges: list[tuple[list[Path], int, int]] = []
+    for left, right in pairs:
+        edge_index = add_edge(left_index[left], right_index[right], 1)
+        pair_edges.append(([left, right], left_index[left], edge_index))
+
+    total_flow = 0
+    while True:
+        level = [-1] * len(graph)
+        level[source] = 0
+        queue = [source]
+        for node in queue:
+            for end, capacity, _ in graph[node]:
+                if capacity and level[end] < 0:
+                    level[end] = level[node] + 1
+                    queue.append(end)
+        if level[sink] < 0:
+            break
+
+        next_edge = [0] * len(graph)
+
+        def send(node: int, flow: int) -> int:
+            if node == sink:
+                return flow
+            while next_edge[node] < len(graph[node]):
+                edge_index = next_edge[node]
+                end, capacity, reverse_index = graph[node][edge_index]
+                if capacity and level[end] == level[node] + 1:
+                    pushed = send(end, min(flow, capacity))
+                    if pushed:
+                        graph[node][edge_index][1] -= pushed
+                        graph[end][reverse_index][1] += pushed
+                        return pushed
+                next_edge[node] += 1
+            return 0
+
+        while pushed := send(source, 10**9):
+            total_flow += pushed
+
+    if total_flow < num_questions:
+        return []
+    selected = [
+        pair
+        for pair, left_node, edge_index in pair_edges
+        if graph[left_node][edge_index][1] == 0
+    ]
+    return selected[:num_questions]
+
+
 def _budget_field(specs: list[dict[str, Any]]) -> dict[str, Any]:
     totals = {spec["budget"]["total_samples_seen"] for spec in specs}
     if len(totals) == 1:
@@ -377,12 +532,19 @@ def generate_questions(
     num_questions: int = 1,
     num_choices: int | None = None,
     seed: int = 0,
+    require_distinct_model_types: bool = False,
+    required_model_types: frozenset[str] | None = None,
+    candidate_reuse_policy: str = DEFAULT_CANDIDATE_REUSE_POLICY,
+    max_candidate_uses: int | None = None,
+    max_winner_model_type_fraction: float | None = None,
     artifact_root: Path | None = None,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
     if not candidate_set_paths:
         raise ValueError("At least one candidate set path is required")
+    if candidate_reuse_policy not in CANDIDATE_REUSE_POLICIES:
+        raise ValueError(f"Unknown candidate reuse policy: {candidate_reuse_policy}")
 
     resolved_sets = [p.resolve() for p in candidate_set_paths]
     pool = load_candidate_pool_from_sets(resolved_sets)
@@ -394,6 +556,20 @@ def generate_questions(
         raise RuntimeError(
             f"Not enough eligible candidates ({len(pool)}) for {n_choices} choices"
         )
+    if required_model_types is not None and len(required_model_types) != n_choices:
+        raise ValueError("required_model_types must contain one distinct type per choice")
+    if candidate_reuse_policy != DEFAULT_CANDIDATE_REUSE_POLICY:
+        if n_choices != 2 or not required_model_types:
+            raise ValueError("Candidate-reuse policies require two explicit model types")
+        if candidate_reuse_policy == "sequential_bounded_reuse":
+            if not isinstance(max_candidate_uses, int) or isinstance(max_candidate_uses, bool) or max_candidate_uses < 1:
+                raise ValueError("sequential_bounded_reuse requires max_candidate_uses >= 1")
+        elif max_candidate_uses is not None:
+            raise ValueError("blind_pair_unique does not use max_candidate_uses")
+        if max_winner_model_type_fraction is not None and candidate_reuse_policy != "blind_pair_unique":
+            raise ValueError("winner-family caps are only supported for blind_pair_unique")
+    elif max_winner_model_type_fraction is not None:
+        raise ValueError("winner-family caps require blind_pair_unique")
 
     subsets = find_significant_subsets(
         pool,
@@ -402,15 +578,69 @@ def generate_questions(
         num_choices=n_choices,
         selection_metric=dataset_spec["selection_metric"],
     )
+    model_types = {
+        candidate_path: read_json(candidate_path / "candidate_spec.json")["model"]["type"]
+        for candidate_path in pool
+    }
+    if required_model_types is not None:
+        subsets = [
+            subset
+            for subset in subsets
+            if {model_types[candidate_path] for candidate_path in subset}
+            == required_model_types
+        ]
+    elif require_distinct_model_types:
+        subsets = [
+            subset
+            for subset in subsets
+            if len({model_types[candidate_path] for candidate_path in subset}) == n_choices
+        ]
     if not subsets:
         raise RuntimeError(
             f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"
         )
 
-    selected_sets = _pick_candidate_disjoint_subsets(subsets, num_questions)
+    if candidate_reuse_policy == DEFAULT_CANDIDATE_REUSE_POLICY:
+        selected_sets = _pick_candidate_disjoint_subsets(subsets, num_questions)
+    elif candidate_reuse_policy == "blind_pair_unique":
+        if max_winner_model_type_fraction is None:
+            selected_sets = _pick_unique_subsets(subsets, num_questions)
+        else:
+            winner_model_types: dict[frozenset[str], str] = {}
+            for subset in _unique_subsets(subsets):
+                summaries = [load_summary(path) for path in subset]
+                significance = validate_significance(
+                    summaries,
+                    profile,
+                    metric=dataset_spec["selection_metric"],
+                )
+                if not significance.passed:
+                    raise RuntimeError("Significant subset changed before winner-cap selection")
+                winner_model_types[_candidate_set_key(subset)] = model_types[
+                    subset[significance.winner_index]
+                ]
+            selected_sets = _pick_unique_subsets_with_winner_cap(
+                subsets,
+                num_questions,
+                winner_model_types=winner_model_types,
+                max_winner_model_type_fraction=max_winner_model_type_fraction,
+            )
+    else:
+        selected_sets = _pick_bounded_reuse_pairs(
+            subsets,
+            num_questions,
+            max_candidate_uses=max_candidate_uses or 0,
+            model_types=model_types,
+            required_model_types=required_model_types or frozenset(),
+        )
     if len(selected_sets) < num_questions:
+        requirement = (
+            "candidate-disjoint"
+            if candidate_reuse_policy == DEFAULT_CANDIDATE_REUSE_POLICY
+            else candidate_reuse_policy
+        )
         raise RuntimeError(
-            f"Requested {num_questions} candidate-disjoint questions but no valid "
+            f"Requested {num_questions} {requirement} questions but no valid "
             f"selection exists among {len(subsets)} significant subsets. Generate "
             "more candidates or request fewer questions."
         )
@@ -455,6 +685,25 @@ def generate_questions(
         num_choices=n_choices,
         seed=seed,
         question_ids=[record["question_id"] for record, _ in results],
+        candidate_reuse_policy=candidate_reuse_policy,
+        run_purpose=(
+            "review_blind_pool"
+            if candidate_reuse_policy == "blind_pair_unique"
+            else "review_practice_pool"
+            if candidate_reuse_policy == "sequential_bounded_reuse"
+            else None
+        ),
+        canonical_blind_evaluation=(
+            False if candidate_reuse_policy != DEFAULT_CANDIDATE_REUSE_POLICY else None
+        ),
+        max_candidate_uses=max_candidate_uses,
+        pair_reuse_policy=(
+            "unique" if candidate_reuse_policy != DEFAULT_CANDIDATE_REUSE_POLICY else None
+        ),
+        required_model_types=(
+            sorted(required_model_types) if required_model_types is not None else None
+        ),
+        max_winner_model_type_fraction=max_winner_model_type_fraction,
         artifact_root=artifact_root,
     )
     return run_path, results
