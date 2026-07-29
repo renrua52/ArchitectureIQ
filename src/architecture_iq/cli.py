@@ -256,6 +256,26 @@ def generate_question_cmd(
     ),
     profile: str = typer.Option("v1"),
     seed: int = typer.Option(0),
+    candidate_reuse_policy: str = typer.Option(
+        "globally_disjoint_within_run",
+        "--candidate-reuse-policy",
+        help="Run-level candidate reuse policy",
+    ),
+    max_candidate_uses: Optional[int] = typer.Option(
+        None,
+        "--max-candidate-uses",
+        help="Required only for sequential_bounded_reuse",
+    ),
+    winner_type_max_fraction: Optional[float] = typer.Option(
+        None,
+        "--winner-type-max-fraction",
+        help="Maximum fraction of questions won by any one model type (for example 0.70)",
+    ),
+    required_model_types: list[str] = typer.Option(
+        [],
+        "--required-model-type",
+        help="Repeat once per required model type (for example: gru_lm and transformer_lm)",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -273,6 +293,10 @@ def generate_question_cmd(
         num_questions=num_questions is not None,
         num_choices=num_choices is not None,
         seed=seed != 0,
+        candidate_reuse_policy=candidate_reuse_policy != "globally_disjoint_within_run",
+        max_candidate_uses=max_candidate_uses is not None,
+        winner_type_max_fraction=winner_type_max_fraction is not None,
+        required_model_types=bool(required_model_types),
     )
 
     if interactive:
@@ -309,6 +333,10 @@ def generate_question_cmd(
         num_questions=num_questions,
         num_choices=n_choices,
         seed=seed,
+        required_model_types=frozenset(required_model_types) or None,
+        candidate_reuse_policy=candidate_reuse_policy,
+        max_candidate_uses=max_candidate_uses,
+        winner_type_max_fraction=winner_type_max_fraction,
     )
 
     typer.echo(f"Question run written to {run_path}")

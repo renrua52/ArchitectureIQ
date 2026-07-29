@@ -18,22 +18,45 @@ class CausalGruLM(nn.Module):
         context_length: int,
         d_model: int,
         num_layers: int,
+        layer_residual: bool = False,
     ) -> None:
         super().__init__()
         self.context_length = context_length
+        self.layer_residual = bool(layer_residual)
         self.token_embed = nn.Embedding(vocab_size, d_model)
-        self.gru = nn.GRU(
-            input_size=d_model,
-            hidden_size=d_model,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=0.0,
-        )
+        if self.layer_residual:
+            # One independent single-layer GRU per architectural layer makes
+            # the residual path explicit without adding any parameters.
+            self.gru_layers = nn.ModuleList(
+                [
+                    nn.GRU(
+                        input_size=d_model,
+                        hidden_size=d_model,
+                        num_layers=1,
+                        batch_first=True,
+                        dropout=0.0,
+                    )
+                    for _ in range(num_layers)
+                ]
+            )
+        else:
+            self.gru = nn.GRU(
+                input_size=d_model,
+                hidden_size=d_model,
+                num_layers=num_layers,
+                batch_first=True,
+                dropout=0.0,
+            )
         self.head = nn.Linear(d_model, vocab_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.token_embed(x)
-        h, _ = self.gru(h)
+        if self.layer_residual:
+            for layer in self.gru_layers:
+                layer_output, _ = layer(h)
+                h = h + layer_output
+        else:
+            h, _ = self.gru(h)
         return self.head(h)
 
 
@@ -43,13 +66,15 @@ class GruLmModelFamily(ModelFamily):
     _REQUIRED_KEYS = frozenset(
         {"type", "vocab_size", "context_length", "d_model", "num_layers"}
     )
+    _OPTIONAL_KEYS = frozenset({"layer_residual"})
 
     def validate(self, model_spec: dict[str, Any]) -> None:
         keys = set(model_spec)
-        if keys != self._REQUIRED_KEYS:
+        if not self._REQUIRED_KEYS <= keys or keys - self._REQUIRED_KEYS - self._OPTIONAL_KEYS:
             raise ValueError(
-                "gru_lm model spec must contain exactly "
-                f"{sorted(self._REQUIRED_KEYS)}; got {sorted(keys)}"
+                "gru_lm model spec must contain required keys "
+                f"{sorted(self._REQUIRED_KEYS)} and only optional keys "
+                f"{sorted(self._OPTIONAL_KEYS)}; got {sorted(keys)}"
             )
         if model_spec["type"] != self.name:
             raise ValueError("gru_lm model spec type must be 'gru_lm'")
@@ -62,6 +87,10 @@ class GruLmModelFamily(ModelFamily):
             value = int(model_spec[key])
             if value < minimum:
                 raise ValueError(f"gru_lm {key} must be >= {minimum}")
+        if "layer_residual" in model_spec and not isinstance(
+            model_spec["layer_residual"], bool
+        ):
+            raise ValueError("gru_lm layer_residual must be a boolean")
 
     def build_module(self, model_spec: dict[str, Any]) -> nn.Module:
         self.validate(model_spec)
@@ -70,11 +99,38 @@ class GruLmModelFamily(ModelFamily):
             context_length=int(model_spec["context_length"]),
             d_model=int(model_spec["d_model"]),
             num_layers=int(model_spec["num_layers"]),
+            layer_residual=bool(model_spec.get("layer_residual", False)),
         )
 
     def render_model_py(self, model_spec: dict[str, Any]) -> str:
         self.validate(model_spec)
-        return f'''"""Causal unidirectional GRU language model."""
+        layer_residual = bool(model_spec.get("layer_residual", False))
+        if layer_residual:
+            gru_definition = f'''        self.gru_layers = nn.ModuleList([
+            nn.GRU(
+                input_size={int(model_spec["d_model"])},
+                hidden_size={int(model_spec["d_model"])},
+                num_layers=1,
+                batch_first=True,
+                dropout=0.0,
+            )
+            for _ in range({int(model_spec["num_layers"])})
+        ])'''
+            forward_body = '''        for layer in self.gru_layers:
+            layer_output, _ = layer(h)
+            h = h + layer_output'''
+            description = "Causal unidirectional GRU language model with per-layer residual connections."
+        else:
+            gru_definition = f'''        self.gru = nn.GRU(
+            input_size={int(model_spec["d_model"])},
+            hidden_size={int(model_spec["d_model"])},
+            num_layers={int(model_spec["num_layers"])},
+            batch_first=True,
+            dropout=0.0,
+        )'''
+            forward_body = '''        h, _ = self.gru(h)'''
+            description = "Causal unidirectional GRU language model."
+        return f'''"""{description}"""
 from __future__ import annotations
 
 import torch
@@ -86,18 +142,12 @@ class Model(nn.Module):
         super().__init__()
         self.context_length = {int(model_spec["context_length"])}
         self.token_embed = nn.Embedding({int(model_spec["vocab_size"])}, {int(model_spec["d_model"])})
-        self.gru = nn.GRU(
-            input_size={int(model_spec["d_model"])},
-            hidden_size={int(model_spec["d_model"])},
-            num_layers={int(model_spec["num_layers"])},
-            batch_first=True,
-            dropout=0.0,
-        )
+{gru_definition}
         self.head = nn.Linear({int(model_spec["d_model"])}, {int(model_spec["vocab_size"])})
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.token_embed(x)
-        h, _ = self.gru(h)
+{forward_body}
         return self.head(h)
 '''
 
@@ -116,4 +166,5 @@ class Model(nn.Module):
             "context_length": int(dataset_params["context_length"]),
             "d_model": int(rng.choice(cfg["d_model"])),
             "num_layers": int(rng.choice(cfg["num_layers"])),
+            "layer_residual": bool(cfg.get("layer_residual", False)),
         }

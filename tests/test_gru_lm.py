@@ -30,6 +30,31 @@ def _model_spec() -> dict[str, int | str]:
     }
 
 
+def test_legacy_specs_default_to_non_residual() -> None:
+    ensure_registries()
+    family = get_model_type("gru_lm")
+    legacy = _model_spec()
+    model = family.build_module(legacy)
+    assert model.layer_residual is False
+    assert hasattr(model, "gru")
+    assert not hasattr(model, "gru_layers")
+
+
+def test_residual_forward_has_identity_path_and_same_parameter_count() -> None:
+    ensure_registries()
+    family = get_model_type("gru_lm")
+    spec = {**_model_spec(), "layer_residual": True}
+    model = family.build_module(spec)
+    assert model.layer_residual is True
+    assert len(model.gru_layers) == spec["num_layers"]
+    assert not hasattr(model, "gru")
+    for parameter in model.gru_layers.parameters():
+        parameter.data.zero_()
+    tokens = torch.tensor([[0, 1, 2, 3]], dtype=torch.long)
+    expected = model.head(model.token_embed(tokens))
+    torch.testing.assert_close(model(tokens), expected)
+    assert trainable_parameter_count(spec) == trainable_parameter_count(_model_spec())
+
 def test_registry_forward_and_backward() -> None:
     ensure_registries()
     family = get_model_type("gru_lm")
@@ -86,6 +111,47 @@ def test_old_profiles_and_default_compatibility_are_unchanged() -> None:
     )
     assert sampled["type"] in {"transformer_lm", "gru_lm"}
 
+
+def test_residual_profile_samples_all_gru_specs_with_residuals() -> None:
+    profile = load_profile("v2.5-gru-residual-architecture-pilot")
+    bridge = profile.raw["cross_profile_reuse"]
+    assert bridge["enabled"] is True
+    assert bridge["transformer_allowlist"] == [
+        {
+            "source_profile": "v2.4-gru-architecture-pilot",
+            "source_profile_hash": "f0893f8ab4ec7cf0",
+            "model_types": ["transformer_lm"],
+            "note": bridge["transformer_allowlist"][0]["note"],
+        }
+    ]
+    assert profile.significance["gap_min"] == 0
+    assert profile.significance["win_rate_min"] == 0.7
+    assert profile.significance["use_non_overlap"] is True
+    assert len(profile.gru_lm["d_model"]) * len(profile.gru_lm["num_layers"]) == 104
+    assert profile.gru_lm["layer_residual"] is True
+    from architecture_iq.models.gru_lm import GruLmModelFamily
+    sampled = [
+        GruLmModelFamily().sample_spec(
+            profile, random.Random(seed), {"vocab_size": 7, "context_length": 4}
+        )
+        for seed in range(64)
+    ]
+    assert all(spec["layer_residual"] is True for spec in sampled)
+    assert {spec["d_model"] for spec in sampled} <= set(profile.gru_lm["d_model"])
+    assert {spec["num_layers"] for spec in sampled} <= set(profile.gru_lm["num_layers"])
+
+
+def test_rendered_residual_model_is_executable() -> None:
+    ensure_registries()
+    family = get_model_type("gru_lm")
+    rendered = family.render_model_py({**_model_spec(), "layer_residual": True})
+    assert "self.gru_layers = nn.ModuleList" in rendered
+    assert "h = h + layer_output" in rendered
+    namespace: dict[str, object] = {}
+    exec(rendered, namespace)
+    model = namespace["Model"]()
+    logits = model(torch.zeros((1, 4), dtype=torch.long))
+    assert logits.shape == (1, 4, 7)
 
 def test_architecture_pilot_profile_uses_adam_and_large_gru_pool() -> None:
     profile = load_profile("v2.4-gru-architecture-pilot")
