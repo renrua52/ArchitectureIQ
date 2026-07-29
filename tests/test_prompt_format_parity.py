@@ -14,6 +14,8 @@ sys.path.insert(0, str(TOOLS))
 import prompt_format as insp  # noqa: E402
 
 
+
+
 @pytest.mark.parametrize(
     "name",
     [
@@ -68,6 +70,20 @@ def test_gru_lm_nl_parity_output() -> None:
     }
     assert pkg.format_gru_lm_nl(model) == insp.format_gru_lm_nl(model)
     assert pkg.format_model_nl(model) == insp.format_model_nl(model)
+
+
+def test_gru_lm_residual_nl_parity_output() -> None:
+    model = {
+        "type": "gru_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 64,
+        "num_layers": 2,
+        "layer_residual": True,
+    }
+    expected = "Layer residual connections: enabled; after each GRU layer, h = h + GRU_layer(h)."
+    assert pkg.format_gru_lm_nl(model) == insp.format_gru_lm_nl(model)
+    assert expected in pkg.format_gru_lm_nl(model)
 
 
 @pytest.mark.parametrize(

@@ -136,6 +136,10 @@ def build_model_spec(
             "d_model": d_model,
             "num_layers": num_layers,
         }
+        # Preserve legacy candidate IDs/specs when residuals are disabled by
+        # omitting the optional field; the backend treats missing as false.
+        if bool(params.get("layer_residual", False)):
+            spec["layer_residual"] = True
     else:
         raise ValueError(f"Unsupported architecture: {model_type}")
 
@@ -244,6 +248,7 @@ def form_values_from_candidate_spec(
             {
                 "gru_d_model": int(model["d_model"]),
                 "gru_layers": int(model["num_layers"]),
+                "gru_layer_residual": bool(model.get("layer_residual", False)),
             }
         )
     elif model["type"] == "kan":

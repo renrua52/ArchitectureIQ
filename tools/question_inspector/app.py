@@ -1508,7 +1508,25 @@ def _render_gru_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
                 ),
             )
         )
-    return {"d_model": d_model, "num_layers": num_layers}
+    residual_default = bool(profile.gru_lm.get("layer_residual", False))
+    layer_residual = st.checkbox(
+        "Layer residual connections",
+        key=_ensure_setting_value(q, "gru_layer_residual", residual_default),
+        help=(
+            "When enabled, each GRU layer adds its output to its input: "
+            "h = h + GRU_layer(h)."
+        ),
+    )
+    if layer_residual:
+        st.caption("Enabled: after each GRU layer, h = h + GRU_layer(h).")
+    else:
+        st.caption("Disabled (legacy stacked GRU behavior).")
+    return {
+        "d_model": d_model,
+        "num_layers": num_layers,
+        "layer_residual": bool(layer_residual),
+    }
+
 
 def _kan_defaults(profile: Any) -> dict[str, Any]:
     """Resolve editable KAN defaults from the active profile, not a fixed pool."""
