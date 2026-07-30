@@ -112,6 +112,13 @@ significance:
 question_generation:
   max_attempts: 20
   targeted_pool_size: 32
+  # Optional quality filters for generate-question (all off by default).
+  # Enable here and/or override via CLI flags on generate-question.
+  # quality:
+  #   gap_max: 0.25              # reject winner–runner-up gaps above this
+  #   gap_worst_max: 0.5         # reject winner–worst gaps above this
+  #   require_finite_mean: true  # drop candidates with non-finite selection mean
+  #   max_failed_seeds: 0        # drop candidates with more failed seeds than N
 
 prompts:
   use_llm_paraphrase: false

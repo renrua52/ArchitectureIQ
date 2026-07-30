@@ -240,6 +240,29 @@ def generate_question_cmd(
     ),
     profile: str = typer.Option("v1"),
     seed: int = typer.Option(0),
+    gap_max: Optional[float] = typer.Option(
+        None,
+        "--gap-max",
+        help="Optional: reject subsets whose winner–runner-up metric gap exceeds this "
+        "(overrides profile question_generation.quality.gap_max when passed)",
+    ),
+    gap_worst_max: Optional[float] = typer.Option(
+        None,
+        "--gap-worst-max",
+        help="Optional: reject subsets whose winner–worst metric gap exceeds this "
+        "(overrides profile question_generation.quality.gap_worst_max when passed)",
+    ),
+    require_finite_mean: Optional[bool] = typer.Option(
+        None,
+        "--require-finite-mean/--allow-nonfinite-mean",
+        help="Optional pool wash: drop candidates with non-finite selection mean",
+    ),
+    max_failed_seeds: Optional[int] = typer.Option(
+        None,
+        "--max-failed-seeds",
+        help="Optional pool wash: drop candidates with more failed seeds than N "
+        "(overrides profile; use 0 for no failed seeds)",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -248,6 +271,8 @@ def generate_question_cmd(
     ),
 ) -> None:
     """Assemble questions from one or more candidate sets."""
+    from architecture_iq.questions.quality import QuestionQualityFilters
+
     prof = load_profile(profile)
 
     _reject_interactive_flags(
@@ -257,6 +282,10 @@ def generate_question_cmd(
         num_questions=num_questions is not None,
         num_choices=num_choices is not None,
         seed=seed != 0,
+        gap_max=gap_max is not None,
+        gap_worst_max=gap_worst_max is not None,
+        require_finite_mean=require_finite_mean is not None,
+        max_failed_seeds=max_failed_seeds is not None,
     )
 
     if interactive:
@@ -279,10 +308,26 @@ def generate_question_cmd(
         raise typer.BadParameter("num_choices must be at least 2")
     if num_questions < 1:
         raise typer.BadParameter("num_questions must be at least 1")
+    if gap_max is not None and gap_max < 0:
+        raise typer.BadParameter("--gap-max must be non-negative")
+    if gap_worst_max is not None and gap_worst_max < 0:
+        raise typer.BadParameter("--gap-worst-max must be non-negative")
+    if max_failed_seeds is not None and max_failed_seeds < 0:
+        raise typer.BadParameter("--max-failed-seeds must be non-negative")
 
     for set_path in candidate_sets:
         if not set_path.is_dir():
             raise typer.BadParameter(f"Candidate set not found: {set_path}")
+
+    quality = QuestionQualityFilters.from_profile(prof).overlay(
+        gap_max=gap_max,
+        gap_worst_max=gap_worst_max,
+        require_finite_mean=require_finite_mean,
+        max_failed_seeds=max_failed_seeds,
+        gap_max_provided=gap_max is not None,
+        gap_worst_max_provided=gap_worst_max is not None,
+        max_failed_seeds_provided=max_failed_seeds is not None,
+    )
 
     rng = random.Random(seed)
     run_path, results = generate_questions(
@@ -293,9 +338,12 @@ def generate_question_cmd(
         num_questions=num_questions,
         num_choices=n_choices,
         seed=seed,
+        quality=quality,
     )
 
     typer.echo(f"Question run written to {run_path}")
+    if quality.any_enabled:
+        typer.echo(f"Quality filters: {quality.as_dict()}")
     for record, out in results:
         write_prompt(out)
         typer.echo(
