@@ -40,6 +40,30 @@ def _split_columns(df: pd.DataFrame) -> tuple[list[str], list[str]]:
     return cat, num
 
 
+def _sanitize_features_for_tabpfn(X: pd.DataFrame) -> pd.DataFrame:
+    """Convert bool / mixed bool+NA columns to plain string categories.
+
+    TabPFN's OrdinalEncoder remainder path errors on boolean dtype + pandas.NA
+    (sklearn ColumnTransformer refuses to pack that into a numpy array).
+    """
+    out = X.copy()
+    for c in out.columns:
+        s = out[c]
+        if pd.api.types.is_bool_dtype(s):
+            out[c] = s.map({True: "true", False: "false"}).astype("object")
+            continue
+        if s.dtype != object:
+            continue
+        non_null = s.dropna()
+        if non_null.empty:
+            continue
+        if non_null.map(lambda x: isinstance(x, (bool, np.bool_))).all():
+            out[c] = s.map(
+                lambda x: "true" if x is True or x is np.True_ else ("false" if x is False or x is np.False_ else pd.NA)
+            ).astype("object")
+    return out
+
+
 def _sklearn_pipeline(cat: list[str], num: list[str], model: str) -> Pipeline:
     transformers = []
     if num:
@@ -148,10 +172,9 @@ def main() -> None:
     # Drop columns that are entirely missing (common when one family is absent).
     X = X.dropna(axis=1, how="all")
     feature_cols = list(X.columns)
-    # normalize bools to object categories for TabPFN friendliness
-    for c in X.columns:
-        if X[c].dtype == bool:
-            X[c] = X[c].map({True: "true", False: "false", None: None})
+    # TabPFN's ordinal encoder rejects boolean columns that still use pandas.NA
+    # (e.g. residual True/False mixed with NaN after CSV load). Map to strings.
+    X = _sanitize_features_for_tabpfn(X)
 
     lower_is_better = not args.target.endswith("accuracy")
     cat, num = _split_columns(X)

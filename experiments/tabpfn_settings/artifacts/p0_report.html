@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TabPFN Settings P0 — Experiment Report</title>
+  <style>
+    :root {
+      --ink: #1a1f24;
+      --muted: #5c6770;
+      --line: #d8dde2;
+      --bg: #f7f5f1;
+      --paper: #fffcf7;
+      --accent: #0b6e4f;
+      --accent-soft: #d8efe6;
+      --warn: #8a5a00;
+      --bar-mean: #9aa3ab;
+      --bar-ridge: #4a7c9b;
+      --bar-hgb: #6b5b95;
+      --bar-tab: #0b6e4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #e8efe9 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #efe8dc 0%, transparent 50%),
+        var(--bg);
+      line-height: 1.55;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .kicker {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 0.4rem;
+    }
+    h1 {
+      font-family: "IBM Plex Serif", "Source Serif 4", Georgia, serif;
+      font-weight: 600;
+      font-size: clamp(1.6rem, 3vw, 2.1rem);
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .lede { color: var(--muted); margin: 0; max-width: 42rem; }
+    h2 {
+      font-size: 1.05rem;
+      margin: 2rem 0 0.75rem;
+      padding-top: 0.25rem;
+      border-top: 1px solid var(--line);
+      padding-top: 1.5rem;
+    }
+    h2:first-of-type { border-top: none; padding-top: 0; }
+    p, li { font-size: 0.95rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0 1.25rem;
+    }
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 0.85rem 1rem;
+    }
+    .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat .value { font-size: 1.15rem; font-weight: 600; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+    .stat .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+    th, td {
+      padding: 0.55rem 0.7rem;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      font-variant-numeric: tabular-nums;
+    }
+    th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    tr.best td { background: var(--accent-soft); font-weight: 600; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.82rem; }
+    .note {
+      background: #fff8e8;
+      border-left: 3px solid var(--warn);
+      padding: 0.75rem 1rem;
+      font-size: 0.88rem;
+      color: #4a3a1a;
+      margin: 1rem 0;
+    }
+    .bars { display: grid; gap: 0.65rem; margin: 1rem 0; }
+    .bar-row { display: grid; grid-template-columns: 7.5rem 1fr 3.5rem; gap: 0.6rem; align-items: center; font-size: 0.85rem; }
+    .bar-track { height: 0.7rem; background: #e6e2db; overflow: hidden; }
+    .bar-fill { height: 100%; }
+    .muted { color: var(--muted); }
+    ul.compact { margin: 0.4rem 0 0.8rem; padding-left: 1.15rem; }
+    ul.compact li { margin: 0.2rem 0; }
+    footer { margin-top: 2.5rem; font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+    code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.84em; background: #efece6; padding: 0.05em 0.3em; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">ArchitectureIQ · side/tabpfn-settings · Phase P0</p>
+    <h1>用 TabPFN 从 candidate settings 预测 test CE</h1>
+    <p class="lede">
+      把 ArchitectureIQ 的模型 / 优化器 / 损失 / budget 编成表格行，用已有 XOR pack 的 ground-truth
+      <code>mean_test_ce</code> 做 5-fold CV，比较均值基线、Ridge、HistGradientBoosting 与 TabPFNRegressor。
+    </p>
+  </header>
+
+  <h2>一句话结论</h2>
+  <p>
+    在 <strong>N=63</strong>、单数据集、优化器/损失/budget 几乎固定、主要靠架构轴变化的 P0 可行性实验上，
+    <strong>TabPFN v2.5</strong> 全面优于经典基线：Spearman <strong>0.721</strong>（Ridge 0.567），
+    成对排序准确率 <strong>0.772</strong>（Ridge 0.692）。P0 样本量偏小，结果只作可行性信号，不代表 P1 随机采样规模下的最终结论。
+  </p>
+
+  <div class="grid">
+    <div class="stat">
+      <div class="label">Rows</div>
+      <div class="value">63</div>
+      <div class="sub">MLP 39 · KAN 24</div>
+    </div>
+    <div class="stat">
+      <div class="label">Target</div>
+      <div class="value">mean_test_ce</div>
+      <div class="sub">μ=0.179 · σ=0.051 · range 0.142–0.394</div>
+    </div>
+    <div class="stat">
+      <div class="label">Eval</div>
+      <div class="value">5-fold CV</div>
+      <div class="sub">KFold shuffle · seed=0</div>
+    </div>
+    <div class="stat">
+      <div class="label">TabPFN</div>
+      <div class="value">v2.5</div>
+      <div class="sub">A100 80GB · CUDA</div>
+    </div>
+  </div>
+
+  <h2>实验设定（固定轴）</h2>
+  <table>
+    <thead>
+      <tr><th>轴</th><th>取值</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Dataset family</td>
+        <td class="mono">synthetic_tabular_classification</td>
+        <td>XOR 风格合成表格分类</td>
+      </tr>
+      <tr>
+        <td>Dataset instance</td>
+        <td class="mono">stabcls_953608</td>
+        <td>全表同一实例，避免数据难度混杂</td>
+      </tr>
+      <tr>
+        <td>Profile</td>
+        <td class="mono">v2.5-xor-holdout</td>
+        <td>XOR holdout pack 来源 profile</td>
+      </tr>
+      <tr>
+        <td>Selection metric / label</td>
+        <td class="mono">test_ce → mean_test_ce</td>
+        <td>来自执行 <code>train.py</code> 得到的 GT summary，非手算</td>
+      </tr>
+      <tr>
+        <td>Budget</td>
+        <td class="mono">batch=32 · steps=256 · samples_seen=8192</td>
+        <td>全表唯一；无 budget 轴变化</td>
+      </tr>
+      <tr>
+        <td>Optimizer</td>
+        <td class="mono">Adam · lr=1e-3 · wd=0</td>
+        <td>全表唯一；无 optimizer 轴变化</td>
+      </tr>
+      <tr>
+        <td>Loss</td>
+        <td class="mono">cross_entropy</td>
+        <td>全表唯一；无 loss 轴变化</td>
+      </tr>
+      <tr>
+        <td>Data source</td>
+        <td>XOR question pack 中已有 GT 的 candidates</td>
+        <td>非随机重采样（那是 P1）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>设定含义：</strong>P0 实际是在「同数据、同训练日程、同 Adam/CE」下，预测<strong>不同 MLP/KAN 架构</strong>的 test CE。
+    特征表里仍保留 optimizer/loss/budget 列（常数列），以便与后续 P1 随机 settings 管线对齐。
+  </div>
+
+  <h2>变化的架构空间</h2>
+  <p class="muted">以下为表中实际出现的取值（来自 frozen pack，非均匀网格）。</p>
+
+  <h3 style="font-size:0.95rem;margin:1rem 0 0.4rem">MLP（n=39）</h3>
+  <ul class="compact">
+    <li><code>depth</code> ∈ {1,2,3,4,5,6}</li>
+    <li><code>width</code> ∈ {16,32,64,128}</li>
+    <li><code>residual</code> ∈ {true, false}</li>
+    <li><code>activation_primary</code> ∈ {relu, silu, gelu, leaky_relu}</li>
+    <li><code>layer_norm_frac</code> ∈ {0, 1/6, 0.25, 1/3, 0.4, 0.5, 2/3, 1}</li>
+    <li>参数量约 354 – 100738</li>
+  </ul>
+
+  <h3 style="font-size:0.95rem;margin:1rem 0 0.4rem">KAN（n=24）</h3>
+  <ul class="compact">
+    <li><code>depth</code> ∈ {1,2} · <code>width</code> ∈ {8,16}</li>
+    <li><code>grid_size</code> ∈ {3,5,7} · <code>spline_order</code>=3</li>
+    <li><code>base_activation</code> ∈ {silu, tanh}</li>
+    <li>参数量约 672 – 6336</li>
+    <li>MLP 专属列（residual / act / LN）对 KAN 行为 NaN</li>
+  </ul>
+
+  <h2>特征编码</h2>
+  <p>每行 = 一个 <code>candidate_spec.json</code> + <code>results/summary.json</code>。用于模型的 19 列（全空列已剔除）：</p>
+  <p class="mono" style="background:var(--paper);border:1px solid var(--line);padding:0.75rem 1rem;overflow-x:auto">
+    model_type, trainable_parameter_count, log_params,
+    batch_size, training_steps, total_samples_seen,
+    optimizer_type, lr, log_lr, weight_decay, loss_id,
+    depth, width, residual, layer_norm_frac, activation_primary,
+    grid_size, spline_order, base_activation
+  </p>
+  <ul class="compact">
+    <li>缺失架构字段保留为 NaN（跨 model_type 混表）</li>
+    <li>TabPFN 路径把 bool+NaN（如 <code>residual</code>）规范成字符串类别，避免 sklearn/pandas.NA 冲突</li>
+    <li>sklearn 基线：数值列 median impute + 标准化；类别列 most-frequent + one-hot</li>
+  </ul>
+
+  <h2>评估协议</h2>
+  <ul class="compact">
+    <li><strong>Split：</strong>按行（candidate）5-fold CV，<code>KFold(shuffle=True, random_state=0)</code>；无同一 candidate 泄漏</li>
+    <li><strong>指标：</strong>MAE、RMSE、Spearman ρ、pairwise ranking accuracy（对所有不等对，预测序是否与真值序一致；CE 越低越好）</li>
+    <li><strong>模型：</strong>
+      train_mean（全局均值）、Ridge(α=1)、HistGradientBoosting(max_depth=4, max_iter=200)、
+      <code>TabPFNRegressor.create_default_for_version(V2_5)</code>
+    </li>
+    <li><strong>硬件 / 软件：</strong>远程 A100 80GB；torch cu124；TabPFN 权重经 <code>hf-mirror.com</code> 拉取
+      <code>Prior-Labs/tabpfn_2_5</code> 的 <code>tabpfn-v2.5-regressor-v2.5_default.ckpt</code>；
+      <code>TABPFN_SKIP_LICENSE=1</code> 跳过外网 license ping</li>
+  </ul>
+
+  <h2>结果</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>MAE ↓</th>
+        <th>RMSE ↓</th>
+        <th>Spearman ↑</th>
+        <th>Pairwise ↑</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>train_mean</td>
+        <td>0.0344</td>
+        <td>0.0506</td>
+        <td class="muted">—</td>
+        <td>0.538</td>
+      </tr>
+      <tr>
+        <td>Ridge</td>
+        <td>0.0305</td>
+        <td>0.0438</td>
+        <td>0.567</td>
+        <td>0.692</td>
+      </tr>
+      <tr>
+        <td>HistGB</td>
+        <td>0.0283</td>
+        <td>0.0429</td>
+        <td>0.539</td>
+        <td>0.682</td>
+      </tr>
+      <tr class="best">
+        <td>TabPFN v2.5</td>
+        <td>0.0201</td>
+        <td>0.0397</td>
+        <td>0.721</td>
+        <td>0.772</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:1.25rem;font-size:0.85rem;color:var(--muted)">Pairwise ranking accuracy（越高越好）</p>
+  <div class="bars" aria-label="pairwise accuracy bars">
+    <div class="bar-row">
+      <span>train_mean</span>
+      <div class="bar-track"><div class="bar-fill" style="width:53.8%;background:var(--bar-mean)"></div></div>
+      <span>0.538</span>
+    </div>
+    <div class="bar-row">
+      <span>Ridge</span>
+      <div class="bar-track"><div class="bar-fill" style="width:69.2%;background:var(--bar-ridge)"></div></div>
+      <span>0.692</span>
+    </div>
+    <div class="bar-row">
+      <span>HistGB</span>
+      <div class="bar-track"><div class="bar-fill" style="width:68.2%;background:var(--bar-hgb)"></div></div>
+      <span>0.682</span>
+    </div>
+    <div class="bar-row">
+      <span>TabPFN</span>
+      <div class="bar-track"><div class="bar-fill" style="width:77.2%;background:var(--bar-tab)"></div></div>
+      <span>0.772</span>
+    </div>
+  </div>
+
+  <h2>相对基线的增益</h2>
+  <ul class="compact">
+    <li>vs Ridge：Spearman <strong>+0.154</strong> · pairwise <strong>+0.080</strong> · MAE −34%</li>
+    <li>vs HistGB：Spearman <strong>+0.182</strong> · pairwise <strong>+0.090</strong> · MAE −29%</li>
+    <li>vs mean：pairwise <strong>+0.234</strong>（均值预测无法产生有意义的 Spearman）</li>
+  </ul>
+
+  <h2>局限与下一步（P1）</h2>
+  <ul class="compact">
+    <li>N=63、且 optimizer/loss/budget 常数 → 主要测「架构→CE」可预测性，不是完整 settings 空间</li>
+    <li>pack 内架构分布不均（depth×width 单元格多为 1–2 个样本）</li>
+    <li><strong>P1：</strong>在同一 <code>stabcls_953608</code> 上随机采样数百组 MLP/KAN（+可选优化器）settings，A100 跑 GT，再评估 TabPFN</li>
+  </ul>
+
+  <footer>
+    生成自 <code>experiments/tabpfn_settings/</code> ·
+    表 <code>artifacts/xor_table.csv</code> ·
+    指标 JSON <code>artifacts/p0_report_tabpfn.json</code> ·
+    远端 <code>/cephfs/renzirui/projects/ArchitectureIQ-tabpfn</code> ·
+    2026-07-31
+  </footer>
+</main>
+</body>
+</html>
