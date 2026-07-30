@@ -166,6 +166,14 @@ def main() -> None:
     if args.target not in df.columns:
         raise SystemExit(f"Missing target {args.target}; columns={list(df.columns)}")
     df = df.dropna(subset=[args.target]).copy()
+    y_raw = pd.to_numeric(df[args.target], errors="coerce")
+    finite = np.isfinite(y_raw.to_numpy(dtype=float))
+    n_dropped = int((~finite).sum())
+    if n_dropped:
+        print(f"dropping {n_dropped} rows with non-finite {args.target}")
+    df = df.loc[finite].copy()
+    if len(df) < 5:
+        raise SystemExit(f"Too few finite rows for CV: n={len(df)}")
     y = df[args.target].to_numpy(dtype=float)
     feature_cols = [c for c in FEATURE_COLUMNS if c in df.columns]
     X = df[feature_cols].copy()
@@ -214,6 +222,7 @@ def main() -> None:
         ),
         "lower_is_better": lower_is_better,
         "n_rows": int(len(df)),
+        "n_rows_dropped_nonfinite": n_dropped,
         "n_features_used": len(feature_cols),
         "feature_cols": feature_cols,
         "feature_roles": feature_roles,

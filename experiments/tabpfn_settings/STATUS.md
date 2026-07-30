@@ -1,30 +1,32 @@
 # Status
 
-## Done
+## Approach (corrected)
 
-- Branch: `side/tabpfn-settings`
-- Packs evaluated (all tracked on branch):
-  - XOR `xor-v2.5-100q-37b9da` → 63 rows (`stabcls_953608`)
-  - GRU `gru-v2.5-100q-a48abc` → 48 rows (`bg_fdc03b`)
-- TabPFN v2.5 regressor, 5-fold CV, target `mean_test_ce`, A100
-- Detailed HTML: `artifacts/report_p0_detailed.html`
-- JSON: `artifacts/report_xor.json`, `artifacts/report_gru.json`
+Do **not** treat frozen question packs as the primary TabPFN corpus.
+For each dataset **family**, run the real pipeline:
 
-### Headline OOF metrics
+1. `create-dataset` (profile `v2.5-tabpfn-settings`)
+2. `generate-candidates` / `sample_random_settings.py` (vary model+optimizer, GT via train.py)
+3. Build settings table → 5-fold TabPFN / baselines
 
-| Pack | Model | MAE | Spearman | Pairwise |
-|------|-------|-----|----------|----------|
-| XOR | TabPFN | 0.020 | 0.721 | 0.772 |
-| XOR | Ridge | 0.031 | 0.567 | 0.692 |
-| GRU | TabPFN | 0.022 | 0.860 | 0.868 |
-| GRU | Ridge | 0.075 | 0.277 | 0.604 |
+Script: `scripts/run_family_pipeline.py`
 
-## Protocol (short)
+## Families
 
-- **Input X:** flattened candidate_spec features (model/opt/loss/budget); see report.
-- **Output y:** GT `mean_test_ce` from `results/summary.json`.
-- **Train size:** per-fold n_train (XOR 50–51, GRU 38–39). TabPFN does not fine-tune weights.
+- univariate_regression (target `mean_test_mse`)
+- multivariate_regression (target `mean_test_mse`)
+- bigram_lm (target `mean_test_ce`)
+- synthetic_tabular_classification (target `mean_test_ce`)
 
-## Next
+Profile uses `n_seeds: 3` for faster A100 turnaround.
 
-P1: random-sample settings on the same dataset instances + GT on A100.
+## Remote
+
+```bash
+ssh root@10.210.22.136 -p 31178
+cd /cephfs/renzirui/projects/ArchitectureIQ-tabpfn
+source .venv-tabpfn/bin/activate
+export PYTHONPATH=src
+export TABPFN_SKIP_LICENSE=1 HF_ENDPOINT=https://hf-mirror.com
+python experiments/tabpfn_settings/scripts/run_family_pipeline.py --count 40 --device cuda
+```

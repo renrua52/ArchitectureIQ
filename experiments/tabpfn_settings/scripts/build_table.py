@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build a tabular CSV from a frozen question pack (candidate_spec + summary)."""
+"""Build a tabular CSV from any tree of candidate_spec.json + results/summary.json.
+
+Works for:
+  - a dataset instance dir: data/datasets/{family}/{dataset_id}/
+  - a frozen question pack root (searches under data/datasets/)
+"""
 
 from __future__ import annotations
 
@@ -32,9 +37,12 @@ META_COLUMNS = [
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--root",
         "--pack",
+        dest="root",
         type=Path,
         default=ROOT / "benchmark_releases" / "question_packs" / "xor-v2.5-100q-37b9da",
+        help="Dataset instance dir or pack root containing candidate_spec + summary.",
     )
     parser.add_argument(
         "--out",
@@ -44,13 +52,13 @@ def main() -> None:
     parser.add_argument("--include-excluded", action="store_true")
     args = parser.parse_args()
 
-    pack = args.pack.resolve()
-    if not pack.is_dir():
-        raise SystemExit(f"Pack not found: {pack}")
+    root = args.root.resolve()
+    if not root.is_dir():
+        raise SystemExit(f"Root not found: {root}")
 
-    rows = rows_from_pack(pack, skip_excluded=not args.include_excluded)
+    rows = rows_from_pack(root, skip_excluded=not args.include_excluded)
     if not rows:
-        raise SystemExit(f"No candidates with summary.json under {pack}")
+        raise SystemExit(f"No candidates with summary.json under {root}")
 
     # union of target-like columns present
     target_cols = sorted({k for row in rows for k in row if k.startswith("mean_")})
