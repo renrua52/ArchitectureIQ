@@ -1,0 +1,63 @@
+{
+  "table": "/Users/jacobren/Code/Projects/ArchitectureIQ/experiments/tabpfn_settings/artifacts/xor_table.csv",
+  "target": "mean_test_ce",
+  "n_rows": 63,
+  "n_features": 26,
+  "feature_cols": [
+    "model_type",
+    "trainable_parameter_count",
+    "log_params",
+    "batch_size",
+    "training_steps",
+    "total_samples_seen",
+    "optimizer_type",
+    "lr",
+    "log_lr",
+    "weight_decay",
+    "momentum",
+    "loss_id",
+    "loss_lambda",
+    "depth",
+    "width",
+    "residual",
+    "layer_norm_frac",
+    "activation_primary",
+    "grid_size",
+    "spline_order",
+    "base_activation",
+    "d_model",
+    "num_layers",
+    "num_heads",
+    "d_ff",
+    "layer_residual"
+  ],
+  "models": {
+    "train_mean": {
+      "n": 63,
+      "mae": 0.03443960701802563,
+      "rmse": 0.05058899747101657,
+      "spearman": NaN,
+      "pairwise_acc": 0.5381464413722479,
+      "y_true_mean": 0.17925666410613944,
+      "y_true_std": 0.05058899747101657
+    },
+    "ridge": {
+      "n": 63,
+      "mae": 0.030548372857381337,
+      "rmse": 0.04375024247226104,
+      "spearman": 0.5673003072196621,
+      "pairwise_acc": 0.6917562724014337,
+      "y_true_mean": 0.17925666410613944,
+      "y_true_std": 0.05058899747101657
+    },
+    "hgb": {
+      "n": 63,
+      "mae": 0.028257726852682415,
+      "rmse": 0.042903807265052406,
+      "spearman": 0.5417146697388633,
+      "pairwise_acc": 0.6815156169994879,
+      "y_true_mean": 0.17925666410613944,
+      "y_true_std": 0.05058899747101657
+    }
+  }
+}

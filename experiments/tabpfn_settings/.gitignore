@@ -1,0 +1,4 @@
+experiments/tabpfn_settings/artifacts/
+__pycache__/
+*.tabpfn_fit
+.cache/
