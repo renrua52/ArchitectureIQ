@@ -109,6 +109,5 @@ export type BakeFile = {
 
 export type Stage = "observe" | "compare" | "reveal";
 
-export type ConfidenceRating = 1 | 2 | 3 | 4 | 5;
-
-export type AuditDecision = "keep" | "revise" | "reject";
+/** Yes/No vote for "Is this a good problem?" */
+export type ProblemVote = "yes" | "no";

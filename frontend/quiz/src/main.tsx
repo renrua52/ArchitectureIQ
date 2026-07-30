@@ -2,16 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { newSessionId, track } from "./telemetry";
-import type {
-  AuditDecision,
-  BakeFile,
-  BakedQuestion,
-  Choice,
-  ConfidenceRating,
-  Field,
-  Point,
-  Stage
-} from "./types";
+import type { BakeFile, BakedQuestion, Choice, Field, Point, ProblemVote, Stage } from "./types";
 
 type Screen = "home" | "quiz" | "menu" | "contact";
 type InfoTarget =
@@ -22,13 +13,11 @@ type InfoTarget =
 type CardField = Field & { varying: boolean };
 
 type FeedbackDraft = {
-  confidence: ConfidenceRating | null;
-  decision: AuditDecision | null;
-  comment: string;
+  vote: ProblemVote | null;
   submitted: boolean;
 };
 
-const EMPTY_FEEDBACK: FeedbackDraft = { confidence: null, decision: null, comment: "", submitted: false };
+const EMPTY_FEEDBACK: FeedbackDraft = { vote: null, submitted: false };
 
 
 function App() {
@@ -163,31 +152,15 @@ function App() {
     leaveAndSwitch(next);
   }
 
-  function updateFeedback(
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) {
+  function submitProblemVote(vote: ProblemVote) {
     if (!question || feedback.submitted) {
-      return;
-    }
-    const next = { ...feedback, ...patch };
-    feedbackByQuestion.current[question.id] = next;
-    setFeedback(next);
-  }
-
-  function submitAuditFeedback() {
-    if (
-      !question ||
-      feedback.submitted ||
-      feedback.confidence === null ||
-      feedback.decision === null
-    ) {
       return;
     }
     const answer = results.current[question.id];
     const pickedLetter = answer?.picked ?? selected;
-    const correct = answer?.correct ??
-      (pickedLetter ? pickedLetter === question.reveal.correctLetter : null);
-    const next = { ...feedback, submitted: true };
+    const correct =
+      answer?.correct ?? (pickedLetter ? pickedLetter === question.reveal.correctLetter : null);
+    const next: FeedbackDraft = { vote, submitted: true };
     feedbackByQuestion.current[question.id] = next;
     setFeedback(next);
     track({
@@ -196,9 +169,9 @@ function App() {
       question_id: question.id,
       duration_ms: Date.now() - viewStartedAt.current,
       payload: {
-        confidence: feedback.confidence,
-        decision: feedback.decision,
-        comment: feedback.comment.trim() || null,
+        // StackExchange-style yes/no for "Is this a good problem?"
+        is_good_problem: vote === "yes",
+        vote,
         picked_letter: pickedLetter,
         correct,
         stage: "reveal",
@@ -380,8 +353,7 @@ function App() {
             question={question}
             selected={selected}
             feedback={feedback}
-            onFeedbackChange={updateFeedback}
-            onSubmitFeedback={submitAuditFeedback}
+            onVote={submitProblemVote}
             onNext={nextQuestion}
             onInfo={(letter) => setInfo({ kind: "choice", letter })}
             onDatasetInfo={() => setInfo({ kind: "dataset" })}
@@ -653,8 +625,7 @@ function AnswerStage({
   question,
   selected,
   feedback,
-  onFeedbackChange,
-  onSubmitFeedback,
+  onVote,
   onNext,
   onInfo,
   onDatasetInfo
@@ -662,10 +633,7 @@ function AnswerStage({
   question: BakedQuestion;
   selected: string | null;
   feedback: FeedbackDraft;
-  onFeedbackChange: (
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) => void;
-  onSubmitFeedback: () => void;
+  onVote: (vote: ProblemVote) => void;
   onNext: () => void;
   onInfo: (letter: string) => void;
   onDatasetInfo: () => void;
@@ -709,7 +677,7 @@ function AnswerStage({
         })}
       </div>
       <CurvesPlot question={question} />
-      <AuditFeedbackPanel feedback={feedback} onChange={onFeedbackChange} onSubmit={onSubmitFeedback} />
+      <AuditFeedbackPanel feedback={feedback} onVote={onVote} />
       <div className="stage-footer">
         <p className="hint">Continue when you are ready.</p>
         <button type="button" className="cta" onClick={onNext}>
@@ -722,77 +690,40 @@ function AnswerStage({
 
 function AuditFeedbackPanel({
   feedback,
-  onChange,
-  onSubmit
+  onVote
 }: {
   feedback: FeedbackDraft;
-  onChange: (
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) => void;
-  onSubmit: () => void;
+  onVote: (vote: ProblemVote) => void;
 }) {
   return (
-    <section className="audit-feedback panel" aria-label="Question audit feedback">
+    <section className="audit-feedback panel" aria-label="Problem quality vote">
       <div className="panel-head">
         <div>
-          <p className="stage-kicker">Audit feedback</p>
-          <p className="hint">How confident are you, and should this question stay in the collection?</p>
+          <p className="stage-kicker">Problem quality</p>
+          <p className="hint">Is this a good problem?</p>
         </div>
-        {feedback.submitted ? <span className="feedback-saved">Saved</span> : null}
+        {feedback.submitted ? <span className="feedback-saved">Thanks</span> : null}
       </div>
-      <div className="feedback-group">
-        <span className="feedback-label">Confidence</span>
-        <div className="feedback-options" role="group" aria-label="Confidence from 1 to 5">
-          {([1, 2, 3, 4, 5] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={feedback.confidence === value ? "selected" : ""}
-              aria-pressed={feedback.confidence === value}
-              disabled={feedback.submitted}
-              onClick={() => onChange({ confidence: value })}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="feedback-group">
-        <span className="feedback-label">Quality decision</span>
-        <div className="feedback-options disposition-options" role="group" aria-label="Question quality">
-          {(["keep", "revise", "reject"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={`${value}${feedback.decision === value ? " selected" : ""}`}
-              aria-pressed={feedback.decision === value}
-              disabled={feedback.submitted}
-              onClick={() => onChange({ decision: value })}
-            >
-              {value[0].toUpperCase() + value.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <label className="feedback-comment">
-        <span className="feedback-label">Comment</span>
-        <textarea
-          value={feedback.comment}
+      <div className="feedback-options vote-options" role="group" aria-label="Is this a good problem?">
+        <button
+          type="button"
+          className={`vote-yes${feedback.vote === "yes" ? " selected" : ""}`}
+          aria-pressed={feedback.vote === "yes"}
           disabled={feedback.submitted}
-          maxLength={2000}
-          rows={3}
-          placeholder="What should be clarified or changed?"
-          onChange={(event) => onChange({ comment: event.target.value })}
-        />
-      </label>
-      <button
-        type="button"
-        className="feedback-save"
-        disabled={feedback.submitted || feedback.confidence === null || feedback.decision === null}
-        onClick={onSubmit}
-      >
-        Save feedback
-      </button>
+          onClick={() => onVote("yes")}
+        >
+          ▲ Yes
+        </button>
+        <button
+          type="button"
+          className={`vote-no${feedback.vote === "no" ? " selected" : ""}`}
+          aria-pressed={feedback.vote === "no"}
+          disabled={feedback.submitted}
+          onClick={() => onVote("no")}
+        >
+          ▼ No
+        </button>
+      </div>
     </section>
   );
 }
