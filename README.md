@@ -124,7 +124,7 @@ Artifacts are written under `data/` (gitignored).
 | `univariate_regression` | R → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
 | `multivariate_regression` | R^n → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
 | `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm`, `gru_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
-| `synthetic_tabular_classification` | Synthetic tabular binary classification | `mlp`, `kan` | cross-entropy | `test_ce` |
+| `synthetic_tabular_classification` | Synthetic tabular binary classification (`xor`, `spiral`, and other rule families) | `mlp`, `kan` | cross-entropy | `test_ce` |
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
 

@@ -82,8 +82,9 @@ dataset_configs:
     layout: lm
     fail_threshold: 4.0
   synthetic_tabular_classification:
-    input_dims: [4, 8, 16]
-    rule_families: [smooth_additive, sparse_interaction, piecewise_boundary]
+    input_dims: [2, 4, 8, 16]
+    rule_families: [smooth_additive, sparse_interaction, piecewise_boundary, xor, spiral]
+    spiral_turns: 2.0
     active_feature_counts: [2, 3, 4]
     interaction_order: 2
     noise_std: [0.05, 0.1]

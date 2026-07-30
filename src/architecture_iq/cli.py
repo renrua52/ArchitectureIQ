@@ -61,7 +61,14 @@ def create_dataset_cmd(
     input_dim: Optional[int] = typer.Option(
         None,
         "--input-dim",
-        help="Input dimension n for multivariate_regression (must be in profile input_dims pool)",
+        help="Input dimension for multivariate_regression or synthetic_tabular_classification "
+        "(must be in that family's profile input_dims pool)",
+    ),
+    rule_family: Optional[str] = typer.Option(
+        None,
+        "--rule-family",
+        help="Rule family for synthetic_tabular_classification "
+        "(e.g. xor, spiral; must be in profile rule_families)",
     ),
     interactive: bool = typer.Option(
         False,
@@ -80,6 +87,7 @@ def create_dataset_cmd(
         random_family=random_family,
         seed=seed is not None,
         input_dim=input_dim is not None,
+        rule_family=rule_family is not None,
     )
 
     if interactive:
@@ -99,8 +107,16 @@ def create_dataset_cmd(
         )
     if family is not None and random_family:
         raise typer.BadParameter("Use only one of --family and --random-family")
-    if input_dim is not None and family not in (None, "multivariate_regression"):
-        raise typer.BadParameter("--input-dim is only valid with --family multivariate_regression")
+    _dim_families = ("multivariate_regression", "synthetic_tabular_classification")
+    if input_dim is not None and family not in (None, *_dim_families):
+        raise typer.BadParameter(
+            "--input-dim is only valid with multivariate_regression or "
+            "synthetic_tabular_classification"
+        )
+    if rule_family is not None and family not in (None, "synthetic_tabular_classification"):
+        raise typer.BadParameter(
+            "--rule-family is only valid with --family synthetic_tabular_classification"
+        )
 
     instance_seed = seed if seed is not None else 0
     family_name = resolve_dataset_family(
@@ -109,19 +125,28 @@ def create_dataset_cmd(
         random_pick=random_family,
         rng=rng,
     )
-    if input_dim is not None and family_name != "multivariate_regression":
+    if input_dim is not None and family_name not in _dim_families:
         raise typer.BadParameter(
-            "--input-dim requires multivariate_regression (got random family "
-            f"{family_name!r})"
+            "--input-dim requires multivariate_regression or "
+            f"synthetic_tabular_classification (got random family {family_name!r})"
+        )
+    if rule_family is not None and family_name != "synthetic_tabular_classification":
+        raise typer.BadParameter(
+            "--rule-family requires synthetic_tabular_classification "
+            f"(got {family_name!r})"
         )
 
-    family_options = {"input_dim": input_dim} if input_dim is not None else None
+    family_options: dict = {}
+    if input_dim is not None:
+        family_options["input_dim"] = input_dim
+    if rule_family is not None:
+        family_options["rule_family"] = rule_family
     try:
         spec, path = create_dataset(
             prof,
             instance_seed,
             family_name=family_name,
-            family_options=family_options,
+            family_options=family_options or None,
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
