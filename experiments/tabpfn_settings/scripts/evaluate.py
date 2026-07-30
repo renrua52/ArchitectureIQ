@@ -86,8 +86,17 @@ def _tabpfn_predict(
     device: str,
     model_version: str = "v2.5",
 ) -> np.ndarray:
+    import os
+
     from tabpfn import TabPFNRegressor
     from tabpfn.constants import ModelVersion
+
+    # Lab machines often cannot reach huggingface.co / PriorLabs auth.
+    # If a local checkpoint already exists, skip gated-repo license pings.
+    if os.environ.get("TABPFN_SKIP_LICENSE", "1") == "1":
+        import tabpfn.browser_auth as browser_auth
+
+        browser_auth.ensure_license_accepted = lambda hf_repo_id: True  # type: ignore[assignment]
 
     version_map = {
         "v2": ModelVersion.V2,
