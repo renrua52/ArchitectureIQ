@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_45ae39",
+  "selection_metric": "test_ce",
+  "execution": "candidate_py_files",
+  "n_seeds": 12,
+  "base_seed": 200,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_ce": 0.15305186932285628,
+  "std_test_ce": 0.007361536329898017,
+  "mean_test_accuracy": 0.9311930338541666,
+  "std_test_accuracy": 0.00416452829802627,
+  "seed_results": [
+    {
+      "seed": 200,
+      "failed": false,
+      "final_test_ce": 0.1655963510274887,
+      "final_test_accuracy": 0.9228515625
+    },
+    {
+      "seed": 201,
+      "failed": false,
+      "final_test_ce": 0.1412782371044159,
+      "final_test_accuracy": 0.93359375
+    },
+    {
+      "seed": 202,
+      "failed": false,
+      "final_test_ce": 0.16045618057250977,
+      "final_test_accuracy": 0.93359375
+    },
+    {
+      "seed": 203,
+      "failed": false,
+      "final_test_ce": 0.14519092440605164,
+      "final_test_accuracy": 0.93994140625
+    },
+    {
+      "seed": 204,
+      "failed": false,
+      "final_test_ce": 0.16219964623451233,
+      "final_test_accuracy": 0.9296875
+    },
+    {
+      "seed": 205,
+      "failed": false,
+      "final_test_ce": 0.15688033401966095,
+      "final_test_accuracy": 0.93115234375
+    },
+    {
+      "seed": 206,
+      "failed": false,
+      "final_test_ce": 0.14768283069133759,
+      "final_test_accuracy": 0.93115234375
+    },
+    {
+      "seed": 207,
+      "failed": false,
+      "final_test_ce": 0.1475123167037964,
+      "final_test_accuracy": 0.92822265625
+    },
+    {
+      "seed": 208,
+      "failed": false,
+      "final_test_ce": 0.15771281719207764,
+      "final_test_accuracy": 0.92626953125
+    },
+    {
+      "seed": 209,
+      "failed": false,
+      "final_test_ce": 0.14686231315135956,
+      "final_test_accuracy": 0.93505859375
+    },
+    {
+      "seed": 210,
+      "failed": false,
+      "final_test_ce": 0.15574410557746887,
+      "final_test_accuracy": 0.931640625
+    },
+    {
+      "seed": 211,
+      "failed": false,
+      "final_test_ce": 0.1495063751935959,
+      "final_test_accuracy": 0.93115234375
+    }
+  ],
+  "environment": {
+    "python": "3.11.7 | packaged by Anaconda, Inc. | (main, Dec 15 2023, 18:05:47) [MSC v.1916 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "torch": "2.9.1+cpu",
+    "requested_device": "cpu",
+    "device": "cpu",
+    "cuda_available": false,
+    "cuda_runtime": null,
+    "cuda_device_name": null,
+    "cuda_device_capability": null,
+    "deterministic_algorithms": false,
+    "git_commit": "7d21cdaf200316387b572744e9fb84ce33355935"
+  }
+}

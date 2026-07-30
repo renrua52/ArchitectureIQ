@@ -640,6 +640,103 @@ def test_startup_question_collection_uses_manifest_order(
     ) == second.resolve()
 
 
+def test_explicit_question_collection_overrides_cli_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = tmp_path / "data"
+    cli_question = data_root / "datasets" / "demo" / "cli"
+    pack_question = data_root / "datasets" / "demo" / "pack"
+    for question_dir in (cli_question, pack_question):
+        question_dir.mkdir(parents=True)
+        (question_dir / "question.json").write_text("{}", encoding="utf-8")
+    cli_manifest = tmp_path / "cli.json"
+    cli_manifest.write_text(
+        json.dumps({"question_paths": ["datasets/demo/cli"]}),
+        encoding="utf-8",
+    )
+    pack_manifest = tmp_path / "pack.json"
+    pack_manifest.write_text(
+        json.dumps({"question_paths": ["datasets/demo/pack"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(inspector_app.sys, "argv", ["streamlit", str(cli_manifest)])
+
+    assert inspector_app._discover_questions(
+        str(data_root),
+        pack_manifest,
+    ) == [pack_question.resolve()]
+
+
+def test_question_pack_registry_rejects_path_traversal(tmp_path: Path) -> None:
+    packs_root = tmp_path / "question_packs"
+    good = packs_root / "good-pack"
+    good_data = good / "data"
+    good_data.mkdir(parents=True)
+    (good / "collection.json").write_text(
+        json.dumps({"question_paths": []}),
+        encoding="utf-8",
+    )
+    (good / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "good-pack",
+                "display_name": "Good pack",
+                "collection_path": "collection.json",
+                "data_root": "data",
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "collection.json").write_text(
+        json.dumps({"question_paths": []}),
+        encoding="utf-8",
+    )
+    bad = packs_root / "bad-pack"
+    bad.mkdir()
+    (bad / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "bad-pack",
+                "display_name": "Bad pack",
+                "collection_path": "../../outside/collection.json",
+                "data_root": "../../outside",
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    registry = inspector_app._question_pack_registry(packs_root)
+
+    assert list(registry) == ["good-pack"]
+    assert registry["good-pack"]["data_root"] == good_data.resolve()
+    assert registry["good-pack"]["collection_path"] == (
+        good / "collection.json"
+    ).resolve()
+
+
+def test_tracked_question_packs_load_100_questions() -> None:
+    registry = inspector_app._question_pack_registry()
+
+    assert set(registry) == {
+        "xor-v2.5-100q-37b9da",
+        "gru-v2.5-100q-a48abc",
+    }
+    for pack in registry.values():
+        questions = inspector_app._startup_question_collection(
+            str(pack["data_root"]),
+            pack["collection_path"],
+        )
+        assert questions is not None
+        assert len(questions) == 100
+        assert all((path / "prompt.txt").is_file() for path in questions)
+
+
 def test_startup_question_collection_rejects_paths_outside_data_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

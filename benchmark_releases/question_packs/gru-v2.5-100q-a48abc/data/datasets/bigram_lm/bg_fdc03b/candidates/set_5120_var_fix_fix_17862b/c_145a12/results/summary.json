@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_145a12",
+  "selection_metric": "test_ce",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_ce": 3.2046936988830566,
+  "std_test_ce": 0.013476832903506755,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_ce": 3.2062370777130127
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_ce": 3.1999380588531494
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_ce": 3.1950414180755615
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_ce": 3.205782890319824
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_ce": 3.201186180114746
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_ce": 3.2268896102905273
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_ce": 3.2253353595733643
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_ce": 3.2090365886688232
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_ce": 3.1778299808502197
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_ce": 3.199659824371338
+    }
+  ],
+  "environment": {
+    "python": "3.11.7 | packaged by Anaconda, Inc. | (main, Dec 15 2023, 18:05:47) [MSC v.1916 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "torch": "2.9.1+cpu",
+    "requested_device": "cpu",
+    "device": "cpu",
+    "cuda_available": false,
+    "cuda_runtime": null,
+    "cuda_device_name": null,
+    "cuda_device_capability": null,
+    "deterministic_algorithms": false,
+    "seed_workers": 8,
+    "torch_threads_per_seed": 1,
+    "git_commit": "33ee3a0b68ed64fe6e71b44b1320d55a78efb86e"
+  }
+}

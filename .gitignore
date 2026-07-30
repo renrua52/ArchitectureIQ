@@ -216,6 +216,13 @@ __marimo__/
 
 # Benchmark generated artifacts
 data/
+# Immutable benchmark question-pack payloads are intentionally tracked.
+# This exception does not alter the top-level data/ ignore rule.
+!benchmark_releases/
+!benchmark_releases/question_packs/
+!benchmark_releases/question_packs/*/
+!benchmark_releases/question_packs/*/data/
+!benchmark_releases/question_packs/*/data/**
 llm_runs/
 
 # Local analysis and report-build outputs. Curated report assets are force-added.

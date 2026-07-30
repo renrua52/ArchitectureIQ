@@ -63,6 +63,12 @@ from expression_latex import expression_to_latex  # noqa: E402
 from architecture_iq.models.kan import BASE_ACTIVATIONS  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
 
+
+QUESTION_PACKS_ROOT = (
+    Path(__file__).resolve().parents[2] / "benchmark_releases" / "question_packs"
+)
+LOCAL_QUESTION_PACK = "local"
+
 st.set_page_config(
     page_title="ArchitectureIQ Question Inspector",
     page_icon="🔍",
@@ -166,6 +172,7 @@ def _init_state() -> None:
         "question_pool": [],
         "quiz_results": {},
         "review_collection_path": None,
+        "active_question_pack": None,
         "setting_notice": None,
     }
     for key, value in defaults.items():
@@ -280,13 +287,135 @@ def _resolve_data_root(data_root: str) -> Path:
     return Path(data_root).expanduser().resolve()
 
 
-def _startup_question_collection(data_root: str) -> list[Path] | None:
-    """Load a review collection when Streamlit receives its JSON manifest."""
+def _question_pack_registry(
+    packs_root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Return valid tracked question packs keyed by their stable pack ID."""
+    root = (packs_root or QUESTION_PACKS_ROOT).resolve()
+    if not root.is_dir():
+        return {}
+
+    packs: dict[str, dict[str, Any]] = {}
+    for manifest_path in sorted(root.glob("*/pack.json")):
+        try:
+            manifest = read_json_file(manifest_path)
+        except (OSError, ValueError):
+            continue
+        pack_root = manifest_path.parent.resolve()
+        pack_id = manifest.get("pack_id")
+        display_name = manifest.get("display_name")
+        collection_value = manifest.get("collection_path")
+        data_root_value = manifest.get("data_root")
+        if not all(
+            isinstance(value, str) and value
+            for value in (pack_id, display_name, collection_value, data_root_value)
+        ):
+            continue
+        if pack_id != pack_root.name or pack_id in packs:
+            continue
+        collection_path = (pack_root / collection_value).resolve()
+        pack_data_root = (pack_root / data_root_value).resolve()
+        if (
+            not collection_path.is_relative_to(pack_root)
+            or not pack_data_root.is_relative_to(pack_root)
+            or not collection_path.is_file()
+            or not pack_data_root.is_dir()
+        ):
+            continue
+        packs[pack_id] = {
+            **manifest,
+            "manifest_path": manifest_path.resolve(),
+            "pack_root": pack_root,
+            "collection_path": collection_path,
+            "data_root": pack_data_root,
+        }
+    return packs
+
+
+def _reset_for_question_pack(pack_id: str) -> None:
+    """Clear per-question state when the URL-selected pack changes."""
+    if st.session_state.active_question_pack == pack_id:
+        return
+    st.session_state.active_question_pack = pack_id
+    st.session_state.bundle = None
+    st.session_state.question_path = None
+    st.session_state.question_pool = []
+    st.session_state.review_collection_path = None
+    _reset_score()
+    _reset_quiz_state()
+
+
+def _render_question_pack_selector(
+    packs: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Render a URL-addressable pack selector and return the active pack."""
+    options = [LOCAL_QUESTION_PACK, *packs]
+
+    def format_pack(pack_id: str) -> str:
+        if pack_id == LOCAL_QUESTION_PACK:
+            return "Local data root"
+        return str(packs[pack_id]["display_name"])
+
+    query_value = st.query_params.get("question_pack", LOCAL_QUESTION_PACK)
+    query_selected = (
+        query_value if query_value in options else LOCAL_QUESTION_PACK
+    )
+    widget_key = "question_pack_widget"
+    widget_selected = st.session_state.get(widget_key)
+    active = st.session_state.active_question_pack
+    if widget_selected not in options:
+        st.session_state[widget_key] = query_selected
+    elif query_selected != active and query_selected != widget_selected:
+        # The address bar changed outside the widget; make the URL authoritative.
+        st.session_state[widget_key] = query_selected
+
+    selected = st.selectbox(
+        "Question pack",
+        options,
+        format_func=format_pack,
+        key=widget_key,
+    )
+    if selected == LOCAL_QUESTION_PACK:
+        if "question_pack" in st.query_params:
+            del st.query_params["question_pack"]
+    elif st.query_params.get("question_pack") != selected:
+        st.query_params["question_pack"] = selected
+
+    _reset_for_question_pack(selected)
+    if selected == LOCAL_QUESTION_PACK:
+        if st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve())):
+            st.session_state.data_root = "data"
+        return None
+
+    pack = packs[selected]
+    st.session_state.data_root = str(pack["data_root"])
+    return pack
+
+
+def _collection_manifest_path(
+    collection_path: Path | str | None = None,
+) -> Path | None:
+    if collection_path is not None:
+        candidate = Path(collection_path).resolve()
+        if candidate.suffix.lower() == ".json" and candidate.is_file():
+            return candidate
+        return None
     if len(sys.argv) <= 1:
         return None
 
-    manifest_path = Path(sys.argv[1]).resolve()
-    if manifest_path.suffix.lower() != ".json" or not manifest_path.is_file():
+    candidate = Path(sys.argv[1]).resolve()
+    if candidate.suffix.lower() == ".json" and candidate.is_file():
+        return candidate
+    return None
+
+
+def _startup_question_collection(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> list[Path] | None:
+    """Load a review collection from a tracked pack or Streamlit CLI argument."""
+    manifest_path = _collection_manifest_path(collection_path)
+    if manifest_path is None:
         return None
 
     try:
@@ -316,8 +445,11 @@ def _startup_question_collection(data_root: str) -> list[Path] | None:
     return questions
 
 
-def _discover_questions(data_root: str) -> list[Path]:
-    collection = _startup_question_collection(data_root)
+def _discover_questions(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> list[Path]:
+    collection = _startup_question_collection(data_root, collection_path)
     if collection is not None:
         return collection
     return [Path(path) for path in _cached_question_dirs(str(_resolve_data_root(data_root)))]
@@ -329,10 +461,14 @@ def _cached_question_dirs(data_root: str) -> tuple[str, ...]:
     return tuple(str(path) for path in list_question_dirs(Path(data_root)))
 
 
-def _default_question_path(pool: list[Path], data_root: str) -> Path | None:
+def _default_question_path(
+    pool: list[Path],
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> Path | None:
     if not pool:
         return None
-    if _startup_question_collection(data_root) is not None:
+    if _startup_question_collection(data_root, collection_path) is not None:
         return pool[0]
     if len(sys.argv) > 1:
         arg = Path(sys.argv[1]).resolve()
@@ -363,8 +499,11 @@ def _assign_question_cache_scope(bundle: QuestionBundle) -> None:
     ).hexdigest()[:16]
 
 
-def _render_question_picker(data_root: str) -> None:
-    collection = _startup_question_collection(data_root)
+def _render_question_picker(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> None:
+    collection = _startup_question_collection(data_root, collection_path)
     collection_mode = collection is not None
     pool = collection if collection_mode else _discover_questions(data_root)
     st.session_state.question_pool = [str(p) for p in pool]
@@ -378,16 +517,18 @@ def _render_question_picker(data_root: str) -> None:
         return
 
     if collection_mode:
-        collection_path = str(Path(sys.argv[1]).resolve())
-        if st.session_state.review_collection_path != collection_path:
-            st.session_state.review_collection_path = collection_path
+        manifest_path = _collection_manifest_path(collection_path)
+        assert manifest_path is not None
+        collection_identity = str(manifest_path)
+        if st.session_state.review_collection_path != collection_identity:
+            st.session_state.review_collection_path = collection_identity
             _reset_score()
     else:
         st.session_state.review_collection_path = None
 
     current = st.session_state.question_path
     if current is None or not _pool_contains(pool, Path(current)):
-        default = _default_question_path(pool, data_root)
+        default = _default_question_path(pool, data_root, collection_path)
         if default is not None:
             st.session_state.question_path = str(default.resolve())
 
@@ -401,7 +542,7 @@ def _render_question_picker(data_root: str) -> None:
     if collection_mode:
         picker_key = (
             "review_question_picker_"
-            + hashlib.sha256(collection_path.encode("utf-8")).hexdigest()[:12]
+            + hashlib.sha256(collection_identity.encode("utf-8")).hexdigest()[:12]
         )
         if current_index < len(pool) - 1:
             if st.button(
@@ -2410,15 +2551,25 @@ def _ensure_demo_data(data_root: str) -> None:
 
 def main() -> None:
     _init_state()
-    _ensure_demo_data(st.session_state.data_root)
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
         st.header("Questions")
+        packs = _question_pack_registry()
+        active_pack = _render_question_pack_selector(packs)
+        collection_path = (
+            active_pack["collection_path"] if active_pack is not None else None
+        )
+        if active_pack is None:
+            _ensure_demo_data(st.session_state.data_root)
         _render_score_panel()
         st.divider()
-        data_root = st.text_input("Data root", key="data_root")
-        _render_question_picker(data_root)
+        data_root = st.text_input(
+            "Data root",
+            key="data_root",
+            disabled=active_pack is not None,
+        )
+        _render_question_picker(data_root, collection_path)
 
     bundle: QuestionBundle | None = st.session_state.bundle
 
