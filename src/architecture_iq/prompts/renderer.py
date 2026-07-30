@@ -51,9 +51,15 @@ def _evaluation_meta(q: dict) -> dict:
     }
 
 
-def render_prompt(question_path: Path) -> str:
+def render_prompt(
+    question_path: Path,
+    *,
+    dataset_path: Path | None = None,
+    artifact_root: Path | None = None,
+) -> str:
     q = read_json(question_path / "question.json")
-    dataset_path = dataset_dir(q["family"], q["dataset_id"])
+    dataset_path = (dataset_path or dataset_dir(q["family"], q["dataset_id"])).resolve()
+    artifact_root = (artifact_root or DATA_DIR).resolve()
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
     params = dataset_spec["params"]
     eval_meta = _evaluation_meta(q)
@@ -112,7 +118,7 @@ def render_prompt(question_path: Path) -> str:
     )
     if single_axis and q["choices"]:
         first_cand = read_json(
-            DATA_DIR / q["choices"][0]["candidate_path"] / "candidate_spec.json"
+            artifact_root / q["choices"][0]["candidate_path"] / "candidate_spec.json"
         )
         parts.append(format_training_schedule(first_cand["budget"]))
     elif total_samples_seen is not None:
@@ -148,7 +154,7 @@ def render_prompt(question_path: Path) -> str:
     )
 
     for choice in q["choices"]:
-        cand_path = DATA_DIR / choice["candidate_path"]
+        cand_path = artifact_root / choice["candidate_path"]
         cand_spec = read_json(cand_path / "candidate_spec.json")
         _sync_candidate_files(cand_path, cand_spec)
         model_code = excerpt_model_py((cand_path / "model.py").read_text(encoding="utf-8"))
@@ -206,8 +212,17 @@ def render_prompt(question_path: Path) -> str:
     return "\n".join(parts)
 
 
-def write_prompt(question_path: Path) -> Path:
-    text = render_prompt(question_path)
+def write_prompt(
+    question_path: Path,
+    *,
+    dataset_path: Path | None = None,
+    artifact_root: Path | None = None,
+) -> Path:
+    text = render_prompt(
+        question_path,
+        dataset_path=dataset_path,
+        artifact_root=artifact_root,
+    )
     out = question_path / "prompt.txt"
     out.write_text(text, encoding="utf-8")
     return out

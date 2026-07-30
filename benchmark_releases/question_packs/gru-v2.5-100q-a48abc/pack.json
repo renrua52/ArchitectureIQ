@@ -1,0 +1,35 @@
+{
+  "schema_version": "question_pack_v1",
+  "pack_id": "gru-v2.5-100q-a48abc",
+  "display_name": "GRU v2.5 frozen 100-question review pool",
+  "family": "bigram_lm",
+  "dataset_id": "bg_fdc03b",
+  "question_count": 100,
+  "collection_path": "collection.json",
+  "data_root": "data",
+  "inventory_path": "audits/SHA256SUMS",
+  "review_blind_pool": true,
+  "canonical_blind_evaluation": false,
+  "winner_type_max_fraction": 0.7,
+  "profile": "v2.5-gru-residual-architecture-pilot",
+  "profile_hash": "94e5c61ebda47493",
+  "question_run_id": "run_100q_2c_a48abc",
+  "provenance": {
+    "source_worktree_name": "ArchitectureIQ-gru-pilot",
+    "source_data_root": "data/datasets/bigram_lm/bg_fdc03b",
+    "source_branch": "feat/gru-backend-pilot",
+    "source_commit": "5dd943d713142732beb6530382b612491b713903",
+    "source_profile": "v2.5-gru-residual-architecture-pilot",
+    "source_profile_hash": "94e5c61ebda47493",
+    "source_run_id": "run_100q_2c_a48abc",
+    "source_collection": "questions/run_100q_2c_a48abc/review_collection.json",
+    "retained_candidate_sets": [
+      "datasets/bigram_lm/bg_fdc03b/candidates/set_5120_var_fix_fix_17862b",
+      "datasets/bigram_lm/bg_fdc03b/candidates/set_5120_var_fix_fix_229736"
+    ],
+    "retained_candidate_count": 48,
+    "excluded_runs": ["run_100q_2c_395272", "run_6q_2c_67d350", "run_6q_2c_fcd5ca"],
+    "excluded_patterns": ["__pycache__", "*.pyc", "*.log"]
+  }
+}
+

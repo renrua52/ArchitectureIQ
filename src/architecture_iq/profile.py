@@ -98,6 +98,10 @@ class Profile:
         return self.raw["transformer_lm"]
 
     @property
+    def gru_lm(self) -> dict[str, Any]:
+        return self.raw["gru_lm"]
+
+    @property
     def kan(self) -> dict[str, Any]:
         return self.raw.get("kan", {})
 

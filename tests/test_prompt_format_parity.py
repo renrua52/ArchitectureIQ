@@ -14,11 +14,14 @@ sys.path.insert(0, str(TOOLS))
 import prompt_format as insp  # noqa: E402
 
 
+
+
 @pytest.mark.parametrize(
     "name",
     [
         "format_mlp_nl",
         "format_kan_nl",
+        "format_gru_lm_nl",
         "format_optimizer_nl",
         "format_loss_nl",
         "format_training_schedule",
@@ -57,12 +60,38 @@ def test_kan_nl_parity_output() -> None:
     }
     assert pkg.format_kan_nl(model) == insp.format_kan_nl(model)
 
+def test_gru_lm_nl_parity_output() -> None:
+    model = {
+        "type": "gru_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 64,
+        "num_layers": 2,
+    }
+    assert pkg.format_gru_lm_nl(model) == insp.format_gru_lm_nl(model)
+    assert pkg.format_model_nl(model) == insp.format_model_nl(model)
+
+
+def test_gru_lm_residual_nl_parity_output() -> None:
+    model = {
+        "type": "gru_lm",
+        "vocab_size": 32,
+        "context_length": 16,
+        "d_model": 64,
+        "num_layers": 2,
+        "layer_residual": True,
+    }
+    expected = "Layer residual connections: enabled; after each GRU layer, h = h + GRU_layer(h)."
+    assert pkg.format_gru_lm_nl(model) == insp.format_gru_lm_nl(model)
+    assert expected in pkg.format_gru_lm_nl(model)
+
 
 @pytest.mark.parametrize(
     "rule_family, active_features, interaction_pairs, weights, breakpoint",
     [
         ("smooth_additive", [0, 2], [], [-1.0, 0.75], 0.0),
         ("sparse_interaction", [0, 2, 3], [[0, 2], [2, 3]], [-1.0, 0.75], 0.0),
+        ("xor", [0, 2], [[0, 2]], [-1.0], 0.0),
         ("piecewise_boundary", [0, 2], [], [-1.0, 0.75, 0.5], -0.25),
     ],
 )
@@ -91,10 +120,40 @@ def test_classification_rule_card_parity(
     assert "Label rule" in text
     assert "Bayes decision boundary" in text
     assert "def " not in text
+    if rule_family == "xor":
+        assert "s(x) = -x_0·x_2" in text
+        assert "nominal only" in text
+        assert "need not follow" in text
+
+
+def test_classification_dataset_protocol_uses_family_dispatch_without_rule_family() -> None:
+    params = {
+        "input_dim": 2,
+        "train_size": 256,
+        "test_size": 256,
+    }
+    package_text = pkg.format_dataset_protocol(
+        params,
+        family="synthetic_tabular_classification",
+        device="cpu",
+    )
+    inspector_text = insp.format_dataset_protocol(
+        params,
+        family="synthetic_tabular_classification",
+        device="cpu",
+    )
+
+    assert package_text == inspector_text
+    assert "binary classification" in package_text
+    assert "test cross-entropy" in package_text
 
 
 def test_ranking_protocol() -> None:
-    text = pkg.format_ranking_protocol(n_seeds=10, base_seed=0, selection_metric="test_mse")
+    text = pkg.format_ranking_protocol(
+        n_seeds=10,
+        base_seed=0,
+        selection_metric="test_mse",
+    )
     assert "seeds" in text
     assert "0" in text and "9" in text
     assert "mean" in text

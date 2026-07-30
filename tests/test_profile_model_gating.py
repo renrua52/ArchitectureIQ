@@ -40,3 +40,44 @@ def test_v21_explicitly_opens_classification_kan_gate() -> None:
         for seed in range(128)
     }
     assert sampled == {"mlp", "kan"}
+
+
+def test_v24_xor_review_expands_only_the_xor_kan_pool() -> None:
+    ensure_registries()
+    v23 = load_profile("v2.3-xor-pilot")
+    profile = load_profile("v2.4-xor-review")
+    family = get_dataset_family("synthetic_tabular_classification")
+
+    assert v23.kan == {
+        "variant": "efficient_spline_v1",
+        "depth": [1, 2],
+        "width": [8],
+        "grid_size": [5],
+        "spline_order": [3],
+        "grid_range": [[-1.0, 1.0]],
+        "base_activation": ["silu"],
+    }
+    assert v23.significance == {
+        "gap_min": 0.05,
+        "win_rate_min": 0.7,
+        "use_non_overlap": True,
+    }
+    assert profile.name == "v2.4-xor-review"
+    assert profile.family_config("synthetic_tabular_classification")["rule_families"] == ["xor"]
+    assert profile.kan == {
+        "variant": "efficient_spline_v1",
+        "depth": [1, 2],
+        "width": [8, 16],
+        "grid_size": [5, 7],
+        "spline_order": [3],
+        "grid_range": [[-1.0, 1.0], [-2.0, 2.0]],
+        "base_activation": ["silu"],
+    }
+    assert profile.significance == {
+        "gap_min": 0.0,
+        "win_rate_min": 0.7,
+        "use_non_overlap": True,
+    }
+    assert profile.model_types_for_family(
+        family.name, family.compatible_model_types()
+    ) == ["mlp", "kan"]

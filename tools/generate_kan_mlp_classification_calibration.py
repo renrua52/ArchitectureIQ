@@ -80,6 +80,7 @@ def mlp_spec(*, input_dim: int, depth: int, width: int) -> dict[str, Any]:
 # Widths are selected per input dimension because output_dim=2 changes the
 # parameter-count matching relative to regression.
 _MLP_WIDTHS = {
+    2: {1: 26, 2: 25},
     4: {1: 28, 2: 26},
     8: {1: 30, 2: 27},
     16: {1: 34, 2: 30},

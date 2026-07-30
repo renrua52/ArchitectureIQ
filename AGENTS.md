@@ -14,6 +14,14 @@ Before editing or testing:
 4. If the current directory is the outer `Architecture IQ` aggregate folder, stop and ask the user to open the target worktree as a separate task.
 5. A `git merge`, `git rebase`, or `git cherry-pick` started in this worktree is allowed: resolve all conflicts and make all resulting file edits here only; do not modify the source branch's sibling worktree.
 
+## Execution and test isolation
+
+- Before interpreting a Python test result that imports ArchitectureIQ, use the same interpreter to verify import provenance: `python -c "import architecture_iq; print(architecture_iq.**file**)"` must resolve under this repository's `src/architecture_iq`. If it resolves to a sibling worktree or a global editable install, correct the interpreter or import path first.
+- Prefer pytest's `tmp_path` fixture. Use `--basetemp` only when the default temporary location is unsuitable, and choose a task-specific writable directory; do not hard-code a shared system temporary path as a project output location.
+- Search from this repository root and scope the path first. Avoid broad recursive scans through `.git`, `.pytest*`, generated `data`, and output directories unless they are the explicit target.
+- Run targeted tests first. Do not treat a timeout, access denial, or import-path mismatch as a source-code failure; capture the concise error and fix the execution boundary before widening the test scope.
+- If the same Codex tool/protocol error repeats twice without a state change, stop retrying it in place. Preserve the call/error identifier and continue in a fresh task or a short handoff instead.
+
 **Scope:** This file describes **stable architecture and invariants**. Concrete family names, model types, metrics, and pool contents live in the **registry**, **family plugins**, and **active profile** (`profiles/*.yaml`) — not here. When adding families, update those sources; do not need to revise this doc unless the pipeline contract itself changes.
 
 ---
