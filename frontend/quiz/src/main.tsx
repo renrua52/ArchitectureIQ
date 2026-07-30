@@ -339,8 +339,6 @@ function App() {
       <h1 className="question-title">
         <span>{humanFamily(question.family)}</span>
         <span className="dot">·</span>
-        <span>{humanMetric(question.metric)}</span>
-        <span className="dot">·</span>
         <span>{humanType(question.type)}</span>
       </h1>
 
@@ -482,8 +480,7 @@ function QuestionMenu({
                 <button type="button" className="question-row" onClick={() => onPick(itemIndex)}>
                   <span className="qnum">{itemIndex + 1}</span>
                   <span className="question-row-copy">
-                    {humanFamily(item.family)} · {humanMetricByFamily(item.family, item.metric)} ·{" "}
-                    {humanType(item.type)}
+                    {humanFamily(item.family)} · {humanType(item.type)}
                   </span>
                   <span className={`q-status ${status}`}>{statusLabel}</span>
                 </button>
@@ -553,6 +550,10 @@ function DatasetStage({
               <dt>Family</dt>
               <dd>{humanFamily(question.family)}</dd>
             </div>
+            <div>
+              <dt>Target metric</dt>
+              <dd>{humanMetric(question.metric)}</dd>
+            </div>
             {params.expression != null ? (
               <div>
                 <dt>Target expression</dt>
@@ -616,7 +617,7 @@ function DatasetStage({
           <DatasetVisual question={question} />
         </div>
       </div>
-      <div className="stage-footer">
+      <div className="stage-footer stage-footer-end">
         <button type="button" className="cta" onClick={onSeeChoices}>
           See choices →
         </button>
@@ -637,7 +638,7 @@ function ChoicesStage({
   return (
     <div className="stage-inner">
       <p className="stage-kicker">Choices</p>
-      <p className="hint">Tap a card to lock that answer. Emphasized rows differ across choices.</p>
+      <p className="hint">Choose the better model.</p>
       <div className="choice-grid">
         {question.detail.choices.map((choice) => (
           <ChoiceCard
@@ -690,7 +691,10 @@ function AnswerStage({
       </p>
       <CurvesPlot question={question} />
       <div className="stage-footer vote-footer">
-        <p className="hint vote-prompt">Good problem?</p>
+        <div className="vote-copy">
+          <p className="hint vote-prompt">Good problem?</p>
+          <p className="vote-continue">Rate the problem to continue.</p>
+        </div>
         <div className="vote-options" role="group" aria-label="Is this a good problem?">
           <button
             type="button"
@@ -1405,12 +1409,6 @@ function humanMetric(metric?: string) {
   if (metric === "test_mse") return "test MSE";
   if (metric === "test_ce") return "test cross-entropy";
   return metric.replace(/_/g, " ");
-}
-
-function humanMetricByFamily(family?: string, metric?: string) {
-  if (metric) return humanMetric(metric);
-  if (family === "bigram_lm") return "test CE";
-  return "test MSE";
 }
 
 function humanType(type?: string) {

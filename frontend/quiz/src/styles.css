@@ -435,6 +435,10 @@ a {
   padding-top: 0.25rem;
 }
 
+.stage-footer-end {
+  justify-content: flex-end;
+}
+
 .vote-footer {
   justify-content: flex-end;
   gap: 0.85rem;
@@ -448,10 +452,23 @@ a {
   margin-top: 1rem;
 }
 
+.vote-copy {
+  display: grid;
+  gap: 0.15rem;
+  margin-right: auto;
+}
+
 .vote-prompt {
   margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.vote-continue {
+  margin: 0;
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
 }
 
 .vote-options {
