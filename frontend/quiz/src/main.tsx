@@ -180,6 +180,7 @@ function App() {
         profile_hash: question.profileHash ?? "legacy/unknown"
       }
     });
+    nextQuestion();
   }
   function pickChoice(letter: string) {
     if (!question || answered || results.current[question.id] !== undefined) {
@@ -354,7 +355,6 @@ function App() {
             selected={selected}
             feedback={feedback}
             onVote={submitProblemVote}
-            onNext={nextQuestion}
             onInfo={(letter) => setInfo({ kind: "choice", letter })}
             onDatasetInfo={() => setInfo({ kind: "dataset" })}
           />
@@ -626,7 +626,6 @@ function AnswerStage({
   selected,
   feedback,
   onVote,
-  onNext,
   onInfo,
   onDatasetInfo
 }: {
@@ -634,7 +633,6 @@ function AnswerStage({
   selected: string | null;
   feedback: FeedbackDraft;
   onVote: (vote: ProblemVote) => void;
-  onNext: () => void;
   onInfo: (letter: string) => void;
   onDatasetInfo: () => void;
 }) {
@@ -677,54 +675,30 @@ function AnswerStage({
         })}
       </div>
       <CurvesPlot question={question} />
-      <AuditFeedbackPanel feedback={feedback} onVote={onVote} />
-      <div className="stage-footer">
-        <p className="hint">Continue when you are ready.</p>
-        <button type="button" className="cta" onClick={onNext}>
-          Next question →
-        </button>
+      <div className="stage-footer vote-footer">
+        <p className="hint vote-prompt">Good problem?</p>
+        <div className="vote-options" role="group" aria-label="Is this a good problem?">
+          <button
+            type="button"
+            className={`vote-btn vote-yes${feedback.vote === "yes" ? " selected" : ""}`}
+            aria-pressed={feedback.vote === "yes"}
+            disabled={feedback.submitted}
+            onClick={() => onVote("yes")}
+          >
+            Good
+          </button>
+          <button
+            type="button"
+            className={`vote-btn vote-no${feedback.vote === "no" ? " selected" : ""}`}
+            aria-pressed={feedback.vote === "no"}
+            disabled={feedback.submitted}
+            onClick={() => onVote("no")}
+          >
+            Bad
+          </button>
+        </div>
       </div>
     </div>
-  );
-}
-
-function AuditFeedbackPanel({
-  feedback,
-  onVote
-}: {
-  feedback: FeedbackDraft;
-  onVote: (vote: ProblemVote) => void;
-}) {
-  return (
-    <section className="audit-feedback panel" aria-label="Problem quality vote">
-      <div className="panel-head">
-        <div>
-          <p className="stage-kicker">Problem quality</p>
-          <p className="hint">Is this a good problem?</p>
-        </div>
-        {feedback.submitted ? <span className="feedback-saved">Thanks</span> : null}
-      </div>
-      <div className="feedback-options vote-options" role="group" aria-label="Is this a good problem?">
-        <button
-          type="button"
-          className={`vote-yes${feedback.vote === "yes" ? " selected" : ""}`}
-          aria-pressed={feedback.vote === "yes"}
-          disabled={feedback.submitted}
-          onClick={() => onVote("yes")}
-        >
-          ▲ Yes
-        </button>
-        <button
-          type="button"
-          className={`vote-no${feedback.vote === "no" ? " selected" : ""}`}
-          aria-pressed={feedback.vote === "no"}
-          disabled={feedback.submitted}
-          onClick={() => onVote("no")}
-        >
-          ▼ No
-        </button>
-      </div>
-    </section>
   );
 }
 
