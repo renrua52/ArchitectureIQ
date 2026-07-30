@@ -84,11 +84,22 @@ def _tabpfn_predict(
     X_test: pd.DataFrame,
     *,
     device: str,
+    model_version: str = "v2.5",
 ) -> np.ndarray:
     from tabpfn import TabPFNRegressor
+    from tabpfn.constants import ModelVersion
 
-    reg = TabPFNRegressor(device=device)
-    # TabPFN accepts DataFrame with categoricals / NaNs
+    version_map = {
+        "v2": ModelVersion.V2,
+        "v2.5": ModelVersion.V2_5,
+        "v2.6": ModelVersion.V2_6,
+        "v3": ModelVersion.V3,
+    }
+    if model_version not in version_map:
+        raise SystemExit(f"Unknown --tabpfn-version {model_version}")
+    # Prefer create_default_for_version so China hosts can use cached non-v3 ckpts
+    # without HuggingFace gated-repo auth for TabPFN-3.
+    reg = TabPFNRegressor.create_default_for_version(version_map[model_version], device=device)
     reg.fit(X_train, y_train)
     return np.asarray(reg.predict(X_test), dtype=float)
 
@@ -104,6 +115,12 @@ def main() -> None:
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--tabpfn-version",
+        default="v2.5",
+        choices=["v2", "v2.5", "v2.6", "v3"],
+        help="TabPFN checkpoint family (v3 is HF-gated; v2.5 is cached on the lab A100).",
+    )
     parser.add_argument("--skip-tabpfn", action="store_true")
     parser.add_argument(
         "--report",
@@ -158,8 +175,10 @@ def main() -> None:
                 y[tr],
                 X.iloc[te],
                 device=args.device,
+                model_version=args.tabpfn_version,
             )
         results["models"]["tabpfn"] = regression_report(y, preds, lower_is_better=lower_is_better)
+        results["tabpfn_version"] = args.tabpfn_version
 
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
