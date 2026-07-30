@@ -91,24 +91,6 @@ function App() {
     });
   }
 
-  function exportSession() {
-    const payload = {
-      schema_version: 1,
-      exported_at: new Date().toISOString(),
-      session_id: sessionId.current,
-      collection: bake?.collection ?? null,
-      results: results.current,
-      audit_feedback: feedbackByQuestion.current
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `architectureiq-session-${sessionId.current}.json`;
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
-
   function beginQuiz(atIndex = 0) {
     ensureSessionStart();
     setIndex(atIndex);
@@ -138,17 +120,6 @@ function App() {
       return;
     }
     const next = bake?.ordered ? index + 1 : (index + 1) % summaries.length;
-    leaveAndSwitch(next);
-  }
-
-  function randomQuestion() {
-    if (summaries.length <= 1) {
-      return;
-    }
-    let next = index;
-    while (next === index) {
-      next = Math.floor(Math.random() * summaries.length);
-    }
     leaveAndSwitch(next);
   }
 
@@ -298,21 +269,8 @@ function App() {
           <span className="score-text" title="Session accuracy">
             Score {score.correct}/{score.total} ({accuracy})
           </span>
-          <button
-            type="button"
-            onClick={nextQuestion}
-            disabled={Boolean(bake.ordered && index >= summaries.length - 1)}
-          >
-            {bake.ordered && index >= summaries.length - 1 ? "End" : "Next"}
-          </button>
-          <button type="button" onClick={randomQuestion}>
-            Random
-          </button>
           <button type="button" onClick={() => setScreen("menu")}>
             Questions
-          </button>
-          <button type="button" onClick={exportSession}>
-            Export
           </button>
         </div>
       </header>
@@ -322,19 +280,10 @@ function App() {
         <span className="dot">·</span>
         <span>{humanMetric(question.metric)}</span>
         <span className="dot">·</span>
-        <span className="tag">{humanType(question.type)}</span>
-        <span className="dot">·</span>
-        <span className="tag">{question.track ?? "default"}</span>
-        <span className="dot">·</span>
-        <span>{question.detail.choices.length} choices</span>
+        <span>{humanType(question.type)}</span>
       </h1>
 
       <section className="stage-screen" key={`${question.id}-${stage}`}>
-        <div className="provenance" aria-label="Question provenance">
-          <span>Track: {question.track ?? "default"}</span>
-          <span>Profile: {question.profile ?? "legacy/unknown"}</span>
-          <span>Hash: {question.profileHash ?? "legacy/unknown"}</span>
-        </div>
         {stage === "observe" ? (
           <DatasetStage
             question={question}
@@ -655,25 +604,6 @@ function AnswerStage({
             : `You picked ${selected}. Correct is ${correct}.`
           : `Correct choice: ${correct}.`}
       </p>
-      <div className="choice-grid">
-        {question.detail.choices.map((choice) => {
-          const row = byLetter[choice.letter];
-          return (
-            <ChoiceCard
-              key={choice.letter}
-              choice={choice}
-              fields={fieldsForChoice(question, choice)}
-              interactive={false}
-              correct={choice.letter === correct}
-              wrongPick={Boolean(selected && choice.letter === selected && choice.letter !== correct)}
-              metricText={
-                row ? formatMetric(row.mean, row.std, row.metric) : "unavailable"
-              }
-              onInfo={() => onInfo(choice.letter)}
-            />
-          );
-        })}
-      </div>
       <CurvesPlot question={question} />
       <div className="stage-footer vote-footer">
         <p className="hint vote-prompt">Good problem?</p>
@@ -697,6 +627,25 @@ function AnswerStage({
             Bad
           </button>
         </div>
+      </div>
+      <div className="choice-grid reveal-choices">
+        {question.detail.choices.map((choice) => {
+          const row = byLetter[choice.letter];
+          return (
+            <ChoiceCard
+              key={choice.letter}
+              choice={choice}
+              fields={fieldsForChoice(question, choice)}
+              interactive={false}
+              correct={choice.letter === correct}
+              wrongPick={Boolean(selected && choice.letter === selected && choice.letter !== correct)}
+              metricText={
+                row ? formatMetric(row.mean, row.std, row.metric) : "unavailable"
+              }
+              onInfo={() => onInfo(choice.letter)}
+            />
+          );
+        })}
       </div>
     </div>
   );
