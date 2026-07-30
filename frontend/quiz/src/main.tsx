@@ -92,14 +92,13 @@ function App() {
     });
   }
 
-  function lastAnsweredIndex(): number | null {
-    let last: number | null = null;
+  function firstUnansweredIndex(): number | null {
     for (let i = 0; i < summaries.length; i += 1) {
-      if (results.current[summaries[i].id] !== undefined) {
-        last = i;
+      if (results.current[summaries[i].id] === undefined) {
+        return i;
       }
     }
-    return last;
+    return null;
   }
 
   function resetExamState() {
@@ -137,9 +136,11 @@ function App() {
   }
 
   function backFromMenu() {
-    const last = lastAnsweredIndex();
-    if (last !== null || screenWasQuiz.current) {
-      setIndex(last !== null ? last : Math.min(index, Math.max(summaries.length - 1, 0)));
+    const firstOpen = firstUnansweredIndex();
+    if (firstOpen !== null || screenWasQuiz.current) {
+      setIndex(
+        firstOpen !== null ? firstOpen : Math.min(index, Math.max(summaries.length - 1, 0))
+      );
       setScreen("quiz");
       setInfo(null);
       return;
@@ -322,6 +323,13 @@ function App() {
           <span className="score-text" title="Session accuracy">
             Score {score.correct}/{score.total} ({accuracy})
           </span>
+          <button
+            type="button"
+            onClick={nextQuestion}
+            disabled={Boolean(bake.ordered && index >= summaries.length - 1)}
+          >
+            {bake.ordered && index >= summaries.length - 1 ? "End" : "Next"}
+          </button>
           <button type="button" onClick={openMenu}>
             Questions
           </button>
