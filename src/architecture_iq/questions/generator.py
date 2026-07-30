@@ -502,6 +502,7 @@ def build_question_record(
     rng: random.Random,
     quality: QuestionQualityFilters | None = None,
     artifact_root: Path | None = None,
+    benchmark_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     filters = quality if quality is not None else QuestionQualityFilters.disabled()
     summaries = [load_summary(p) for p in candidate_paths]
@@ -597,6 +598,8 @@ def build_question_record(
             "rendered_path": "prompt.txt",
         },
     }
+    if benchmark_metadata is not None:
+        body["benchmark"] = dict(benchmark_metadata)
     qid = f"q_{short_hash(body)}"
     body["question_id"] = qid
     body["profile"] = profile.name
@@ -615,6 +618,7 @@ def _write_question(
     rng: random.Random,
     quality: QuestionQualityFilters | None = None,
     artifact_root: Path | None = None,
+    benchmark_metadata: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], Path]:
     record = build_question_record(
         profile,
@@ -625,6 +629,7 @@ def _write_question(
         rng=rng,
         quality=quality,
         artifact_root=artifact_root,
+        benchmark_metadata=benchmark_metadata,
     )
     data_root = (artifact_root or DATA_DIR).resolve()
     record["question_run_id"] = run_name
@@ -646,12 +651,14 @@ def generate_questions(
     num_choices: int | None = None,
     seed: int = 0,
     quality: QuestionQualityFilters | None = None,
+    question_type: str | None = None,
     require_distinct_model_types: bool = False,
     required_model_types: frozenset[str] | None = None,
     candidate_reuse_policy: str = DEFAULT_CANDIDATE_REUSE_POLICY,
     max_candidate_uses: int | None = None,
     winner_type_max_fraction: float | None = None,
     artifact_root: Path | None = None,
+    benchmark_metadata: dict[str, Any] | None = None,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
@@ -659,6 +666,10 @@ def generate_questions(
         raise ValueError("At least one candidate set path is required")
     if candidate_reuse_policy not in CANDIDATE_REUSE_POLICIES:
         raise ValueError(f"Unknown candidate reuse policy: {candidate_reuse_policy}")
+    if question_type is not None and question_type not in (
+        "architecture_only", "optimizer_only", "loss_only", "mixed"
+    ):
+        raise ValueError(f"Unknown question_type: {question_type}")
 
     filters = quality if quality is not None else QuestionQualityFilters.from_profile(profile)
     resolved_sets = [p.resolve() for p in candidate_set_paths]
@@ -708,6 +719,7 @@ def generate_questions(
         rng,
         num_choices=n_choices,
         selection_metric=selection_metric,
+        question_type=question_type,
         quality=filters,
     )
     model_types = {
@@ -792,6 +804,7 @@ def generate_questions(
                 rng=rng,
                 quality=filters,
                 artifact_root=artifact_root,
+                benchmark_metadata=benchmark_metadata,
             )
         )
 

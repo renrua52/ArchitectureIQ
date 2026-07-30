@@ -324,6 +324,12 @@ def generate_question_cmd(
         help="Optional pool wash: drop candidates with more failed seeds than N "
         "(overrides profile; use 0 for no failed seeds)",
     ),
+    question_type: Optional[str] = typer.Option(
+        None,
+        "--question-type",
+        help="Optional target question type: architecture_only, optimizer_only, "
+        "loss_only, or mixed. When set, subsets must match it.",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -351,6 +357,7 @@ def generate_question_cmd(
         gap_worst_max=gap_worst_max is not None,
         require_finite_mean=require_finite_mean is not None,
         max_failed_seeds=max_failed_seeds is not None,
+        question_type=question_type is not None,
     )
 
     if interactive:
@@ -379,6 +386,10 @@ def generate_question_cmd(
         raise typer.BadParameter("--gap-worst-max must be non-negative")
     if max_failed_seeds is not None and max_failed_seeds < 0:
         raise typer.BadParameter("--max-failed-seeds must be non-negative")
+    if question_type is not None and question_type not in (
+        "architecture_only", "optimizer_only", "loss_only", "mixed"
+    ):
+        raise typer.BadParameter("--question-type must be one of architecture_only, optimizer_only, loss_only, mixed")
 
     for set_path in candidate_sets:
         if not set_path.is_dir():
@@ -408,6 +419,7 @@ def generate_question_cmd(
         max_candidate_uses=max_candidate_uses,
         winner_type_max_fraction=winner_type_max_fraction,
         quality=quality,
+        question_type=question_type,
     )
 
     typer.echo(f"Question run written to {run_path}")
