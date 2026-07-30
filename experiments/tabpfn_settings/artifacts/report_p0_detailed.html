@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>TabPFN Settings → Metric — Detailed P0 Report</title>
+<style>
+:root {
+  --ink:#1a1f24; --muted:#5c6770; --line:#d8dde2; --bg:#f4f1eb; --paper:#fffcf7;
+  --accent:#0b6e4f; --accent-soft:#d8efe6; --warn:#8a5a00;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"IBM Plex Sans","Source Sans 3",sans-serif;color:var(--ink);
+background:radial-gradient(1000px 500px at 0% 0%,#e4ebe6,transparent 55%),
+radial-gradient(800px 400px at 100% 0%,#efe6d8,transparent 50%),var(--bg);line-height:1.55}
+main{max-width:980px;margin:0 auto;padding:2.25rem 1.2rem 4rem}
+header{border-bottom:1px solid var(--line);padding-bottom:1.1rem;margin-bottom:1.6rem}
+.kicker{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 .35rem}
+h1{font-family:"IBM Plex Serif",Georgia,serif;font-size:clamp(1.55rem,3vw,2.05rem);margin:0 0 .45rem;letter-spacing:-.02em;font-weight:600}
+.lede{color:var(--muted);margin:0;max-width:46rem}
+h2{font-size:1.08rem;margin:2rem 0 .7rem;border-top:1px solid var(--line);padding-top:1.4rem}
+h3{font-size:.98rem;margin:1.2rem 0 .45rem}
+p,li{font-size:.94rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.7rem;margin:1rem 0}
+.stat{background:var(--paper);border:1px solid var(--line);padding:.8rem .95rem}
+.stat .label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat .value{font-size:1.1rem;font-weight:600;margin-top:.15rem;font-variant-numeric:tabular-nums}
+.stat .sub{font-size:.78rem;color:var(--muted);margin-top:.1rem}
+table{width:100%;border-collapse:collapse;font-size:.86rem;background:var(--paper);border:1px solid var(--line);margin:.5rem 0 1rem}
+th,td{padding:.5rem .65rem;text-align:left;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:top}
+th{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:none}
+tr.best td{background:var(--accent-soft);font-weight:600}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.8rem}
+.note{background:#fff8e8;border-left:3px solid var(--warn);padding:.75rem 1rem;font-size:.88rem;color:#4a3a1a;margin:1rem 0}
+.callout{background:var(--paper);border:1px solid var(--line);padding:1rem 1.1rem;margin:1rem 0}
+.callout h3{margin-top:0}
+.bars{display:grid;gap:.55rem;margin:.8rem 0 1.2rem}
+.bar-row{display:grid;grid-template-columns:7.2rem 1fr 3.4rem;gap:.55rem;align-items:center;font-size:.84rem}
+.bar-track{height:.65rem;background:#e6e2db;overflow:hidden}
+.bar-fill{height:100%}
+.muted{color:var(--muted)}
+ul.compact{margin:.35rem 0 .8rem;padding-left:1.15rem}
+ul.compact li{margin:.18rem 0}
+.pill{display:inline-block;font-size:.72rem;padding:.1rem .4rem;border:1px solid var(--line);background:#f0ebe3}
+.pill.varying{background:#d8efe6;border-color:#9ecfbc}
+.pill.constant,.pill.constant_with_missing{background:#eee;color:#666}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.84em;background:#efece6;padding:.05em .28em}
+.flow{display:grid;gap:.4rem;margin:1rem 0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.82rem}
+.flow div{background:var(--paper);border:1px solid var(--line);padding:.55rem .75rem}
+footer{margin-top:2.4rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);padding-top:1rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="kicker">ArchitectureIQ · side/tabpfn-settings · Phase P0 · XOR + GRU packs</p>
+  <h1>TabPFN 输入 / 输出 / 训练测试协议 &amp; 全 pack 结果</h1>
+  <p class="lede">本报告把「一行是什么、模型吃什么、吐什么、怎么划分训练测试」写清楚，并在当前分支已有的两个 frozen question pack（XOR、GRU）上分别跑完 5-fold CV。</p>
+</header>
+
+<h2>0. 问题定义（先分清两层「训练」）</h2>
+<div class="callout">
+  <h3>层 A — ArchitectureIQ candidate 的 GT（标签从哪来）</h3>
+  <p>每个 candidate 已有 <code>candidate_spec.json</code> + 执行生成的 <code>train.py</code> 得到的 <code>results/summary.json</code>。标签是 summary 里的 <code>mean_test_ce</code>（GT seeds 上的均值）。本实验<strong>不再</strong>重新训练这些 candidate。</p>
+  <h3>层 B — TabPFN / 基线的「监督回归」（本报告评估的对象）</h3>
+  <p>把每个 candidate 编成一行表格特征 X，标签 y=<code>mean_test_ce</code>。在 candidate 集合上做交叉验证：用一部分行拟合预测器，预测 held-out 行的 CE。</p>
+  <p><strong>TabPFN 特别说明：</strong><code>fit</code> <em>不会</em>用梯度更新 foundation 权重；它把训练折的 (X,y) 当作 in-context 条件。预训练权重固定为 Prior-Labs TabPFN-2.5 regressor checkpoint。</p>
+</div>
+
+<div class="flow">
+  <div>candidate_spec.json  →  encode_spec()  →  特征行 X</div>
+  <div>results/summary.json →  mean_test_ce     →  标量标签 y</div>
+  <div>KFold 训练折 (X_tr, y_tr) → TabPFN.fit / Ridge.fit / …</div>
+  <div>测试折 X_te → predict → ŷ_te ；与 y_te 比 MAE/RMSE/Spearman/pairwise</div>
+</div>
+
+<h2>1. 输入 X：包含哪些信息？</h2>
+<p>每一行 = <strong>一个 ArchitectureIQ candidate</strong>。特征来自 <code>candidate_spec</code> 的扁平化（见 <code>src_tabpfn_settings/features.py</code>），<strong>不含</strong>曲线、中间 loss、或任何 test metric 泄漏字段。</p>
+
+<h3>特征字段设计（全局 schema）</h3>
+<table>
+<thead><tr><th>组</th><th>字段</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>身份/规模</td><td class="mono">model_type, trainable_parameter_count, log_params</td><td>模型族 + 参数量</td></tr>
+<tr><td>Budget</td><td class="mono">batch_size, training_steps, total_samples_seen</td><td>训练日程；P0 内各 pack 为常数</td></tr>
+<tr><td>Optimizer</td><td class="mono">optimizer_type, lr, log_lr, weight_decay, momentum</td><td>P0 内 Adam/lr/wd 常数；momentum 全空</td></tr>
+<tr><td>Loss</td><td class="mono">loss_id, loss_lambda</td><td>P0 内 cross_entropy；lambda 空</td></tr>
+<tr><td>MLP / 共享 depth-width</td><td class="mono">depth, width, residual, layer_norm_frac, activation_primary</td><td>XOR-MLP；KAN 也复用 depth/width</td></tr>
+<tr><td>KAN</td><td class="mono">grid_size, spline_order, base_activation</td><td>仅 KAN 有值</td></tr>
+<tr><td>LM</td><td class="mono">d_model, num_layers, num_heads, d_ff, layer_residual</td><td>GRU pack；encode 时 depth←num_layers、width←d_model（冗余）</td></tr>
+</tbody>
+</table>
+
+<div class="note">
+<strong>未编码但仍存在于 spec 的字段（当前实现省略）：</strong>
+XOR — <code>input_dim/output_dim/grid_range/variant/leaky_relu_slope</code>（本 pack 内多为常数）；
+GRU — <code>vocab_size=32</code>、<code>context_length=16</code>（全表常数，省略不影响 within-pack CV）。
+</div>
+
+<h2>2. 输出 y：是什么？</h2>
+<ul class="compact">
+  <li><strong>主目标：</strong><code>mean_test_ce</code>（越小越好）</li>
+  <li><strong>来源：</strong>GT runner 执行 candidate <code>train.py</code> 后写入 <code>results/summary.json</code> 的均值，与 ArchitectureIQ selection metric <code>test_ce</code> 对齐</li>
+  <li><strong>模型输出：</strong>一个标量 ŷ（回归），解释为「该 setting 的预测 test CE」</li>
+  <li><strong>不是分类：</strong>不用 TabPFNClassifier；不做 question 对错预测</li>
+</ul>
+
+<h2>3. 训练 / 测试细节（层 B）</h2>
+<table>
+<thead><tr><th>项</th><th>设定</th></tr></thead>
+<tbody>
+<tr><td>样本单位</td><td>candidate 行（不是 token、不是原始 XOR/语言模型样本）</td></tr>
+<tr><td>划分</td><td><code>sklearn.model_selection.KFold(n_splits=5, shuffle=True, random_state=0)</code></td></tr>
+<tr><td>泄漏防护</td><td>每个 candidate 只出现在一个测试折；报告指标均为 <strong>out-of-fold</strong> 拼接</td></tr>
+<tr><td>TabPFN「训练样本量」</td><td>每折 <code>n_train</code>（见下表）——即 in-context 条件行数；不是 foundation 预训练规模</td></tr>
+<tr><td>测试样本量</td><td>每折 <code>n_test</code></td></tr>
+<tr><td>基线 CV</td><td>Ridge / HistGB 用同一套 KFold（<code>cross_val_predict</code>）</td></tr>
+<tr><td>train_mean</td><td>用全集 y 的均值作常数预测（无信息上界参考；Spearman 无定义）</td></tr>
+<tr><td>TabPFN 版本 / 设备</td><td>v2.5 regressor default ckpt · CUDA A100 80GB</td></tr>
+<tr><td>预处理（TabPFN）</td><td>库内置；我们额外把 bool+NaN 列映射成字符串类别</td></tr>
+<tr><td>预处理（Ridge/HGB）</td><td>数值：median impute + StandardScaler；类别：most_frequent + OneHot</td></tr>
+<tr><td>评价指标</td><td>MAE、RMSE、Spearman ρ、pairwise ranking accuracy（所有 y_i≠y_j 的无序对上，预测序是否与真值序一致；CE 越低越好）</td></tr>
+</tbody>
+</table>
+
+<h2>4. 当前分支上的数据集覆盖</h2>
+<p>分支 <code>side/tabpfn-settings</code> 跟踪的 frozen packs 只有两个；均已建表并评估：</p>
+<div class="grid">
+  <div class="stat"><div class="label">Pack</div><div class="value">XOR</div><div class="sub">xor-v2.5-100q-37b9da</div></div>
+  <div class="stat"><div class="label">Pack</div><div class="value">GRU</div><div class="sub">gru-v2.5-100q-a48abc</div></div>
+  <div class="stat"><div class="label">XOR rows</div><div class="value">63</div><div class="sub">stabcls_953608</div></div>
+  <div class="stat"><div class="label">GRU rows</div><div class="value">48</div><div class="sub">bg_fdc03b</div></div>
+</div>
+
+<!-- ================= XOR ================= -->
+<h2>5. Dataset A — XOR tabular classification</h2>
+<div class="grid">
+  <div class="stat"><div class="label">Family / dataset</div><div class="value" style="font-size:.95rem">synthetic_tabular_classification</div><div class="sub">dataset_id=stabcls_953608 · profile=v2.5-xor-holdout</div></div>
+  <div class="stat"><div class="label">y = mean_test_ce</div><div class="value">0.1793</div><div class="sub">range [0.1420, 0.3939] · σ=0.0506</div></div>
+  <div class="stat"><div class="label">Models in table</div><div class="value">MLP 39 · KAN 24</div><div class="sub">selection_metric=test_ce</div></div>
+  <div class="stat"><div class="label">Fixed axes</div><div class="value" style="font-size:.9rem">Adam · CE · 32×256=8192</div><div class="sub">仅架构轴变化</div></div>
+</div>
+
+<h3>架构取值</h3>
+
+        <ul class='compact'>
+          <li>MLP n=39: depth∈[1, 2, 3, 4, 5, 6];
+              width∈[16, 32, 64, 128];
+              residual∈{true,false}; act∈['gelu', 'leaky_relu', 'relu', 'silu'];
+              layer_norm_frac∈[0.0, 0.167, 0.25, 0.333, 0.4, 0.5, 0.667, 1.0]</li>
+          <li>KAN n=24: depth∈[1, 2];
+              width∈[8, 16];
+              grid_size∈[3, 5, 7];
+              spline_order=3; base_act∈['silu', 'tanh']</li>
+        </ul>
+
+<h3>本表实际喂给模型的特征角色</h3>
+<p class="muted">全空列已丢弃后剩余 19 列。真正提供信息的主要是 varying 列。</p>
+<table>
+<thead><tr><th>Feature</th><th>Kind</th><th>Role</th><th>nunique</th><th>n_missing</th></tr></thead>
+<tbody>
+<tr><td class='mono'>model_type</td><td>categorical</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td></tr>
+<tr><td class='mono'>trainable_parameter_count</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>34</td><td>0</td></tr>
+<tr><td class='mono'>log_params</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>34</td><td>0</td></tr>
+<tr><td class='mono'>batch_size</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>training_steps</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>total_samples_seen</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>optimizer_type</td><td>categorical</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>lr</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>log_lr</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>weight_decay</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>loss_id</td><td>categorical</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>depth</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td></tr>
+<tr><td class='mono'>width</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td></tr>
+<tr><td class='mono'>residual</td><td>categorical</td><td><span class='pill varying'>varying</span></td><td>2</td><td>24</td></tr>
+<tr><td class='mono'>layer_norm_frac</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>8</td><td>24</td></tr>
+<tr><td class='mono'>activation_primary</td><td>categorical</td><td><span class='pill varying'>varying</span></td><td>4</td><td>24</td></tr>
+<tr><td class='mono'>grid_size</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>3</td><td>39</td></tr>
+<tr><td class='mono'>spline_order</td><td>numeric</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>39</td></tr>
+<tr><td class='mono'>base_activation</td><td>categorical</td><td><span class='pill varying'>varying</span></td><td>2</td><td>39</td></tr>
+</tbody>
+</table>
+
+<h3>每折训练 / 测试样本量（TabPFN）</h3>
+<table>
+<thead><tr><th>Fold</th><th>n_train（条件行）</th><th>n_test</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>50</td><td>13</td></tr>
+<tr><td>2</td><td>50</td><td>13</td></tr>
+<tr><td>3</td><td>50</td><td>13</td></tr>
+<tr><td>4</td><td>51</td><td>12</td></tr>
+<tr><td>5</td><td>51</td><td>12</td></tr>
+</tbody>
+</table>
+
+<h3>结果</h3>
+<table>
+<thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead>
+<tbody>
+<tr><td>train_mean</td><td>0.0344</td><td>0.0506</td><td>—</td><td>0.5381</td></tr>
+<tr><td>Ridge</td><td>0.0305</td><td>0.0438</td><td>0.5673</td><td>0.6918</td></tr>
+<tr><td>HistGB</td><td>0.0283</td><td>0.0429</td><td>0.5390</td><td>0.6815</td></tr>
+<tr class="best"><td>TabPFN v2.5</td><td>0.0201</td><td>0.0397</td><td>0.7211</td><td>0.7716</td></tr>
+</tbody>
+</table>
+<p class="muted">Pairwise ranking accuracy</p>
+<div class="bars"><div class='bar-row'><span>train_mean</span><div class='bar-track'><div class='bar-fill' style='width:53.8%;background:#9aa3ab'></div></div><span>0.5381</span></div>
+<div class='bar-row'><span>Ridge</span><div class='bar-track'><div class='bar-fill' style='width:69.2%;background:#4a7c9b'></div></div><span>0.6918</span></div>
+<div class='bar-row'><span>HistGB</span><div class='bar-track'><div class='bar-fill' style='width:68.2%;background:#6b5b95'></div></div><span>0.6815</span></div>
+<div class='bar-row'><span>TabPFN</span><div class='bar-track'><div class='bar-fill' style='width:77.2%;background:#0b6e4f'></div></div><span>0.7716</span></div></div>
+
+<!-- ================= GRU ================= -->
+<h2>6. Dataset B — Bigram LM（GRU pack）</h2>
+<div class="grid">
+  <div class="stat"><div class="label">Family / dataset</div><div class="value" style="font-size:.95rem">bigram_lm</div><div class="sub">dataset_id=bg_fdc03b · profiles 含 v2.4/v2.5 gru pilots</div></div>
+  <div class="stat"><div class="label">y = mean_test_ce</div><div class="value">3.2761</div><div class="sub">range [3.1354, 3.4656] · σ=0.1001</div></div>
+  <div class="stat"><div class="label">Models in table</div><div class="value">GRU 32 · TF 16</div><div class="sub">selection_metric=test_ce</div></div>
+  <div class="stat"><div class="label">Fixed axes</div><div class="value" style="font-size:.9rem">Adam · CE · 32×160=5120</div><div class="sub">仅架构轴变化</div></div>
+</div>
+
+<h3>架构取值</h3>
+
+        <ul class='compact'>
+          <li>gru_lm n=32: d_model/width∈[16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96];
+              num_layers/depth∈[1, 2, 3, 4, 5, 6, 7, 8];
+              (spec 里无 num_heads / d_ff / layer_residual)</li>
+          <li>transformer_lm n=16: d_model∈[32, 64, 128];
+              num_layers∈[1, 2, 3];
+              num_heads∈[2, 4];
+              d_ff∈[64, 128, 256];
+              layer_residual=True（该 pack 内常数）</li>
+          <li>数据侧常数（未写入特征或为常数）: vocab_size=32, context_length=16</li>
+        </ul>
+
+<h3>本表实际喂给模型的特征角色</h3>
+<p class="muted">全空列已丢弃后剩余 18 列。注意 <code>depth</code>/<code>width</code> 与 <code>num_layers</code>/<code>d_model</code> 冗余。</p>
+<table>
+<thead><tr><th>Feature</th><th>Kind</th><th>Role</th><th>nunique</th><th>n_missing</th></tr></thead>
+<tbody>
+<tr><td class='mono'>model_type</td><td>categorical</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td></tr>
+<tr><td class='mono'>trainable_parameter_count</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>44</td><td>0</td></tr>
+<tr><td class='mono'>log_params</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>44</td><td>0</td></tr>
+<tr><td class='mono'>batch_size</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>training_steps</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>total_samples_seen</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>optimizer_type</td><td>categorical</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>lr</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>log_lr</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>weight_decay</td><td>numeric</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>loss_id</td><td>categorical</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td></tr>
+<tr><td class='mono'>depth</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>8</td><td>0</td></tr>
+<tr><td class='mono'>width</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>14</td><td>0</td></tr>
+<tr><td class='mono'>d_model</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>14</td><td>0</td></tr>
+<tr><td class='mono'>num_layers</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>8</td><td>0</td></tr>
+<tr><td class='mono'>num_heads</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>2</td><td>32</td></tr>
+<tr><td class='mono'>d_ff</td><td>numeric</td><td><span class='pill varying'>varying</span></td><td>3</td><td>32</td></tr>
+<tr><td class='mono'>layer_residual</td><td>categorical</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>32</td></tr>
+</tbody>
+</table>
+
+<h3>每折训练 / 测试样本量（TabPFN）</h3>
+<table>
+<thead><tr><th>Fold</th><th>n_train（条件行）</th><th>n_test</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>38</td><td>10</td></tr>
+<tr><td>2</td><td>38</td><td>10</td></tr>
+<tr><td>3</td><td>38</td><td>10</td></tr>
+<tr><td>4</td><td>39</td><td>9</td></tr>
+<tr><td>5</td><td>39</td><td>9</td></tr>
+</tbody>
+</table>
+
+<h3>结果</h3>
+<table>
+<thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead>
+<tbody>
+<tr><td>train_mean</td><td>0.0870</td><td>0.1001</td><td>—</td><td>0.5727</td></tr>
+<tr><td>Ridge</td><td>0.0750</td><td>0.0947</td><td>0.2770</td><td>0.6037</td></tr>
+<tr><td>HistGB</td><td>0.0882</td><td>0.1017</td><td>-0.2669</td><td>0.4309</td></tr>
+<tr class="best"><td>TabPFN v2.5</td><td>0.0220</td><td>0.0365</td><td>0.8601</td><td>0.8679</td></tr>
+</tbody>
+</table>
+<p class="muted">Pairwise ranking accuracy</p>
+<div class="bars"><div class='bar-row'><span>train_mean</span><div class='bar-track'><div class='bar-fill' style='width:57.3%;background:#9aa3ab'></div></div><span>0.5727</span></div>
+<div class='bar-row'><span>Ridge</span><div class='bar-track'><div class='bar-fill' style='width:60.4%;background:#4a7c9b'></div></div><span>0.6037</span></div>
+<div class='bar-row'><span>HistGB</span><div class='bar-track'><div class='bar-fill' style='width:43.1%;background:#6b5b95'></div></div><span>0.4309</span></div>
+<div class='bar-row'><span>TabPFN</span><div class='bar-track'><div class='bar-fill' style='width:86.8%;background:#0b6e4f'></div></div><span>0.8679</span></div></div>
+
+<div class="note">
+<strong>GRU 上的反差更强：</strong>HistGB Spearman 为负、pairwise 低于随机；TabPFN Spearman 0.86、pairwise 0.87。说明在「小 N + 高度结构化架构特征」上，表格基础模型的 in-context 回归明显强于默认树模型设定——但仍是 P0 可行性，不是随机 settings 空间结论。
+</div>
+
+<h2>7. 跨 pack 对照</h2>
+<table>
+<thead><tr><th></th><th>XOR</th><th>GRU / bigram LM</th></tr></thead>
+<tbody>
+<tr><td>N candidates</td><td>63</td><td>48</td></tr>
+<tr><td>TabPFN n_train / fold</td><td>50–51</td><td>38–39</td></tr>
+<tr><td>TabPFN n_test / fold</td><td>12–13</td><td>9–10</td></tr>
+<tr><td>y 量级</td><td>~0.14–0.39</td><td>~3.14–3.47</td></tr>
+<tr><td>TabPFN Spearman</td><td>0.7211</td><td>0.8601</td></tr>
+<tr><td>TabPFN pairwise</td><td>0.7716</td><td>0.8679</td></tr>
+<tr><td>Best classic baseline pairwise</td><td>Ridge 0.6918</td><td>Ridge 0.6037</td></tr>
+<tr><td>变化轴</td><td>MLP/KAN 架构</td><td>GRU/Transformer 架构</td></tr>
+<tr><td>不变轴</td><td>数据、Adam、CE、budget=8192</td><td>数据、Adam、CE、budget=5120</td></tr>
+</tbody>
+</table>
+
+<h2>8. 局限</h2>
+<ul class="compact">
+  <li>P0 用的是 question pack 里<strong>已筛过的</strong> candidates，不是均匀随机 settings</li>
+  <li>optimizer / loss / budget 常数 → 测的是「架构→CE」，不是完整 setting 向量</li>
+  <li>N 仍然很小（63 / 48）；fold 测试集只有 ~10 行</li>
+  <li>GRU 表存在 depth/width 与 num_layers/d_model 重复编码</li>
+  <li>下一阶段 P1：同 dataset 上随机采样大量 settings + 跑 GT，再评估</li>
+</ul>
+
+<footer>
+  生成自 <code>experiments/tabpfn_settings/</code> ·
+  输入表 <code>artifacts/xor_table.csv</code>, <code>artifacts/gru_table.csv</code> ·
+  指标 <code>artifacts/report_xor.json</code>, <code>artifacts/report_gru.json</code> ·
+  评估脚本 <code>scripts/evaluate.py</code> · A100 · TabPFN v2.5 · 2026-07-31
+</footer>
+</main>
+</body>
+</html>
