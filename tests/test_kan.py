@@ -29,11 +29,12 @@ def _kan_spec() -> dict:
     }
 
 
-def test_v1_is_kan_free_and_v2_exposes_kan() -> None:
+def test_v1_and_v2_both_expose_kan() -> None:
     v1 = load_profile("v1")
     v2 = load_profile("v2")
-    assert "kan" not in v1.pools["model_types"]
+    assert "kan" in v1.pools["model_types"]
     assert "kan" in v2.pools["model_types"]
+    assert v1.kan["variant"] == "efficient_spline_v1"
     assert v2.kan["variant"] == "efficient_spline_v1"
 
 

@@ -7,19 +7,20 @@ from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries, get_dataset_family
 
 
-def test_v2_profile_hash_and_classification_gate_are_unchanged() -> None:
+def test_v2_pool_includes_classification_kan_via_family_default() -> None:
     ensure_registries()
     profile = load_profile("v2")
     family = get_dataset_family("synthetic_tabular_classification")
 
     assert profile.profile_hash == "3993a8aef680d37c"
+    # Family now declares mlp+kan; v2 pool includes both, so both are eligible.
     assert profile.model_types_for_family(
         family.name, family.compatible_model_types()
-    ) == ["mlp"]
+    ) == ["mlp", "kan"]
     assert {
         sample_model(profile, random.Random(seed), family=family.name)["type"]
-        for seed in range(32)
-    } == {"mlp"}
+        for seed in range(128)
+    } == {"mlp", "kan"}
 
 
 def test_v21_explicitly_opens_classification_kan_gate() -> None:

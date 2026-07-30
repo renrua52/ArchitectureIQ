@@ -117,33 +117,20 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
-## Dataset families (V1)
+## Dataset families (default profile `v1`)
 
 | Family | Task | Models | Losses | Metric |
 |--------|------|--------|--------|--------|
-| `univariate_regression` | R → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
-| `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
-| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+| `univariate_regression` | R → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
+| `multivariate_regression` | R^n → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm`, `gru_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+| `synthetic_tabular_classification` | Synthetic tabular binary classification | `mlp`, `kan` | cross-entropy | `test_ce` |
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
 
-Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
+Each family declares compatible model types; candidate sampling only draws from the intersection with `pools.model_types`. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
 
-V1 is frozen and keeps the original MLP-only regression benchmark. New task/model-pool changes use a named profile instead of silently changing V1.
-
-## Experimental V2 profile: KAN regression
-
-V2 adds the synthetic tabular classification family and a self-contained spline KAN model. KAN is currently enabled for `univariate_regression` and `multivariate_regression`; its first implementation is pure PyTorch with a fixed grid and no train/test-data grid adaptation.
-
-The V2 KAN parameter pool is not yet frozen while phase-3 calibration continues.
-
-Use V2 explicitly when generating KAN candidates:
-
-```bash
-architecture-iq --profile v2 create-dataset --family univariate_regression --seed 42
-architecture-iq --profile v2 generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
-  --budget 1024 --count 32 --vary model
-```
+Default `v1` equally enables every registered dataset family and each family's compatible models. Older `v2*` pilot profiles remain for historical experiments; new question generation should use `v1` (or an explicit `--profile`).
 
 ## CLI reference
 
