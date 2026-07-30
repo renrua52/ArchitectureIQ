@@ -32,6 +32,7 @@ function App() {
   const sessionId = useRef(newSessionId());
   const viewStartedAt = useRef(Date.now());
   const startedTracked = useRef(false);
+  const screenWasQuiz = useRef(false);
   const results = useRef<Record<string, { correct: boolean; picked: string }>>({});
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
@@ -91,14 +92,64 @@ function App() {
     });
   }
 
-  function beginQuiz(atIndex = 0) {
+  function lastAnsweredIndex(): number | null {
+    let last: number | null = null;
+    for (let i = 0; i < summaries.length; i += 1) {
+      if (results.current[summaries[i].id] !== undefined) {
+        last = i;
+      }
+    }
+    return last;
+  }
+
+  function resetExamState() {
+    results.current = {};
+    feedbackByQuestion.current = {};
+    sessionId.current = newSessionId();
+    startedTracked.current = false;
+    setFeedback(EMPTY_FEEDBACK);
+    setSelected(null);
+    setAnswered(false);
+    setStage("observe");
+    setInfo(null);
+    bump((n) => n + 1);
+  }
+
+  /** Home → Begin: start a fresh exam from question 1. */
+  function beginQuiz() {
+    resetExamState();
+    ensureSessionStart();
+    setIndex(0);
+    setScreen("quiz");
+  }
+
+  /** Jump to a question without clearing answers (review or continue). */
+  function openQuestion(atIndex: number) {
     ensureSessionStart();
     setIndex(atIndex);
     setScreen("quiz");
+    setInfo(null);
   }
 
   function goHome() {
     setScreen("home");
+    setInfo(null);
+  }
+
+  function backFromMenu() {
+    const last = lastAnsweredIndex();
+    if (last !== null || screenWasQuiz.current) {
+      setIndex(last !== null ? last : Math.min(index, Math.max(summaries.length - 1, 0)));
+      setScreen("quiz");
+      setInfo(null);
+      return;
+    }
+    goHome();
+  }
+
+  function openMenu() {
+    screenWasQuiz.current = screen === "quiz";
+    setScreen("menu");
     setInfo(null);
   }
 
@@ -210,8 +261,8 @@ function App() {
     return (
       <HomeScreen
         ready={Boolean(bake)}
-        onBegin={() => beginQuiz(0)}
-        onMenu={() => setScreen("menu")}
+        onBegin={beginQuiz}
+        onMenu={openMenu}
         onContact={() => setScreen("contact")}
       />
     );
@@ -233,8 +284,10 @@ function App() {
     return (
       <QuestionMenu
         summaries={summaries}
-        onBack={goHome}
-        onPick={(itemIndex) => beginQuiz(itemIndex)}
+        results={results.current}
+        onBrandHome={goHome}
+        onBack={backFromMenu}
+        onPick={openQuestion}
       />
     );
   }
@@ -269,7 +322,7 @@ function App() {
           <span className="score-text" title="Session accuracy">
             Score {score.correct}/{score.total} ({accuracy})
           </span>
-          <button type="button" onClick={() => setScreen("menu")}>
+          <button type="button" onClick={openMenu}>
             Questions
           </button>
         </div>
@@ -386,29 +439,52 @@ function SimpleScreen({
 
 function QuestionMenu({
   summaries,
+  results,
+  onBrandHome,
   onBack,
   onPick
 }: {
   summaries: BakeFile["questions"];
+  results: Record<string, { correct: boolean; picked: string }>;
+  onBrandHome: () => void;
   onBack: () => void;
   onPick: (index: number) => void;
 }) {
   return (
-    <SimpleScreen title="Question menu" onBack={onBack}>
-      <ul className="question-list">
-        {summaries.map((item, itemIndex) => (
-          <li key={item.id}>
-            <button type="button" className="question-row" onClick={() => onPick(itemIndex)}>
-              <span className="qnum">{itemIndex + 1}</span>
-              <span>
-                {humanFamily(item.family)} · {humanMetricByFamily(item.family, item.metric)} ·{" "}
-                {humanType(item.type)} · {item.track ?? "default"} · {item.choices ?? "?"} choices
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </SimpleScreen>
+    <main className="shell">
+      <header className="topnav">
+        <button type="button" className="brand-btn" onClick={onBrandHome}>
+          ArchitectureIQ
+        </button>
+        <div />
+        <button type="button" onClick={onBack}>
+          Back
+        </button>
+      </header>
+      <section className="panel">
+        <h1 className="panel-title">Questions</h1>
+        <ul className="question-list">
+          {summaries.map((item, itemIndex) => {
+            const result = results[item.id];
+            const status = !result ? "unanswered" : result.correct ? "correct" : "wrong";
+            const statusLabel =
+              status === "unanswered" ? "Unanswered" : status === "correct" ? "Correct" : "Wrong";
+            return (
+              <li key={item.id}>
+                <button type="button" className="question-row" onClick={() => onPick(itemIndex)}>
+                  <span className="qnum">{itemIndex + 1}</span>
+                  <span className="question-row-copy">
+                    {humanFamily(item.family)} · {humanMetricByFamily(item.family, item.metric)} ·{" "}
+                    {humanType(item.type)}
+                  </span>
+                  <span className={`q-status ${status}`}>{statusLabel}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </main>
   );
 }
 

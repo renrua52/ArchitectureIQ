@@ -556,10 +556,40 @@ a {
   background: var(--bg-soft);
 }
 
+.question-row-copy {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
 .qnum {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   min-width: 1.6rem;
+}
+
+.q-status {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+}
+
+.q-status.unanswered {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.q-status.correct {
+  color: var(--ok);
+  background: rgba(61, 207, 154, 0.14);
+}
+
+.q-status.wrong {
+  color: var(--bad);
+  background: rgba(255, 107, 99, 0.14);
 }
 
 .modal-backdrop {
