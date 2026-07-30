@@ -1,0 +1,14 @@
+---
+description: Commit TabPFN side-project work on side/tabpfn-settings by default
+alwaysApply: true
+---
+
+# Side branch commit default (`side/tabpfn-settings`)
+
+When working on the TabPFN / settings-prediction side project:
+
+1. Stay on **`side/tabpfn-settings`**. Do not land TabPFN experiment commits on `main`, `quiz-frontend`, or `quiz-backend`.
+2. **Default: commit** meaningful local changes on this branch when a unit of work finishes (code, reports, tables, STATUS). Do not leave finished TabPFN work uncommitted unless the user says to wait.
+3. Do **not** commit unrelated dirty files from other worktrees/branches (e.g. quiz quality filters, FE/BE docs). Restore those to HEAD on this branch instead.
+4. Do not commit `.worktrees/`, secrets, or large caches. Force-add selected `experiments/tabpfn_settings/artifacts/*` reports/tables when they are part of the deliverable.
+5. Push only when the user asks.
