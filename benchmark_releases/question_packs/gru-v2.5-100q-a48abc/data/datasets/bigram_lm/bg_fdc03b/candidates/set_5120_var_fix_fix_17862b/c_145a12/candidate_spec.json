@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "profile": "v2.4-gru-architecture-pilot",
+  "profile_hash": "f0893f8ab4ec7cf0",
+  "dataset_id": "bg_fdc03b",
+  "family": "bigram_lm",
+  "budget": {
+    "training_steps": 160,
+    "batch_size": 32,
+    "total_samples_seen": 5120
+  },
+  "model": {
+    "type": "transformer_lm",
+    "vocab_size": 32,
+    "context_length": 16,
+    "d_model": 64,
+    "num_layers": 3,
+    "num_heads": 4,
+    "d_ff": 256
+  },
+  "trainable_parameter_count": 155104,
+  "optimizer": {
+    "type": "Adam",
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "betas": [
+      0.9,
+      0.999
+    ]
+  },
+  "loss": {
+    "loss_id": "cross_entropy"
+  },
+  "execution": {
+    "device": "cpu"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_145a12"
+}

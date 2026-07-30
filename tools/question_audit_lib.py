@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,10 @@ from architecture_iq.candidates.axes import (
 from architecture_iq.candidates.sets import list_candidates_in_set
 from architecture_iq.paths import DATA_DIR
 from architecture_iq.profile import Profile, validate_execution_device
+from architecture_iq.questions.runs import (
+    CANDIDATE_REUSE_POLICIES,
+    DEFAULT_CANDIDATE_REUSE_POLICY,
+)
 from architecture_iq.registry import ensure_registries, get_dataset_family, get_model_type
 from architecture_iq.significance.validator import validate_significance
 from architecture_iq.util import read_json
@@ -56,6 +61,23 @@ def _load_historical_provenance(set_path: Path, profile: Profile) -> dict[str, A
         return None
     return payload
 
+
+def _cross_profile_candidate_allowed(profile: Profile, spec: dict[str, Any]) -> bool:
+    source_key = (str(spec.get("profile", "")), str(spec.get("profile_hash", "")))
+    if source_key == ("", "") or source_key == (profile.name, profile.profile_hash):
+        return True
+    model_type = str(spec.get("model", {}).get("type", ""))
+    reuse = profile.raw.get("cross_profile_reuse", {})
+    if reuse.get("enabled") is not True:
+        return False
+    allowlist = profile.raw.get("cross_profile_reuse", {}).get("transformer_allowlist", [])
+    return any(
+        isinstance(entry, dict)
+        and entry.get("source_profile") == source_key[0]
+        and entry.get("source_profile_hash") == source_key[1]
+        and model_type in entry.get("model_types", [])
+        for entry in allowlist
+    )
 
 def _finite(value: Any) -> bool:
     return isinstance(value, (int, float)) and math.isfinite(float(value))
@@ -282,12 +304,54 @@ def audit_question_run(run_path: Path, profile: Profile, *, data_root: Path = DA
     run_path = run_path.resolve()
     data_root = data_root.resolve()
     manifest = read_json(run_path / "run.json")
+    policy = str(manifest.get("candidate_reuse_policy", DEFAULT_CANDIDATE_REUSE_POLICY))
     question_dirs = sorted(path for path in run_path.iterdir() if (path / "question.json").is_file())
     run_checks: dict[str, dict[str, Any]] = {}
-    _check(run_checks, "manifest_count", manifest.get("num_questions") == len(question_dirs) == len(manifest.get("question_ids", [])), "run manifest count and question_ids must match directories")
-    _check(run_checks, "manifest_profile", manifest.get("profile") == profile.name and manifest.get("profile_hash") == profile.profile_hash, "run profile provenance must match selected profile")
+    _check(
+        run_checks,
+        "manifest_count",
+        manifest.get("num_questions") == len(question_dirs) == len(manifest.get("question_ids", [])),
+        "run manifest count and question_ids must match directories",
+    )
+    _check(
+        run_checks,
+        "manifest_profile",
+        manifest.get("profile") == profile.name and manifest.get("profile_hash") == profile.profile_hash,
+        "run profile provenance must match selected profile",
+    )
+    _check(
+        run_checks,
+        "candidate_reuse_policy",
+        policy in CANDIDATE_REUSE_POLICIES,
+        f"unsupported candidate reuse policy: {policy!r}",
+    )
+
+    expected_model_types: set[str] | None = None
+    if policy != DEFAULT_CANDIDATE_REUSE_POLICY and policy in CANDIDATE_REUSE_POLICIES:
+        raw_types = manifest.get("required_model_types")
+        expected_model_types = set(raw_types) if isinstance(raw_types, list) and all(isinstance(item, str) for item in raw_types) else set()
+        _check(
+            run_checks,
+            "reuse_manifest",
+            manifest.get("canonical_blind_evaluation") is False
+            and manifest.get("candidate_reuse_allowed") is True
+            and manifest.get("pair_reuse_policy") == "unique"
+            and manifest.get("run_purpose") in {"review_blind_pool", "review_practice_pool"}
+            and len(expected_model_types) == manifest.get("num_choices"),
+            "reuse run must declare review-only provenance, unique pairs, and one type per choice",
+        )
+
     reports: list[dict[str, Any]] = []
     all_candidate_ids: list[str] = []
+    pair_keys: list[tuple[str, ...]] = []
+    winner_model_types: list[str] = []
+    bridge_entries = manifest.get("candidate_profile_provenance", [])
+    bridge_map: dict[tuple[str, str], dict[str, Any]] = {}
+    if isinstance(bridge_entries, list):
+        for entry in bridge_entries:
+            if isinstance(entry, dict):
+                key = (str(entry.get("profile", "")), str(entry.get("profile_hash", "")))
+                bridge_map[key] = entry
     for question_dir in question_dirs:
         question = read_json(question_dir / "question.json")
         checks: dict[str, dict[str, Any]] = {}
@@ -305,22 +369,50 @@ def audit_question_run(run_path: Path, profile: Profile, *, data_root: Path = DA
                 summary = read_json(path / "results" / "summary.json")
                 specs.append(spec)
                 summaries.append(summary)
-                _check(checks, f"candidate_{choice.get('letter')}", spec.get("candidate_id") == choice.get("candidate_id") and spec.get("dataset_id") == question.get("dataset_id") and spec.get("family") == question.get("family"), "choice provenance must match source spec")
+                _check(
+                    checks,
+                    f"candidate_{choice.get('letter')}",
+                    spec.get("candidate_id") == choice.get("candidate_id")
+                    and spec.get("dataset_id") == question.get("dataset_id")
+                    and spec.get("family") == question.get("family"),
+                    "choice provenance must match source spec",
+                )
+                source_key = (str(spec.get("profile", "")), str(spec.get("profile_hash", "")))
+                if source_key != (profile.name, profile.profile_hash):
+                    bridge = bridge_map.get(source_key)
+                    _check(
+                        checks,
+                        f"profile_bridge_{choice.get('letter')}",
+                        _cross_profile_candidate_allowed(profile, spec)
+                        and bridge is not None
+                        and str(choice.get("candidate_id")) in {str(item) for item in bridge.get("candidate_ids", [])},
+                        "cross-profile candidate requires an explicit run-manifest provenance bridge",
+                    )
             except (OSError, KeyError, TypeError, ValueError) as exc:
                 _check(checks, f"candidate_{choice.get('letter')}", False, str(exc))
         candidate_ids = [str(choice.get("candidate_id")) for choice in choices]
         all_candidate_ids.extend(candidate_ids)
+        pair_keys.append(tuple(sorted(candidate_ids)))
         _check(checks, "choice_ids", len(candidate_ids) == len(set(candidate_ids)), "candidate ids must be unique within question")
         if len(specs) == len(choices):
             _check(checks, "compatibility", choices_compatible(specs), "choices must be compatible")
             invariant, varying = infer_axes(specs)
             _check(checks, "axes", question.get("invariant_axes") == invariant and question.get("varying_axes") == varying and question.get("type") == infer_question_type(specs), "recorded type and axes must match specs")
+            if expected_model_types is not None:
+                _check(
+                    checks,
+                    "required_model_types",
+                    {str(spec.get("model", {}).get("type")) for spec in specs} == expected_model_types,
+                    "choice model types must match the run manifest",
+                )
             metric = str(question.get("evaluation", {}).get("selection_metric", ""))
             try:
                 sig = validate_significance(summaries, profile, metric=metric)
                 recorded = question.get("significance", {})
                 _check(checks, "significance", sig.passed and bool(recorded.get("passed")) and recorded.get("metric") == metric and math.isclose(float(recorded.get("gap", -1)), sig.gap, rel_tol=1e-12) and math.isclose(float(recorded.get("win_rate", -1)), sig.win_rate, rel_tol=1e-12), sig.reason or "recorded significance must match independent recomputation")
                 winner_id = specs[sig.winner_index]["candidate_id"] if sig.winner_index >= 0 else None
+                if sig.winner_index >= 0:
+                    winner_model_types.append(str(specs[sig.winner_index].get("model", {}).get("type", "")))
                 correct = next((choice["candidate_id"] for choice in choices if choice.get("letter") == question.get("correct_letter")), None)
                 _check(checks, "winner", winner_id == correct, "correct_letter must point to independently recomputed winner")
             except (KeyError, TypeError, ValueError) as exc:
@@ -334,16 +426,91 @@ def audit_question_run(run_path: Path, profile: Profile, *, data_root: Path = DA
             prompt = prompt_path.read_text(encoding="utf-8")
             marker = next((item for item in PRIVATE_PROMPT_MARKERS if item in prompt.lower()), None)
             _check(checks, "public_prompt", marker is None, f"private prompt marker: {marker!r}")
-
         except OSError as exc:
             _check(checks, "public_prompt", False, str(exc))
         status, reasons = _status(checks)
         reports.append({"question_id": question.get("question_id", question_dir.name), "question_dir": str(question_dir), "status": status, "checks": checks, "reasons": reasons})
-    _check(run_checks, "candidate_disjoint", len(all_candidate_ids) == len(set(all_candidate_ids)), "candidate_id may not be reused within run")
+
+    candidate_uses = Counter(all_candidate_ids)
+    canonical_fraction = manifest.get("winner_type_max_fraction")
+    legacy_fraction = manifest.get("max_winner_model_type_fraction")
+    if canonical_fraction is not None and legacy_fraction is not None:
+        _check(
+            run_checks,
+            "winner_type_fraction_alias",
+            canonical_fraction == legacy_fraction,
+            "canonical and legacy winner type caps must agree",
+        )
+    raw_fraction = (
+        canonical_fraction if canonical_fraction is not None else legacy_fraction
+    )
+    if raw_fraction is not None:
+        valid_fraction = (
+            policy == "blind_pair_unique"
+            and isinstance(raw_fraction, (int, float))
+            and not isinstance(raw_fraction, bool)
+            and 0.5 <= float(raw_fraction) <= 1.0
+        )
+        _check(
+            run_checks,
+            "winner_type_max_fraction",
+            valid_fraction,
+            "winner type cap must be in [0.5, 1.0] and require blind_pair_unique",
+        )
+        if valid_fraction:
+            max_wins = max(1, math.floor(len(question_dirs) * float(raw_fraction)))
+            counts = Counter(winner_model_types)
+            _check(
+                run_checks,
+                "winner_type_balance",
+                len(winner_model_types) == len(question_dirs)
+                and max(counts.values(), default=0) <= max_wins,
+                f"every question has a winner and one model type wins at most {max_wins} questions",
+            )
+    if policy == DEFAULT_CANDIDATE_REUSE_POLICY:
+        _check(run_checks, "candidate_disjoint", len(all_candidate_ids) == len(set(all_candidate_ids)), "candidate_id may not be reused within run")
+    elif policy in CANDIDATE_REUSE_POLICIES:
+        _check(run_checks, "unique_pairs", len(pair_keys) == len(set(pair_keys)), "candidate pair may not be reused within run")
+        if policy == "sequential_bounded_reuse":
+            max_uses = manifest.get("max_candidate_uses")
+            valid_max_uses = isinstance(max_uses, int) and not isinstance(max_uses, bool) and max_uses >= 1
+            _check(run_checks, "max_candidate_uses", valid_max_uses, "sequential reuse requires a positive integer max_candidate_uses")
+            _check(
+                run_checks,
+                "candidate_use_bound",
+                valid_max_uses and max(candidate_uses.values(), default=0) <= max_uses,
+                "candidate use count exceeds max_candidate_uses",
+            )
+
     run_status, run_reasons = _status(run_checks)
     valid = run_status == "pass" and all(item["status"] == "pass" for item in reports)
-    return {"schema_version": "question_run_audit_v1", "gate": 3, "gate_4": 4, "question_run": str(run_path), "profile": profile.name, "profile_hash": profile.profile_hash, "run_checks": run_checks, "run_reasons": run_reasons, "questions": reports, "summary": {"questions": len(reports), "pass": sum(item["status"] == "pass" for item in reports), "fail": sum(item["status"] != "pass" for item in reports), "unique_candidates": len(set(all_candidate_ids))}, "valid": valid}
-
+    return {
+        "schema_version": "question_run_audit_v1",
+        "gate": 3,
+        "gate_4": 4,
+        "question_run": str(run_path),
+        "profile": profile.name,
+        "profile_hash": profile.profile_hash,
+        "candidate_reuse_policy": policy,
+        "evaluation_eligibility": "canonical" if policy == DEFAULT_CANDIDATE_REUSE_POLICY else "review_only",
+        "run_checks": run_checks,
+        "run_reasons": run_reasons,
+        "questions": reports,
+        "summary": {
+            "questions": len(reports),
+            "pass": sum(item["status"] == "pass" for item in reports),
+            "fail": sum(item["status"] != "pass" for item in reports),
+            "unique_candidates": len(candidate_uses),
+            "candidate_use_histogram": dict(sorted(candidate_uses.items())),
+            "max_observed_candidate_uses": max(candidate_uses.values(), default=0),
+            "unique_pair_count": len(set(pair_keys)),
+            "winner_model_type_histogram": dict(
+                sorted(Counter(winner_model_types).items())
+            ),
+            "winner_type_max_fraction": raw_fraction,
+        },
+        "valid": valid,
+    }
 
 def markdown_report(title: str, report: dict[str, Any]) -> str:
     summary = report["summary"]

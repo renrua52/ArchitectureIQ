@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "set_id": "screen_selected_holdout_37",
+  "dataset_id": "stabcls_953608",
+  "family": "synthetic_tabular_classification",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "count": 37,
+  "varying_axes": [
+    "model"
+  ],
+  "invariant_axes": [
+    "loss",
+    "optimizer"
+  ],
+  "fixed_shared": {
+    "batch_size": 32,
+    "optimizer": {
+      "type": "Adam",
+      "lr": 0.001,
+      "weight_decay": 0.0,
+      "betas": [
+        0.9,
+        0.999
+      ]
+    },
+    "loss": {
+      "loss_id": "cross_entropy"
+    }
+  },
+  "seed": 0,
+  "profile": "v2.5-xor-holdout",
+  "profile_hash": "c77a9af95dfbbb38",
+  "created_at": "2026-07-29T09:22:49+00:00",
+  "source": {
+    "mode": "sampled_pool",
+    "matrix_id": "xor-holdout-selection-100q-screen-v1",
+    "matrix_path": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\xor_holdout_selection_100q_screen_v1.yaml",
+    "matrix_sha256": "f773542a39e09cedaef02419b3d13c3e9e9a6549a14c5c8d2cb57f83efed7d22",
+    "sampling": {
+      "sampler": "screen_selected_frozen_pool_v1",
+      "screen_profile": "v2.5-xor-screen",
+      "screen_profile_hash": "8a51446ac708e282",
+      "screen_pair_rng_seed": 20260803,
+      "source_matrix_hashes": [
+        "c8ae51204fe49d12bf8122120f2fb29d59fe2f957c6a15d45daea95d6b7ba29b",
+        "f9b5da7aebdc1ef974d97cef6fa1afc2201fa19cb5671bd09dd0b7d2af03dc49",
+        "10b5bfc8eb98f764ecf372ee150a5769b10640901481866fc977822a7ee34b68"
+      ],
+      "models_by_family": {
+        "mlp": 29,
+        "kan": 8
+      }
+    },
+    "shared_training": {
+      "total_samples_seen": 8192,
+      "batch_size": 32,
+      "optimizer": {
+        "type": "Adam",
+        "lr": 0.001,
+        "weight_decay": 0.0,
+        "betas": [
+          0.9,
+          0.999
+        ]
+      },
+      "loss": {
+        "loss_id": "cross_entropy"
+      }
+    }
+  }
+}

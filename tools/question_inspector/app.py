@@ -60,7 +60,14 @@ from custom_settings import (  # noqa: E402
     run_custom_setting,
 )
 from expression_latex import expression_to_latex  # noqa: E402
+from architecture_iq.models.kan import BASE_ACTIVATIONS  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
+
+
+QUESTION_PACKS_ROOT = (
+    Path(__file__).resolve().parents[2] / "benchmark_releases" / "question_packs"
+)
+LOCAL_QUESTION_PACK = "local"
 
 st.set_page_config(
     page_title="ArchitectureIQ Question Inspector",
@@ -165,6 +172,7 @@ def _init_state() -> None:
         "question_pool": [],
         "quiz_results": {},
         "review_collection_path": None,
+        "active_question_pack": None,
         "setting_notice": None,
     }
     for key, value in defaults.items():
@@ -279,13 +287,135 @@ def _resolve_data_root(data_root: str) -> Path:
     return Path(data_root).expanduser().resolve()
 
 
-def _startup_question_collection(data_root: str) -> list[Path] | None:
-    """Load a review collection when Streamlit receives its JSON manifest."""
+def _question_pack_registry(
+    packs_root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Return valid tracked question packs keyed by their stable pack ID."""
+    root = (packs_root or QUESTION_PACKS_ROOT).resolve()
+    if not root.is_dir():
+        return {}
+
+    packs: dict[str, dict[str, Any]] = {}
+    for manifest_path in sorted(root.glob("*/pack.json")):
+        try:
+            manifest = read_json_file(manifest_path)
+        except (OSError, ValueError):
+            continue
+        pack_root = manifest_path.parent.resolve()
+        pack_id = manifest.get("pack_id")
+        display_name = manifest.get("display_name")
+        collection_value = manifest.get("collection_path")
+        data_root_value = manifest.get("data_root")
+        if not all(
+            isinstance(value, str) and value
+            for value in (pack_id, display_name, collection_value, data_root_value)
+        ):
+            continue
+        if pack_id != pack_root.name or pack_id in packs:
+            continue
+        collection_path = (pack_root / collection_value).resolve()
+        pack_data_root = (pack_root / data_root_value).resolve()
+        if (
+            not collection_path.is_relative_to(pack_root)
+            or not pack_data_root.is_relative_to(pack_root)
+            or not collection_path.is_file()
+            or not pack_data_root.is_dir()
+        ):
+            continue
+        packs[pack_id] = {
+            **manifest,
+            "manifest_path": manifest_path.resolve(),
+            "pack_root": pack_root,
+            "collection_path": collection_path,
+            "data_root": pack_data_root,
+        }
+    return packs
+
+
+def _reset_for_question_pack(pack_id: str) -> None:
+    """Clear per-question state when the URL-selected pack changes."""
+    if st.session_state.active_question_pack == pack_id:
+        return
+    st.session_state.active_question_pack = pack_id
+    st.session_state.bundle = None
+    st.session_state.question_path = None
+    st.session_state.question_pool = []
+    st.session_state.review_collection_path = None
+    _reset_score()
+    _reset_quiz_state()
+
+
+def _render_question_pack_selector(
+    packs: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Render a URL-addressable pack selector and return the active pack."""
+    options = [LOCAL_QUESTION_PACK, *packs]
+
+    def format_pack(pack_id: str) -> str:
+        if pack_id == LOCAL_QUESTION_PACK:
+            return "Local data root"
+        return str(packs[pack_id]["display_name"])
+
+    query_value = st.query_params.get("question_pack", LOCAL_QUESTION_PACK)
+    query_selected = (
+        query_value if query_value in options else LOCAL_QUESTION_PACK
+    )
+    widget_key = "question_pack_widget"
+    widget_selected = st.session_state.get(widget_key)
+    active = st.session_state.active_question_pack
+    if widget_selected not in options:
+        st.session_state[widget_key] = query_selected
+    elif query_selected != active and query_selected != widget_selected:
+        # The address bar changed outside the widget; make the URL authoritative.
+        st.session_state[widget_key] = query_selected
+
+    selected = st.selectbox(
+        "Question pack",
+        options,
+        format_func=format_pack,
+        key=widget_key,
+    )
+    if selected == LOCAL_QUESTION_PACK:
+        if "question_pack" in st.query_params:
+            del st.query_params["question_pack"]
+    elif st.query_params.get("question_pack") != selected:
+        st.query_params["question_pack"] = selected
+
+    _reset_for_question_pack(selected)
+    if selected == LOCAL_QUESTION_PACK:
+        if st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve())):
+            st.session_state.data_root = "data"
+        return None
+
+    pack = packs[selected]
+    st.session_state.data_root = str(pack["data_root"])
+    return pack
+
+
+def _collection_manifest_path(
+    collection_path: Path | str | None = None,
+) -> Path | None:
+    if collection_path is not None:
+        candidate = Path(collection_path).resolve()
+        if candidate.suffix.lower() == ".json" and candidate.is_file():
+            return candidate
+        return None
     if len(sys.argv) <= 1:
         return None
 
-    manifest_path = Path(sys.argv[1]).resolve()
-    if manifest_path.suffix.lower() != ".json" or not manifest_path.is_file():
+    candidate = Path(sys.argv[1]).resolve()
+    if candidate.suffix.lower() == ".json" and candidate.is_file():
+        return candidate
+    return None
+
+
+def _startup_question_collection(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> list[Path] | None:
+    """Load a review collection from a tracked pack or Streamlit CLI argument."""
+    manifest_path = _collection_manifest_path(collection_path)
+    if manifest_path is None:
         return None
 
     try:
@@ -315,8 +445,11 @@ def _startup_question_collection(data_root: str) -> list[Path] | None:
     return questions
 
 
-def _discover_questions(data_root: str) -> list[Path]:
-    collection = _startup_question_collection(data_root)
+def _discover_questions(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> list[Path]:
+    collection = _startup_question_collection(data_root, collection_path)
     if collection is not None:
         return collection
     return [Path(path) for path in _cached_question_dirs(str(_resolve_data_root(data_root)))]
@@ -328,10 +461,14 @@ def _cached_question_dirs(data_root: str) -> tuple[str, ...]:
     return tuple(str(path) for path in list_question_dirs(Path(data_root)))
 
 
-def _default_question_path(pool: list[Path], data_root: str) -> Path | None:
+def _default_question_path(
+    pool: list[Path],
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> Path | None:
     if not pool:
         return None
-    if _startup_question_collection(data_root) is not None:
+    if _startup_question_collection(data_root, collection_path) is not None:
         return pool[0]
     if len(sys.argv) > 1:
         arg = Path(sys.argv[1]).resolve()
@@ -362,8 +499,11 @@ def _assign_question_cache_scope(bundle: QuestionBundle) -> None:
     ).hexdigest()[:16]
 
 
-def _render_question_picker(data_root: str) -> None:
-    collection = _startup_question_collection(data_root)
+def _render_question_picker(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> None:
+    collection = _startup_question_collection(data_root, collection_path)
     collection_mode = collection is not None
     pool = collection if collection_mode else _discover_questions(data_root)
     st.session_state.question_pool = [str(p) for p in pool]
@@ -377,16 +517,18 @@ def _render_question_picker(data_root: str) -> None:
         return
 
     if collection_mode:
-        collection_path = str(Path(sys.argv[1]).resolve())
-        if st.session_state.review_collection_path != collection_path:
-            st.session_state.review_collection_path = collection_path
+        manifest_path = _collection_manifest_path(collection_path)
+        assert manifest_path is not None
+        collection_identity = str(manifest_path)
+        if st.session_state.review_collection_path != collection_identity:
+            st.session_state.review_collection_path = collection_identity
             _reset_score()
     else:
         st.session_state.review_collection_path = None
 
     current = st.session_state.question_path
     if current is None or not _pool_contains(pool, Path(current)):
-        default = _default_question_path(pool, data_root)
+        default = _default_question_path(pool, data_root, collection_path)
         if default is not None:
             st.session_state.question_path = str(default.resolve())
 
@@ -400,7 +542,7 @@ def _render_question_picker(data_root: str) -> None:
     if collection_mode:
         picker_key = (
             "review_question_picker_"
-            + hashlib.sha256(collection_path.encode("utf-8")).hexdigest()[:12]
+            + hashlib.sha256(collection_identity.encode("utf-8")).hexdigest()[:12]
         )
         if current_index < len(pool) - 1:
             if st.button(
@@ -1477,6 +1619,57 @@ def _render_transformer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[
         "d_ff": d_ff,
     }
 
+def _render_gru_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    st.markdown("**Architecture parameters**")
+    d_model_col, layers_col = st.columns(2)
+    with d_model_col:
+        d_model = int(
+            st.number_input(
+                "Model width",
+                min_value=1,
+                max_value=1024,
+                step=8,
+                key=_ensure_setting_value(
+                    q,
+                    "gru_d_model",
+                    int(profile.gru_lm["d_model"][0]),
+                ),
+            )
+        )
+    with layers_col:
+        num_layers = int(
+            st.number_input(
+                "Layers",
+                min_value=1,
+                max_value=12,
+                step=1,
+                key=_ensure_setting_value(
+                    q,
+                    "gru_layers",
+                    int(profile.gru_lm["num_layers"][0]),
+                ),
+            )
+        )
+    residual_default = bool(profile.gru_lm.get("layer_residual", False))
+    layer_residual = st.checkbox(
+        "Layer residual connections",
+        key=_ensure_setting_value(q, "gru_layer_residual", residual_default),
+        help=(
+            "When enabled, each GRU layer adds its output to its input: "
+            "h = h + GRU_layer(h)."
+        ),
+    )
+    if layer_residual:
+        st.caption("Enabled: after each GRU layer, h = h + GRU_layer(h).")
+    else:
+        st.caption("Disabled (legacy stacked GRU behavior).")
+    return {
+        "d_model": d_model,
+        "num_layers": num_layers,
+        "layer_residual": bool(layer_residual),
+    }
+
+
 def _kan_defaults(profile: Any) -> dict[str, Any]:
     """Resolve editable KAN defaults from the active profile, not a fixed pool."""
     config = profile.kan
@@ -1513,6 +1706,14 @@ def _kan_defaults(profile: Any) -> dict[str, Any]:
     }
 
 
+def _kan_activation_options(options: list[str], current: str) -> list[str]:
+    """Keep a valid inherited activation editable under a narrower profile."""
+    result = list(options)
+    if current in BASE_ACTIVATIONS and current not in result:
+        result.append(current)
+    return result
+
+
 def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
     """Render all KAN fields supported by ``build_model_spec``."""
     defaults = _kan_defaults(profile)
@@ -1535,8 +1736,18 @@ def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
         grid_high = float(st.number_input("Grid upper bound", step=0.1, format="%.6g",
             key=_ensure_setting_value(q, "kan_grid_high", defaults["grid_high"])))
     with activation_col:
-        base_activation = st.selectbox("Base activation", defaults["base_activations"],
-            key=_ensure_setting_value(q, "kan_base_activation", defaults["base_activations"][0]))
+        activation_key = _ensure_setting_value(
+            q, "kan_base_activation", defaults["base_activations"][0]
+        )
+        current_activation = str(st.session_state[activation_key])
+        activation_options = _kan_activation_options(
+            defaults["base_activations"], current_activation
+        )
+        if current_activation not in activation_options:
+            st.session_state[activation_key] = activation_options[0]
+        base_activation = st.selectbox(
+            "Base activation", activation_options, key=activation_key
+        )
     return {"variant": variant, **values, "grid_range": [grid_low, grid_high], "base_activation": base_activation}
 
 
@@ -1674,25 +1885,27 @@ def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
     status = st.empty()
     chart = st.empty()
     histories: dict[int, tuple[list[int], list[float]]] = {}
-    last_chart_at = 0.0
+    completed_seeds: set[int] = set()
 
-    def render_chart(metric: str) -> None:
+    def render_chart(metric: str, n_seeds: int) -> None:
         fig, ax = plt.subplots(figsize=(7.2, 2.9))
         for seed_index, (samples, values) in sorted(histories.items()):
-            if samples:
+            if seed_index in completed_seeds and samples:
                 ax.plot(samples, values, linewidth=1.5, label=f"seed {seed_index}")
         ax.set_xlabel("Samples seen")
         ax.set_ylabel(_metric_display_name(metric))
-        ax.set_title("Live custom-setting learning curve")
+        ax.set_title(
+            "Custom-setting learning curves "
+            f"(completed seeds: {len(completed_seeds)} / {n_seeds})"
+        )
         ax.grid(True, alpha=0.25)
-        if len(histories) <= 8:
+        if len(completed_seeds) <= 8:
             ax.legend(loc="best", fontsize="small")
         fig.tight_layout()
         chart.pyplot(fig, clear_figure=True)
         plt.close(fig)
 
     def callback(event: dict[str, Any]) -> None:
-        nonlocal last_chart_at
         phase = str(event.get("phase", ""))
         seed_index = int(event.get("seed_index", 1))
         n_seeds = max(1, int(event.get("n_seeds", 1)))
@@ -1729,15 +1942,14 @@ def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
                 f"latest {_metric_display_name(metric)} {value:.6g} · "
                 f"elapsed {_format_elapsed(elapsed)}{eta_text}"
             )
-            now = time.monotonic()
-            if now - last_chart_at >= 0.12 or fraction >= 1.0:
-                render_chart(metric)
-                last_chart_at = now
             return
 
         if phase == "seed_finished":
+            completed_seeds.add(seed_index)
+            render_chart(metric, n_seeds)
             status.caption(
                 f"Finished seed {seed_index} / {n_seeds} · "
+                f"updated completed-seed curves · "
                 f"elapsed {_format_elapsed(elapsed)}{eta_text}"
             )
 
@@ -1826,6 +2038,8 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
             model_params = _render_kan_setting_fields(profile, q)
         elif model_type == "transformer_lm":
             model_params = _render_transformer_setting_fields(profile, q)
+        elif model_type == "gru_lm":
+            model_params = _render_gru_setting_fields(profile, q)
         else:
             st.error(f"Unsupported architecture in this profile: {model_type}")
             return
@@ -2174,6 +2388,9 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
             if isinstance(pair, list) and len(pair) == 2
         ]
         return rf"s(\mathbf{{x}}) = {_signed_latex_sum(terms)}"
+    if family == "xor" and len(features) >= 2:
+        left, right = features[:2]
+        return rf"s(\mathbf{{x}}) = -x_{{{left}}} \cdot x_{{{right}}}"
     if family == "piecewise_boundary" and len(features) >= 2 and len(weights) >= 3:
         primary, secondary = features[:2]
         below_weight, above_weight, offset_weight = weights[:3]
@@ -2334,15 +2551,25 @@ def _ensure_demo_data(data_root: str) -> None:
 
 def main() -> None:
     _init_state()
-    _ensure_demo_data(st.session_state.data_root)
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
         st.header("Questions")
+        packs = _question_pack_registry()
+        active_pack = _render_question_pack_selector(packs)
+        collection_path = (
+            active_pack["collection_path"] if active_pack is not None else None
+        )
+        if active_pack is None:
+            _ensure_demo_data(st.session_state.data_root)
         _render_score_panel()
         st.divider()
-        data_root = st.text_input("Data root", key="data_root")
-        _render_question_picker(data_root)
+        data_root = st.text_input(
+            "Data root",
+            key="data_root",
+            disabled=active_pack is not None,
+        )
+        _render_question_picker(data_root, collection_path)
 
     bundle: QuestionBundle | None = st.session_state.bundle
 

@@ -138,3 +138,94 @@ def test_run_audit_recomputes_winner_without_rendering_or_mutating_candidates(tm
     report = audit_question_run(run, profile, data_root=data_root)
     assert report["valid"] is True
     assert (candidates / "c_one" / "candidate_spec.json").read_bytes() == before
+
+
+def test_run_audit_accepts_blind_pair_unique_and_enforces_sequential_bound(tmp_path: Path) -> None:
+    profile = load_profile("v1")
+    data_root = tmp_path / "data"
+    dataset = data_root / "datasets" / "univariate_regression" / "sym_audit"
+    _write_json(
+        dataset / "dataset_spec.json",
+        {"dataset_id": "sym_audit", "family": "univariate_regression", "selection_metric": "test_mse"},
+    )
+    candidates = dataset / "candidates" / "set_audit"
+    candidate_specs: dict[str, tuple[dict, dict]] = {}
+    for candidate_id, model_type, depth, mean in (
+        ("c_gru", "gru_lm", 1, 0.1),
+        ("c_trans_one", "transformer_lm", 2, 0.3),
+        ("c_trans_two", "transformer_lm", 3, 0.4),
+    ):
+        spec, summary = _spec(profile.profile_hash, candidate_id, depth=depth, mean=mean)
+        spec["model"]["type"] = model_type
+        _write_candidate(candidates / candidate_id, spec, summary)
+        candidate_specs[candidate_id] = (spec, summary)
+
+    run = dataset / "questions" / "run_reuse"
+    question_ids = ["q_pair_one", "q_pair_two"]
+    _write_json(
+        run / "run.json",
+        {
+            "num_questions": 2,
+            "num_choices": 2,
+            "question_ids": question_ids,
+            "profile": "v1",
+            "profile_hash": profile.profile_hash,
+            "candidate_reuse_policy": "blind_pair_unique",
+            "run_purpose": "review_blind_pool",
+            "canonical_blind_evaluation": False,
+            "candidate_reuse_allowed": True,
+            "pair_reuse_policy": "unique",
+            "required_model_types": ["gru_lm", "transformer_lm"],
+            "max_winner_model_type_fraction": 1.0,
+        },
+    )
+    for question_id, transformer_id, gap in (
+        ("q_pair_one", "c_trans_one", 0.2),
+        ("q_pair_two", "c_trans_two", 0.3),
+    ):
+        choices = [
+            {"letter": "A", "candidate_id": "c_gru", "candidate_path": "datasets/univariate_regression/sym_audit/candidates/set_audit/c_gru"},
+            {"letter": "B", "candidate_id": transformer_id, "candidate_path": f"datasets/univariate_regression/sym_audit/candidates/set_audit/{transformer_id}"},
+        ]
+        _write_json(
+            run / question_id / "question.json",
+            {
+                "question_id": question_id,
+                "family": "univariate_regression",
+                "dataset_id": "sym_audit",
+                "num_choices": 2,
+                "choices": choices,
+                "type": "architecture_only",
+                "invariant_axes": ["optimizer", "loss", "batch_size"],
+                "varying_axes": ["model"],
+                "budget": {"total_samples_seen": 1024},
+                "correct_letter": "A",
+                "significance": {"passed": True, "gap": gap, "win_rate": 1.0, "metric": "test_mse"},
+                "evaluation": {"selection_metric": "test_mse"},
+                "prompt": {"rendered_path": "prompt.txt"},
+            },
+        )
+        (run / question_id / "prompt.txt").write_text("Choose the better architecture.", encoding="utf-8")
+
+    blind_report = audit_question_run(run, profile, data_root=data_root)
+    assert blind_report["valid"] is True
+    assert blind_report["evaluation_eligibility"] == "review_only"
+    assert blind_report["summary"]["candidate_use_histogram"]["c_gru"] == 2
+    assert blind_report["summary"]["winner_type_max_fraction"] == 1.0
+    assert blind_report["summary"]["winner_model_type_histogram"] == {"gru_lm": 2}
+    assert blind_report["run_checks"]["winner_type_max_fraction"]["passed"] is True
+    assert "candidate_use_bound" not in blind_report["run_checks"]
+
+    manifest_path = run / "run.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.update(
+        {
+            "candidate_reuse_policy": "sequential_bounded_reuse",
+            "run_purpose": "review_practice_pool",
+            "max_candidate_uses": 1,
+        }
+    )
+    _write_json(manifest_path, manifest)
+    sequential_report = audit_question_run(run, profile, data_root=data_root)
+    assert sequential_report["valid"] is False
+    assert sequential_report["run_checks"]["candidate_use_bound"]["passed"] is False

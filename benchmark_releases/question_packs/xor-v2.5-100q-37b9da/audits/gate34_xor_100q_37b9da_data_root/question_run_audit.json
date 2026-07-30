@@ -1,0 +1,5696 @@
+{
+  "schema_version": "question_run_audit_v1",
+  "gate": 3,
+  "gate_4": 4,
+  "question_run": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da",
+  "profile": "v2.5-xor-holdout",
+  "profile_hash": "c77a9af95dfbbb38",
+  "candidate_reuse_policy": "blind_pair_unique",
+  "evaluation_eligibility": "review_only",
+  "run_checks": {
+    "manifest_count": {
+      "passed": true,
+      "detail": "run manifest count and question_ids must match directories"
+    },
+    "manifest_profile": {
+      "passed": true,
+      "detail": "run profile provenance must match selected profile"
+    },
+    "candidate_reuse_policy": {
+      "passed": true,
+      "detail": "unsupported candidate reuse policy: 'blind_pair_unique'"
+    },
+    "reuse_manifest": {
+      "passed": true,
+      "detail": "reuse run must declare review-only provenance, unique pairs, and one type per choice"
+    },
+    "unique_pairs": {
+      "passed": true,
+      "detail": "candidate pair may not be reused within run"
+    },
+    "winner_family_cap": {
+      "passed": true,
+      "detail": "winner model-family share exceeds the declared cap"
+    }
+  },
+  "run_reasons": [],
+  "questions": [
+    {
+      "question_id": "q_005806",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_005806",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_012919",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_012919",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_04ff41",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_04ff41",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_062af4",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_062af4",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_07bec0",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_07bec0",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_07efdd",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_07efdd",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_09bd84",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_09bd84",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_0c06b0",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_0c06b0",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_0c14c7",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_0c14c7",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_0ee5b2",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_0ee5b2",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_0f5896",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_0f5896",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_1401d9",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_1401d9",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_17e6c0",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_17e6c0",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_185eed",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_185eed",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_199e7b",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_199e7b",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_1a5dd1",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_1a5dd1",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_1ed0b3",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_1ed0b3",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_21c6ca",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_21c6ca",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_241dd4",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_241dd4",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_2930bc",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_2930bc",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_2b4baf",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_2b4baf",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_2b621c",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_2b621c",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_2b73e7",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_2b73e7",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_2bd1b8",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_2bd1b8",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_33504f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_33504f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_33a932",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_33a932",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_379086",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_379086",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_38a463",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_38a463",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_3a035f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_3a035f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_408e65",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_408e65",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_40f292",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_40f292",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_4445f2",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_4445f2",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_463053",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_463053",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_4ba196",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_4ba196",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_500177",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_500177",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_6261ef",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_6261ef",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_62c5bf",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_62c5bf",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_6afc8f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_6afc8f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_6bcb04",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_6bcb04",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_703fda",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_703fda",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_717a3a",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_717a3a",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_71febf",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_71febf",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_75e22a",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_75e22a",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_7a8027",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_7a8027",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_7e3a60",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_7e3a60",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_80a219",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_80a219",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_882fd8",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_882fd8",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_8cfce7",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_8cfce7",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_8f1b3e",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_8f1b3e",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_9058ea",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_9058ea",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_96cd9b",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_96cd9b",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_96cdd8",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_96cdd8",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_990b37",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_990b37",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_9920b9",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_9920b9",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_9a65cd",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_9a65cd",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_9b3901",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_9b3901",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a0104b",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a0104b",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a014e6",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a014e6",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a03f5f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a03f5f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a160d1",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a160d1",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a59c50",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a59c50",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a68423",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a68423",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_a7914f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_a7914f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_abd47a",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_abd47a",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ac14a7",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ac14a7",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ae9f8e",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ae9f8e",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_b0b18f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_b0b18f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_b114aa",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_b114aa",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_b30928",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_b30928",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_b327de",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_b327de",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_b775fe",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_b775fe",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_baf992",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_baf992",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_bbcdd3",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_bbcdd3",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_bd28fc",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_bd28fc",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_beddfc",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_beddfc",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_c17188",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_c17188",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_c26a94",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_c26a94",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_c67df9",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_c67df9",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_c6c7d8",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_c6c7d8",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ca8fba",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ca8fba",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_cfe12c",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_cfe12c",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_d05a94",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_d05a94",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_d45cab",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_d45cab",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_db1ae8",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_db1ae8",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_dd3d1c",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_dd3d1c",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_dec582",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_dec582",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_df6a09",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_df6a09",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_e3282f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_e3282f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_e4ca01",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_e4ca01",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_e65cbd",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_e65cbd",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_e94ae2",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_e94ae2",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ea6f97",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ea6f97",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ed180f",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ed180f",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ed7a19",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ed7a19",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_ee6603",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_ee6603",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_f183b8",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_f183b8",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_f2c9a5",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_f2c9a5",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_f809f9",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_f809f9",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_fbcfea",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_fbcfea",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    },
+    {
+      "question_id": "q_fbf7e9",
+      "question_dir": "C:\\Users\\11599\\Desktop\\Architecture IQ\\ArchitectureIQ-xor-pilot\\.tmp\\xor-review\\48fd17f\\holdout\\data\\datasets\\synthetic_tabular_classification\\stabcls_pending\\questions\\run_100q_2c_37b9da\\q_fbf7e9",
+      "status": "pass",
+      "checks": {
+        "question_id": {
+          "passed": true,
+          "detail": "question_id must match directory"
+        },
+        "choice_count": {
+          "passed": true,
+          "detail": "question must declare at least two choices"
+        },
+        "candidate_A": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "candidate_B": {
+          "passed": true,
+          "detail": "choice provenance must match source spec"
+        },
+        "choice_ids": {
+          "passed": true,
+          "detail": "candidate ids must be unique within question"
+        },
+        "compatibility": {
+          "passed": true,
+          "detail": "choices must be compatible"
+        },
+        "axes": {
+          "passed": true,
+          "detail": "recorded type and axes must match specs"
+        },
+        "required_model_types": {
+          "passed": true,
+          "detail": "choice model types must match the run manifest"
+        },
+        "significance": {
+          "passed": true,
+          "detail": "recorded significance must match independent recomputation"
+        },
+        "winner": {
+          "passed": true,
+          "detail": "correct_letter must point to independently recomputed winner"
+        },
+        "budget": {
+          "passed": true,
+          "detail": "question budget field must match choice specs"
+        },
+        "public_prompt": {
+          "passed": true,
+          "detail": "private prompt marker: None"
+        }
+      },
+      "reasons": []
+    }
+  ],
+  "summary": {
+    "questions": 100,
+    "pass": 100,
+    "fail": 0,
+    "unique_candidates": 41,
+    "candidate_use_histogram": {
+      "c_01b9d8": 6,
+      "c_1d1737": 3,
+      "c_226cdb": 5,
+      "c_32074e": 7,
+      "c_44a08e": 4,
+      "c_468a64": 4,
+      "c_5bfbb2": 5,
+      "c_5d68bf": 4,
+      "c_61254d": 5,
+      "c_642ff0": 1,
+      "c_7c5b4f": 5,
+      "c_870adc": 4,
+      "c_892dc0": 3,
+      "c_91955b": 4,
+      "c_9399d2": 6,
+      "c_96b282": 7,
+      "c_9b7075": 6,
+      "c_9cb96c": 3,
+      "c_a0fedf": 4,
+      "c_a5e641": 5,
+      "c_a8e331": 13,
+      "c_aaad47": 7,
+      "c_abe26b": 4,
+      "c_b150fc": 5,
+      "c_b923de": 5,
+      "c_c26bfd": 5,
+      "c_d7df48": 5,
+      "c_d98f66": 7,
+      "c_daa92b": 6,
+      "c_dbc278": 2,
+      "c_df809e": 6,
+      "c_e38593": 3,
+      "c_e67056": 12,
+      "c_e76eb3": 3,
+      "c_e7e908": 3,
+      "c_e8cda4": 2,
+      "c_e95aa9": 6,
+      "c_e9c595": 5,
+      "c_ee0fff": 4,
+      "c_f294dc": 3,
+      "c_ffdc5b": 3
+    },
+    "max_observed_candidate_uses": 13,
+    "unique_pair_count": 100,
+    "winner_model_type_histogram": {
+      "kan": 70,
+      "mlp": 30
+    },
+    "max_winner_model_type_fraction": 0.7
+  },
+  "valid": true
+}

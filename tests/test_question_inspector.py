@@ -329,6 +329,59 @@ def test_transformer_setting_validates_attention_heads() -> None:
         )
 
 
+def test_gru_custom_setting_round_trips_inherited_fields() -> None:
+    dataset_params = {"vocab_size": 32, "context_length": 16}
+    model = build_model_spec(
+        "gru_lm",
+        {"d_model": 64, "num_layers": 2},
+        dataset_params,
+    )
+    assert "layer_residual" not in model
+    values = form_values_from_candidate_spec(
+        {
+            "budget": {"total_samples_seen": 1024, "batch_size": 32},
+            "model": model,
+            "optimizer": {"type": "Adam", "lr": 1e-3, "weight_decay": 0.0},
+            "loss": {"loss_id": "cross_entropy"},
+        },
+        source_letter="A",
+    )
+    rebuilt = build_model_spec(
+        values["model_type"],
+        {"d_model": values["gru_d_model"], "num_layers": values["gru_layers"]},
+        dataset_params,
+    )
+    assert rebuilt == model
+
+def test_gru_custom_setting_round_trips_residual_flag() -> None:
+    dataset_params = {"vocab_size": 32, "context_length": 16}
+    model = build_model_spec(
+        "gru_lm",
+        {"d_model": 64, "num_layers": 2, "layer_residual": True},
+        dataset_params,
+    )
+    values = form_values_from_candidate_spec(
+        {
+            "budget": {"total_samples_seen": 1024, "batch_size": 32},
+            "model": model,
+            "optimizer": {"type": "Adam", "lr": 1e-3, "weight_decay": 0.0},
+            "loss": {"loss_id": "cross_entropy"},
+        },
+        source_letter="A",
+    )
+    assert values["gru_layer_residual"] is True
+    rebuilt = build_model_spec(
+        values["model_type"],
+        {
+            "d_model": values["gru_d_model"],
+            "num_layers": values["gru_layers"],
+            "layer_residual": values["gru_layer_residual"],
+        },
+        dataset_params,
+    )
+    assert rebuilt == model
+
+
 def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import custom_settings
     import numpy as np
@@ -587,6 +640,103 @@ def test_startup_question_collection_uses_manifest_order(
     ) == second.resolve()
 
 
+def test_explicit_question_collection_overrides_cli_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_root = tmp_path / "data"
+    cli_question = data_root / "datasets" / "demo" / "cli"
+    pack_question = data_root / "datasets" / "demo" / "pack"
+    for question_dir in (cli_question, pack_question):
+        question_dir.mkdir(parents=True)
+        (question_dir / "question.json").write_text("{}", encoding="utf-8")
+    cli_manifest = tmp_path / "cli.json"
+    cli_manifest.write_text(
+        json.dumps({"question_paths": ["datasets/demo/cli"]}),
+        encoding="utf-8",
+    )
+    pack_manifest = tmp_path / "pack.json"
+    pack_manifest.write_text(
+        json.dumps({"question_paths": ["datasets/demo/pack"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(inspector_app.sys, "argv", ["streamlit", str(cli_manifest)])
+
+    assert inspector_app._discover_questions(
+        str(data_root),
+        pack_manifest,
+    ) == [pack_question.resolve()]
+
+
+def test_question_pack_registry_rejects_path_traversal(tmp_path: Path) -> None:
+    packs_root = tmp_path / "question_packs"
+    good = packs_root / "good-pack"
+    good_data = good / "data"
+    good_data.mkdir(parents=True)
+    (good / "collection.json").write_text(
+        json.dumps({"question_paths": []}),
+        encoding="utf-8",
+    )
+    (good / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "good-pack",
+                "display_name": "Good pack",
+                "collection_path": "collection.json",
+                "data_root": "data",
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "collection.json").write_text(
+        json.dumps({"question_paths": []}),
+        encoding="utf-8",
+    )
+    bad = packs_root / "bad-pack"
+    bad.mkdir()
+    (bad / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "bad-pack",
+                "display_name": "Bad pack",
+                "collection_path": "../../outside/collection.json",
+                "data_root": "../../outside",
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    registry = inspector_app._question_pack_registry(packs_root)
+
+    assert list(registry) == ["good-pack"]
+    assert registry["good-pack"]["data_root"] == good_data.resolve()
+    assert registry["good-pack"]["collection_path"] == (
+        good / "collection.json"
+    ).resolve()
+
+
+def test_tracked_question_packs_load_100_questions() -> None:
+    registry = inspector_app._question_pack_registry()
+
+    assert set(registry) == {
+        "xor-v2.5-100q-37b9da",
+        "gru-v2.5-100q-a48abc",
+    }
+    for pack in registry.values():
+        questions = inspector_app._startup_question_collection(
+            str(pack["data_root"]),
+            pack["collection_path"],
+        )
+        assert questions is not None
+        assert len(questions) == 100
+        assert all((path / "prompt.txt").is_file() for path in questions)
+
+
 def test_startup_question_collection_rejects_paths_outside_data_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -718,6 +868,19 @@ def test_kan_custom_setting_defaults_include_profile_archetype_activations() -> 
         set(defaults["base_activations"])
     )
 
+
+def test_kan_activation_options_include_valid_inherited_value() -> None:
+    """A valid inherited candidate remains selectable under a narrow profile."""
+    options = inspector_app._kan_activation_options(["silu"], "tanh")
+
+    assert options == ["silu", "tanh"]
+
+
+def test_kan_activation_options_do_not_duplicate_or_admit_unknown_values() -> None:
+    assert inspector_app._kan_activation_options(["silu"], "silu") == ["silu"]
+    assert inspector_app._kan_activation_options(["silu"], "unknown") == ["silu"]
+
+
 def test_inspector_prefers_local_profile_source_over_stale_editable_install() -> None:
     """Custom settings must resolve Profile from the checkout being inspected."""
     repo = Path(__file__).resolve().parents[1]
@@ -743,3 +906,16 @@ def test_inspector_prefers_local_profile_source_over_stale_editable_install() ->
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_classification_score_latex_renders_xor_formula() -> None:
+    assert (
+        inspector_app._classification_score_latex(
+            {
+                "rule_family": "xor",
+                "active_features": [0, 1],
+                "rule_weights": [-1.0],
+            }
+        )
+        == r"s(\mathbf{x}) = -x_{0} \cdot x_{1}"
+    )

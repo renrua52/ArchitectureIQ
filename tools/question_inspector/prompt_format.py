@@ -69,6 +69,8 @@ def format_model_nl(model: dict) -> str:
         return format_kan_nl(model)
     if model_type == "transformer_lm":
         return format_transformer_lm_nl(model)
+    if model_type == "gru_lm":
+        return format_gru_lm_nl(model)
     return f"- Type: {model_type}"
 
 
@@ -95,6 +97,27 @@ def format_transformer_lm_nl(model: dict) -> str:
             f"- num_layers: {model['num_layers']}",
             f"- num_heads: {model['num_heads']}",
             f"- d_ff: {d_ff}",
+        ]
+    )
+
+
+def format_gru_lm_nl(model: dict) -> str:
+    layer_residual = bool(model.get("layer_residual", False))
+    residual_line = (
+        "- Layer residual connections: enabled; after each GRU layer, "
+        "h = h + GRU_layer(h)."
+        if layer_residual
+        else "- Layer residual connections: disabled"
+    )
+    return "\n".join(
+        [
+            "- Type: causal unidirectional GRU LM",
+            f"- Vocab size: {model['vocab_size']}",
+            f"- Context length: {model['context_length']}",
+            f"- d_model (embedding and hidden size): {model['d_model']}",
+            f"- num_layers: {model['num_layers']}",
+            residual_line,
+            "- No attention, position embedding, or dropout",
         ]
     )
 
@@ -190,6 +213,9 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
             for (left, right), weight in zip(pairs, weights, strict=True)
         ]
         score_lines = [f"  - `s(x) = {_signed_linear_combination(terms)}`"]
+    elif rule_family == "xor":
+        left, right = active_features[:2]
+        score_lines = [f"  - `s(x) = -x_{left}·x_{right}`"]
     elif rule_family == "piecewise_boundary":
         primary, secondary = active_features[:2]
         below_weight, above_weight, offset_weight = weights
@@ -218,6 +244,14 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
             *score_lines,
             f"- Label noise: `ε ~ Normal(0, {noise_std:.6g}²)`.",
             f"- Label rule: `y = 1` exactly when `s(x) + ε > {threshold:.6g}`; otherwise `y = 0`.",
+            *(
+                [
+                    "- XOR interpretation (nominal only): with `ε = 0` and threshold `0`, opposite-sign active coordinates are class 1 and same-sign active coordinates are class 0.",
+                    "- With the calibrated threshold and label noise above, individual labels (especially near either axis) need not follow that nominal quadrant interpretation.",
+                ]
+                if rule_family == "xor"
+                else []
+            ),
             f"- Bayes decision boundary: without observing ε, predict class 1 when `s(x) > {threshold:.6g}`.",
             f"- Threshold calibration: `{threshold:.6g}` was estimated from {calibration['size']} independent calibration rows to target a positive-class rate of {float(calibration['target_positive_rate']):.0%}.",
             f"- Reproducibility: point/noise seed `{params['point_sampling']['seed']}`, calibration seed `{calibration['seed']}`.",
@@ -226,7 +260,7 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
 
 
 def format_dataset_protocol(params: dict, *, family: str | None = None, device: str = "cpu") -> str:
-    if "rule_family" in params:
+    if family == "synthetic_tabular_classification":
         return "\n".join(
             [
                 "- Task: binary classification on one fixed synthetic tabular train/test split.",
