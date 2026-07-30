@@ -1,0 +1,283 @@
+{
+  "table": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/table_bigram_lm.csv",
+  "target": "mean_test_ce",
+  "target_meaning": "Ground-truth selection metric from results/summary.json after executing each candidate's generated train.py (mean over GT seeds). Not recomputed here.",
+  "lower_is_better": true,
+  "n_rows": 40,
+  "n_rows_dropped_nonfinite": 0,
+  "n_features_used": 20,
+  "feature_cols": [
+    "model_type",
+    "trainable_parameter_count",
+    "log_params",
+    "batch_size",
+    "training_steps",
+    "total_samples_seen",
+    "optimizer_type",
+    "lr",
+    "log_lr",
+    "weight_decay",
+    "momentum",
+    "loss_id",
+    "loss_lambda",
+    "depth",
+    "width",
+    "d_model",
+    "num_layers",
+    "num_heads",
+    "d_ff",
+    "layer_residual"
+  ],
+  "feature_roles": [
+    {
+      "name": "model_type",
+      "role": "varying",
+      "nunique": 2,
+      "n_missing": 0,
+      "kind": "categorical"
+    },
+    {
+      "name": "trainable_parameter_count",
+      "role": "varying",
+      "nunique": 24,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "log_params",
+      "role": "varying",
+      "nunique": 24,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "batch_size",
+      "role": "constant",
+      "nunique": 1,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "training_steps",
+      "role": "constant",
+      "nunique": 1,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "total_samples_seen",
+      "role": "constant",
+      "nunique": 1,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "optimizer_type",
+      "role": "varying",
+      "nunique": 5,
+      "n_missing": 0,
+      "kind": "categorical"
+    },
+    {
+      "name": "lr",
+      "role": "varying",
+      "nunique": 5,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "log_lr",
+      "role": "varying",
+      "nunique": 5,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "weight_decay",
+      "role": "varying",
+      "nunique": 4,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "momentum",
+      "role": "varying",
+      "nunique": 2,
+      "n_missing": 31,
+      "kind": "numeric"
+    },
+    {
+      "name": "loss_id",
+      "role": "constant",
+      "nunique": 1,
+      "n_missing": 0,
+      "kind": "categorical"
+    },
+    {
+      "name": "loss_lambda",
+      "role": "constant",
+      "nunique": 1,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "depth",
+      "role": "varying",
+      "nunique": 4,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "width",
+      "role": "varying",
+      "nunique": 6,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "d_model",
+      "role": "varying",
+      "nunique": 6,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "num_layers",
+      "role": "varying",
+      "nunique": 4,
+      "n_missing": 0,
+      "kind": "numeric"
+    },
+    {
+      "name": "num_heads",
+      "role": "varying",
+      "nunique": 2,
+      "n_missing": 25,
+      "kind": "numeric"
+    },
+    {
+      "name": "d_ff",
+      "role": "varying",
+      "nunique": 3,
+      "n_missing": 25,
+      "kind": "numeric"
+    },
+    {
+      "name": "layer_residual",
+      "role": "constant_with_missing",
+      "nunique": 1,
+      "n_missing": 15,
+      "kind": "categorical"
+    }
+  ],
+  "meta": {
+    "family": [
+      "bigram_lm"
+    ],
+    "dataset_id": [
+      "bg_9ef717"
+    ],
+    "profile": [
+      "v2.5-tabpfn-settings"
+    ],
+    "selection_metric": [
+      "test_ce"
+    ],
+    "model_type_counts": {
+      "gru_lm": 25,
+      "transformer_lm": 15
+    }
+  },
+  "target_stats": {
+    "min": 3.183691501617432,
+    "max": 3.614208221435547,
+    "mean": 3.3761819521586096,
+    "std": 0.11557963186376274
+  },
+  "protocol": {
+    "unit": "one row = one ArchitectureIQ candidate (candidate_spec + GT summary)",
+    "input_X": "Tabular feature columns derived from candidate_spec (model/optimizer/loss/budget). Entirely-missing columns dropped. Bool+NA sanitized to string categories for TabPFN.",
+    "output_y": "scalar regression target column `mean_test_ce`",
+    "split": "sklearn KFold(n_splits=5, shuffle=True, random_state=0)",
+    "fold_sizes": [
+      {
+        "fold": 1,
+        "n_train": 32,
+        "n_test": 8
+      },
+      {
+        "fold": 2,
+        "n_train": 32,
+        "n_test": 8
+      },
+      {
+        "fold": 3,
+        "n_train": 32,
+        "n_test": 8
+      },
+      {
+        "fold": 4,
+        "n_train": 32,
+        "n_test": 8
+      },
+      {
+        "fold": 5,
+        "n_train": 32,
+        "n_test": 8
+      }
+    ],
+    "no_leakage": "Each candidate_id appears in exactly one test fold; metrics are out-of-fold.",
+    "tabpfn_fit_meaning": "TabPFNRegressor.fit does not gradient-update the foundation weights; it conditions on the fold's training rows (in-context). predict() returns a scalar per test row.",
+    "baselines": {
+      "train_mean": "Predict global mean of y (same value for all rows; no CV).",
+      "ridge": "ColumnTransformer(num: median+StandardScaler; cat: most_frequent+OneHot) + Ridge(alpha=1)",
+      "hgb": "Same preprocessor + HistGradientBoostingRegressor(max_depth=4, max_iter=200, random_state=0)"
+    },
+    "metrics": [
+      "MAE",
+      "RMSE",
+      "Spearman (rank correlation)",
+      "pairwise ranking accuracy over all unequal pairs (lower CE better)"
+    ]
+  },
+  "models": {
+    "train_mean": {
+      "n": 40,
+      "mae": 0.10179435332616178,
+      "rmse": 0.11557963186376274,
+      "spearman": NaN,
+      "pairwise_acc": 0.4987179487179487,
+      "y_true_mean": 3.3761819521586096,
+      "y_true_std": 0.11557963186376274
+    },
+    "ridge": {
+      "n": 40,
+      "mae": 0.08826318176899964,
+      "rmse": 0.11649758024262828,
+      "spearman": 0.5000000000000001,
+      "pairwise_acc": 0.6923076923076923,
+      "y_true_mean": 3.3761819521586096,
+      "y_true_std": 0.11557963186376274
+    },
+    "hgb": {
+      "n": 40,
+      "mae": 0.10502041044334569,
+      "rmse": 0.11928033653714079,
+      "spearman": -0.2437148217636023,
+      "pairwise_acc": 0.4371794871794872,
+      "y_true_mean": 3.3761819521586096,
+      "y_true_std": 0.11557963186376274
+    },
+    "tabpfn": {
+      "n": 40,
+      "mae": 0.07030859192212419,
+      "rmse": 0.09082715012142738,
+      "spearman": 0.6996247654784241,
+      "pairwise_acc": 0.7461538461538462,
+      "y_true_mean": 3.3761819521586096,
+      "y_true_std": 0.11557963186376274
+    }
+  },
+  "tabpfn_version": "v2.5",
+  "tabpfn_device": "cuda"
+}

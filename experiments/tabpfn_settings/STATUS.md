@@ -1,32 +1,24 @@
 # Status
 
-## Approach (corrected)
+## Done (generated per-family corpus)
 
-Do **not** treat frozen question packs as the primary TabPFN corpus.
-For each dataset **family**, run the real pipeline:
+Pipeline `scripts/run_family_pipeline.py` on A100 (`v2.5-tabpfn-settings`, count=40, vary=model+optimizer, n_seeds=3):
 
-1. `create-dataset` (profile `v2.5-tabpfn-settings`)
-2. `generate-candidates` / `sample_random_settings.py` (vary model+optimizer, GT via train.py)
-3. Build settings table → 5-fold TabPFN / baselines
+| Family | dataset_id | target | N finite | TabPFN Spearman | TabPFN pairwise | Ridge pairwise |
+|--------|------------|--------|----------|-----------------|-----------------|----------------|
+| univariate_regression | sym_f91a02 | mean_test_mse | 36 | 0.35 | 0.62 | 0.66 |
+| multivariate_regression | mvar_aa9fd3 | mean_test_mse | 39 | 0.51 | 0.68 | 0.73 |
+| bigram_lm | bg_9ef717 | mean_test_ce | 40 | 0.70 | 0.75 | 0.69 |
+| synthetic_tabular_classification | stabcls_c4d0e7 | mean_test_ce | 40 | 0.71 | 0.76 | 0.74 |
 
-Script: `scripts/run_family_pipeline.py`
+HTML: `artifacts/generated/report_families_generated.html`
 
-## Families
+## Protocol
 
-- univariate_regression (target `mean_test_mse`)
-- multivariate_regression (target `mean_test_mse`)
-- bigram_lm (target `mean_test_ce`)
-- synthetic_tabular_classification (target `mean_test_ce`)
+- **X:** candidate_spec features (model/opt/loss/budget)
+- **y:** GT `mean_*` from executing generated `train.py`
+- **TabPFN train size:** per-fold n_train (~28–32); no weight fine-tune
 
-Profile uses `n_seeds: 3` for faster A100 turnaround.
+## Next
 
-## Remote
-
-```bash
-ssh root@10.210.22.136 -p 31178
-cd /cephfs/renzirui/projects/ArchitectureIQ-tabpfn
-source .venv-tabpfn/bin/activate
-export PYTHONPATH=src
-export TABPFN_SKIP_LICENSE=1 HF_ENDPOINT=https://hf-mirror.com
-python experiments/tabpfn_settings/scripts/run_family_pipeline.py --count 40 --device cuda
-```
+Scale count (e.g. 200+) and/or vary loss; optional larger n_seeds.

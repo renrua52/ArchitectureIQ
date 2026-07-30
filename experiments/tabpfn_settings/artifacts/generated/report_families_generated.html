@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>TabPFN per-family generated settings report</title>
+<style>
+:root{--ink:#1a1f24;--muted:#5c6770;--line:#d8dde2;--bg:#f4f1eb;--paper:#fffcf7;--accent:#0b6e4f;--accent-soft:#d8efe6;--warn:#8a5a00}
+*{box-sizing:border-box}body{margin:0;font-family:"IBM Plex Sans",sans-serif;color:var(--ink);background:radial-gradient(900px 500px at 0 0,#e4ebe6,transparent 55%),var(--bg);line-height:1.55}
+main{max-width:1000px;margin:0 auto;padding:2.2rem 1.2rem 4rem}
+.kicker{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:"IBM Plex Serif",Georgia,serif;font-size:clamp(1.5rem,3vw,2rem);margin:.2rem 0 .5rem}
+.lede{color:var(--muted);max-width:48rem}
+h2{border-top:1px solid var(--line);padding-top:1.4rem;margin-top:2rem;font-size:1.1rem}
+h3{font-size:.95rem;margin:1rem 0 .4rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.7rem;margin:1rem 0}
+.stat{background:var(--paper);border:1px solid var(--line);padding:.8rem .95rem}
+.stat .label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat .value{font-weight:600;margin-top:.15rem;font-variant-numeric:tabular-nums}
+.stat .sub{font-size:.78rem;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:.84rem;background:var(--paper);border:1px solid var(--line);margin:.4rem 0 1rem}
+th,td{padding:.45rem .6rem;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums;vertical-align:top}
+th{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+tr.best td{background:var(--accent-soft);font-weight:600}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.78rem}
+.note{background:#fff8e8;border-left:3px solid var(--warn);padding:.75rem 1rem;font-size:.88rem;margin:1rem 0}
+.callout{background:var(--paper);border:1px solid var(--line);padding:1rem 1.1rem;margin:1rem 0}
+.pill{font-size:.7rem;padding:.08rem .35rem;border:1px solid var(--line);background:#eee}
+.pill.varying{background:#d8efe6;border-color:#9ecfbc}
+.flow div{background:var(--paper);border:1px solid var(--line);padding:.5rem .7rem;margin:.35rem 0;font-family:"IBM Plex Mono",monospace;font-size:.8rem}
+footer{margin-top:2rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);padding-top:1rem}
+code{font-family:"IBM Plex Mono",monospace;font-size:.84em;background:#efece6;padding:.05em .25em}
+ul.compact{padding-left:1.1rem} li{margin:.15rem 0}
+</style></head><body><main>
+<p class="kicker">ArchitectureIQ · side/tabpfn-settings · generated candidates</p>
+<h1>按 dataset family 生成 settings → TabPFN</h1>
+<p class="lede">本次不再用 frozen pack 凑数。对每个 family：<code>create-dataset</code> → 随机采样 candidate（vary model+optimizer）→ 执行 generated <code>train.py</code> 得 GT → 5-fold 预测 selection metric。</p>
+
+<div class="callout">
+<h3 style="margin-top:0">输入 / 输出 / 训练测试（统一协议）</h3>
+<div class="flow">
+  <div>X = flatten(candidate_spec)：model / optimizer / loss / budget 字段（见 features.py）</div>
+  <div>y = results/summary.json 的 mean_test_mse 或 mean_test_ce（执行 GT，非手算）</div>
+  <div>TabPFN.fit(X_train,y_train)：不更新 foundation 权重；条件行数 = 该折 n_train</div>
+  <div>predict(X_test) → ŷ；指标 MAE/RMSE/Spearman/pairwise（OOF 拼接）</div>
+</div>
+<ul class="compact">
+  <li>Profile：<code>v2.5-tabpfn-settings</code>（n_seeds=3）</li>
+  <li>每 family 采样 count=40，axes=<code>model,optimizer</code></li>
+  <li>设备：A100 CUDA · TabPFN v2.5 regressor</li>
+</ul>
+</div>
+
+<h2>跨 family 一览</h2>
+<table>
+<thead><tr><th>Family</th><th>y</th><th>N</th><th>TabPFN Spearman</th><th>TabPFN pairwise</th><th>Ridge Spearman</th><th>Ridge pairwise</th></tr></thead>
+<tbody>
+<tr><td>univariate_regression</td><td class='mono'>mean_test_mse</td><td>36</td><td>0.349</td><td>0.624</td><td>0.443</td><td>0.659</td></tr><tr><td>multivariate_regression</td><td class='mono'>mean_test_mse</td><td>39</td><td>0.509</td><td>0.684</td><td>0.638</td><td>0.727</td></tr><tr><td>bigram_lm</td><td class='mono'>mean_test_ce</td><td>40</td><td>0.700</td><td>0.746</td><td>0.500</td><td>0.692</td></tr><tr><td>synthetic_tabular_classification</td><td class='mono'>mean_test_ce</td><td>40</td><td>0.715</td><td>0.764</td><td>0.708</td><td>0.736</td></tr>
+</tbody></table>
+
+<div class="note">N≈36–40、每折测试约 7–8 行，结果噪声大。解读重点：相对 baseline 的方向，而不是绝对精度。HistGB 在本组设定下经常崩（负 Spearman）。</div>
+
+
+<h2>univariate_regression</h2>
+<div class="grid">
+  <div class="stat"><div class="label">Dataset</div><div class="value" style="font-size:.9rem">sym_f91a02</div><div class="sub">seed=101 · budget total_samples_seen=2048</div></div>
+  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_mse</div><div class="sub">μ=0.476 · σ=0.384</div></div>
+  <div class="stat"><div class="label">Finite rows</div><div class="value">36</div><div class="sub">models {'mlp': 27, 'kan': 9}</div></div>
+  <div class="stat"><div class="label">Optimizers</div><div class="value" style="font-size:.85rem">{'Adam': 8, 'SGD': 8, 'RMSprop': 8, 'AdamW': 8, 'Adagrad': 4}</div><div class="sub">vary=model,optimizer · n_seeds=3</div></div>
+</div>
+<h3>Feature roles (after dropping all-missing)</h3>
+<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>kan, mlp</td></tr>
+<tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>29</td><td>0</td><td class='mono'>100481, 1008, 12673, 1537, 1777, 199681, 2016, 21249</td></tr>
+<tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>29</td><td>0</td><td class='mono'>10.42421400097938, 10.431789570603357, 11.105874099420692, 11.11162666573148, 11.512615416910297, 11.517723933881802, 12.20447637216348, 12.4873379243265</td></tr>
+<tr><td class='mono'>batch_size</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>64</td></tr>
+<tr><td class='mono'>training_steps</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>32</td></tr>
+<tr><td class='mono'>total_samples_seen</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>2048</td></tr>
+<tr><td class='mono'>optimizer_type</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>Adagrad, Adam, AdamW, RMSprop, SGD</td></tr>
+<tr><td class='mono'>lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>0.0001, 0.0003, 0.001, 0.003, 0.01</td></tr>
+<tr><td class='mono'>log_lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>-4.605170185988091, -5.809142990314028, -6.907755278982137, -8.111728083308073, -9.210340371976182</td></tr>
+<tr><td class='mono'>weight_decay</td><td><span class='pill varying'>varying</span></td><td>4</td><td>0</td><td class='mono'>0.0, 0.0001, 0.001, 1e-05</td></tr>
+<tr><td class='mono'>momentum</td><td><span class='pill varying'>varying</span></td><td>2</td><td>28</td><td class='mono'>0.0, 0.9</td></tr>
+<tr><td class='mono'>loss_id</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>mse</td></tr>
+<tr><td class='mono'>depth</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>1, 2, 3, 4, 5, 6</td></tr>
+<tr><td class='mono'>width</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>128, 16, 256, 32, 64, 8</td></tr>
+<tr><td class='mono'>residual</td><td><span class='pill varying'>varying</span></td><td>2</td><td>9</td><td class='mono'>False, True</td></tr>
+<tr><td class='mono'>layer_norm_frac</td><td><span class='pill varying'>varying</span></td><td>10</td><td>9</td><td class='mono'>0.0, 0.25, 0.3333333333333333, 0.4, 0.5, 0.6, 0.6666666666666666, 0.75</td></tr>
+<tr><td class='mono'>activation_primary</td><td><span class='pill varying'>varying</span></td><td>4</td><td>9</td><td class='mono'>gelu, leaky_relu, relu, silu</td></tr>
+<tr><td class='mono'>grid_size</td><td><span class='pill varying'>varying</span></td><td>3</td><td>27</td><td class='mono'>3.0, 5.0, 7.0</td></tr>
+<tr><td class='mono'>spline_order</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>27</td><td class='mono'>3.0</td></tr>
+<tr><td class='mono'>base_activation</td><td><span class='pill varying'>varying</span></td><td>2</td><td>27</td><td class='mono'>silu, tanh</td></tr>
+</tbody></table>
+<h3>Train / test folds (TabPFN in-context size)</h3>
+<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>28</td><td>8</td></tr>
+<tr><td>2</td><td>29</td><td>7</td></tr>
+<tr><td>3</td><td>29</td><td>7</td></tr>
+<tr><td>4</td><td>29</td><td>7</td></tr>
+<tr><td>5</td><td>29</td><td>7</td></tr></tbody></table>
+<h3>Out-of-fold metrics</h3>
+<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
+<tr><td>train_mean</td><td>0.269</td><td>0.384</td><td>—</td><td>0.584</td></tr>
+<tr><td>Ridge</td><td>0.274</td><td>0.382</td><td>0.443</td><td>0.659</td></tr>
+<tr><td>HistGB</td><td>0.273</td><td>0.387</td><td>-0.194</td><td>0.443</td></tr>
+<tr class="best"><td>TabPFN v2.5</td><td>0.244</td><td>0.346</td><td>0.349</td><td>0.624</td></tr>
+</tbody></table>
+
+<h2>multivariate_regression</h2>
+<div class="grid">
+  <div class="stat"><div class="label">Dataset</div><div class="value" style="font-size:.9rem">mvar_aa9fd3</div><div class="sub">seed=102 · budget total_samples_seen=5120</div></div>
+  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_mse</div><div class="sub">μ=0.400 · σ=0.417</div></div>
+  <div class="stat"><div class="label">Finite rows</div><div class="value">39</div><div class="sub">models {'kan': 22, 'mlp': 17}</div></div>
+  <div class="stat"><div class="label">Optimizers</div><div class="value" style="font-size:.85rem">{'Adam': 12, 'RMSprop': 10, 'SGD': 8, 'Adagrad': 6, 'AdamW': 3}</div><div class="sub">vary=model,optimizer · n_seeds=3</div></div>
+</div>
+<h3>Feature roles (after dropping all-missing)</h3>
+<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>kan, mlp</td></tr>
+<tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>1144, 1176, 1249, 1281, 134145, 1512, 1848, 199937</td></tr>
+<tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>11.117346329208624, 11.124922010923182, 11.806676583448391, 12.205757595907253, 12.711446435017915, 12.712989640549374, 12.89119017455097, 6.590301048196686</td></tr>
+<tr><td class='mono'>batch_size</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>16</td></tr>
+<tr><td class='mono'>training_steps</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>320</td></tr>
+<tr><td class='mono'>total_samples_seen</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>5120</td></tr>
+<tr><td class='mono'>optimizer_type</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>Adagrad, Adam, AdamW, RMSprop, SGD</td></tr>
+<tr><td class='mono'>lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>0.0001, 0.0003, 0.001, 0.003, 0.01</td></tr>
+<tr><td class='mono'>log_lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>-4.605170185988091, -5.809142990314028, -6.907755278982137, -8.111728083308073, -9.210340371976182</td></tr>
+<tr><td class='mono'>weight_decay</td><td><span class='pill varying'>varying</span></td><td>4</td><td>0</td><td class='mono'>0.0, 0.0001, 0.001, 1e-05</td></tr>
+<tr><td class='mono'>momentum</td><td><span class='pill varying'>varying</span></td><td>2</td><td>31</td><td class='mono'>0.0, 0.9</td></tr>
+<tr><td class='mono'>loss_id</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>mse_l1</td></tr>
+<tr><td class='mono'>loss_lambda</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>0.01</td></tr>
+<tr><td class='mono'>depth</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>1, 2, 3, 4, 5, 6</td></tr>
+<tr><td class='mono'>width</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>128, 16, 256, 32, 64, 8</td></tr>
+<tr><td class='mono'>residual</td><td><span class='pill varying'>varying</span></td><td>2</td><td>22</td><td class='mono'>False, True</td></tr>
+<tr><td class='mono'>layer_norm_frac</td><td><span class='pill varying'>varying</span></td><td>10</td><td>22</td><td class='mono'>0.0, 0.1666666666666666, 0.3333333333333333, 0.4, 0.5, 0.6, 0.6666666666666666, 0.75</td></tr>
+<tr><td class='mono'>activation_primary</td><td><span class='pill varying'>varying</span></td><td>4</td><td>22</td><td class='mono'>gelu, leaky_relu, relu, silu</td></tr>
+<tr><td class='mono'>grid_size</td><td><span class='pill varying'>varying</span></td><td>3</td><td>17</td><td class='mono'>3.0, 5.0, 7.0</td></tr>
+<tr><td class='mono'>spline_order</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>17</td><td class='mono'>3.0</td></tr>
+<tr><td class='mono'>base_activation</td><td><span class='pill varying'>varying</span></td><td>2</td><td>17</td><td class='mono'>silu, tanh</td></tr>
+</tbody></table>
+<h3>Train / test folds (TabPFN in-context size)</h3>
+<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>31</td><td>8</td></tr>
+<tr><td>2</td><td>31</td><td>8</td></tr>
+<tr><td>3</td><td>31</td><td>8</td></tr>
+<tr><td>4</td><td>31</td><td>8</td></tr>
+<tr><td>5</td><td>32</td><td>7</td></tr></tbody></table>
+<h3>Out-of-fold metrics</h3>
+<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
+<tr><td>train_mean</td><td>0.356</td><td>0.417</td><td>—</td><td>0.528</td></tr>
+<tr><td>Ridge</td><td>0.280</td><td>0.362</td><td>0.638</td><td>0.727</td></tr>
+<tr><td>HistGB</td><td>0.368</td><td>0.432</td><td>-0.323</td><td>0.385</td></tr>
+<tr class="best"><td>TabPFN v2.5</td><td>0.289</td><td>0.343</td><td>0.509</td><td>0.684</td></tr>
+</tbody></table>
+
+<h2>bigram_lm</h2>
+<div class="grid">
+  <div class="stat"><div class="label">Dataset</div><div class="value" style="font-size:.9rem">bg_9ef717</div><div class="sub">seed=103 · budget total_samples_seen=5120</div></div>
+  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_ce</div><div class="sub">μ=3.376 · σ=0.116</div></div>
+  <div class="stat"><div class="label">Finite rows</div><div class="value">40</div><div class="sub">models {'gru_lm': 25, 'transformer_lm': 15}</div></div>
+  <div class="stat"><div class="label">Optimizers</div><div class="value" style="font-size:.85rem">{'AdamW': 10, 'Adagrad': 9, 'SGD': 9, 'Adam': 7, 'RMSprop': 5}</div><div class="sub">vary=model,optimizer · n_seeds=3</div></div>
+</div>
+<h3>Feature roles (after dropping all-missing)</h3>
+<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>gru_lm, transformer_lm</td></tr>
+<tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>105120, 109856, 14752, 155104, 17216, 176544, 229664, 23616</td></tr>
+<tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>10.0696797274002, 10.219173821397506, 10.247927958806518, 10.278080996977206, 10.321144701409654, 10.352267545330236, 10.724148053395034, 10.897627819607528</td></tr>
+<tr><td class='mono'>batch_size</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>64</td></tr>
+<tr><td class='mono'>training_steps</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>80</td></tr>
+<tr><td class='mono'>total_samples_seen</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>5120</td></tr>
+<tr><td class='mono'>optimizer_type</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>Adagrad, Adam, AdamW, RMSprop, SGD</td></tr>
+<tr><td class='mono'>lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>0.0001, 0.0003, 0.001, 0.003, 0.01</td></tr>
+<tr><td class='mono'>log_lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>-4.605170185988091, -5.809142990314028, -6.907755278982137, -8.111728083308073, -9.210340371976182</td></tr>
+<tr><td class='mono'>weight_decay</td><td><span class='pill varying'>varying</span></td><td>4</td><td>0</td><td class='mono'>0.0, 0.0001, 0.001, 1e-05</td></tr>
+<tr><td class='mono'>momentum</td><td><span class='pill varying'>varying</span></td><td>2</td><td>31</td><td class='mono'>0.0, 0.9</td></tr>
+<tr><td class='mono'>loss_id</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>cross_entropy_l2</td></tr>
+<tr><td class='mono'>loss_lambda</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>0.01</td></tr>
+<tr><td class='mono'>depth</td><td><span class='pill varying'>varying</span></td><td>4</td><td>0</td><td class='mono'>1, 2, 3, 4</td></tr>
+<tr><td class='mono'>width</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>128, 16, 32, 48, 64, 96</td></tr>
+<tr><td class='mono'>d_model</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>128, 16, 32, 48, 64, 96</td></tr>
+<tr><td class='mono'>num_layers</td><td><span class='pill varying'>varying</span></td><td>4</td><td>0</td><td class='mono'>1, 2, 3, 4</td></tr>
+<tr><td class='mono'>num_heads</td><td><span class='pill varying'>varying</span></td><td>2</td><td>25</td><td class='mono'>2.0, 4.0</td></tr>
+<tr><td class='mono'>d_ff</td><td><span class='pill varying'>varying</span></td><td>3</td><td>25</td><td class='mono'>128.0, 256.0, 64.0</td></tr>
+<tr><td class='mono'>layer_residual</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>15</td><td class='mono'>False</td></tr>
+</tbody></table>
+<h3>Train / test folds (TabPFN in-context size)</h3>
+<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>8</td></tr>
+<tr><td>2</td><td>32</td><td>8</td></tr>
+<tr><td>3</td><td>32</td><td>8</td></tr>
+<tr><td>4</td><td>32</td><td>8</td></tr>
+<tr><td>5</td><td>32</td><td>8</td></tr></tbody></table>
+<h3>Out-of-fold metrics</h3>
+<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
+<tr><td>train_mean</td><td>0.102</td><td>0.116</td><td>—</td><td>0.499</td></tr>
+<tr><td>Ridge</td><td>0.088</td><td>0.116</td><td>0.500</td><td>0.692</td></tr>
+<tr><td>HistGB</td><td>0.105</td><td>0.119</td><td>-0.244</td><td>0.437</td></tr>
+<tr class="best"><td>TabPFN v2.5</td><td>0.070</td><td>0.091</td><td>0.700</td><td>0.746</td></tr>
+</tbody></table>
+
+<h2>synthetic_tabular_classification</h2>
+<div class="grid">
+  <div class="stat"><div class="label">Dataset</div><div class="value" style="font-size:.9rem">stabcls_c4d0e7</div><div class="sub">seed=104 · budget total_samples_seen=8192</div></div>
+  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_ce</div><div class="sub">μ=0.285 · σ=0.265</div></div>
+  <div class="stat"><div class="label">Finite rows</div><div class="value">40</div><div class="sub">models {'mlp': 25, 'kan': 15}</div></div>
+  <div class="stat"><div class="label">Optimizers</div><div class="value" style="font-size:.85rem">{'Adagrad': 10, 'AdamW': 9, 'SGD': 7, 'Adam': 7, 'RMSprop': 7}</div><div class="sub">vary=model,optimizer · n_seeds=3</div></div>
+</div>
+<h3>Feature roles (after dropping all-missing)</h3>
+<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>kan, mlp</td></tr>
+<tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>31</td><td>0</td><td class='mono'>1008, 1026, 1232, 1282, 1298, 1346, 1584, 17218</td></tr>
+<tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>31</td><td>0</td><td class='mono'>11.128703123130714, 12.20448138013868, 12.489272186431917, 12.4911989547998, 12.712221349537192, 6.536691597591305, 6.664409020350408, 6.901737206656574</td></tr>
+<tr><td class='mono'>batch_size</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>32</td></tr>
+<tr><td class='mono'>training_steps</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>256</td></tr>
+<tr><td class='mono'>total_samples_seen</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>8192</td></tr>
+<tr><td class='mono'>optimizer_type</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>Adagrad, Adam, AdamW, RMSprop, SGD</td></tr>
+<tr><td class='mono'>lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>0.0001, 0.0003, 0.001, 0.003, 0.01</td></tr>
+<tr><td class='mono'>log_lr</td><td><span class='pill varying'>varying</span></td><td>5</td><td>0</td><td class='mono'>-4.605170185988091, -5.809142990314028, -6.907755278982137, -8.111728083308073, -9.210340371976182</td></tr>
+<tr><td class='mono'>weight_decay</td><td><span class='pill varying'>varying</span></td><td>4</td><td>0</td><td class='mono'>0.0, 0.0001, 0.001, 1e-05</td></tr>
+<tr><td class='mono'>momentum</td><td><span class='pill varying'>varying</span></td><td>2</td><td>33</td><td class='mono'>0.0, 0.9</td></tr>
+<tr><td class='mono'>loss_id</td><td><span class='pill constant'>constant</span></td><td>1</td><td>0</td><td class='mono'>cross_entropy</td></tr>
+<tr><td class='mono'>depth</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>1, 2, 3, 4, 5, 6</td></tr>
+<tr><td class='mono'>width</td><td><span class='pill varying'>varying</span></td><td>6</td><td>0</td><td class='mono'>128, 16, 256, 32, 64, 8</td></tr>
+<tr><td class='mono'>residual</td><td><span class='pill varying'>varying</span></td><td>2</td><td>15</td><td class='mono'>False, True</td></tr>
+<tr><td class='mono'>layer_norm_frac</td><td><span class='pill varying'>varying</span></td><td>10</td><td>15</td><td class='mono'>0.0, 0.25, 0.3333333333333333, 0.4, 0.5, 0.6, 0.6666666666666666, 0.75</td></tr>
+<tr><td class='mono'>activation_primary</td><td><span class='pill varying'>varying</span></td><td>4</td><td>15</td><td class='mono'>gelu, leaky_relu, relu, silu</td></tr>
+<tr><td class='mono'>grid_size</td><td><span class='pill varying'>varying</span></td><td>3</td><td>25</td><td class='mono'>3.0, 5.0, 7.0</td></tr>
+<tr><td class='mono'>spline_order</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>25</td><td class='mono'>3.0</td></tr>
+<tr><td class='mono'>base_activation</td><td><span class='pill varying'>varying</span></td><td>2</td><td>25</td><td class='mono'>silu, tanh</td></tr>
+</tbody></table>
+<h3>Train / test folds (TabPFN in-context size)</h3>
+<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>8</td></tr>
+<tr><td>2</td><td>32</td><td>8</td></tr>
+<tr><td>3</td><td>32</td><td>8</td></tr>
+<tr><td>4</td><td>32</td><td>8</td></tr>
+<tr><td>5</td><td>32</td><td>8</td></tr></tbody></table>
+<h3>Out-of-fold metrics</h3>
+<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
+<tr><td>train_mean</td><td>0.245</td><td>0.265</td><td>—</td><td>0.414</td></tr>
+<tr><td>Ridge</td><td>0.172</td><td>0.208</td><td>0.708</td><td>0.736</td></tr>
+<tr><td>HistGB</td><td>0.249</td><td>0.271</td><td>-0.313</td><td>0.373</td></tr>
+<tr class="best"><td>TabPFN v2.5</td><td>0.126</td><td>0.178</td><td>0.715</td><td>0.764</td></tr>
+</tbody></table>
+
+
+<footer>
+manifest <code>artifacts/generated/manifest.json</code> ·
+script <code>scripts/run_family_pipeline.py</code> ·
+profile <code>profiles/v2.5-tabpfn-settings.yaml</code> · 2026-07-31
+</footer>
+</main></body></html>

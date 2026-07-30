@@ -1,0 +1,203 @@
+{
+  "profile": "v2.5-tabpfn-settings",
+  "count": 40,
+  "vary": [
+    "model",
+    "optimizer"
+  ],
+  "device": "cuda",
+  "jobs": [
+    {
+      "family": "univariate_regression",
+      "dataset_path": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/data/datasets/univariate_regression/sym_f91a02",
+      "target": "mean_test_mse",
+      "budget": 2048,
+      "seed": 101,
+      "table": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/table_univariate_regression.csv",
+      "report": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/report_univariate_regression.json",
+      "n_rows_finite": 36,
+      "metrics": {
+        "train_mean": {
+          "n": 36,
+          "mae": 0.26862963940948253,
+          "rmse": 0.3844666128717453,
+          "spearman": NaN,
+          "pairwise_acc": 0.5841269841269842,
+          "y_true_mean": 0.47641643198827904,
+          "y_true_std": 0.3844666128717453
+        },
+        "ridge": {
+          "n": 36,
+          "mae": 0.27406377328917286,
+          "rmse": 0.38216190271826717,
+          "spearman": 0.4427284427284427,
+          "pairwise_acc": 0.6587301587301587,
+          "y_true_mean": 0.47641643198827904,
+          "y_true_std": 0.3844666128717453
+        },
+        "hgb": {
+          "n": 36,
+          "mae": 0.2729476220937896,
+          "rmse": 0.38748606652560347,
+          "spearman": -0.1940797940797941,
+          "pairwise_acc": 0.44285714285714284,
+          "y_true_mean": 0.47641643198827904,
+          "y_true_std": 0.3844666128717453
+        },
+        "tabpfn": {
+          "n": 36,
+          "mae": 0.24415988026669724,
+          "rmse": 0.3460058922239769,
+          "spearman": 0.34929214929214936,
+          "pairwise_acc": 0.6238095238095238,
+          "y_true_mean": 0.47641643198827904,
+          "y_true_std": 0.3844666128717453
+        }
+      }
+    },
+    {
+      "family": "multivariate_regression",
+      "dataset_path": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/data/datasets/multivariate_regression/mvar_aa9fd3",
+      "target": "mean_test_mse",
+      "budget": 5120,
+      "seed": 102,
+      "table": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/table_multivariate_regression.csv",
+      "report": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/report_multivariate_regression.json",
+      "n_rows_finite": 39,
+      "metrics": {
+        "train_mean": {
+          "n": 39,
+          "mae": 0.35557117168968144,
+          "rmse": 0.4166232512197444,
+          "spearman": NaN,
+          "pairwise_acc": 0.5276653171390013,
+          "y_true_mean": 0.3996472644030602,
+          "y_true_std": 0.4166232512197444
+        },
+        "ridge": {
+          "n": 39,
+          "mae": 0.28011753588305677,
+          "rmse": 0.36180121002630333,
+          "spearman": 0.6378542510121459,
+          "pairwise_acc": 0.7273954116059379,
+          "y_true_mean": 0.3996472644030602,
+          "y_true_std": 0.4166232512197444
+        },
+        "hgb": {
+          "n": 39,
+          "mae": 0.3677084383837475,
+          "rmse": 0.4324264597111924,
+          "spearman": -0.32267206477732796,
+          "pairwise_acc": 0.38461538461538464,
+          "y_true_mean": 0.3996472644030602,
+          "y_true_std": 0.4166232512197444
+        },
+        "tabpfn": {
+          "n": 39,
+          "mae": 0.28887629559518313,
+          "rmse": 0.3429435813431218,
+          "spearman": 0.5089068825910931,
+          "pairwise_acc": 0.6842105263157895,
+          "y_true_mean": 0.3996472644030602,
+          "y_true_std": 0.4166232512197444
+        }
+      }
+    },
+    {
+      "family": "bigram_lm",
+      "dataset_path": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/data/datasets/bigram_lm/bg_9ef717",
+      "target": "mean_test_ce",
+      "budget": 5120,
+      "seed": 103,
+      "table": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/table_bigram_lm.csv",
+      "report": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/report_bigram_lm.json",
+      "n_rows_finite": 40,
+      "metrics": {
+        "train_mean": {
+          "n": 40,
+          "mae": 0.10179435332616178,
+          "rmse": 0.11557963186376274,
+          "spearman": NaN,
+          "pairwise_acc": 0.4987179487179487,
+          "y_true_mean": 3.3761819521586096,
+          "y_true_std": 0.11557963186376274
+        },
+        "ridge": {
+          "n": 40,
+          "mae": 0.08826318176899964,
+          "rmse": 0.11649758024262828,
+          "spearman": 0.5000000000000001,
+          "pairwise_acc": 0.6923076923076923,
+          "y_true_mean": 3.3761819521586096,
+          "y_true_std": 0.11557963186376274
+        },
+        "hgb": {
+          "n": 40,
+          "mae": 0.10502041044334569,
+          "rmse": 0.11928033653714079,
+          "spearman": -0.2437148217636023,
+          "pairwise_acc": 0.4371794871794872,
+          "y_true_mean": 3.3761819521586096,
+          "y_true_std": 0.11557963186376274
+        },
+        "tabpfn": {
+          "n": 40,
+          "mae": 0.07030859192212419,
+          "rmse": 0.09082715012142738,
+          "spearman": 0.6996247654784241,
+          "pairwise_acc": 0.7461538461538462,
+          "y_true_mean": 3.3761819521586096,
+          "y_true_std": 0.11557963186376274
+        }
+      }
+    },
+    {
+      "family": "synthetic_tabular_classification",
+      "dataset_path": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/data/datasets/synthetic_tabular_classification/stabcls_c4d0e7",
+      "target": "mean_test_ce",
+      "budget": 8192,
+      "seed": 104,
+      "table": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/table_synthetic_tabular_classification.csv",
+      "report": "/cephfs/renzirui/projects/ArchitectureIQ-tabpfn/experiments/tabpfn_settings/artifacts/generated/report_synthetic_tabular_classification.json",
+      "n_rows_finite": 40,
+      "metrics": {
+        "train_mean": {
+          "n": 40,
+          "mae": 0.2448856768384576,
+          "rmse": 0.2647901831240999,
+          "spearman": NaN,
+          "pairwise_acc": 0.41410256410256413,
+          "y_true_mean": 0.28484926839979985,
+          "y_true_std": 0.2647901831240999
+        },
+        "ridge": {
+          "n": 40,
+          "mae": 0.1720315879164664,
+          "rmse": 0.20836984634439318,
+          "spearman": 0.7084427767354599,
+          "pairwise_acc": 0.735897435897436,
+          "y_true_mean": 0.28484926839979985,
+          "y_true_std": 0.2647901831240999
+        },
+        "hgb": {
+          "n": 40,
+          "mae": 0.24947356577225346,
+          "rmse": 0.27145028962009954,
+          "spearman": -0.31332082551594753,
+          "pairwise_acc": 0.3730769230769231,
+          "y_true_mean": 0.28484926839979985,
+          "y_true_std": 0.2647901831240999
+        },
+        "tabpfn": {
+          "n": 40,
+          "mae": 0.12566519210425517,
+          "rmse": 0.17800154258755865,
+          "spearman": 0.7146341463414635,
+          "pairwise_acc": 0.764102564102564,
+          "y_true_mean": 0.28484926839979985,
+          "y_true_std": 0.2647901831240999
+        }
+      }
+    }
+  ]
+}
