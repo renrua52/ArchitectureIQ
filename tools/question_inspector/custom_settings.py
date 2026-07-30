@@ -122,6 +122,24 @@ def build_model_spec(
             "num_heads": num_heads,
             "d_ff": d_ff,
         }
+    elif model_type == "gru_lm":
+        d_model = int(params["d_model"])
+        num_layers = int(params["num_layers"])
+        if min(d_model, num_layers) <= 0:
+            raise ValueError("GRU dimensions must be greater than zero.")
+        if "vocab_size" not in dataset_params or "context_length" not in dataset_params:
+            raise ValueError("The selected dataset is missing language-model dimensions.")
+        spec = {
+            "type": "gru_lm",
+            "vocab_size": int(dataset_params["vocab_size"]),
+            "context_length": int(dataset_params["context_length"]),
+            "d_model": d_model,
+            "num_layers": num_layers,
+        }
+        # Preserve legacy candidate IDs/specs when residuals are disabled by
+        # omitting the optional field; the backend treats missing as false.
+        if bool(params.get("layer_residual", False)):
+            spec["layer_residual"] = True
     else:
         raise ValueError(f"Unsupported architecture: {model_type}")
 
@@ -225,6 +243,14 @@ def form_values_from_candidate_spec(
             }
         )
 
+    elif model["type"] == "gru_lm":
+        values.update(
+            {
+                "gru_d_model": int(model["d_model"]),
+                "gru_layers": int(model["num_layers"]),
+                "gru_layer_residual": bool(model.get("layer_residual", False)),
+            }
+        )
     elif model["type"] == "kan":
         values.update(
             {

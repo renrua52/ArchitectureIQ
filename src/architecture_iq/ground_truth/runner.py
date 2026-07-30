@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import inspect
+import os
 import platform
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any, Callable
 
@@ -51,6 +53,35 @@ def _resolve_execution_device(candidate_spec: dict[str, Any], profile: Profile) 
             f"(torch={torch.__version__}, torch.version.cuda={torch.version.cuda!r})"
         )
     return torch.device(requested)
+def _seed_parallelism_config(
+    device: torch.device,
+    n_seeds: int,
+    progress_callback: ProgressCallback | None,
+) -> tuple[int, int | None]:
+    """Return opt-in CPU seed workers and their per-worker Torch threads."""
+    if device.type != "cpu" or progress_callback is not None:
+        return 1, None
+    raw_workers = os.environ.get("ARCHITECTURE_IQ_SEED_WORKERS")
+    if raw_workers is None:
+        return 1, None
+    try:
+        requested_workers = int(raw_workers)
+    except ValueError as exc:
+        raise ValueError("ARCHITECTURE_IQ_SEED_WORKERS must be a positive integer") from exc
+    if requested_workers <= 0:
+        raise ValueError("ARCHITECTURE_IQ_SEED_WORKERS must be a positive integer")
+    if requested_workers == 1:
+        return 1, None
+    raw_threads = os.environ.get("ARCHITECTURE_IQ_SEED_TORCH_THREADS", "1")
+    try:
+        torch_threads = int(raw_threads)
+    except ValueError as exc:
+        raise ValueError(
+            "ARCHITECTURE_IQ_SEED_TORCH_THREADS must be a positive integer"
+        ) from exc
+    if torch_threads <= 0:
+        raise ValueError("ARCHITECTURE_IQ_SEED_TORCH_THREADS must be a positive integer")
+    return min(requested_workers, n_seeds), torch_threads
 
 
 def run_single_seed(
@@ -110,6 +141,31 @@ def run_single_seed(
     if "final_test_accuracy" in result:
         seed_result["final_test_accuracy"] = float(result["final_test_accuracy"])
     return seed_result
+def _run_single_seed_cpu_worker(
+    payload: tuple[str, str, dict[str, Any], int, float, str, int],
+) -> dict[str, Any]:
+    """Run one CPU seed in an isolated process without writing artifacts."""
+    candidate_text, dataset_text, spec, seed, fail_threshold, selection_metric, torch_threads = payload
+    torch.set_num_threads(torch_threads)
+    from architecture_iq.registry import ensure_registries
+
+    ensure_registries()
+    candidate_path = Path(candidate_text)
+    dataset_path = Path(dataset_text)
+    family = get_dataset_family(spec["family"])
+    train_x, train_y, test_x, test_y = family.load_tensors(dataset_path)
+    return run_single_seed(
+        candidate_path,
+        spec,
+        train_x,
+        train_y,
+        test_x,
+        test_y,
+        seed,
+        fail_threshold,
+        selection_metric=selection_metric,
+        device=torch.device("cpu"),
+    )
 
 
 def run_ground_truth(
@@ -150,52 +206,73 @@ def run_ground_truth(
     n_seeds = profile.n_seeds
     base_seed = profile.base_seed
     seed_results: list[dict[str, Any]] = []
+    seed_workers, seed_torch_threads = _seed_parallelism_config(
+        device, n_seeds, progress_callback
+    )
 
     training_steps = int(spec["budget"]["training_steps"])
     total_samples_seen = int(spec["budget"]["total_samples_seen"])
-    for i in range(n_seeds):
-        seed_index = i + 1
-        seed = base_seed + i
-        base_event = {
-            "seed_index": seed_index,
-            "n_seeds": n_seeds,
-            "seed": seed,
-            "training_steps": training_steps,
-            "total_samples_seen": total_samples_seen,
-            "selection_metric": selection_metric,
-        }
-        _emit_progress(progress_callback, {"phase": "seed_started", **base_event})
+    if seed_workers > 1:
+        assert seed_torch_threads is not None
+        payloads = [
+            (
+                str(candidate_path),
+                str(dataset_path),
+                spec,
+                base_seed + i,
+                fail_threshold,
+                selection_metric,
+                seed_torch_threads,
+            )
+            for i in range(n_seeds)
+        ]
+        with ProcessPoolExecutor(max_workers=seed_workers) as executor:
+            # executor.map preserves input order for paired seed significance.
+            seed_results = list(executor.map(_run_single_seed_cpu_worker, payloads))
+    else:
+        for i in range(n_seeds):
+            seed_index = i + 1
+            seed = base_seed + i
+            base_event = {
+                "seed_index": seed_index,
+                "n_seeds": n_seeds,
+                "seed": seed,
+                "training_steps": training_steps,
+                "total_samples_seen": total_samples_seen,
+                "selection_metric": selection_metric,
+            }
+            _emit_progress(progress_callback, {"phase": "seed_started", **base_event})
 
-        def report_evaluation(
-            event: dict[str, Any],
-            *,
-            context: dict[str, Any] = base_event,
-        ) -> None:
-            _emit_progress(progress_callback, {"phase": "evaluation", **context, **event})
+            def report_evaluation(
+                event: dict[str, Any],
+                *,
+                context: dict[str, Any] = base_event,
+            ) -> None:
+                _emit_progress(progress_callback, {"phase": "evaluation", **context, **event})
 
-        seed_result = run_single_seed(
-            candidate_path,
-            spec,
-            train_x,
-            train_y,
-            test_x,
-            test_y,
-            seed,
-            fail_threshold,
-            selection_metric=selection_metric,
-            device=device,
-            progress_callback=report_evaluation,
-        )
-        seed_results.append(seed_result)
-        _emit_progress(
-            progress_callback,
-            {
-                "phase": "seed_finished",
-                **base_event,
-                "failed": bool(seed_result["failed"]),
-                "metric": float(seed_result[final_key]),
-            },
-        )
+            seed_result = run_single_seed(
+                candidate_path,
+                spec,
+                train_x,
+                train_y,
+                test_x,
+                test_y,
+                seed,
+                fail_threshold,
+                selection_metric=selection_metric,
+                device=device,
+                progress_callback=report_evaluation,
+            )
+            seed_results.append(seed_result)
+            _emit_progress(
+                progress_callback,
+                {
+                    "phase": "seed_finished",
+                    **base_event,
+                    "failed": bool(seed_result["failed"]),
+                    "metric": float(seed_result[final_key]),
+                },
+            )
     ok = [r for r in seed_results if not r["failed"]]
     failed_count = len(seed_results) - len(ok)
     finals = [r[final_key] for r in ok] or [float("inf")]
@@ -265,6 +342,8 @@ def run_ground_truth(
             "cuda_device_name": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
             "cuda_device_capability": list(torch.cuda.get_device_capability(device)) if device.type == "cuda" else None,
             "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+            "seed_workers": seed_workers,
+            "torch_threads_per_seed": seed_torch_threads or torch.get_num_threads(),
             "git_commit": git_commit_hash(ROOT),
         },
     }

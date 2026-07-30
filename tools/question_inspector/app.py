@@ -1477,6 +1477,57 @@ def _render_transformer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[
         "d_ff": d_ff,
     }
 
+def _render_gru_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    st.markdown("**Architecture parameters**")
+    d_model_col, layers_col = st.columns(2)
+    with d_model_col:
+        d_model = int(
+            st.number_input(
+                "Model width",
+                min_value=1,
+                max_value=1024,
+                step=8,
+                key=_ensure_setting_value(
+                    q,
+                    "gru_d_model",
+                    int(profile.gru_lm["d_model"][0]),
+                ),
+            )
+        )
+    with layers_col:
+        num_layers = int(
+            st.number_input(
+                "Layers",
+                min_value=1,
+                max_value=12,
+                step=1,
+                key=_ensure_setting_value(
+                    q,
+                    "gru_layers",
+                    int(profile.gru_lm["num_layers"][0]),
+                ),
+            )
+        )
+    residual_default = bool(profile.gru_lm.get("layer_residual", False))
+    layer_residual = st.checkbox(
+        "Layer residual connections",
+        key=_ensure_setting_value(q, "gru_layer_residual", residual_default),
+        help=(
+            "When enabled, each GRU layer adds its output to its input: "
+            "h = h + GRU_layer(h)."
+        ),
+    )
+    if layer_residual:
+        st.caption("Enabled: after each GRU layer, h = h + GRU_layer(h).")
+    else:
+        st.caption("Disabled (legacy stacked GRU behavior).")
+    return {
+        "d_model": d_model,
+        "num_layers": num_layers,
+        "layer_residual": bool(layer_residual),
+    }
+
+
 def _kan_defaults(profile: Any) -> dict[str, Any]:
     """Resolve editable KAN defaults from the active profile, not a fixed pool."""
     config = profile.kan
@@ -1826,6 +1877,8 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
             model_params = _render_kan_setting_fields(profile, q)
         elif model_type == "transformer_lm":
             model_params = _render_transformer_setting_fields(profile, q)
+        elif model_type == "gru_lm":
+            model_params = _render_gru_setting_fields(profile, q)
         else:
             st.error(f"Unsupported architecture in this profile: {model_type}")
             return

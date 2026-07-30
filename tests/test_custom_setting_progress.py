@@ -167,3 +167,21 @@ def test_run_custom_setting_forwards_progress_callback(
 
     assert seen_callbacks == [events.append]
     assert events == [{"phase": "seed_started", "seed_index": 0}]
+
+
+def test_seed_parallelism_config_is_opt_in_cpu_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ARCHITECTURE_IQ_SEED_WORKERS", raising=False)
+    monkeypatch.delenv("ARCHITECTURE_IQ_SEED_TORCH_THREADS", raising=False)
+    assert runner._seed_parallelism_config(torch.device("cpu"), 10, None) == (1, None)
+
+    monkeypatch.setenv("ARCHITECTURE_IQ_SEED_WORKERS", "8")
+    monkeypatch.setenv("ARCHITECTURE_IQ_SEED_TORCH_THREADS", "1")
+    assert runner._seed_parallelism_config(torch.device("cpu"), 10, None) == (8, 1)
+    assert runner._seed_parallelism_config(torch.device("cuda"), 10, None) == (1, None)
+    assert runner._seed_parallelism_config(torch.device("cpu"), 10, lambda _: None) == (1, None)
+
+    monkeypatch.setenv("ARCHITECTURE_IQ_SEED_WORKERS", "0")
+    with pytest.raises(ValueError, match="positive integer"):
+        runner._seed_parallelism_config(torch.device("cpu"), 10, None)

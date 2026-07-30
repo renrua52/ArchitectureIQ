@@ -1,0 +1,99 @@
+profile: v2.5-gru-residual-architecture-pilot
+schema_version: "1.0"
+# Explicit bridge for reusing unchanged, audited Transformer trajectories from v2.4.
+# Dataset, optimizer, loss, budget, and device remain independently audited per question.
+cross_profile_reuse:
+  enabled: true
+  transformer_allowlist:
+    - source_profile: v2.4-gru-architecture-pilot
+      source_profile_hash: f0893f8ab4ec7cf0
+      model_types: [transformer_lm]
+      note: >-
+        Only unchanged Transformer trajectories are eligible; dataset, optimizer,
+        loss, budget, and device remain subject to per-question audit.
+
+# Formal architecture-only GRU/Transformer pilot.  Keep optimizer, loss,
+# batch size, budget, and execution device invariant within every question.
+pools:
+  dataset_families: [bigram_lm]
+  model_types: [transformer_lm, gru_lm]
+  optimizers: [Adam]
+  losses:
+    bigram_lm: [cross_entropy]
+  question_types: [architecture_only]
+  num_choices: 2
+
+dataset:
+  family: bigram_lm
+  vocab_size: 32
+  context_length: 16
+  train_size: 800
+  test_size: 200
+  alpha: 1.0
+  layout: lm
+  fail_threshold: 4.0
+
+dataset_configs:
+  bigram_lm:
+    vocab_size: 32
+    context_length: 16
+    train_size: 800
+    test_size: 200
+    alpha: 1.0
+    layout: lm
+    fail_threshold: 4.0
+
+# Required by Profile.load; unused by this profile's model pool.
+mlp: {}
+
+# Transformer pool is unchanged from the preceding GRU smoke profile.
+transformer_lm:
+  d_model: [32, 64, 128]
+  num_layers: [1, 2, 3]
+  num_heads: [2, 4]
+  d_ff: [64, 128, 256]
+
+# 13 widths × 8 depths = 104 distinct causal GRU model specifications.
+gru_lm:
+  d_model: [16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96]
+  num_layers: [1, 2, 3, 4, 5, 6, 7, 8]
+  layer_residual: true
+
+# Fixed, conventional Adam training protocol for architecture-only questions.
+optimizer_grids:
+  lr: [1.0e-3]
+  weight_decay: [0.0]
+  sgd_momentum: [0.0]
+  adam_betas: [0.9, 0.999]
+  batch_size: [32]
+
+loss_grids:
+  lambda: [1.0e-4]
+
+budgets:
+  total_samples_seen: [1024, 2048, 5120, 10240, 20480, 40960]
+
+training_defaults: {}
+
+ground_truth:
+  n_seeds: 10
+  base_seed: 0
+  fail_threshold: 2.0
+  max_failed_seeds: 3
+
+significance:
+  gap_min: 0
+  win_rate_min: 0.7
+  use_non_overlap: true
+
+question_generation:
+  max_attempts: 20
+  targeted_pool_size: 32
+
+prompts:
+  use_llm_paraphrase: false
+  template_version: "1.0"
+
+model_gates:
+  bigram_lm:
+    additional_model_types: [gru_lm]

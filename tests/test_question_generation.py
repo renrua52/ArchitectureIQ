@@ -10,8 +10,11 @@ from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries
 from architecture_iq.significance.validator import SignificanceResult
 from architecture_iq.questions.generator import (
+    _pick_balanced_unique_pairs,
     build_question_record,
+    _pick_bounded_reuse_pairs,
     _pick_candidate_disjoint_subsets,
+    _pick_unique_subsets,
     eligible_candidate_paths,
     find_significant_subsets,
     select_significant_candidates,
@@ -301,3 +304,74 @@ def test_candidate_disjoint_picker_large_pool_is_bounded_and_disjoint() -> None:
     assert len(picked) == 30
     flattened = [candidate for subset in picked for candidate in subset]
     assert len(flattened) == len(set(flattened))
+
+def test_unique_pair_picker_allows_candidate_reuse() -> None:
+    a, b, c = (Path(name) for name in ("a", "b", "c"))
+    picked = _pick_unique_subsets([[a, b], [a, c], [a, b]], 2)
+
+    assert picked == [[a, b], [a, c]]
+    assert sum(path == a for subset in picked for path in subset) == 2
+
+
+def test_balanced_unique_pair_picker_caps_winner_type(monkeypatch) -> None:
+    import architecture_iq.questions.generator as question_generator
+
+    profile = load_profile("v1")
+    pairs = [
+        [Path("gru_0"), Path("trans_0")],
+        [Path("trans_1"), Path("gru_1")],
+        [Path("gru_2"), Path("trans_2")],
+        [Path("trans_3"), Path("gru_3")],
+    ]
+    model_types = {
+        path: ("gru_lm" if path.name.startswith("gru") else "transformer_lm")
+        for pair in pairs for path in pair
+    }
+    monkeypatch.setattr(question_generator, "load_summary", lambda path: {})
+    monkeypatch.setattr(
+        question_generator,
+        "validate_significance",
+        lambda summaries, profile, metric: SignificanceResult(True, 0.0, 1.0, metric, 0),
+    )
+
+    selected = _pick_balanced_unique_pairs(
+        pairs,
+        4,
+        profile=profile,
+        selection_metric="test_mse",
+        model_types=model_types,
+        max_winner_fraction=0.5,
+    )
+    winners = [model_types[pair[0]] for pair in selected]
+    assert len(selected) == 4
+    assert len({frozenset(pair) for pair in selected}) == 4
+    assert winners.count("gru_lm") == 2
+    assert winners.count("transformer_lm") == 2
+
+def test_bounded_reuse_pair_picker_enforces_candidate_capacity() -> None:
+    left_a, left_b = Path("left_a"), Path("left_b")
+    right_a, right_b = Path("right_a"), Path("right_b")
+    subsets = [
+        [left_a, right_a],
+        [left_a, right_b],
+        [left_b, right_a],
+        [left_b, right_b],
+    ]
+    model_types = {
+        left_a: "gru_lm",
+        left_b: "gru_lm",
+        right_a: "transformer_lm",
+        right_b: "transformer_lm",
+    }
+
+    picked = _pick_bounded_reuse_pairs(
+        subsets,
+        3,
+        max_candidate_uses=2,
+        model_types=model_types,
+        required_model_types=frozenset({"gru_lm", "transformer_lm"}),
+    )
+
+    assert len(picked) == 3
+    assert len({frozenset(pair) for pair in picked}) == 3
+    assert max(sum(path in pair for pair in picked) for path in model_types) <= 2

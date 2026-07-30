@@ -11,6 +11,14 @@ from architecture_iq.profile import Profile
 from architecture_iq.util import read_json, short_hash, write_json
 
 RUN_MANIFEST = "run.json"
+DEFAULT_CANDIDATE_REUSE_POLICY = "globally_disjoint_within_run"
+CANDIDATE_REUSE_POLICIES = frozenset(
+    {
+        DEFAULT_CANDIDATE_REUSE_POLICY,
+        "blind_pair_unique",
+        "sequential_bounded_reuse",
+    }
+)
 
 
 def questions_base_dir(dataset_path: Path) -> Path:
@@ -55,7 +63,17 @@ def write_run_manifest(
     num_choices: int,
     seed: int,
     question_ids: list[str],
+    candidate_reuse_policy: str = DEFAULT_CANDIDATE_REUSE_POLICY,
+    run_purpose: str | None = None,
+    canonical_blind_evaluation: bool | None = None,
+    max_candidate_uses: int | None = None,
+    pair_reuse_policy: str | None = None,
+    required_model_types: list[str] | None = None,
+    winner_type_max_fraction: float | None = None,
+    candidate_profile_provenance: list[dict[str, Any]] | None = None,
 ) -> None:
+    if candidate_reuse_policy not in CANDIDATE_REUSE_POLICIES:
+        raise ValueError(f"Unknown candidate reuse policy: {candidate_reuse_policy}")
     data_root = DATA_DIR.resolve()
     manifest = {
         "schema_version": profile.schema_version,
@@ -67,13 +85,44 @@ def write_run_manifest(
         ],
         "num_questions": num_questions,
         "num_choices": num_choices,
-        "candidate_reuse_policy": "globally_disjoint_within_run",
+        "candidate_reuse_policy": candidate_reuse_policy,
         "question_ids": question_ids,
         "seed": seed,
         "profile": profile.name,
         "profile_hash": profile.profile_hash,
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
+    if candidate_reuse_policy != DEFAULT_CANDIDATE_REUSE_POLICY:
+        if run_purpose not in {"review_blind_pool", "review_practice_pool"}:
+            raise ValueError("Non-canonical runs require a recognized run_purpose")
+        if canonical_blind_evaluation is not False:
+            raise ValueError("Non-canonical reuse runs must declare canonical_blind_evaluation=false")
+        if pair_reuse_policy != "unique":
+            raise ValueError("Non-canonical reuse runs must declare pair_reuse_policy=unique")
+        if not required_model_types or len(set(required_model_types)) != num_choices:
+            raise ValueError("Non-canonical reuse runs require one distinct model type per choice")
+        if candidate_reuse_policy == "sequential_bounded_reuse":
+            if not isinstance(max_candidate_uses, int) or isinstance(max_candidate_uses, bool) or max_candidate_uses < 1:
+                raise ValueError("sequential_bounded_reuse requires max_candidate_uses >= 1")
+        elif max_candidate_uses is not None:
+            raise ValueError("blind_pair_unique must not declare max_candidate_uses")
+        manifest.update(
+            {
+                "run_purpose": run_purpose,
+                "canonical_blind_evaluation": False,
+                "candidate_reuse_allowed": True,
+                "pair_reuse_policy": "unique",
+                "required_model_types": sorted(required_model_types),
+            }
+        )
+        if max_candidate_uses is not None:
+            manifest["max_candidate_uses"] = max_candidate_uses
+    if winner_type_max_fraction is not None:
+        if not isinstance(winner_type_max_fraction, (int, float)) or isinstance(winner_type_max_fraction, bool) or not 0 < float(winner_type_max_fraction) <= 1:
+            raise ValueError("winner_type_max_fraction must be in (0, 1]")
+        manifest["winner_type_max_fraction"] = float(winner_type_max_fraction)
+    if candidate_profile_provenance is not None:
+        manifest["candidate_profile_provenance"] = candidate_profile_provenance
     write_json(run_path / RUN_MANIFEST, manifest)
 
 

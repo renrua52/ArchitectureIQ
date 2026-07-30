@@ -329,6 +329,59 @@ def test_transformer_setting_validates_attention_heads() -> None:
         )
 
 
+def test_gru_custom_setting_round_trips_inherited_fields() -> None:
+    dataset_params = {"vocab_size": 32, "context_length": 16}
+    model = build_model_spec(
+        "gru_lm",
+        {"d_model": 64, "num_layers": 2},
+        dataset_params,
+    )
+    assert "layer_residual" not in model
+    values = form_values_from_candidate_spec(
+        {
+            "budget": {"total_samples_seen": 1024, "batch_size": 32},
+            "model": model,
+            "optimizer": {"type": "Adam", "lr": 1e-3, "weight_decay": 0.0},
+            "loss": {"loss_id": "cross_entropy"},
+        },
+        source_letter="A",
+    )
+    rebuilt = build_model_spec(
+        values["model_type"],
+        {"d_model": values["gru_d_model"], "num_layers": values["gru_layers"]},
+        dataset_params,
+    )
+    assert rebuilt == model
+
+def test_gru_custom_setting_round_trips_residual_flag() -> None:
+    dataset_params = {"vocab_size": 32, "context_length": 16}
+    model = build_model_spec(
+        "gru_lm",
+        {"d_model": 64, "num_layers": 2, "layer_residual": True},
+        dataset_params,
+    )
+    values = form_values_from_candidate_spec(
+        {
+            "budget": {"total_samples_seen": 1024, "batch_size": 32},
+            "model": model,
+            "optimizer": {"type": "Adam", "lr": 1e-3, "weight_decay": 0.0},
+            "loss": {"loss_id": "cross_entropy"},
+        },
+        source_letter="A",
+    )
+    assert values["gru_layer_residual"] is True
+    rebuilt = build_model_spec(
+        values["model_type"],
+        {
+            "d_model": values["gru_d_model"],
+            "num_layers": values["gru_layers"],
+            "layer_residual": values["gru_layer_residual"],
+        },
+        dataset_params,
+    )
+    assert rebuilt == model
+
+
 def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import custom_settings
     import numpy as np

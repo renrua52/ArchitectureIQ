@@ -69,6 +69,8 @@ def format_model_nl(model: dict) -> str:
         return format_kan_nl(model)
     if model_type == "transformer_lm":
         return format_transformer_lm_nl(model)
+    if model_type == "gru_lm":
+        return format_gru_lm_nl(model)
     return f"- Type: {model_type}"
 
 
@@ -95,6 +97,27 @@ def format_transformer_lm_nl(model: dict) -> str:
             f"- num_layers: {model['num_layers']}",
             f"- num_heads: {model['num_heads']}",
             f"- d_ff: {d_ff}",
+        ]
+    )
+
+
+def format_gru_lm_nl(model: dict) -> str:
+    layer_residual = bool(model.get("layer_residual", False))
+    residual_line = (
+        "- Layer residual connections: enabled; after each GRU layer, "
+        "h = h + GRU_layer(h)."
+        if layer_residual
+        else "- Layer residual connections: disabled"
+    )
+    return "\n".join(
+        [
+            "- Type: causal unidirectional GRU LM",
+            f"- Vocab size: {model['vocab_size']}",
+            f"- Context length: {model['context_length']}",
+            f"- d_model (embedding and hidden size): {model['d_model']}",
+            f"- num_layers: {model['num_layers']}",
+            residual_line,
+            "- No attention, position embedding, or dropout",
         ]
     )
 
