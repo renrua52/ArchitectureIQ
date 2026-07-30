@@ -176,6 +176,7 @@ def test_run_audit_accepts_blind_pair_unique_and_enforces_sequential_bound(tmp_p
             "candidate_reuse_allowed": True,
             "pair_reuse_policy": "unique",
             "required_model_types": ["gru_lm", "transformer_lm"],
+            "max_winner_model_type_fraction": 1.0,
         },
     )
     for question_id, transformer_id, gap in (
@@ -210,6 +211,9 @@ def test_run_audit_accepts_blind_pair_unique_and_enforces_sequential_bound(tmp_p
     assert blind_report["valid"] is True
     assert blind_report["evaluation_eligibility"] == "review_only"
     assert blind_report["summary"]["candidate_use_histogram"]["c_gru"] == 2
+    assert blind_report["summary"]["winner_type_max_fraction"] == 1.0
+    assert blind_report["summary"]["winner_model_type_histogram"] == {"gru_lm": 2}
+    assert blind_report["run_checks"]["winner_type_max_fraction"]["passed"] is True
     assert "candidate_use_bound" not in blind_report["run_checks"]
 
     manifest_path = run / "run.json"

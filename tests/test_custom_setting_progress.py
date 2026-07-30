@@ -185,3 +185,76 @@ def test_seed_parallelism_config_is_opt_in_cpu_only(
     monkeypatch.setenv("ARCHITECTURE_IQ_SEED_WORKERS", "0")
     with pytest.raises(ValueError, match="positive integer"):
         runner._seed_parallelism_config(torch.device("cpu"), 10, None)
+
+def test_inspector_progress_redraws_curve_once_per_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Evaluation updates stay in memory; each finished seed redraws once."""
+    import sys
+
+    tools_dir = Path(__file__).resolve().parents[1] / "tools" / "question_inspector"
+    if str(tools_dir) not in sys.path:
+        sys.path.insert(0, str(tools_dir))
+    import app as inspector_app
+
+    class Widget:
+        def __init__(self) -> None:
+            self.progress_updates: list[int] = []
+            self.pyplot_calls: list[Any] = []
+
+        def progress(self, value: int) -> None:
+            self.progress_updates.append(value)
+
+        def caption(self, _text: str) -> None:
+            return None
+
+        def pyplot(self, figure: Any, **_kwargs: Any) -> None:
+            self.pyplot_calls.append(figure)
+
+    widget = Widget()
+    monkeypatch.setattr(inspector_app.st, "progress", lambda _initial: widget)
+    monkeypatch.setattr(inspector_app.st, "empty", lambda: widget)
+
+    clock = [0.0]
+
+    def monotonic() -> float:
+        value = clock[0]
+        clock[0] += 1.0
+        return value
+
+    monkeypatch.setattr(inspector_app.time, "monotonic", monotonic)
+    callback = inspector_app._custom_setting_progress_callback()
+
+    def event(
+        phase: str,
+        seed_index: int,
+        step: int = 0,
+        samples_seen: int = 0,
+    ) -> dict[str, Any]:
+        return {
+            "phase": phase,
+            "seed_index": seed_index,
+            "n_seeds": 2,
+            "training_steps": 2,
+            "step": step,
+            "samples_seen": samples_seen,
+            "total_samples_seen": 4,
+            "metric": 0.5 / max(1, step),
+            "selection_metric": "test_mse",
+        }
+
+    callback(event("seed_started", 1))
+    callback(event("evaluation", 1, step=1, samples_seen=2))
+    callback(event("evaluation", 1, step=2, samples_seen=4))
+    assert len(widget.pyplot_calls) == 0
+
+    callback(event("seed_finished", 1, step=2, samples_seen=4))
+    assert len(widget.pyplot_calls) == 1
+
+    callback(event("seed_started", 2))
+    callback(event("evaluation", 2, step=1, samples_seen=2))
+    callback(event("evaluation", 2, step=2, samples_seen=4))
+    assert len(widget.pyplot_calls) == 1
+
+    callback(event("seed_finished", 2, step=2, samples_seen=4))
+    assert len(widget.pyplot_calls) == 2

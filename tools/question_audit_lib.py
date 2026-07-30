@@ -432,18 +432,40 @@ def audit_question_run(run_path: Path, profile: Profile, *, data_root: Path = DA
         reports.append({"question_id": question.get("question_id", question_dir.name), "question_dir": str(question_dir), "status": status, "checks": checks, "reasons": reasons})
 
     candidate_uses = Counter(all_candidate_ids)
-    raw_fraction = manifest.get("winner_type_max_fraction")
+    canonical_fraction = manifest.get("winner_type_max_fraction")
+    legacy_fraction = manifest.get("max_winner_model_type_fraction")
+    if canonical_fraction is not None and legacy_fraction is not None:
+        _check(
+            run_checks,
+            "winner_type_fraction_alias",
+            canonical_fraction == legacy_fraction,
+            "canonical and legacy winner type caps must agree",
+        )
+    raw_fraction = (
+        canonical_fraction if canonical_fraction is not None else legacy_fraction
+    )
     if raw_fraction is not None:
-        valid_fraction = isinstance(raw_fraction, (int, float)) and not isinstance(raw_fraction, bool) and 0 < float(raw_fraction) <= 1
-        _check(run_checks, "winner_type_max_fraction", valid_fraction, "winner type cap must be in (0, 1]")
+        valid_fraction = (
+            policy == "blind_pair_unique"
+            and isinstance(raw_fraction, (int, float))
+            and not isinstance(raw_fraction, bool)
+            and 0.5 <= float(raw_fraction) <= 1.0
+        )
+        _check(
+            run_checks,
+            "winner_type_max_fraction",
+            valid_fraction,
+            "winner type cap must be in [0.5, 1.0] and require blind_pair_unique",
+        )
         if valid_fraction:
-            max_wins = math.floor(len(question_dirs) * float(raw_fraction))
+            max_wins = max(1, math.floor(len(question_dirs) * float(raw_fraction)))
             counts = Counter(winner_model_types)
             _check(
                 run_checks,
                 "winner_type_balance",
-                max(counts.values(), default=0) <= max_wins,
-                f"one model type wins at most {max_wins} questions",
+                len(winner_model_types) == len(question_dirs)
+                and max(counts.values(), default=0) <= max_wins,
+                f"every question has a winner and one model type wins at most {max_wins} questions",
             )
     if policy == DEFAULT_CANDIDATE_REUSE_POLICY:
         _check(run_checks, "candidate_disjoint", len(all_candidate_ids) == len(set(all_candidate_ids)), "candidate_id may not be reused within run")
@@ -482,6 +504,10 @@ def audit_question_run(run_path: Path, profile: Profile, *, data_root: Path = DA
             "candidate_use_histogram": dict(sorted(candidate_uses.items())),
             "max_observed_candidate_uses": max(candidate_uses.values(), default=0),
             "unique_pair_count": len(set(pair_keys)),
+            "winner_model_type_histogram": dict(
+                sorted(Counter(winner_model_types).items())
+            ),
+            "winner_type_max_fraction": raw_fraction,
         },
         "valid": valid,
     }

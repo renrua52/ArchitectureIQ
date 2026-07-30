@@ -91,6 +91,7 @@ def test_gru_lm_residual_nl_parity_output() -> None:
     [
         ("smooth_additive", [0, 2], [], [-1.0, 0.75], 0.0),
         ("sparse_interaction", [0, 2, 3], [[0, 2], [2, 3]], [-1.0, 0.75], 0.0),
+        ("xor", [0, 2], [[0, 2]], [-1.0], 0.0),
         ("piecewise_boundary", [0, 2], [], [-1.0, 0.75, 0.5], -0.25),
     ],
 )
@@ -119,10 +120,40 @@ def test_classification_rule_card_parity(
     assert "Label rule" in text
     assert "Bayes decision boundary" in text
     assert "def " not in text
+    if rule_family == "xor":
+        assert "s(x) = -x_0·x_2" in text
+        assert "nominal only" in text
+        assert "need not follow" in text
+
+
+def test_classification_dataset_protocol_uses_family_dispatch_without_rule_family() -> None:
+    params = {
+        "input_dim": 2,
+        "train_size": 256,
+        "test_size": 256,
+    }
+    package_text = pkg.format_dataset_protocol(
+        params,
+        family="synthetic_tabular_classification",
+        device="cpu",
+    )
+    inspector_text = insp.format_dataset_protocol(
+        params,
+        family="synthetic_tabular_classification",
+        device="cpu",
+    )
+
+    assert package_text == inspector_text
+    assert "binary classification" in package_text
+    assert "test cross-entropy" in package_text
 
 
 def test_ranking_protocol() -> None:
-    text = pkg.format_ranking_protocol(n_seeds=10, base_seed=0, selection_metric="test_mse")
+    text = pkg.format_ranking_protocol(
+        n_seeds=10,
+        base_seed=0,
+        selection_metric="test_mse",
+    )
     assert "seeds" in text
     assert "0" in text and "9" in text
     assert "mean" in text

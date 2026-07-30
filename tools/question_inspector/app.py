@@ -60,6 +60,7 @@ from custom_settings import (  # noqa: E402
     run_custom_setting,
 )
 from expression_latex import expression_to_latex  # noqa: E402
+from architecture_iq.models.kan import BASE_ACTIVATIONS  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
 
 st.set_page_config(
@@ -1564,6 +1565,14 @@ def _kan_defaults(profile: Any) -> dict[str, Any]:
     }
 
 
+def _kan_activation_options(options: list[str], current: str) -> list[str]:
+    """Keep a valid inherited activation editable under a narrower profile."""
+    result = list(options)
+    if current in BASE_ACTIVATIONS and current not in result:
+        result.append(current)
+    return result
+
+
 def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
     """Render all KAN fields supported by ``build_model_spec``."""
     defaults = _kan_defaults(profile)
@@ -1586,8 +1595,18 @@ def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
         grid_high = float(st.number_input("Grid upper bound", step=0.1, format="%.6g",
             key=_ensure_setting_value(q, "kan_grid_high", defaults["grid_high"])))
     with activation_col:
-        base_activation = st.selectbox("Base activation", defaults["base_activations"],
-            key=_ensure_setting_value(q, "kan_base_activation", defaults["base_activations"][0]))
+        activation_key = _ensure_setting_value(
+            q, "kan_base_activation", defaults["base_activations"][0]
+        )
+        current_activation = str(st.session_state[activation_key])
+        activation_options = _kan_activation_options(
+            defaults["base_activations"], current_activation
+        )
+        if current_activation not in activation_options:
+            st.session_state[activation_key] = activation_options[0]
+        base_activation = st.selectbox(
+            "Base activation", activation_options, key=activation_key
+        )
     return {"variant": variant, **values, "grid_range": [grid_low, grid_high], "base_activation": base_activation}
 
 
@@ -1725,25 +1744,27 @@ def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
     status = st.empty()
     chart = st.empty()
     histories: dict[int, tuple[list[int], list[float]]] = {}
-    last_chart_at = 0.0
+    completed_seeds: set[int] = set()
 
-    def render_chart(metric: str) -> None:
+    def render_chart(metric: str, n_seeds: int) -> None:
         fig, ax = plt.subplots(figsize=(7.2, 2.9))
         for seed_index, (samples, values) in sorted(histories.items()):
-            if samples:
+            if seed_index in completed_seeds and samples:
                 ax.plot(samples, values, linewidth=1.5, label=f"seed {seed_index}")
         ax.set_xlabel("Samples seen")
         ax.set_ylabel(_metric_display_name(metric))
-        ax.set_title("Live custom-setting learning curve")
+        ax.set_title(
+            "Custom-setting learning curves "
+            f"(completed seeds: {len(completed_seeds)} / {n_seeds})"
+        )
         ax.grid(True, alpha=0.25)
-        if len(histories) <= 8:
+        if len(completed_seeds) <= 8:
             ax.legend(loc="best", fontsize="small")
         fig.tight_layout()
         chart.pyplot(fig, clear_figure=True)
         plt.close(fig)
 
     def callback(event: dict[str, Any]) -> None:
-        nonlocal last_chart_at
         phase = str(event.get("phase", ""))
         seed_index = int(event.get("seed_index", 1))
         n_seeds = max(1, int(event.get("n_seeds", 1)))
@@ -1780,15 +1801,14 @@ def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
                 f"latest {_metric_display_name(metric)} {value:.6g} · "
                 f"elapsed {_format_elapsed(elapsed)}{eta_text}"
             )
-            now = time.monotonic()
-            if now - last_chart_at >= 0.12 or fraction >= 1.0:
-                render_chart(metric)
-                last_chart_at = now
             return
 
         if phase == "seed_finished":
+            completed_seeds.add(seed_index)
+            render_chart(metric, n_seeds)
             status.caption(
                 f"Finished seed {seed_index} / {n_seeds} · "
+                f"updated completed-seed curves · "
                 f"elapsed {_format_elapsed(elapsed)}{eta_text}"
             )
 
@@ -2227,6 +2247,9 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
             if isinstance(pair, list) and len(pair) == 2
         ]
         return rf"s(\mathbf{{x}}) = {_signed_latex_sum(terms)}"
+    if family == "xor" and len(features) >= 2:
+        left, right = features[:2]
+        return rf"s(\mathbf{{x}}) = -x_{{{left}}} \cdot x_{{{right}}}"
     if family == "piecewise_boundary" and len(features) >= 2 and len(weights) >= 3:
         primary, secondary = features[:2]
         below_weight, above_weight, offset_weight = weights[:3]

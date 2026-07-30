@@ -71,10 +71,11 @@ def write_run_manifest(
     required_model_types: list[str] | None = None,
     winner_type_max_fraction: float | None = None,
     candidate_profile_provenance: list[dict[str, Any]] | None = None,
+    artifact_root: Path | None = None,
 ) -> None:
     if candidate_reuse_policy not in CANDIDATE_REUSE_POLICIES:
         raise ValueError(f"Unknown candidate reuse policy: {candidate_reuse_policy}")
-    data_root = DATA_DIR.resolve()
+    data_root = (artifact_root or DATA_DIR).resolve()
     manifest = {
         "schema_version": profile.schema_version,
         "run_id": run_name,
@@ -118,8 +119,14 @@ def write_run_manifest(
         if max_candidate_uses is not None:
             manifest["max_candidate_uses"] = max_candidate_uses
     if winner_type_max_fraction is not None:
-        if not isinstance(winner_type_max_fraction, (int, float)) or isinstance(winner_type_max_fraction, bool) or not 0 < float(winner_type_max_fraction) <= 1:
-            raise ValueError("winner_type_max_fraction must be in (0, 1]")
+        if candidate_reuse_policy != "blind_pair_unique":
+            raise ValueError("winner-type caps require blind_pair_unique")
+        if (
+            not isinstance(winner_type_max_fraction, (int, float))
+            or isinstance(winner_type_max_fraction, bool)
+            or not 0.5 <= float(winner_type_max_fraction) <= 1.0
+        ):
+            raise ValueError("winner_type_max_fraction must be in [0.5, 1.0]")
         manifest["winner_type_max_fraction"] = float(winner_type_max_fraction)
     if candidate_profile_provenance is not None:
         manifest["candidate_profile_provenance"] = candidate_profile_provenance

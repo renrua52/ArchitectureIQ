@@ -193,8 +193,8 @@ def _pick_balanced_unique_pairs(
     """
     if num_questions <= 0:
         return []
-    if not 0 < float(max_winner_fraction) <= 1:
-        raise ValueError("max_winner_fraction must be in (0, 1]")
+    if not 0.5 <= float(max_winner_fraction) <= 1:
+        raise ValueError("max_winner_fraction must be in [0.5, 1]")
     unique = _unique_subsets(subsets)
     buckets: dict[str, list[list[Path]]] = {}
     for subset in unique:
@@ -437,6 +437,7 @@ def build_question_record(
     candidate_paths: list[Path],
     candidate_set_paths: list[Path],
     rng: random.Random,
+    artifact_root: Path | None = None,
 ) -> dict[str, Any]:
     summaries = [load_summary(p) for p in candidate_paths]
     specs = [read_json(p / "candidate_spec.json") for p in candidate_paths]
@@ -477,7 +478,7 @@ def build_question_record(
     letters = _letters(len(ordered_paths))
     choices = []
     correct_letter = "A"
-    data_root = DATA_DIR.resolve()
+    data_root = (artifact_root or DATA_DIR).resolve()
     for letter, path in zip(letters, ordered_paths):
         path = path.resolve()
         spec = read_json(path / "candidate_spec.json")
@@ -540,6 +541,7 @@ def _write_question(
     run_path: Path,
     run_name: str,
     rng: random.Random,
+    artifact_root: Path | None = None,
 ) -> tuple[dict[str, Any], Path]:
     record = build_question_record(
         profile,
@@ -548,8 +550,9 @@ def _write_question(
         candidate_paths=candidate_paths,
         candidate_set_paths=candidate_set_paths,
         rng=rng,
+        artifact_root=artifact_root,
     )
-    data_root = DATA_DIR.resolve()
+    data_root = (artifact_root or DATA_DIR).resolve()
     record["question_run_id"] = run_name
     record["question_run_path"] = str(run_path.resolve().relative_to(data_root))
 
@@ -573,6 +576,7 @@ def generate_questions(
     candidate_reuse_policy: str = DEFAULT_CANDIDATE_REUSE_POLICY,
     max_candidate_uses: int | None = None,
     winner_type_max_fraction: float | None = None,
+    artifact_root: Path | None = None,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
@@ -602,6 +606,16 @@ def generate_questions(
                 raise ValueError("sequential_bounded_reuse requires max_candidate_uses >= 1")
         elif max_candidate_uses is not None:
             raise ValueError("blind_pair_unique does not use max_candidate_uses")
+        if winner_type_max_fraction is not None and candidate_reuse_policy != "blind_pair_unique":
+            raise ValueError("winner-type caps are only supported for blind_pair_unique")
+    elif winner_type_max_fraction is not None:
+        raise ValueError("winner-type caps require blind_pair_unique")
+    if winner_type_max_fraction is not None and (
+        not isinstance(winner_type_max_fraction, (int, float))
+        or isinstance(winner_type_max_fraction, bool)
+        or not 0.5 <= float(winner_type_max_fraction) <= 1.0
+    ):
+        raise ValueError("winner_type_max_fraction must be in [0.5, 1.0]")
 
     subsets = find_significant_subsets(
         pool,
@@ -691,6 +705,7 @@ def generate_questions(
                 run_path=run_path,
                 run_name=run_name,
                 rng=rng,
+                artifact_root=artifact_root,
             )
         )
 
@@ -746,5 +761,6 @@ def generate_questions(
         ),
         winner_type_max_fraction=winner_type_max_fraction,
         candidate_profile_provenance=candidate_profile_provenance,
+        artifact_root=artifact_root,
     )
     return run_path, results
