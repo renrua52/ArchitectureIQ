@@ -60,6 +60,7 @@ from custom_settings import (  # noqa: E402
     run_custom_setting,
 )
 from expression_latex import expression_to_latex  # noqa: E402
+from architecture_iq.models.kan import BASE_ACTIVATIONS  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
 
 st.set_page_config(
@@ -1513,6 +1514,14 @@ def _kan_defaults(profile: Any) -> dict[str, Any]:
     }
 
 
+def _kan_activation_options(options: list[str], current: str) -> list[str]:
+    """Keep a valid inherited activation editable under a narrower profile."""
+    result = list(options)
+    if current in BASE_ACTIVATIONS and current not in result:
+        result.append(current)
+    return result
+
+
 def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
     """Render all KAN fields supported by ``build_model_spec``."""
     defaults = _kan_defaults(profile)
@@ -1535,8 +1544,18 @@ def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
         grid_high = float(st.number_input("Grid upper bound", step=0.1, format="%.6g",
             key=_ensure_setting_value(q, "kan_grid_high", defaults["grid_high"])))
     with activation_col:
-        base_activation = st.selectbox("Base activation", defaults["base_activations"],
-            key=_ensure_setting_value(q, "kan_base_activation", defaults["base_activations"][0]))
+        activation_key = _ensure_setting_value(
+            q, "kan_base_activation", defaults["base_activations"][0]
+        )
+        current_activation = str(st.session_state[activation_key])
+        activation_options = _kan_activation_options(
+            defaults["base_activations"], current_activation
+        )
+        if current_activation not in activation_options:
+            st.session_state[activation_key] = activation_options[0]
+        base_activation = st.selectbox(
+            "Base activation", activation_options, key=activation_key
+        )
     return {"variant": variant, **values, "grid_range": [grid_low, grid_high], "base_activation": base_activation}
 
 

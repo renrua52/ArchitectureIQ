@@ -718,6 +718,19 @@ def test_kan_custom_setting_defaults_include_profile_archetype_activations() -> 
         set(defaults["base_activations"])
     )
 
+
+def test_kan_activation_options_include_valid_inherited_value() -> None:
+    """A valid inherited candidate remains selectable under a narrow profile."""
+    options = inspector_app._kan_activation_options(["silu"], "tanh")
+
+    assert options == ["silu", "tanh"]
+
+
+def test_kan_activation_options_do_not_duplicate_or_admit_unknown_values() -> None:
+    assert inspector_app._kan_activation_options(["silu"], "silu") == ["silu"]
+    assert inspector_app._kan_activation_options(["silu"], "unknown") == ["silu"]
+
+
 def test_inspector_prefers_local_profile_source_over_stale_editable_install() -> None:
     """Custom settings must resolve Profile from the checkout being inspected."""
     repo = Path(__file__).resolve().parents[1]
