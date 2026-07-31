@@ -1294,8 +1294,29 @@ function clampCurveSpan(start: number, end: number): CurveSpan {
 
 function seriesPoints(series: BakedQuestion["reveal"]["curves"][number]) {
   return series.samples
-    .map((sample, i) => ({ sample, value: series.mean[i] }))
-    .filter((point): point is { sample: number; value: number } => Number.isFinite(point.value));
+    .map((sample, i) => {
+      const mean = series.mean[i];
+      const rawStd = series.std?.[i];
+      if (!Number.isFinite(mean)) {
+        return null;
+      }
+      const std = Number.isFinite(rawStd) ? Math.abs(rawStd as number) : 0;
+      return {
+        sample,
+        value: mean as number,
+        lo: (mean as number) - std,
+        hi: (mean as number) + std,
+        std
+      };
+    })
+    .filter(
+      (point): point is { sample: number; value: number; lo: number; hi: number; std: number } =>
+        point != null
+    );
+}
+
+function seriesHasVariance(series: BakedQuestion["reveal"]["curves"][number]) {
+  return (series.std ?? []).some((value) => Number.isFinite(value) && Math.abs(value) > 0);
 }
 
 function pathFromPoints(
@@ -1309,6 +1330,43 @@ function pathFromPoints(
   return points
     .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.value)}`)
     .join(" ");
+}
+
+function bandPathFromPoints(
+  points: Array<{ sample: number; lo: number; hi: number; std: number }>,
+  mapX: (x: number) => number,
+  mapY: (y: number) => number
+) {
+  if (points.length < 2 || !points.some((point) => point.std > 0)) {
+    return "";
+  }
+  const upper = points
+    .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.hi)}`)
+    .join(" ");
+  const lower = [...points]
+    .reverse()
+    .map((point) => `L ${mapX(point.sample)} ${mapY(point.lo)}`)
+    .join(" ");
+  return `${upper} ${lower} Z`;
+}
+
+function hexToRgba(color: string, alpha: number) {
+  const raw = color.trim();
+  const short = /^#([0-9a-fA-F]{3})$/.exec(raw);
+  const long = /^#([0-9a-fA-F]{6})$/.exec(raw);
+  let r = 200;
+  let g = 200;
+  let b = 200;
+  if (long) {
+    r = Number.parseInt(long[1].slice(0, 2), 16);
+    g = Number.parseInt(long[1].slice(2, 4), 16);
+    b = Number.parseInt(long[1].slice(4, 6), 16);
+  } else if (short) {
+    r = Number.parseInt(short[1][0] + short[1][0], 16);
+    g = Number.parseInt(short[1][1] + short[1][1], 16);
+    b = Number.parseInt(short[1][2] + short[1][2], 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function CurvesPlot({ question }: { question: BakedQuestion }) {
@@ -1331,7 +1389,9 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   const clipId = `curve-clip-${question.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
   const allY = curves.flatMap((series) =>
-    series.mean.filter((value): value is number => Number.isFinite(value))
+    seriesPoints(series).flatMap((point) =>
+      point.std > 0 ? [point.lo, point.hi, point.value] : [point.value]
+    )
   );
   const allX = curves.flatMap((series) => series.samples);
   if (!curves.length || !allY.length || !allX.length) {
@@ -1347,7 +1407,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   const visibleY = curves.flatMap((series) =>
     seriesPoints(series)
       .filter((point) => point.sample >= viewX0 && point.sample <= viewX1)
-      .map((point) => point.value)
+      .flatMap((point) => (point.std > 0 ? [point.lo, point.hi, point.value] : [point.value]))
   );
   const ySource = visibleY.length ? visibleY : allY;
   const yMin = Math.min(...ySource);
@@ -1375,6 +1435,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
     brush.y + brush.height - ((y - brushYLo) / (brushYHi - brushYLo || 1)) * brush.height;
   const metric = humanMetric(question.metric);
   const zoomed = span[0] > 0.001 || span[1] < 0.999;
+  const showVariance = curves.some(seriesHasVariance);
   const selX = mapBrushX(span[0]);
   const selW = Math.max(mapBrushX(span[1]) - selX, 1);
 
@@ -1437,7 +1498,11 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   return (
     <div className="viz curves-viz">
       <div className="curves-toolbar">
-        <span className="hint">Drag the window below to focus a sample range (y-scale follows).</span>
+        <span className="hint">
+          {showVariance
+            ? "Bands show multi-seed mean ± std. Drag the window below to focus a sample range."
+            : "Drag the window below to focus a sample range (y-scale follows)."}
+        </span>
         {zoomed ? (
           <button type="button" className="curves-reset" onClick={() => setSpan([0, 1])}>
             Reset range
@@ -1495,6 +1560,23 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
             const coords = seriesPoints(series).filter(
               (point) => point.sample >= viewX0 && point.sample <= viewX1
             );
+            const band = bandPathFromPoints(coords, mapX, mapY);
+            if (!band) {
+              return null;
+            }
+            return (
+              <path
+                key={`band-${series.letter}`}
+                d={band}
+                fill={hexToRgba(colorFor(series.letter), 0.22)}
+                stroke="none"
+              />
+            );
+          })}
+          {curves.map((series) => {
+            const coords = seriesPoints(series).filter(
+              (point) => point.sample >= viewX0 && point.sample <= viewX1
+            );
             const path = pathFromPoints(coords, mapX, mapY);
             if (!path) {
               return null;
@@ -1528,19 +1610,24 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
           rx="6"
         />
         {curves.map((series) => {
-          const path = pathFromPoints(seriesPoints(series), mapBrushSample, mapBrushY);
-          if (!path) {
-            return null;
-          }
+          const points = seriesPoints(series);
+          const band = bandPathFromPoints(points, mapBrushSample, mapBrushY);
+          const path = pathFromPoints(points, mapBrushSample, mapBrushY);
           return (
-            <path
-              key={`brush-${series.letter}`}
-              d={path}
-              fill="none"
-              stroke={colorFor(series.letter)}
-              strokeWidth="1.25"
-              opacity="0.75"
-            />
+            <g key={`brush-${series.letter}`}>
+              {band ? (
+                <path d={band} fill={hexToRgba(colorFor(series.letter), 0.16)} stroke="none" />
+              ) : null}
+              {path ? (
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={colorFor(series.letter)}
+                  strokeWidth="1.25"
+                  opacity="0.75"
+                />
+              ) : null}
+            </g>
           );
         })}
         <rect
