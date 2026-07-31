@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>TabPFN settings→metric — per-family generated pipeline</title>
+<title>用表格基础模型预测训练配置好坏 — 实验报告</title>
 <style>
 :root{--ink:#1a1f24;--muted:#5c6770;--line:#d8dde2;--bg:#f4f1eb;--paper:#fffcf7;--accent:#0b6e4f;--accent-soft:#d8efe6;--warn:#8a5a00;--step:#e8eef0}
 *{box-sizing:border-box}
 body{margin:0;font-family:"IBM Plex Sans","Source Sans 3",sans-serif;color:var(--ink);
-background:radial-gradient(1000px 520px at 0% 0%,#e4ebe6,transparent 55%),radial-gradient(800px 420px at 100% 0%,#efe6d8,transparent 50%),var(--bg);line-height:1.55}
+background:radial-gradient(1000px 520px at 0% 0%,#e4ebe6,transparent 55%),radial-gradient(800px 420px at 100% 0%,#efe6d8,transparent 50%),var(--bg);line-height:1.6}
 main{max-width:1040px;margin:0 auto;padding:2.2rem 1.2rem 4rem}
 .kicker{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 .35rem}
-h1{font-family:"IBM Plex Serif",Georgia,serif;font-size:clamp(1.5rem,3vw,2.05rem);margin:0 0 .5rem;letter-spacing:-.02em;font-weight:600}
-.lede{color:var(--muted);max-width:50rem;margin:0}
+h1{font-family:"IBM Plex Serif",Georgia,serif;font-size:clamp(1.45rem,3vw,2rem);margin:0 0 .5rem;letter-spacing:-.02em;font-weight:600}
+.lede{color:var(--muted);max-width:52rem;margin:0}
 h2{border-top:1px solid var(--line);padding-top:1.45rem;margin-top:2.1rem;font-size:1.12rem}
 h3{font-size:.98rem;margin:1.15rem 0 .45rem}
 h4{font-size:.9rem;margin:.9rem 0 .35rem;color:#2a333a}
@@ -41,207 +41,224 @@ tr.best td{background:var(--accent-soft);font-weight:600}
 .flow div{background:var(--paper);border:1px solid var(--line);padding:.5rem .75rem;margin:.35rem 0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.8rem}
 code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.84em;background:#efece6;padding:.05em .28em}
 ul.compact{margin:.35rem 0 .85rem;padding-left:1.15rem}
-ul.compact li{margin:.18rem 0}
+ul.compact li{margin:.2rem 0}
 ol.compact{margin:.35rem 0 .85rem;padding-left:1.25rem}
-ol.compact li{margin:.25rem 0}
+ol.compact li{margin:.28rem 0}
 .toc a{color:var(--accent);text-decoration:none}
 .toc a:hover{text-decoration:underline}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}
+@media (max-width:720px){.compare{grid-template-columns:1fr}}
+.compare > div{background:var(--paper);border:1px solid var(--line);padding:.85rem 1rem}
 footer{margin-top:2.4rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--line);padding-top:1rem}
 a{color:var(--accent)}
 </style>
 </head>
 <body>
 <main>
-<p class="kicker">ArchitectureIQ · branch side/tabpfn-settings · generated candidates (not frozen packs)</p>
-<h1>Settings → metric：按 dataset family 生成并评估 TabPFN</h1>
+<p class="kicker">ArchitectureIQ · 分支 side/tabpfn-settings · 随机生成训练配置并评估</p>
+<h1>能不能从「训练配置」预测最终效果？</h1>
 <p class="lede">
-假设：把 ArchitectureIQ 的 candidate <em>settings</em>（模型 / 优化器 / 损失 / budget）编成表格行，在随机采样并跑完 GT 后，
-TabPFN 能从 held-out settings 预测 selection metric（绝对误差 + 排序）。本报告记录一次完整的
-<strong>create-dataset → generate-candidates(GT) → 建表 → 5-fold 回归评估</strong> 实验。
+我们想知道：如果只告诉你一套神经网络训练配置（用什么模型、什么优化器、训练多久……），
+<strong>还没真正看最终测试分数</strong>，一台「表格预测模型」能不能猜出这套配置训完后大概有多好。
+本报告假设你没听过 TabPFN，从它是什么讲起，再讲我们怎么造数据、怎么评估。
 </p>
 
 <nav class="toc callout">
 <h3 style="margin-top:0">目录</h3>
 <ol class="compact">
-  <li><a href="#pipeline">整体 pipeline（端到端）</a></li>
-  <li><a href="#io">输入 X / 输出 y / 两层「训练」</a></li>
-  <li><a href="#cv">交叉验证与基线协议</a></li>
-  <li><a href="#knobs">本次实验旋钮（profile / 采样）</a></li>
-  <li><a href="#overview">跨 family 结果一览</a></li>
-  <li><a href="#univariate_regression">univariate_regression</a></li>
-  <li><a href="#multivariate_regression">multivariate_regression</a></li>
-  <li><a href="#bigram_lm">bigram_lm</a></li>
-  <li><a href="#synthetic_tabular_classification">synthetic_tabular_classification</a></li>
+  <li><a href="#what-tabpfn">TabPFN 是什么？（零基础）</a></li>
+  <li><a href="#question">我们在问什么问题</a></li>
+  <li><a href="#pipeline">整体实验流程</a></li>
+  <li><a href="#io">表格长什么样：输入 X、输出 y</a></li>
+  <li><a href="#cv">怎么公平地测「猜得准不准」</a></li>
+  <li><a href="#knobs">这次具体怎么配的</a></li>
+  <li><a href="#overview">四个任务上的结果总表</a></li>
+  <li><a href="#univariate_regression">一维回归</a> · <a href="#multivariate_regression">多维回归</a> · <a href="#bigram_lm">语言模型</a> · <a href="#synthetic_tabular_classification">表格分类</a></li>
 </ol>
 </nav>
 
-<h2 id="pipeline">1. 整体 pipeline（端到端）</h2>
+<h2 id="what-tabpfn">1. TabPFN 是什么？（零基础）</h2>
+
+<p><strong>TabPFN</strong>（Tabular Prior-Data Fitted Network）是 Prior Labs 提出的一种<strong>专门吃「表格数据」的预训练模型</strong>。
+你可以把它想成：别人已经在海量「随机生成的小表格任务」上预先训练好了一个大网络；
+轮到你时，你不必从零训练一棵随机森林或一个神经网络，只要把<strong>已有的若干行（特征 + 答案）</strong>和<strong>新行的特征</strong>一起喂给它，它就能给出新行的预测。</p>
+
+<div class="compare">
+  <div>
+    <h4>你熟悉的普通机器学习</h4>
+    <ul class="compact">
+      <li>拿到一张表，用梯度下降 / 建树等算法<strong>从头拟合</strong>这张表</li>
+      <li>参数会根据你的数据被改写；数据一换通常要重训</li>
+      <li>例子：Ridge、随机森林、XGBoost、自己训一个 MLP</li>
+    </ul>
+  </div>
+  <div>
+    <h4>TabPFN 的用法（本实验）</h4>
+    <ul class="compact">
+      <li>模型权重<strong>事先训好、基本不动</strong></li>
+      <li><code>fit(训练行)</code> ≈ 「请记住这些例子」——更像把例子放进上下文，而不是长期改权重</li>
+      <li><code>predict(新行)</code> ≈ 根据刚看到的例子，对新行给出数值预测</li>
+      <li>特别适合<strong>行数很少</strong>（几十到上千）的表格回归/分类</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout">
+<h3 style="margin-top:0">三个容易误会的点</h3>
+<ol class="compact">
+  <li><strong>「训练样本量」指什么？</strong>
+    下文写的 n_train≈30，是<strong>我们给 TabPFN 看的「已标注配置」条数</strong>。
+    不是 TabPFN 自己当初预训练用了多少数据，也不是下面 ArchitectureIQ 里那个神经网络训了多少样本。</li>
+  <li><strong>它预测的不是图片/文本，而是表格里的数字。</strong>
+    每一行是一组特征；我们要它预测一列连续数值（比如测试误差）。</li>
+  <li><strong>我们用的是开源 TabPFN，在本地 GPU 上跑</strong>（A100），不是调用云端黑盒 API。
+    版本是回归器 <strong>v2.5</strong> 的默认 checkpoint。</li>
+</ol>
+</div>
+
+<p>官方概念可参考：<a href="https://github.com/PriorLabs/TabPFN" target="_blank" rel="noopener">PriorLabs/TabPFN</a>。
+本实验只把它当成「表格上的强基线回归器」，与 Ridge、梯度提升树对比。</p>
+
+<h2 id="question">2. 我们在问什么问题</h2>
 <p>
-编排入口：<code>experiments/tabpfn_settings/scripts/run_family_pipeline.py</code>。
-对每个 family 独立跑完下面 5 步；family 之间不共享数据实例，也不把不同 family 的行混进同一次 TabPFN fit。
+<strong>ArchitectureIQ</strong> 是一套用来出「哪个训练配置更好」类考题的基准流水线：
+它会合成数据集、随机采样许多训练配置（candidate）、真正跑训练得到 ground-truth 指标，再据此出选择题。
+</p>
+<p>本 side project 借用同一流水线，但问题改成：</p>
+<blockquote style="margin:1rem 0;padding:.75rem 1rem;border-left:3px solid var(--accent);background:var(--paper)">
+给定很多「配置 → 真实测试分数」的例子之后，TabPFN 能不能猜<strong>从没见过的新配置</strong>大概能拿到多少分？
+猜得准不准，用误差和排序准确率来量。
+</blockquote>
+<p>也就是：把「调参 / 选架构」看成一张小表上的回归问题，看表格基础模型有没有用。</p>
+
+<h2 id="pipeline">3. 整体实验流程</h2>
+<p>
+编排脚本：<code>experiments/tabpfn_settings/scripts/run_family_pipeline.py</code>。
+下面四类任务（dataset family）各自独立跑完一整条流水线——<strong>不把不同任务的行混在一起训练</strong>。
 </p>
 
 <div class="steps">
   <div class="step">
-    <h4>Create dataset instance</h4>
-    <p>调用 <code>architecture_iq.datasets.create_dataset(profile, seed, family_name=…)</code>。</p>
-    <ul class="compact">
-      <li>从 profile <code>dataset_configs.{family}</code> 采样/固定合成参数，写入 <code>dataset_spec.json</code></li>
-      <li>渲染并<strong>执行</strong> <code>synthesize.py</code>，物化 train/test（及 family 额外文件）到
-        <code>data/datasets/{family}/{dataset_id}/</code></li>
-      <li><code>dataset_id</code> 内容寻址：同 family + seed（+ options）可复现同一实例</li>
-    </ul>
+    <h4>造一份固定的数据集</h4>
+    <p>调用 ArchitectureIQ 的 <code>create-dataset</code>：按配置生成一份合成数据，写到磁盘。
+    同一 family 下，后面所有「训练配置」都在<strong>同一份数据</strong>上比，避免「数据难不难」和「配置好不好」缠在一起。</p>
   </div>
   <div class="step">
-    <h4>Sample random candidates (settings)</h4>
-    <p>调用 <code>architecture_iq.candidates.sets.generate_candidate_set(...)</code>
-      （脚本层也可用 <code>sample_random_settings.py</code>）。</p>
-    <ul class="compact">
-      <li>在 profile pools 上采样：本次 <code>varying_axes={model, optimizer}</code>，loss 轴固定为 family 默认池采样结果中的不变量</li>
-      <li>每个 candidate 写成 <code>candidate_spec.json</code>，再经 <code>write_candidate</code> 渲染
-        <code>model.py</code> / <code>optimizer.py</code> / <code>loss.py</code> / <code>train.py</code></li>
-      <li>共享 budget：同一 set 内所有 candidate 的 <code>total_samples_seen</code> 相同（见下表）</li>
-      <li>输出目录：<code>.../candidates/set_{budget}_var_var_fix_{hash}/c_{id}/</code></li>
-    </ul>
+    <h4>随机采样许多训练配置</h4>
+    <p>调用 <code>generate-candidates</code>：从池子里随机抽模型结构、优化器超参等，写成
+    <code>candidate_spec.json</code>，并自动生成可运行的 <code>model.py / optimizer.py / loss.py / train.py</code>。</p>
+    <p>本次每个 family 抽 <strong>40</strong> 套；变化轴是 <strong>模型 + 优化器</strong>；同一批共享同一个训练预算（看过多少样本）。</p>
   </div>
   <div class="step">
-    <h4>Ground truth（必须执行生成代码）</h4>
-    <p><code>run_ground_truth</code>：先 <code>_sync_candidate_files()</code> 从 spec 重渲染 .py，再
-      <code>import train.py → train_and_eval()</code>，在 <code>n_seeds=3</code> 上跑完，写入
-      <code>results/summary.json</code> + <code>curves.npz</code>。</p>
-    <ul class="compact">
-      <li>标签不是手写训练环；与 prompt/benchmark 公平性同一不变量：<strong>spec → code → run → metrics</strong></li>
-      <li>失败/非有限 metric 的行在建表时丢弃（故 N 可能 &lt; 40）</li>
-    </ul>
+    <h4>真正跑训练，得到「标准答案」分数</h4>
+    <p>对每一套配置，执行它生成的 <code>train.py</code>（用 3 个随机种子），把测试集上的平均指标写进
+    <code>results/summary.json</code>。这就是表格的标签 y——<strong>不是手算，也不是用另一套逻辑估出来的</strong>。</p>
+    <p class="muted">若某次跑出无穷大/非法数值，建表时丢掉该行，所以有效行数可能略少于 40。</p>
   </div>
   <div class="step">
-    <h4>Build tabular settings table</h4>
-    <p><code>encode_spec(candidate_spec, summary)</code>（<code>src_tabpfn_settings/features.py</code>）
-      把每个有 GT 的 candidate 压成一行 CSV。</p>
-    <ul class="compact">
-      <li>不做 question 组装；不用 frozen pack；一行 = 一个 setting + 一个 GT 标量</li>
-      <li>跨 model_type 的字段用 NaN 对齐（如 KAN 的 residual 空、Transformer 的 grid_size 空）</li>
-    </ul>
+    <h4>把配置压成表格行</h4>
+    <p>用 <code>encode_spec</code> 把 JSON 配置摊平成数字/类别列（深度、宽度、学习率……），加上标签 y，存成 CSV。</p>
   </div>
   <div class="step">
-    <h4>Fit predictors &amp; evaluate (layer B)</h4>
-    <p><code>scripts/evaluate.py</code>：5-fold CV，比较 train_mean / Ridge / HistGB / TabPFNRegressor v2.5。</p>
-    <ul class="compact">
-      <li>指标写到 <code>artifacts/generated/report_{family}.json</code>；本 HTML 由这些 JSON + CSV 汇总</li>
-    </ul>
+    <h4>用 TabPFN 和几个朴素方法做「猜分」比赛</h4>
+    <p>把表划成 5 折：每折用一部分行给模型看，预测剩下的行，最后拼出所有行的预测再算指标。</p>
   </div>
 </div>
 
 <div class="flow">
-  <div>profile YAML  →  create_dataset  →  dataset_spec + synthesize.py → 物化数据</div>
-  <div>pools 采样 → candidate_spec → model/loss/optimizer/train.py → GT summary</div>
-  <div>encode_spec → CSV 行 (X, y) → KFold → TabPFN/baselines → OOF metrics</div>
+  <div>造数据 → 随机抽配置 → 真训出分数 y → 配平铺成特征 X → 5 折猜 y</div>
 </div>
 
 <table>
-<thead><tr><th>Family</th><th>instance seed</th><th>budget</th><th>input_dim</th><th>target</th><th>model pool</th><th>dataset_id</th></tr></thead>
+<thead><tr><th>任务</th><th>造数据种子</th><th>共享预算</th><th>额外选项</th><th>预测目标 y</th><th>允许的模型类型</th><th>数据集 ID</th></tr></thead>
 <tbody>
-<tr><td class='mono'>univariate_regression</td><td>101</td><td>2048</td><td>—</td><td class='mono'>mean_test_mse</td><td>mlp, kan</td><td>sym_f91a02</td></tr><tr><td class='mono'>multivariate_regression</td><td>102</td><td>5120</td><td>4</td><td class='mono'>mean_test_mse</td><td>mlp, kan</td><td>mvar_aa9fd3</td></tr><tr><td class='mono'>bigram_lm</td><td>103</td><td>5120</td><td>—</td><td class='mono'>mean_test_ce</td><td>transformer_lm, gru_lm</td><td>bg_9ef717</td></tr><tr><td class='mono'>synthetic_tabular_classification</td><td>104</td><td>8192</td><td>—</td><td class='mono'>mean_test_ce</td><td>mlp, kan</td><td>stabcls_c4d0e7</td></tr>
+<tr><td>一维符号回归<div class='muted mono'>univariate_regression</div></td><td>101</td><td>2048</td><td>—</td><td class='mono'>mean_test_mse</td><td>mlp, kan</td><td class='mono'>sym_f91a02</td></tr><tr><td>多维符号回归<div class='muted mono'>multivariate_regression</div></td><td>102</td><td>5120</td><td>4</td><td class='mono'>mean_test_mse</td><td>mlp, kan</td><td class='mono'>mvar_aa9fd3</td></tr><tr><td>二元语法语言模型<div class='muted mono'>bigram_lm</div></td><td>103</td><td>5120</td><td>—</td><td class='mono'>mean_test_ce</td><td>transformer_lm, gru_lm</td><td class='mono'>bg_9ef717</td></tr><tr><td>合成表格分类<div class='muted mono'>synthetic_tabular_classification</div></td><td>104</td><td>8192</td><td>—</td><td class='mono'>mean_test_ce</td><td>mlp, kan</td><td class='mono'>stabcls_c4d0e7</td></tr>
 </tbody>
 </table>
 
-<h2 id="io">2. 输入 X / 输出 y / 两层「训练」</h2>
+<h2 id="io">4. 表格长什么样：输入 X、输出 y</h2>
 
 <div class="callout">
-<h3 style="margin-top:0">必须分清的两层</h3>
+<h3 style="margin-top:0">请先分清两件完全不同的「训练」</h3>
 <ol class="compact">
-  <li><strong>层 A — ArchitectureIQ candidate GT</strong>：对每个 setting 真正训练神经网络（generated <code>train.py</code>），得到
-    <code>mean_test_mse</code> 或 <code>mean_test_ce</code>。这是标签来源。</li>
-  <li><strong>层 B — TabPFN / 基线回归</strong>：把 settings 当表格，用部分行预测 held-out 行的 metric。
-    TabPFN 的 <code>fit</code> <em>不</em>梯度更新 foundation 权重，只是把训练折 (X,y) 当作 in-context 条件。</li>
+  <li><strong>层 A（造标签）：</strong>ArchitectureIQ 按某套配置，真的训练一个小网络，得到测试 MSE / 交叉熵。这很慢，但分数可信。</li>
+  <li><strong>层 B（猜标签）：</strong>TabPFN / Ridge 等只看「配置特征 → 分数」这张小表，试图对新配置猜分数。这里的 fit <strong>不会</strong>去改 TabPFN 的大预训练权重。</li>
 </ol>
 </div>
 
-<h3>输入 X（一行一个 candidate）</h3>
-<p>特征来自 <code>candidate_spec.json</code> 扁平化，<strong>绝不包含</strong> summary 里的最终 metric、曲线或 seed 统计（避免泄漏）。</p>
+<h3>输入 X（一行 = 一套训练配置）</h3>
+<p>特征只来自配置文件，<strong>绝不放入</strong>最终测试分数、训练曲线等，否则就是泄题。</p>
 <table>
-<thead><tr><th>组</th><th>字段</th><th>说明</th></tr></thead>
+<thead><tr><th>类别</th><th>列名（示意）</th><th>含义</th></tr></thead>
 <tbody>
-<tr><td>规模</td><td class="mono">model_type, trainable_parameter_count, log_params</td><td>模型族与参数量</td></tr>
-<tr><td>Budget</td><td class="mono">batch_size, training_steps, total_samples_seen</td><td>同 set 内 samples_seen 固定；batch/steps 由 budget 与采样 batch 决定</td></tr>
-<tr><td>Optimizer</td><td class="mono">optimizer_type, lr, log_lr, weight_decay, momentum</td><td>本次 vary；momentum 仅 SGD 有值</td></tr>
-<tr><td>Loss</td><td class="mono">loss_id, loss_lambda</td><td>本次不 vary；多数行为常数</td></tr>
-<tr><td>MLP/KAN</td><td class="mono">depth, width, residual, layer_norm_frac, activation_primary, grid_size, spline_order, base_activation</td><td>回归 / XOR-style tabular</td></tr>
-<tr><td>LM</td><td class="mono">d_model, num_layers, num_heads, d_ff, layer_residual</td><td>bigram；encode 时 depth←num_layers、width←d_model（冗余）</td></tr>
+<tr><td>模型身份</td><td class="mono">model_type, trainable_parameter_count, log_params</td><td>用的哪种网络、有多大</td></tr>
+<tr><td>训练预算</td><td class="mono">batch_size, training_steps, total_samples_seen</td><td>一批多大、走多少步、总共看过多少样本</td></tr>
+<tr><td>优化器</td><td class="mono">optimizer_type, lr, weight_decay, momentum…</td><td>本次会随机变</td></tr>
+<tr><td>损失</td><td class="mono">loss_id, loss_lambda</td><td>本次基本固定</td></tr>
+<tr><td>结构细节</td><td class="mono">depth, width, residual, … 或 d_model, num_layers…</td><td>随模型类型有的有、有的空缺</td></tr>
 </tbody>
 </table>
-<p class="muted">预处理：全空列丢弃；bool+NaN（如 residual）映射成字符串类别，避免 TabPFN/sklearn 对 pandas.NA 报错。
-Ridge/HGB：数值列 median+标准化，类别列 most_frequent+one-hot。</p>
 
 <h3>输出 y</h3>
 <ul class="compact">
-  <li>回归族：<code>mean_test_mse</code>（越小越好）</li>
-  <li>LM / 表格分类：<code>mean_test_ce</code>（越小越好）</li>
-  <li>来源：<code>results/summary.json</code> 中 GT seeds 的均值；与 family <code>selection_metric</code> 对齐</li>
-  <li>模型输出：标量 ŷ（回归），解释为「该 setting 的预测 test metric」</li>
+  <li>回归类任务：测试集均方误差 <code>mean_test_mse</code>（越小越好）</li>
+  <li>分类 / 语言模型：测试集交叉熵 <code>mean_test_ce</code>（越小越好）</li>
+  <li>模型要输出的是一个实数 ŷ =「我猜这套配置最终大概是这个分数」</li>
 </ul>
 
-<h2 id="cv">3. 交叉验证与基线协议</h2>
+<h2 id="cv">5. 怎么公平地测「猜得准不准」</h2>
 <table>
-<thead><tr><th>项</th><th>设定</th></tr></thead>
+<thead><tr><th>项目</th><th>做法（人话）</th></tr></thead>
 <tbody>
-<tr><td>样本单位</td><td>candidate 行（不是原始数据 token / 原始回归样本）</td></tr>
-<tr><td>划分</td><td><code>KFold(n_splits=5, shuffle=True, random_state=0)</code></td></tr>
-<tr><td>泄漏</td><td>每个 candidate 只进一个测试折；报告指标为 OOF 拼接</td></tr>
-<tr><td>TabPFN「训练样本量」</td><td>每折 <code>n_train</code>（约 28–32）；不是 foundation 预训练规模</td></tr>
-<tr><td>train_mean</td><td>预测全集 y 均值（无结构基线；Spearman 无定义）</td></tr>
-<tr><td>Ridge</td><td>α=1 + 上述 ColumnTransformer</td></tr>
-<tr><td>HistGB</td><td>max_depth=4, max_iter=200, random_state=0</td></tr>
-<tr><td>TabPFN</td><td><code>TabPFNRegressor.create_default_for_version(V2_5)</code>，device=cuda</td></tr>
-<tr><td>指标</td><td>MAE、RMSE、Spearman ρ、pairwise ranking accuracy（所有 y_i≠y_j 对上，预测序是否与真值序一致；越低越好的 metric）</td></tr>
+<tr><td>怎么切分</td><td>把所有配置行随机打乱，切成 5 份；轮流留 1 份当考题，其余给模型看</td></tr>
+<tr><td>防作弊</td><td>同一套配置不会既出现在「给模型看」又出现在「要它猜」里</td></tr>
+<tr><td>对照方法</td><td>① 闭着眼睛猜平均值；② Ridge 线性回归；③ HistGB 树模型；④ TabPFN</td></tr>
+<tr><td>MAE / RMSE</td><td>猜的分数和真分数差多少（越小越好）</td></tr>
+<tr><td>Spearman</td><td>排序相关：相对好坏顺序有没有猜对（越高越好；猜常数则无意义）</td></tr>
+<tr><td>成对排序正确率</td><td>任意两套配置，真值谁更好 vs 预测谁更好，一致的比例（越高越好）</td></tr>
 </tbody>
 </table>
 
-<h2 id="knobs">4. 本次实验旋钮</h2>
+<h2 id="knobs">6. 这次具体怎么配的</h2>
 <div class="grid">
-  <div class="stat"><div class="label">Profile</div><div class="value" style="font-size:.95rem">v2.5-tabpfn-settings</div><div class="sub">n_seeds=3 · pools 含 4 families</div></div>
-  <div class="stat"><div class="label">Count / vary</div><div class="value">40</div><div class="sub">axes = model, optimizer</div></div>
-  <div class="stat"><div class="label">Hardware</div><div class="value">A100 80GB</div><div class="sub">torch cu124 · TabPFN v2.5 ckpt</div></div>
-  <div class="stat"><div class="label">Orchestrator</div><div class="value" style="font-size:.85rem">run_family_pipeline.py</div><div class="sub">remote /cephfs/.../ArchitectureIQ-tabpfn</div></div>
+  <div class="stat"><div class="label">配置档案</div><div class="value" style="font-size:.9rem">v2.5-tabpfn-settings</div><div class="sub">每套配置用 3 个随机种子跑 GT（为加快实验）</div></div>
+  <div class="stat"><div class="label">每任务采样数</div><div class="value">40</div><div class="sub">变化：模型结构 + 优化器</div></div>
+  <div class="stat"><div class="label">算力</div><div class="value">A100 80GB</div><div class="sub">本地跑开源 TabPFN v2.5</div></div>
+  <div class="stat"><div class="label">脚本</div><div class="value" style="font-size:.82rem">run_family_pipeline.py</div><div class="sub">远端 cephfs 工程目录</div></div>
 </div>
-<ul class="compact">
-  <li>Optimizer 网格：SGD/Adam/AdamW/RMSprop/Adagrad；lr ∈ {1e-4…1e-2}；weight_decay ∈ {0…1e-3}</li>
-  <li>MLP：depth 1–6，width 16–256，residual/act/LN 随机；KAN：depth/width/grid/base_act</li>
-  <li>bigram：transformer_lm + gru_lm（profile <code>model_gates</code> 覆盖 family 默认）</li>
-  <li>环境：<code>TABPFN_SKIP_LICENSE=1</code>，权重经 <code>hf-mirror.com</code> 缓存</li>
-</ul>
 <div class="note">
-<strong>局限：</strong>每族只有约 40 个随机 settings、3 个 GT seeds、每折测试约 7–8 行——适合可行性对照，不适合下死结论。
-HistGB 在本组小样本 + 混合类型特征上经常出现负 Spearman。下一步通常是加大 count（如 200+）和/或 vary loss。
+<strong>读结果前请记住：</strong>每个任务只有大约 40 行、每折测试大约 7–8 行，数字会抖。
+更该看的是「相对平均值 / Ridge 有没有系统性变好」，而不是把 0.70 和 0.71 当成精密结论。
+树模型 HistGB 在这种极小样本 + 混合类型特征上经常翻车（Spearman 为负），属预期内噪音。
 </div>
 
-<h2 id="overview">5. 跨 family 结果一览</h2>
+<h2 id="overview">7. 四个任务上的结果总表</h2>
 <table>
 <thead>
 <tr>
-  <th>Family</th><th>y</th><th>N</th>
-  <th>TabPFN MAE</th><th>TabPFN Spearman</th><th>TabPFN pairwise</th>
-  <th>Ridge Spearman</th><th>Ridge pairwise</th><th>HistGB Spearman</th>
+  <th>任务</th><th>预测目标</th><th>有效行数</th>
+  <th>TabPFN MAE</th><th>TabPFN Spearman</th><th>TabPFN 成对排序</th>
+  <th>Ridge Spearman</th><th>Ridge 成对排序</th><th>HistGB Spearman</th>
 </tr>
 </thead>
 <tbody>
-<tr><td><a href='#univariate_regression'>univariate_regression</a></td><td class='mono'>mean_test_mse</td><td>36</td><td>0.244</td><td>0.349</td><td>0.624</td><td>0.443</td><td>0.659</td><td>-0.194</td></tr><tr><td><a href='#multivariate_regression'>multivariate_regression</a></td><td class='mono'>mean_test_mse</td><td>39</td><td>0.289</td><td>0.509</td><td>0.684</td><td>0.638</td><td>0.727</td><td>-0.323</td></tr><tr><td><a href='#bigram_lm'>bigram_lm</a></td><td class='mono'>mean_test_ce</td><td>40</td><td>0.070</td><td>0.700</td><td>0.746</td><td>0.500</td><td>0.692</td><td>-0.244</td></tr><tr><td><a href='#synthetic_tabular_classification'>synthetic_tabular_classification</a></td><td class='mono'>mean_test_ce</td><td>40</td><td>0.126</td><td>0.715</td><td>0.764</td><td>0.708</td><td>0.736</td><td>-0.313</td></tr>
+<tr><td><a href='#univariate_regression'>一维符号回归</a><div class='muted mono'>univariate_regression</div></td><td class='mono'>mean_test_mse</td><td>36</td><td>0.244</td><td>0.349</td><td>0.624</td><td>0.443</td><td>0.659</td><td>-0.194</td></tr><tr><td><a href='#multivariate_regression'>多维符号回归</a><div class='muted mono'>multivariate_regression</div></td><td class='mono'>mean_test_mse</td><td>39</td><td>0.289</td><td>0.509</td><td>0.684</td><td>0.638</td><td>0.727</td><td>-0.323</td></tr><tr><td><a href='#bigram_lm'>二元语法语言模型</a><div class='muted mono'>bigram_lm</div></td><td class='mono'>mean_test_ce</td><td>40</td><td>0.070</td><td>0.700</td><td>0.746</td><td>0.500</td><td>0.692</td><td>-0.244</td></tr><tr><td><a href='#synthetic_tabular_classification'>合成表格分类</a><div class='muted mono'>synthetic_tabular_classification</div></td><td class='mono'>mean_test_ce</td><td>40</td><td>0.126</td><td>0.715</td><td>0.764</td><td>0.708</td><td>0.736</td><td>-0.313</td></tr>
 </tbody>
 </table>
-<p class="muted">粗读：CE 任务（bigram / tabular classification）上 TabPFN 相对 Ridge 更稳；MSE 回归任务上 Ridge 仍常能打平或略胜，TabPFN 的优势不总是显著。</p>
+<p class="muted">粗读：在交叉熵类任务（语言模型、表格分类）上，TabPFN 相对 Ridge 更常占优；在 MSE 回归任务上，简单线性模型有时仍然够强。</p>
 
 
 <section id="univariate_regression">
-<h2>univariate_regression</h2>
+<h2>一维符号回归 <span class="muted mono">(univariate_regression)</span></h2>
 <div class="grid">
-  <div class="stat"><div class="label">Dataset instance</div><div class="value" style="font-size:.9rem">sym_f91a02</div><div class="sub">create seed=101</div></div>
-  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_mse</div><div class="sub">μ=0.476 · σ=0.384 · range [0.014, 1.704]</div></div>
-  <div class="stat"><div class="label">Finite rows / sampled</div><div class="value">36 / 40</div><div class="sub">models {&#x27;mlp&#x27;: 27, &#x27;kan&#x27;: 9}</div></div>
-  <div class="stat"><div class="label">Budget</div><div class="value">2048</div><div class="sub">total_samples_seen · optimizers {&#x27;Adam&#x27;: 8, &#x27;SGD&#x27;: 8, &#x27;RMSprop&#x27;: 8, &#x27;AdamW&#x27;: 8, &#x27;Adagrad&#x27;: 4}</div></div>
+  <div class="stat"><div class="label">数据集实例</div><div class="value" style="font-size:.9rem">sym_f91a02</div><div class="sub">create seed=101</div></div>
+  <div class="stat"><div class="label">要预测的 y</div><div class="value" style="font-size:.95rem">mean_test_mse</div><div class="sub">均值=0.476 · 标准差=0.384 · 范围 [0.014, 1.704]</div></div>
+  <div class="stat"><div class="label">有效行数 / 采样数</div><div class="value">36 / 40</div><div class="sub">模型类型分布 {&#x27;mlp&#x27;: 27, &#x27;kan&#x27;: 9}</div></div>
+  <div class="stat"><div class="label">训练预算 budget</div><div class="value">2048</div><div class="sub">total_samples_seen · 优化器分布 {&#x27;Adam&#x27;: 8, &#x27;SGD&#x27;: 8, &#x27;RMSprop&#x27;: 8, &#x27;AdamW&#x27;: 8, &#x27;Adagrad&#x27;: 4}</div></div>
 </div>
-<p class="muted">Compatible models (profile gates): mlp, kan. Loss in this run mostly fixed to family default selection loss.</p>
-<h3>Feature roles (after dropping all-missing columns)</h3>
-<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<p class="muted">本 family 允许的模型类型：mlp, kan。损失在本次实验里基本固定（不随 candidate 随机变）。</p>
+<h3>表格特征角色（丢掉整列全空之后）</h3>
+<table><thead><tr><th>特征列</th><th>角色</th><th>不同取值数</th><th>缺失数</th><th>取值样例</th></tr></thead><tbody>
 <tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>kan, mlp</td></tr>
 <tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>29</td><td>0</td><td class='mono'>100481, 1008, 12673, 1537, 1777, 199681, 2016, 21249</td></tr>
 <tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>29</td><td>0</td><td class='mono'>10.42421400097938, 10.431789570603357, 11.105874099420692, 11.11162666573148, 11.512615416910297, 11.517723933881802, 12.20447637216348, 12.4873379243265</td></tr>
@@ -263,32 +280,33 @@ HistGB 在本组小样本 + 混合类型特征上经常出现负 Spearman。下�
 <tr><td class='mono'>spline_order</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>27</td><td class='mono'>3.0</td></tr>
 <tr><td class='mono'>base_activation</td><td><span class='pill varying'>varying</span></td><td>2</td><td>27</td><td class='mono'>silu, tanh</td></tr>
 </tbody></table>
-<h3>TabPFN fold sizes (in-context train / held-out test)</h3>
-<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>28</td><td>8</td></tr>
+<h3>TabPFN 每一折看到多少行？</h3>
+<p class="muted">这里的「训练行数」= 给 TabPFN 看的已标注 settings 条数（上下文），不是神经网络 foundation 的预训练规模。</p>
+<table><thead><tr><th>折</th><th>给 TabPFN 看的行数 (n_train)</th><th>要预测的行数 (n_test)</th></tr></thead><tbody><tr><td>1</td><td>28</td><td>8</td></tr>
 <tr><td>2</td><td>29</td><td>7</td></tr>
 <tr><td>3</td><td>29</td><td>7</td></tr>
 <tr><td>4</td><td>29</td><td>7</td></tr>
 <tr><td>5</td><td>29</td><td>7</td></tr></tbody></table>
-<h3>Out-of-fold metrics</h3>
-<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
-<tr><td>train_mean</td><td>0.269</td><td>0.384</td><td>—</td><td>0.584</td></tr>
-<tr><td>Ridge</td><td>0.274</td><td>0.382</td><td>0.443</td><td>0.659</td></tr>
-<tr><td>HistGB</td><td>0.273</td><td>0.387</td><td>-0.194</td><td>0.443</td></tr>
+<h3>留出预测指标（越低越好的误差；Spearman / pairwise 越高越好）</h3>
+<table><thead><tr><th>方法</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>成对排序正确率 ↑</th></tr></thead><tbody>
+<tr><td>始终预测平均值</td><td>0.269</td><td>0.384</td><td>—</td><td>0.584</td></tr>
+<tr><td>Ridge 线性回归</td><td>0.274</td><td>0.382</td><td>0.443</td><td>0.659</td></tr>
+<tr><td>HistGB 梯度提升树</td><td>0.273</td><td>0.387</td><td>-0.194</td><td>0.443</td></tr>
 <tr class="best"><td>TabPFN v2.5</td><td>0.244</td><td>0.346</td><td>0.349</td><td>0.624</td></tr>
 </tbody></table>
 </section>
 
 <section id="multivariate_regression">
-<h2>multivariate_regression</h2>
+<h2>多维符号回归 <span class="muted mono">(multivariate_regression)</span></h2>
 <div class="grid">
-  <div class="stat"><div class="label">Dataset instance</div><div class="value" style="font-size:.9rem">mvar_aa9fd3</div><div class="sub">create seed=102 · input_dim=4</div></div>
-  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_mse</div><div class="sub">μ=0.400 · σ=0.417 · range [0.007, 1.657]</div></div>
-  <div class="stat"><div class="label">Finite rows / sampled</div><div class="value">39 / 40</div><div class="sub">models {&#x27;kan&#x27;: 22, &#x27;mlp&#x27;: 17}</div></div>
-  <div class="stat"><div class="label">Budget</div><div class="value">5120</div><div class="sub">total_samples_seen · optimizers {&#x27;Adam&#x27;: 12, &#x27;RMSprop&#x27;: 10, &#x27;SGD&#x27;: 8, &#x27;Adagrad&#x27;: 6, &#x27;AdamW&#x27;: 3}</div></div>
+  <div class="stat"><div class="label">数据集实例</div><div class="value" style="font-size:.9rem">mvar_aa9fd3</div><div class="sub">create seed=102 · input_dim=4</div></div>
+  <div class="stat"><div class="label">要预测的 y</div><div class="value" style="font-size:.95rem">mean_test_mse</div><div class="sub">均值=0.400 · 标准差=0.417 · 范围 [0.007, 1.657]</div></div>
+  <div class="stat"><div class="label">有效行数 / 采样数</div><div class="value">39 / 40</div><div class="sub">模型类型分布 {&#x27;kan&#x27;: 22, &#x27;mlp&#x27;: 17}</div></div>
+  <div class="stat"><div class="label">训练预算 budget</div><div class="value">5120</div><div class="sub">total_samples_seen · 优化器分布 {&#x27;Adam&#x27;: 12, &#x27;RMSprop&#x27;: 10, &#x27;SGD&#x27;: 8, &#x27;Adagrad&#x27;: 6, &#x27;AdamW&#x27;: 3}</div></div>
 </div>
-<p class="muted">Compatible models (profile gates): mlp, kan. Loss in this run mostly fixed to family default selection loss.</p>
-<h3>Feature roles (after dropping all-missing columns)</h3>
-<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<p class="muted">本 family 允许的模型类型：mlp, kan。损失在本次实验里基本固定（不随 candidate 随机变）。</p>
+<h3>表格特征角色（丢掉整列全空之后）</h3>
+<table><thead><tr><th>特征列</th><th>角色</th><th>不同取值数</th><th>缺失数</th><th>取值样例</th></tr></thead><tbody>
 <tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>kan, mlp</td></tr>
 <tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>1144, 1176, 1249, 1281, 134145, 1512, 1848, 199937</td></tr>
 <tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>11.117346329208624, 11.124922010923182, 11.806676583448391, 12.205757595907253, 12.711446435017915, 12.712989640549374, 12.89119017455097, 6.590301048196686</td></tr>
@@ -311,32 +329,33 @@ HistGB 在本组小样本 + 混合类型特征上经常出现负 Spearman。下�
 <tr><td class='mono'>spline_order</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>17</td><td class='mono'>3.0</td></tr>
 <tr><td class='mono'>base_activation</td><td><span class='pill varying'>varying</span></td><td>2</td><td>17</td><td class='mono'>silu, tanh</td></tr>
 </tbody></table>
-<h3>TabPFN fold sizes (in-context train / held-out test)</h3>
-<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>31</td><td>8</td></tr>
+<h3>TabPFN 每一折看到多少行？</h3>
+<p class="muted">这里的「训练行数」= 给 TabPFN 看的已标注 settings 条数（上下文），不是神经网络 foundation 的预训练规模。</p>
+<table><thead><tr><th>折</th><th>给 TabPFN 看的行数 (n_train)</th><th>要预测的行数 (n_test)</th></tr></thead><tbody><tr><td>1</td><td>31</td><td>8</td></tr>
 <tr><td>2</td><td>31</td><td>8</td></tr>
 <tr><td>3</td><td>31</td><td>8</td></tr>
 <tr><td>4</td><td>31</td><td>8</td></tr>
 <tr><td>5</td><td>32</td><td>7</td></tr></tbody></table>
-<h3>Out-of-fold metrics</h3>
-<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
-<tr><td>train_mean</td><td>0.356</td><td>0.417</td><td>—</td><td>0.528</td></tr>
-<tr><td>Ridge</td><td>0.280</td><td>0.362</td><td>0.638</td><td>0.727</td></tr>
-<tr><td>HistGB</td><td>0.368</td><td>0.432</td><td>-0.323</td><td>0.385</td></tr>
+<h3>留出预测指标（越低越好的误差；Spearman / pairwise 越高越好）</h3>
+<table><thead><tr><th>方法</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>成对排序正确率 ↑</th></tr></thead><tbody>
+<tr><td>始终预测平均值</td><td>0.356</td><td>0.417</td><td>—</td><td>0.528</td></tr>
+<tr><td>Ridge 线性回归</td><td>0.280</td><td>0.362</td><td>0.638</td><td>0.727</td></tr>
+<tr><td>HistGB 梯度提升树</td><td>0.368</td><td>0.432</td><td>-0.323</td><td>0.385</td></tr>
 <tr class="best"><td>TabPFN v2.5</td><td>0.289</td><td>0.343</td><td>0.509</td><td>0.684</td></tr>
 </tbody></table>
 </section>
 
 <section id="bigram_lm">
-<h2>bigram_lm</h2>
+<h2>二元语法语言模型 <span class="muted mono">(bigram_lm)</span></h2>
 <div class="grid">
-  <div class="stat"><div class="label">Dataset instance</div><div class="value" style="font-size:.9rem">bg_9ef717</div><div class="sub">create seed=103</div></div>
-  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_ce</div><div class="sub">μ=3.376 · σ=0.116 · range [3.184, 3.614]</div></div>
-  <div class="stat"><div class="label">Finite rows / sampled</div><div class="value">40 / 40</div><div class="sub">models {&#x27;gru_lm&#x27;: 25, &#x27;transformer_lm&#x27;: 15}</div></div>
-  <div class="stat"><div class="label">Budget</div><div class="value">5120</div><div class="sub">total_samples_seen · optimizers {&#x27;AdamW&#x27;: 10, &#x27;Adagrad&#x27;: 9, &#x27;SGD&#x27;: 9, &#x27;Adam&#x27;: 7, &#x27;RMSprop&#x27;: 5}</div></div>
+  <div class="stat"><div class="label">数据集实例</div><div class="value" style="font-size:.9rem">bg_9ef717</div><div class="sub">create seed=103</div></div>
+  <div class="stat"><div class="label">要预测的 y</div><div class="value" style="font-size:.95rem">mean_test_ce</div><div class="sub">均值=3.376 · 标准差=0.116 · 范围 [3.184, 3.614]</div></div>
+  <div class="stat"><div class="label">有效行数 / 采样数</div><div class="value">40 / 40</div><div class="sub">模型类型分布 {&#x27;gru_lm&#x27;: 25, &#x27;transformer_lm&#x27;: 15}</div></div>
+  <div class="stat"><div class="label">训练预算 budget</div><div class="value">5120</div><div class="sub">total_samples_seen · 优化器分布 {&#x27;AdamW&#x27;: 10, &#x27;Adagrad&#x27;: 9, &#x27;SGD&#x27;: 9, &#x27;Adam&#x27;: 7, &#x27;RMSprop&#x27;: 5}</div></div>
 </div>
-<p class="muted">Compatible models (profile gates): transformer_lm, gru_lm. Loss in this run mostly fixed to family default selection loss.</p>
-<h3>Feature roles (after dropping all-missing columns)</h3>
-<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<p class="muted">本 family 允许的模型类型：transformer_lm, gru_lm。损失在本次实验里基本固定（不随 candidate 随机变）。</p>
+<h3>表格特征角色（丢掉整列全空之后）</h3>
+<table><thead><tr><th>特征列</th><th>角色</th><th>不同取值数</th><th>缺失数</th><th>取值样例</th></tr></thead><tbody>
 <tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>gru_lm, transformer_lm</td></tr>
 <tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>105120, 109856, 14752, 155104, 17216, 176544, 229664, 23616</td></tr>
 <tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>24</td><td>0</td><td class='mono'>10.0696797274002, 10.219173821397506, 10.247927958806518, 10.278080996977206, 10.321144701409654, 10.352267545330236, 10.724148053395034, 10.897627819607528</td></tr>
@@ -358,32 +377,33 @@ HistGB 在本组小样本 + 混合类型特征上经常出现负 Spearman。下�
 <tr><td class='mono'>d_ff</td><td><span class='pill varying'>varying</span></td><td>3</td><td>25</td><td class='mono'>128.0, 256.0, 64.0</td></tr>
 <tr><td class='mono'>layer_residual</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>15</td><td class='mono'>False</td></tr>
 </tbody></table>
-<h3>TabPFN fold sizes (in-context train / held-out test)</h3>
-<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>8</td></tr>
+<h3>TabPFN 每一折看到多少行？</h3>
+<p class="muted">这里的「训练行数」= 给 TabPFN 看的已标注 settings 条数（上下文），不是神经网络 foundation 的预训练规模。</p>
+<table><thead><tr><th>折</th><th>给 TabPFN 看的行数 (n_train)</th><th>要预测的行数 (n_test)</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>8</td></tr>
 <tr><td>2</td><td>32</td><td>8</td></tr>
 <tr><td>3</td><td>32</td><td>8</td></tr>
 <tr><td>4</td><td>32</td><td>8</td></tr>
 <tr><td>5</td><td>32</td><td>8</td></tr></tbody></table>
-<h3>Out-of-fold metrics</h3>
-<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
-<tr><td>train_mean</td><td>0.102</td><td>0.116</td><td>—</td><td>0.499</td></tr>
-<tr><td>Ridge</td><td>0.088</td><td>0.116</td><td>0.500</td><td>0.692</td></tr>
-<tr><td>HistGB</td><td>0.105</td><td>0.119</td><td>-0.244</td><td>0.437</td></tr>
+<h3>留出预测指标（越低越好的误差；Spearman / pairwise 越高越好）</h3>
+<table><thead><tr><th>方法</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>成对排序正确率 ↑</th></tr></thead><tbody>
+<tr><td>始终预测平均值</td><td>0.102</td><td>0.116</td><td>—</td><td>0.499</td></tr>
+<tr><td>Ridge 线性回归</td><td>0.088</td><td>0.116</td><td>0.500</td><td>0.692</td></tr>
+<tr><td>HistGB 梯度提升树</td><td>0.105</td><td>0.119</td><td>-0.244</td><td>0.437</td></tr>
 <tr class="best"><td>TabPFN v2.5</td><td>0.070</td><td>0.091</td><td>0.700</td><td>0.746</td></tr>
 </tbody></table>
 </section>
 
 <section id="synthetic_tabular_classification">
-<h2>synthetic_tabular_classification</h2>
+<h2>合成表格分类 <span class="muted mono">(synthetic_tabular_classification)</span></h2>
 <div class="grid">
-  <div class="stat"><div class="label">Dataset instance</div><div class="value" style="font-size:.9rem">stabcls_c4d0e7</div><div class="sub">create seed=104</div></div>
-  <div class="stat"><div class="label">Target y</div><div class="value" style="font-size:.95rem">mean_test_ce</div><div class="sub">μ=0.285 · σ=0.265 · range [0.025, 0.774]</div></div>
-  <div class="stat"><div class="label">Finite rows / sampled</div><div class="value">40 / 40</div><div class="sub">models {&#x27;mlp&#x27;: 25, &#x27;kan&#x27;: 15}</div></div>
-  <div class="stat"><div class="label">Budget</div><div class="value">8192</div><div class="sub">total_samples_seen · optimizers {&#x27;Adagrad&#x27;: 10, &#x27;AdamW&#x27;: 9, &#x27;SGD&#x27;: 7, &#x27;Adam&#x27;: 7, &#x27;RMSprop&#x27;: 7}</div></div>
+  <div class="stat"><div class="label">数据集实例</div><div class="value" style="font-size:.9rem">stabcls_c4d0e7</div><div class="sub">create seed=104</div></div>
+  <div class="stat"><div class="label">要预测的 y</div><div class="value" style="font-size:.95rem">mean_test_ce</div><div class="sub">均值=0.285 · 标准差=0.265 · 范围 [0.025, 0.774]</div></div>
+  <div class="stat"><div class="label">有效行数 / 采样数</div><div class="value">40 / 40</div><div class="sub">模型类型分布 {&#x27;mlp&#x27;: 25, &#x27;kan&#x27;: 15}</div></div>
+  <div class="stat"><div class="label">训练预算 budget</div><div class="value">8192</div><div class="sub">total_samples_seen · 优化器分布 {&#x27;Adagrad&#x27;: 10, &#x27;AdamW&#x27;: 9, &#x27;SGD&#x27;: 7, &#x27;Adam&#x27;: 7, &#x27;RMSprop&#x27;: 7}</div></div>
 </div>
-<p class="muted">Compatible models (profile gates): mlp, kan. Loss in this run mostly fixed to family default selection loss.</p>
-<h3>Feature roles (after dropping all-missing columns)</h3>
-<table><thead><tr><th>Feature</th><th>Role</th><th>nunique</th><th>n_missing</th><th>sample values</th></tr></thead><tbody>
+<p class="muted">本 family 允许的模型类型：mlp, kan。损失在本次实验里基本固定（不随 candidate 随机变）。</p>
+<h3>表格特征角色（丢掉整列全空之后）</h3>
+<table><thead><tr><th>特征列</th><th>角色</th><th>不同取值数</th><th>缺失数</th><th>取值样例</th></tr></thead><tbody>
 <tr><td class='mono'>model_type</td><td><span class='pill varying'>varying</span></td><td>2</td><td>0</td><td class='mono'>kan, mlp</td></tr>
 <tr><td class='mono'>trainable_parameter_count</td><td><span class='pill varying'>varying</span></td><td>31</td><td>0</td><td class='mono'>1008, 1026, 1232, 1282, 1298, 1346, 1584, 17218</td></tr>
 <tr><td class='mono'>log_params</td><td><span class='pill varying'>varying</span></td><td>31</td><td>0</td><td class='mono'>11.128703123130714, 12.20448138013868, 12.489272186431917, 12.4911989547998, 12.712221349537192, 6.536691597591305, 6.664409020350408, 6.901737206656574</td></tr>
@@ -405,28 +425,28 @@ HistGB 在本组小样本 + 混合类型特征上经常出现负 Spearman。下�
 <tr><td class='mono'>spline_order</td><td><span class='pill constant_with_missing'>constant_with_missing</span></td><td>1</td><td>25</td><td class='mono'>3.0</td></tr>
 <tr><td class='mono'>base_activation</td><td><span class='pill varying'>varying</span></td><td>2</td><td>25</td><td class='mono'>silu, tanh</td></tr>
 </tbody></table>
-<h3>TabPFN fold sizes (in-context train / held-out test)</h3>
-<table><thead><tr><th>Fold</th><th>n_train</th><th>n_test</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>8</td></tr>
+<h3>TabPFN 每一折看到多少行？</h3>
+<p class="muted">这里的「训练行数」= 给 TabPFN 看的已标注 settings 条数（上下文），不是神经网络 foundation 的预训练规模。</p>
+<table><thead><tr><th>折</th><th>给 TabPFN 看的行数 (n_train)</th><th>要预测的行数 (n_test)</th></tr></thead><tbody><tr><td>1</td><td>32</td><td>8</td></tr>
 <tr><td>2</td><td>32</td><td>8</td></tr>
 <tr><td>3</td><td>32</td><td>8</td></tr>
 <tr><td>4</td><td>32</td><td>8</td></tr>
 <tr><td>5</td><td>32</td><td>8</td></tr></tbody></table>
-<h3>Out-of-fold metrics</h3>
-<table><thead><tr><th>Model</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>Pairwise ↑</th></tr></thead><tbody>
-<tr><td>train_mean</td><td>0.245</td><td>0.265</td><td>—</td><td>0.414</td></tr>
-<tr><td>Ridge</td><td>0.172</td><td>0.208</td><td>0.708</td><td>0.736</td></tr>
-<tr><td>HistGB</td><td>0.249</td><td>0.271</td><td>-0.313</td><td>0.373</td></tr>
+<h3>留出预测指标（越低越好的误差；Spearman / pairwise 越高越好）</h3>
+<table><thead><tr><th>方法</th><th>MAE ↓</th><th>RMSE ↓</th><th>Spearman ↑</th><th>成对排序正确率 ↑</th></tr></thead><tbody>
+<tr><td>始终预测平均值</td><td>0.245</td><td>0.265</td><td>—</td><td>0.414</td></tr>
+<tr><td>Ridge 线性回归</td><td>0.172</td><td>0.208</td><td>0.708</td><td>0.736</td></tr>
+<tr><td>HistGB 梯度提升树</td><td>0.249</td><td>0.271</td><td>-0.313</td><td>0.373</td></tr>
 <tr class="best"><td>TabPFN v2.5</td><td>0.126</td><td>0.178</td><td>0.715</td><td>0.764</td></tr>
 </tbody></table>
 </section>
 
 
 <footer>
-  Generated from <code>artifacts/generated/manifest.json</code> + per-family tables/reports ·
-  pipeline <code>scripts/run_family_pipeline.py</code> ·
-  profile <code>profiles/v2.5-tabpfn-settings.yaml</code> ·
-  features <code>src_tabpfn_settings/features.py</code> ·
-  evaluate <code>scripts/evaluate.py</code> · 2026-07-31
+  面向零基础读者的实验说明 · 数据来自 <code>artifacts/generated/</code> ·
+  流程脚本 <code>scripts/run_family_pipeline.py</code> ·
+  特征编码 <code>src_tabpfn_settings/features.py</code> ·
+  评估 <code>scripts/evaluate.py</code> · 2026-07-31
 </footer>
 </main>
 </body>
