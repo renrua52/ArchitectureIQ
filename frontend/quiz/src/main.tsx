@@ -1266,11 +1266,70 @@ function Heatmap({
   );
 }
 
+type CurveSpan = [number, number];
+
+type BrushDrag =
+  | { mode: "left" | "right"; pointerId: number }
+  | { mode: "move"; pointerId: number; grab: number; width: number };
+
+const MIN_CURVE_SPAN = 0.02;
+
+function clampCurveSpan(start: number, end: number): CurveSpan {
+  let a = Math.min(start, end);
+  let b = Math.max(start, end);
+  a = Math.max(0, Math.min(1, a));
+  b = Math.max(0, Math.min(1, b));
+  if (b - a < MIN_CURVE_SPAN) {
+    if (a <= 0) {
+      return [0, MIN_CURVE_SPAN];
+    }
+    if (b >= 1) {
+      return [1 - MIN_CURVE_SPAN, 1];
+    }
+    const mid = (a + b) / 2;
+    return [mid - MIN_CURVE_SPAN / 2, mid + MIN_CURVE_SPAN / 2];
+  }
+  return [a, b];
+}
+
+function seriesPoints(series: BakedQuestion["reveal"]["curves"][number]) {
+  return series.samples
+    .map((sample, i) => ({ sample, value: series.mean[i] }))
+    .filter((point): point is { sample: number; value: number } => Number.isFinite(point.value));
+}
+
+function pathFromPoints(
+  points: Array<{ sample: number; value: number }>,
+  mapX: (x: number) => number,
+  mapY: (y: number) => number
+) {
+  if (!points.length) {
+    return "";
+  }
+  return points
+    .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.value)}`)
+    .join(" ");
+}
+
 function CurvesPlot({ question }: { question: BakedQuestion }) {
   const curves = question.reveal.curves;
+  const [span, setSpan] = useState<CurveSpan>([0, 1]);
+  const dragRef = useRef<BrushDrag | null>(null);
+  const spanRef = useRef(span);
+  spanRef.current = span;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    setSpan([0, 1]);
+    dragRef.current = null;
+  }, [question.id]);
+
   const width = 920;
-  const height = 380;
-  const plot = { x: 72, y: 40, width: 780, height: 280 };
+  const height = 460;
+  const plot = { x: 72, y: 40, width: 780, height: 260 };
+  const brush = { x: 72, y: 360, width: 780, height: 44 };
+  const clipId = `curve-clip-${question.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
   const allY = curves.flatMap((series) =>
     series.mean.filter((value): value is number => Number.isFinite(value))
   );
@@ -1278,24 +1337,124 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   if (!curves.length || !allY.length || !allX.length) {
     return <p className="hint">Learning curves unavailable for this question.</p>;
   }
+
   const xMin = Math.min(...allX);
   const xMax = Math.max(...allX);
-  const yMin = Math.min(...allY);
-  const yMax = Math.max(...allY);
+  const xSpan = xMax - xMin || 1;
+  const viewX0 = xMin + span[0] * xSpan;
+  const viewX1 = xMin + span[1] * xSpan;
+
+  const visibleY = curves.flatMap((series) =>
+    seriesPoints(series)
+      .filter((point) => point.sample >= viewX0 && point.sample <= viewX1)
+      .map((point) => point.value)
+  );
+  const ySource = visibleY.length ? visibleY : allY;
+  const yMin = Math.min(...ySource);
+  const yMax = Math.max(...ySource);
   const yPad = Math.max((yMax - yMin) * 0.12, 1e-6);
   const yLo = yMin - yPad;
   const yHi = yMax + yPad;
-  const xTicks = makeTicks(xMin, xMax, 6);
+
+  const fullYMin = Math.min(...allY);
+  const fullYMax = Math.max(...allY);
+  const fullYPad = Math.max((fullYMax - fullYMin) * 0.08, 1e-6);
+  const brushYLo = fullYMin - fullYPad;
+  const brushYHi = fullYMax + fullYPad;
+
+  const xTicks = makeTicks(viewX0, viewX1, 6);
   const yTicks = makeTicks(yLo, yHi, 5);
   const colorFor = (letter: string) =>
     question.detail.choices.find((choice) => choice.letter === letter)?.color ?? "#ccc";
-  const mapX = (x: number) => plot.x + ((x - xMin) / (xMax - xMin || 1)) * plot.width;
+
+  const mapX = (x: number) => plot.x + ((x - viewX0) / (viewX1 - viewX0 || 1)) * plot.width;
   const mapY = (y: number) => plot.y + plot.height - ((y - yLo) / (yHi - yLo || 1)) * plot.height;
+  const mapBrushX = (frac: number) => brush.x + frac * brush.width;
+  const mapBrushSample = (x: number) => brush.x + ((x - xMin) / xSpan) * brush.width;
+  const mapBrushY = (y: number) =>
+    brush.y + brush.height - ((y - brushYLo) / (brushYHi - brushYLo || 1)) * brush.height;
   const metric = humanMetric(question.metric);
+  const zoomed = span[0] > 0.001 || span[1] < 0.999;
+  const selX = mapBrushX(span[0]);
+  const selW = Math.max(mapBrushX(span[1]) - selX, 1);
+
+  function fracFromClientX(clientX: number) {
+    const svg = svgRef.current;
+    if (!svg) {
+      return 0;
+    }
+    const rect = svg.getBoundingClientRect();
+    const x = ((clientX - rect.left) / (rect.width || 1)) * width;
+    return Math.max(0, Math.min(1, (x - brush.x) / (brush.width || 1)));
+  }
+
+  function onBrushPointerDown(
+    event: React.PointerEvent<SVGElement>,
+    mode: "left" | "right" | "move"
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    const current = spanRef.current;
+    dragRef.current =
+      mode === "move"
+        ? {
+            mode: "move",
+            pointerId: event.pointerId,
+            grab: fracFromClientX(event.clientX) - current[0],
+            width: current[1] - current[0]
+          }
+        : { mode, pointerId: event.pointerId };
+  }
+
+  function onBrushPointerMove(event: React.PointerEvent<SVGElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const frac = fracFromClientX(event.clientX);
+    const current = spanRef.current;
+    if (drag.mode === "left") {
+      setSpan(clampCurveSpan(Math.min(frac, current[1] - MIN_CURVE_SPAN), current[1]));
+      return;
+    }
+    if (drag.mode === "right") {
+      setSpan(clampCurveSpan(current[0], Math.max(frac, current[0] + MIN_CURVE_SPAN)));
+      return;
+    }
+    if (drag.mode === "move") {
+      const nextStart = Math.max(0, Math.min(1 - drag.width, frac - drag.grab));
+      setSpan(clampCurveSpan(nextStart, nextStart + drag.width));
+    }
+  }
+
+  function onBrushPointerUp(event: React.PointerEvent<SVGElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  }
 
   return (
-    <div className="viz">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Ground-truth learning curves">
+    <div className="viz curves-viz">
+      <div className="curves-toolbar">
+        <span className="hint">Drag the window below to focus a sample range (y-scale follows).</span>
+        {zoomed ? (
+          <button type="button" className="curves-reset" onClick={() => setSpan([0, 1])}>
+            Reset range
+          </button>
+        ) : null}
+      </div>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Ground-truth learning curves"
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} />
+          </clipPath>
+        </defs>
         <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="#1a1d24" />
         {xTicks.map((tick) => {
           const x = mapX(tick);
@@ -1319,7 +1478,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
             </g>
           );
         })}
-        <text x={plot.x + plot.width / 2} y={height - 8} textAnchor="middle" fill="#8b919f" fontSize="12">
+        <text x={plot.x + plot.width / 2} y={plot.y + plot.height + 40} textAnchor="middle" fill="#8b919f" fontSize="12">
           samples seen
         </text>
         <text
@@ -1331,26 +1490,26 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
         >
           {metric}
         </text>
-        {curves.map((series) => {
-          const coords = series.samples
-            .map((sample, i) => ({ sample, value: series.mean[i] }))
-            .filter((point) => Number.isFinite(point.value));
-          if (!coords.length) {
-            return null;
-          }
-          const path = coords
-            .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.value)}`)
-            .join(" ");
-          return (
-            <path
-              key={series.letter}
-              d={path}
-              fill="none"
-              stroke={colorFor(series.letter)}
-              strokeWidth="2.75"
-            />
-          );
-        })}
+        <g clipPath={`url(#${clipId})`}>
+          {curves.map((series) => {
+            const coords = seriesPoints(series).filter(
+              (point) => point.sample >= viewX0 && point.sample <= viewX1
+            );
+            const path = pathFromPoints(coords, mapX, mapY);
+            if (!path) {
+              return null;
+            }
+            return (
+              <path
+                key={series.letter}
+                d={path}
+                fill="none"
+                stroke={colorFor(series.letter)}
+                strokeWidth="2.75"
+              />
+            );
+          })}
+        </g>
         {question.detail.choices.map((choice, i) => (
           <g key={choice.letter} transform={`translate(${80 + i * 72} 24)`}>
             <circle cx="0" cy="0" r="5" fill={choice.color} />
@@ -1359,6 +1518,90 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
             </text>
           </g>
         ))}
+
+        <rect
+          x={brush.x}
+          y={brush.y}
+          width={brush.width}
+          height={brush.height}
+          fill="#1a1d24"
+          rx="6"
+        />
+        {curves.map((series) => {
+          const path = pathFromPoints(seriesPoints(series), mapBrushSample, mapBrushY);
+          if (!path) {
+            return null;
+          }
+          return (
+            <path
+              key={`brush-${series.letter}`}
+              d={path}
+              fill="none"
+              stroke={colorFor(series.letter)}
+              strokeWidth="1.25"
+              opacity="0.75"
+            />
+          );
+        })}
+        <rect
+          x={brush.x}
+          y={brush.y}
+          width={Math.max(selX - brush.x, 0)}
+          height={brush.height}
+          fill="rgba(0,0,0,0.45)"
+          pointerEvents="none"
+        />
+        <rect
+          x={selX + selW}
+          y={brush.y}
+          width={Math.max(brush.x + brush.width - (selX + selW), 0)}
+          height={brush.height}
+          fill="rgba(0,0,0,0.45)"
+          pointerEvents="none"
+        />
+        <rect
+          className="curve-brush-window"
+          x={selX}
+          y={brush.y}
+          width={selW}
+          height={brush.height}
+          fill="rgba(91, 140, 255, 0.12)"
+          stroke="rgba(91, 140, 255, 0.65)"
+          strokeWidth="1.5"
+          onPointerDown={(event) => onBrushPointerDown(event, "move")}
+          onPointerMove={onBrushPointerMove}
+          onPointerUp={onBrushPointerUp}
+          onPointerCancel={onBrushPointerUp}
+        />
+        <rect
+          className="curve-brush-handle"
+          x={selX - 5}
+          y={brush.y}
+          width="10"
+          height={brush.height}
+          fill="rgba(91, 140, 255, 0.85)"
+          rx="3"
+          onPointerDown={(event) => onBrushPointerDown(event, "left")}
+          onPointerMove={onBrushPointerMove}
+          onPointerUp={onBrushPointerUp}
+          onPointerCancel={onBrushPointerUp}
+        />
+        <rect
+          className="curve-brush-handle"
+          x={selX + selW - 5}
+          y={brush.y}
+          width="10"
+          height={brush.height}
+          fill="rgba(91, 140, 255, 0.85)"
+          rx="3"
+          onPointerDown={(event) => onBrushPointerDown(event, "right")}
+          onPointerMove={onBrushPointerMove}
+          onPointerUp={onBrushPointerUp}
+          onPointerCancel={onBrushPointerUp}
+        />
+        <text x={brush.x} y={brush.y - 8} fill="#8b919f" fontSize="11">
+          Range: {formatTick(viewX0)} – {formatTick(viewX1)} samples
+        </text>
       </svg>
     </div>
   );

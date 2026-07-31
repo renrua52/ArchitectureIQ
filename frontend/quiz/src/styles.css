@@ -311,6 +311,53 @@ a {
   display: block;
 }
 
+.curves-viz {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.curves-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.15rem 0.35rem 0;
+}
+
+.curves-toolbar .hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.curves-reset {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.curves-reset:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text) 35%, var(--line));
+}
+
+.curve-brush-window {
+  cursor: grab;
+  touch-action: none;
+}
+
+.curve-brush-window:active {
+  cursor: grabbing;
+}
+
+.curve-brush-handle {
+  cursor: ew-resize;
+  touch-action: none;
+}
+
 .choice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
