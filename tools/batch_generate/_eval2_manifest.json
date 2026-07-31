@@ -1,0 +1,92 @@
+[
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_0cb66f/prompt.txt",
+    "qid": "q_0cb66f",
+    "type": "mixed",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "D",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_a02494/prompt.txt",
+    "qid": "q_a02494",
+    "type": "mixed",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "B",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_2q_4c_5acd6a/q_e706cb/prompt.txt",
+    "qid": "q_e706cb",
+    "type": "optimizer_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "B",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_5q_4c_a2d83d/q_d3de0e/prompt.txt",
+    "qid": "q_d3de0e",
+    "type": "optimizer_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "D",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_2q_4c_5acd6a/q_dfa68a/prompt.txt",
+    "qid": "q_dfa68a",
+    "type": "optimizer_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "C",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_866b4e/questions/run_5q_4c_4d78fc/q_239622/prompt.txt",
+    "qid": "q_239622",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "B",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_0db04d/prompt.txt",
+    "qid": "q_0db04d",
+    "type": "mixed",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "A",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_87fd43/prompt.txt",
+    "qid": "q_87fd43",
+    "type": "mixed",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "A",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_866b4e/questions/run_2q_4c_25df16/q_04d42b/prompt.txt",
+    "qid": "q_04d42b",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "B",
+    "cohort": "noisy"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_fcc2d5/questions/run_5q_4c_ee41fc/q_416d59/prompt.txt",
+    "qid": "q_416d59",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "C",
+    "cohort": "noisy"
+  }
+]

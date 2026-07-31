@@ -1,0 +1,1242 @@
+{
+  "schema_version": "architecture_iq.gpteval_report_data.v1",
+  "generated_at": "2026-07-14T09:22:14+00:00",
+  "old_60_llm": [
+    {
+      "method": "GPT-5.4",
+      "exact_model_id": "gpt-5.4",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "fair_sequential_v2",
+      "category": "primary",
+      "correct": 47.0,
+      "total": 60,
+      "accuracy": 0.7833333333333333,
+      "accuracy_pct": 78.3,
+      "runs": [
+        46,
+        47,
+        46,
+        47,
+        47,
+        49
+      ],
+      "source_path": "artifacts/quiz_attempt_60/fair_sequential_v2/aggregate.json"
+    },
+    {
+      "method": "GPT-5.5",
+      "exact_model_id": "gpt-5.5",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "fair_sequential_v2",
+      "category": "primary",
+      "correct": 47.833333333333336,
+      "total": 60,
+      "accuracy": 0.7972222222222223,
+      "accuracy_pct": 79.7,
+      "runs": [
+        50,
+        50,
+        45,
+        47,
+        49,
+        46
+      ],
+      "source_path": "artifacts/quiz_attempt_60/fair_sequential_v2/aggregate.json"
+    },
+    {
+      "method": "GPT-5.6-SOL",
+      "exact_model_id": "gpt-5.6-sol",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "fair_sequential_v2",
+      "category": "primary",
+      "correct": 47.0,
+      "total": 60,
+      "accuracy": 0.7833333333333333,
+      "accuracy_pct": 78.3,
+      "runs": [
+        48,
+        47,
+        46,
+        47,
+        45,
+        49
+      ],
+      "source_path": "artifacts/quiz_attempt_60/fair_sequential_v2/aggregate.json"
+    },
+    {
+      "method": "GPT-5.4",
+      "exact_model_id": "gpt-5.4",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "per_question_blind",
+      "category": "historical",
+      "correct": 29,
+      "total": 60,
+      "accuracy": 0.48333333333333334,
+      "accuracy_pct": 48.3,
+      "source_path": "artifacts/_archive_default_unused/quiz_attempt_65/per_question_blind_gpt54_gpt55/summary.json"
+    },
+    {
+      "method": "GPT-5.5",
+      "exact_model_id": "gpt-5.5",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "per_question_blind",
+      "category": "historical",
+      "correct": 28,
+      "total": 60,
+      "accuracy": 0.4666666666666667,
+      "accuracy_pct": 46.7,
+      "source_path": "artifacts/_archive_default_unused/quiz_attempt_65/per_question_blind_gpt54_gpt55/summary.json"
+    },
+    {
+      "method": "GPT-5.6-SOL",
+      "exact_model_id": "gpt-5.6-sol",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "per_question_blind",
+      "category": "historical",
+      "correct": 25,
+      "total": 60,
+      "accuracy": 0.4166666666666667,
+      "accuracy_pct": 41.7,
+      "source_path": "artifacts/quiz_attempt_60/gpt56_sol/single_question_blind/score.json"
+    },
+    {
+      "method": "GPT-5.4",
+      "exact_model_id": "gpt-5.4",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "full_set_blind",
+      "category": "historical",
+      "correct": 39.1,
+      "total": 60,
+      "accuracy": 0.6516666666666666,
+      "accuracy_pct": 65.2,
+      "source_path": "artifacts/_archive_default_unused/quiz_attempt_65/gpt54_blind_10/summary.json"
+    },
+    {
+      "method": "GPT-5.5",
+      "exact_model_id": "gpt-5.5",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "full_set_blind",
+      "category": "historical",
+      "correct": 34.7,
+      "total": 60,
+      "accuracy": 0.5783333333333334,
+      "accuracy_pct": 57.8,
+      "note": "Clean-60 filtered result from archive experiment summary; individual clean runs 32, 37, 35.",
+      "source_path": "artifacts/_archive_default_unused/quiz_attempt_65/experiment_summary.md"
+    },
+    {
+      "method": "GPT-5.6-SOL",
+      "exact_model_id": "gpt-5.6-sol",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "full_set_blind",
+      "category": "historical",
+      "correct": 23.666666666666668,
+      "total": 60,
+      "accuracy": 0.39444444444444443,
+      "accuracy_pct": 39.4,
+      "source_path": "artifacts/quiz_attempt_60/gpt56_sol/blind/summary.json"
+    },
+    {
+      "method": "GPT-5.4",
+      "exact_model_id": "gpt-5.4",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "grouped_10_feedback",
+      "category": "historical",
+      "correct": 32,
+      "total": 60,
+      "accuracy": 0.5333333333333333,
+      "accuracy_pct": 53.3,
+      "source_path": "artifacts/quiz_attempt_60/gpt54/grouped_10/summary.json"
+    },
+    {
+      "method": "GPT-5.6-SOL",
+      "exact_model_id": "gpt-5.6-sol",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "grouped_10_feedback",
+      "category": "historical",
+      "correct": 38,
+      "total": 60,
+      "accuracy": 0.6333333333333333,
+      "accuracy_pct": 63.3,
+      "source_path": "artifacts/quiz_attempt_60/gpt56_sol/grouped_10/summary.json"
+    },
+    {
+      "method": "GPT-5.5",
+      "exact_model_id": "gpt-5.5",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "old_60_clean",
+      "protocol": "grouped_10_feedback",
+      "category": "historical",
+      "correct": 39,
+      "total": 60,
+      "accuracy": 0.65,
+      "accuracy_pct": 65.0,
+      "note": "Clean-60 filtered result from archive experiment summary; raw archive also contains a 65-question row.",
+      "source_path": "artifacts/_archive_default_unused/quiz_attempt_65/experiment_summary.md"
+    }
+  ],
+  "heuristic_formula_and_arithmetic": [
+    {
+      "method": "max_params",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "historical",
+      "correct": 40,
+      "total": 60,
+      "accuracy": 0.6666666666666666,
+      "accuracy_pct": 66.7,
+      "by_family_accuracy": {
+        "bigram_lm": 0.6,
+        "multivariate_regression": 0.65,
+        "univariate_regression": 0.75
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "max_eta",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "historical",
+      "correct": 17,
+      "total": 60,
+      "accuracy": 0.2833333333333333,
+      "accuracy_pct": 28.3,
+      "by_family_accuracy": {
+        "bigram_lm": 0.25,
+        "multivariate_regression": 0.3,
+        "univariate_regression": 0.3
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "log_params_plus_eta",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "historical",
+      "correct": 39,
+      "total": 60,
+      "accuracy": 0.65,
+      "accuracy_pct": 65.0,
+      "by_family_accuracy": {
+        "bigram_lm": 0.45,
+        "multivariate_regression": 0.7,
+        "univariate_regression": 0.8
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "hand_balanced",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "historical",
+      "correct": 43,
+      "total": 60,
+      "accuracy": 0.7166666666666667,
+      "accuracy_pct": 71.7,
+      "by_family_accuracy": {
+        "bigram_lm": 0.65,
+        "multivariate_regression": 0.7,
+        "univariate_regression": 0.8
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "fit_candidate_final_metric",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "post-hoc",
+      "correct": 45,
+      "total": 60,
+      "accuracy": 0.75,
+      "accuracy_pct": 75.0,
+      "by_family_accuracy": {
+        "bigram_lm": 0.8,
+        "multivariate_regression": 0.7,
+        "univariate_regression": 0.75
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "fit_candidate_final_metric_rich",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "post-hoc",
+      "correct": 49,
+      "total": 60,
+      "accuracy": 0.8166666666666667,
+      "accuracy_pct": 81.7,
+      "by_family_accuracy": {
+        "bigram_lm": 0.85,
+        "multivariate_regression": 0.75,
+        "univariate_regression": 0.85
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "fit_candidate_log_improvement",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "post-hoc",
+      "correct": 37,
+      "total": 60,
+      "accuracy": 0.6166666666666667,
+      "accuracy_pct": 61.7,
+      "by_family_accuracy": {
+        "bigram_lm": 0.55,
+        "multivariate_regression": 0.6,
+        "univariate_regression": 0.7
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    },
+    {
+      "method": "fit_anchored_progress_auc",
+      "question_set": "old_60_clean",
+      "protocol": "arithmetic_rule",
+      "category": "post-hoc",
+      "correct": 39,
+      "total": 60,
+      "accuracy": 0.65,
+      "accuracy_pct": 65.0,
+      "by_family_accuracy": {
+        "bigram_lm": 0.55,
+        "multivariate_regression": 0.7,
+        "univariate_regression": 0.7
+      },
+      "source_path": "artifacts/order_parameter_analysis/arithmetic_rule_results.json"
+    }
+  ],
+  "meta_model_external": [
+    {
+      "method": "cv_champion",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "primary",
+      "correct": 54,
+      "total": 60,
+      "accuracy": 0.9,
+      "accuracy_pct": 90.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 1.0,
+          "num_correct": 20,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.8,
+          "num_correct": 16,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "c7c49a3b45fd6d6d77c486e6675282e5e0dee472a766249ae7ede295857a92e0",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/cv_champion.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": true,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "extra_trees",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "xgboost",
+        "univariate_sym_62678b_b2048_bs32_mse": "xgboost"
+      }
+    },
+    {
+      "method": "oof_positive_ensemble",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 54,
+      "total": 60,
+      "accuracy": 0.9,
+      "accuracy_pct": 90.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 1.0,
+          "num_correct": 20,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "ae140b40cd6c6751ce68b4407b9f98524ec6a9e93568b21d63a0f803a4035312",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/oof_positive_ensemble.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "oof_positive_ensemble",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "oof_positive_ensemble",
+        "univariate_sym_62678b_b2048_bs32_mse": "oof_positive_ensemble"
+      }
+    },
+    {
+      "method": "xgboost",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 54,
+      "total": 60,
+      "accuracy": 0.9,
+      "accuracy_pct": 90.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 1.0,
+          "num_correct": 20,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.8,
+          "num_correct": 16,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "31825511e7865e47b2c25f6486af76384349ff8ee050b46ad454559e2881bcf4",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/xgboost.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "xgboost",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "xgboost",
+        "univariate_sym_62678b_b2048_bs32_mse": "xgboost"
+      }
+    },
+    {
+      "method": "extra_trees",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 52,
+      "total": 60,
+      "accuracy": 0.8666666666666667,
+      "accuracy_pct": 86.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 1.0,
+          "num_correct": 20,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.8,
+          "num_correct": 16,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.8,
+          "num_correct": 16,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "25b812b8b5603de535ea21034baf160a9a45e0125dbd3997c00d285a03e7c831",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/extra_trees.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "extra_trees",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "extra_trees",
+        "univariate_sym_62678b_b2048_bs32_mse": "extra_trees"
+      }
+    },
+    {
+      "method": "gradient_boosting",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 52,
+      "total": 60,
+      "accuracy": 0.8666666666666667,
+      "accuracy_pct": 86.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 1.0,
+          "num_correct": 20,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "1661554b48ffa680c6fb25925c341d84f1237e34f9585dbe9ecbf21644b2daa6",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/gradient_boosting.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "gradient_boosting",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "gradient_boosting",
+        "univariate_sym_62678b_b2048_bs32_mse": "gradient_boosting"
+      }
+    },
+    {
+      "method": "hist_gradient_boosting",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 51,
+      "total": 60,
+      "accuracy": 0.85,
+      "accuracy_pct": 85.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.95,
+          "num_correct": 19,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.7,
+          "num_correct": 14,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "a72e44b0491ab60689506d17857cf8cd938fd8a7d09366201ee0d74cc9710097",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/hist_gradient_boosting.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "hist_gradient_boosting",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "hist_gradient_boosting",
+        "univariate_sym_62678b_b2048_bs32_mse": "hist_gradient_boosting"
+      }
+    },
+    {
+      "method": "random_forest",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 51,
+      "total": 60,
+      "accuracy": 0.85,
+      "accuracy_pct": 85.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 1.0,
+          "num_correct": 20,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.7,
+          "num_correct": 14,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "ac0aa174f7fe346752a53d58e5d744ee4a4ab9873ca9d994c495edbd069a5d98",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/random_forest.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "random_forest",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "random_forest",
+        "univariate_sym_62678b_b2048_bs32_mse": "random_forest"
+      }
+    },
+    {
+      "method": "rbf_svr",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 51,
+      "total": 60,
+      "accuracy": 0.85,
+      "accuracy_pct": 85.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "a4055769460bc121263f0ce7f78ceb0a0acb9d9de9b5a53378fb64b8a87f1a32",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/rbf_svr.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "rbf_svr",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "rbf_svr",
+        "univariate_sym_62678b_b2048_bs32_mse": "rbf_svr"
+      }
+    },
+    {
+      "method": "best_interpretable",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 49,
+      "total": 60,
+      "accuracy": 0.8166666666666667,
+      "accuracy_pct": 81.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.7,
+          "num_correct": 14,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "0aab64788fc944b842edbf04de361b5778d4bd08ac1cb49db1e5608c76d7a1a5",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/best_interpretable.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "compact_polynomial_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "compact_polynomial_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "compact_polynomial_ridge"
+      }
+    },
+    {
+      "method": "compact_polynomial_ridge",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 49,
+      "total": 60,
+      "accuracy": 0.8166666666666667,
+      "accuracy_pct": 81.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.7,
+          "num_correct": 14,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.9,
+          "num_correct": 18,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "4d812b4352abc19c2bd379552363b3a4c9a27686b8885f9e991d58f816e6d244",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/compact_polynomial_ridge.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "compact_polynomial_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "compact_polynomial_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "compact_polynomial_ridge"
+      }
+    },
+    {
+      "method": "mlp",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 46,
+      "total": 60,
+      "accuracy": 0.7666666666666667,
+      "accuracy_pct": 76.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.95,
+          "num_correct": 19,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.5,
+          "num_correct": 10,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "7c08819b2fb4a5a454dca0f1767a1c966676f67848e54d43a66c446d9c2a90f6",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/mlp.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "mlp",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "mlp",
+        "univariate_sym_62678b_b2048_bs32_mse": "mlp"
+      }
+    },
+    {
+      "method": "max_params_heuristic",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 40,
+      "total": 60,
+      "accuracy": 0.6666666666666666,
+      "accuracy_pct": 66.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.6,
+          "num_correct": 12,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "f6f9672f2542298fbb3f2a7cfd560ad6f926b28527ad7cdd34494803db6d3427",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/max_params_heuristic.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "max_params_heuristic",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "max_params_heuristic",
+        "univariate_sym_62678b_b2048_bs32_mse": "max_params_heuristic"
+      }
+    },
+    {
+      "method": "params_ridge",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 40,
+      "total": 60,
+      "accuracy": 0.6666666666666666,
+      "accuracy_pct": 66.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.6,
+          "num_correct": 12,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "af3b231294f07dabaccf442ff4a405bc76b7636f5b97fa71a694f9e881e82372",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/params_ridge.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "params_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "params_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "params_ridge"
+      }
+    },
+    {
+      "method": "compact_elastic_net",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 38,
+      "total": 60,
+      "accuracy": 0.6333333333333333,
+      "accuracy_pct": 63.3,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.5,
+          "num_correct": 10,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "6c7cd11a82f49d32bd3d2eafeb4d60959feea9dfa2de504f09ff88bb69ec1c9a",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/compact_elastic_net.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "compact_elastic_net",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "compact_elastic_net",
+        "univariate_sym_62678b_b2048_bs32_mse": "compact_elastic_net"
+      }
+    },
+    {
+      "method": "compact_ridge",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 38,
+      "total": 60,
+      "accuracy": 0.6333333333333333,
+      "accuracy_pct": 63.3,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.5,
+          "num_correct": 10,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "ad4cbb94f7182c88999fa634474de412e9fbb71b13d924ca68cd1d3c3ef9df37",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/compact_ridge.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "compact_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "compact_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "compact_ridge"
+      }
+    },
+    {
+      "method": "full_ridge",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 37,
+      "total": 60,
+      "accuracy": 0.6166666666666667,
+      "accuracy_pct": 61.7,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.55,
+          "num_correct": 11,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.45,
+          "num_correct": 9,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.85,
+          "num_correct": 17,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "088b3f2ccebe00b92f725404c8074b9f39863810b706a4e4dc7cad9b758a5aa4",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/full_ridge.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "full_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "full_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "full_ridge"
+      }
+    },
+    {
+      "method": "shallow_tree",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 36,
+      "total": 60,
+      "accuracy": 0.6,
+      "accuracy_pct": 60.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.75,
+          "num_correct": 15,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.5,
+          "num_correct": 10,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.55,
+          "num_correct": 11,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "8f74b996b5591a745dcea08ebeb794e9f191f01e7a353f0bda31b72557660bfe",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/shallow_tree.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "shallow_tree",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "shallow_tree",
+        "univariate_sym_62678b_b2048_bs32_mse": "shallow_tree"
+      }
+    },
+    {
+      "method": "optimizer_lr_ridge",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 32,
+      "total": 60,
+      "accuracy": 0.5333333333333333,
+      "accuracy_pct": 53.3,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.5,
+          "num_correct": 10,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.55,
+          "num_correct": 11,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.55,
+          "num_correct": 11,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "70860bae84ef6aa4febfc21779fc864d3e3daec6ade4ad946763385ba07802c6",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/optimizer_lr_ridge.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "optimizer_lr_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "optimizer_lr_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "optimizer_lr_ridge"
+      }
+    },
+    {
+      "method": "params_polynomial_ridge",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 32,
+      "total": 60,
+      "accuracy": 0.5333333333333333,
+      "accuracy_pct": 53.3,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.45,
+          "num_correct": 9,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.5,
+          "num_correct": 10,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "f4137a22ea86e1c8d2cb0274f68404337c6f4303423664d99b49e19b82e37c80",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/params_polynomial_ridge.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "params_polynomial_ridge",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "params_polynomial_ridge",
+        "univariate_sym_62678b_b2048_bs32_mse": "params_polynomial_ridge"
+      }
+    },
+    {
+      "method": "optimizer_lr_lookup",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 30,
+      "total": 60,
+      "accuracy": 0.5,
+      "accuracy_pct": 50.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.7,
+          "num_correct": 14,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.4,
+          "num_correct": 8,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.4,
+          "num_correct": 8,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "877669047a5ffc296c5d1c03bbfb1cc9cf81ef16b4a85c9c169b83dd2da59602",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/optimizer_lr_lookup.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "optimizer_lr_lookup",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "optimizer_lr_lookup",
+        "univariate_sym_62678b_b2048_bs32_mse": "optimizer_lr_lookup"
+      }
+    },
+    {
+      "method": "constant_mean",
+      "question_set": "old_60_clean_external",
+      "protocol": "external_score",
+      "category": "historical",
+      "correct": 17,
+      "total": 60,
+      "accuracy": 0.2833333333333333,
+      "accuracy_pct": 28.3,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.25,
+          "num_correct": 5,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.4,
+          "num_correct": 8,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.2,
+          "num_correct": 4,
+          "num_questions": 20
+        }
+      },
+      "predictions_sha256": "6c0d734395900063ceb3a6e0babaa4672156a80a2eb90159f9b76e8e10adf205",
+      "score_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/constant_mean.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external_score.json",
+      "family_specific_training": false,
+      "method_by_experiment": {
+        "bigram_bg_0021c1_b5120_bs64_cross_entropy": "constant_mean",
+        "multivariate_mvar_c59a30_b5120_bs32_mse": "constant_mean",
+        "univariate_sym_62678b_b2048_bs32_mse": "constant_mean"
+      }
+    },
+    {
+      "method": "heuristic_formula_v2",
+      "question_set": "old_60_clean_external",
+      "protocol": "posthoc_external_score",
+      "category": "post-hoc",
+      "correct": 36,
+      "total": 60,
+      "accuracy": 0.6,
+      "accuracy_pct": 60.0,
+      "by_family": {
+        "bigram_lm": {
+          "num_questions": 20,
+          "num_correct": 12,
+          "accuracy": 0.6
+        },
+        "multivariate_regression": {
+          "num_questions": 20,
+          "num_correct": 10,
+          "accuracy": 0.5
+        },
+        "univariate_regression": {
+          "num_questions": 20,
+          "num_correct": 14,
+          "accuracy": 0.7
+        }
+      },
+      "predictions_sha256": "8c329011032062a9894a475c347e29402078bf6bb86dceb300d67c02d86126df",
+      "score_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/external/scores/heuristic_formula_v2.json",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/posthoc_external_scores.json"
+    },
+    {
+      "method": "fixed_zero_shot_formula",
+      "question_set": "old_60_clean_external",
+      "protocol": "posthoc_diagnostic_after_answer_key",
+      "category": "post-hoc",
+      "correct": 45,
+      "total": 60,
+      "accuracy": 0.75,
+      "accuracy_pct": 75.0,
+      "by_family": {
+        "bigram_lm": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "multivariate_regression": {
+          "accuracy": 0.65,
+          "num_correct": 13,
+          "num_questions": 20
+        },
+        "univariate_regression": {
+          "accuracy": 0.95,
+          "num_correct": 19,
+          "num_questions": 20
+        }
+      },
+      "posthoc_warning": "Computed after answer key was opened; not a pre-registered blind result.",
+      "source_path": "data/meta_model_studies/setting_to_loss_60q_id_v1/heuristics/heuristic_formula_v2/external_posthoc_diagnostics.json"
+    }
+  ],
+  "new_high_budget_gpt54": [
+    {
+      "method": "GPT-5.4",
+      "exact_model_id": "gpt-5.4",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "high_budget_confirmed_15",
+      "protocol": "full_set_blind",
+      "category": "new-question evaluation",
+      "correct": 3,
+      "total": 15,
+      "accuracy": 0.2,
+      "accuracy_pct": 20.0,
+      "by_family": {
+        "bigram_lm": {
+          "correct": 1,
+          "total": 2,
+          "accuracy": 0.5
+        },
+        "multivariate_regression": {
+          "correct": 2,
+          "total": 11,
+          "accuracy": 0.18181818181818182
+        },
+        "univariate_regression": {
+          "correct": 0,
+          "total": 2,
+          "accuracy": 0.0
+        }
+      },
+      "by_question_type": {
+        "architecture_only": {
+          "correct": 2,
+          "total": 10,
+          "accuracy": 0.2
+        },
+        "mixed": {
+          "correct": 0,
+          "total": 2,
+          "accuracy": 0.0
+        },
+        "optimizer_only": {
+          "correct": 1,
+          "total": 3,
+          "accuracy": 0.3333333333333333
+        }
+      },
+      "prediction_sha256": "42c10a0ace81d7f845414c7820cd96967270063be684dc97060d27a495c870d9",
+      "bundle_sha256": "35511502fed3c96ec28152f682b69283ace479351663f46c3ced37b7c581e10b",
+      "source_path": "artifacts/high_budget_gpt54_eval/blind_fullset/score.json"
+    },
+    {
+      "method": "GPT-5.4",
+      "exact_model_id": "gpt-5.4",
+      "provider": "OpenAI/Codex subagent",
+      "question_set": "high_budget_confirmed_15",
+      "protocol": "fixed_order_sequential_feedback",
+      "category": "new-question evaluation",
+      "correct": 7,
+      "total": 15,
+      "accuracy": 0.4666666666666667,
+      "accuracy_pct": 46.7,
+      "by_family": {
+        "bigram_lm": {
+          "correct": 2,
+          "total": 2,
+          "accuracy": 1.0
+        },
+        "multivariate_regression": {
+          "correct": 4,
+          "total": 11,
+          "accuracy": 0.36363636363636365
+        },
+        "univariate_regression": {
+          "correct": 1,
+          "total": 2,
+          "accuracy": 0.5
+        }
+      },
+      "by_question_type": {
+        "architecture_only": {
+          "correct": 5,
+          "total": 10,
+          "accuracy": 0.5
+        },
+        "mixed": {
+          "correct": 1,
+          "total": 2,
+          "accuracy": 0.5
+        },
+        "optimizer_only": {
+          "correct": 1,
+          "total": 3,
+          "accuracy": 0.3333333333333333
+        }
+      },
+      "prediction_sha256": "8a690cc901cb6db3413a977c311477cc2315c11b3c9e30bcf9955fffe829289e",
+      "bundle_sha256": "35511502fed3c96ec28152f682b69283ace479351663f46c3ced37b7c581e10b",
+      "source_path": "artifacts/high_budget_gpt54_eval/sequential/score.json"
+    }
+  ],
+  "source_notes": {
+    "html": "docs/0710_gpteval.html is a static report; this JSON is the added machine-readable provenance layer for the new section.",
+    "new_question_manifest": "artifacts/high_budget_public_manifest.json",
+    "new_question_release_manifest": "data/releases/high_budget_confirmed_v1/quiz_manifest.json",
+    "new_question_bundle": "artifacts/high_budget_gpt54_eval/sanitized_bundle.json",
+    "api_transport_check": "artifacts/high_budget_gpt54_eval/api_transport_check.json"
+  }
+}

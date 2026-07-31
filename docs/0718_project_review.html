@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ArchitectureIQ 项目全面 Review</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", sans-serif; max-width: 1000px; margin: 0 auto; padding: 32px; color: #1a1a1a; line-height: 1.65; }
+  h1 { font-size: 1.8em; border-bottom: 3px solid #2563eb; padding-bottom: 8px; }
+  h2 { font-size: 1.3em; margin-top: 2em; color: #1e3a5f; border-left: 4px solid #2563eb; padding-left: 10px; }
+  h3 { font-size: 1.05em; margin-top: 1.5em; color: #555; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.92em; }
+  th, td { border: 1px solid #ddd; padding: 5px 9px; text-align: left; }
+  th { background: #f0f4ff; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.best { background: #dcfce7; font-weight: 600; }
+  tr.warn { background: #fef3c7; }
+  .alert { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 10px 0; border-radius: 4px; }
+  .ok { background: #dcfce7; border-left: 4px solid #16a34a; padding: 10px 14px; margin: 10px 0; border-radius: 4px; }
+  .note { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; margin: 10px 0; border-radius: 4px; }
+  .danger { background: #fee2e2; border-left: 4px solid #dc2626; padding: 10px 14px; margin: 10px 0; border-radius: 4px; }
+  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 0.88em; }
+  pre { background: #f8f9fa; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; line-height: 1.4; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
+  .card .label { font-size: 0.78em; color: #64748b; }
+  .card .value { font-size: 1.3em; font-weight: 700; margin: 4px 0; }
+  .card .value.green { color: #16a34a; }
+  .card .value.blue { color: #2563eb; }
+  .card .value.red { color: #dc2626; }
+  .card .detail { font-size: 0.72em; color: #94a3b8; }
+  .toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 14px 0; }
+  .toc a { display: inline-block; margin: 2px 8px; text-decoration: none; color: #2563eb; }
+  @media (max-width: 768px) { .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>ArchitectureIQ 项目全面 Review</h1>
+<p><strong>日期</strong>：2026-07-18 · <strong>快照</strong>：30 environments / 3 families / 10,000 rows / 5 seeds · <strong>SHA256</strong>：2b172e0c…40b38ba</p>
+
+<div class="toc">
+  <strong>目录</strong>：
+  <a href="#pipeline">造题流程</a>
+  <a href="#significance">显著性检验</a>
+  <a href="#eval">评测协议</a>
+  <a href="#results">实验结果</a>
+  <a href="#conclusions">推论</a>
+  <a href="#open">未解决问题</a>
+  <a href="#llm3x3">7·24 新增：3×3 setting LLM 评测</a>
+</div>
+
+<h2 id="pipeline">1. 造题流程（spec → code → run → GT → question）</h2>
+
+<h3>1.1 三阶段流水线</h3>
+<pre>
+Stage 1: create-dataset     → dataset_spec.json + synthesize.py → 执行 synthesize() → 材料化数据
+Stage 2: generate-candidates → candidate_spec.json → model.py/loss.py/optimizer.py/train.py → 执行 train_and_eval() → results/summary.json
+Stage 3: generate-question   → 从候选池找显著子集 → question.json + prompt.txt
+</pre>
+
+<h3>1.2 核心不变量</h3>
+<div class="alert">
+  <strong>Ground truth 必须来自执行生成的代码，不能从并行逻辑重算。</strong>
+  prompt 展示的代码必须与执行的代码完全一致。<code>_sync_candidate_files()</code> 在 GT 运行前和 prompt 提取前重新渲染 .py 文件。
+</div>
+
+<h3>1.3 数据集族</h3>
+<table>
+  <thead><tr><th>Family</th><th>Selection Metric</th><th>Losses</th><th>模型类型</th></tr></thead>
+  <tbody>
+    <tr><td>univariate_regression</td><td>test_mse</td><td>mse, mse_l2, mse_l1</td><td>mlp</td></tr>
+    <tr><td>multivariate_regression</td><td>test_mse</td><td>mse, mse_l2, mse_l1</td><td>mlp</td></tr>
+    <tr><td>bigram_lm</td><td>test_ce</td><td>cross_entropy, ce_l2, ce_l1</td><td>mlp, transformer_lm</td></tr>
+  </tbody>
+</table>
+
+<h3>1.4 候选配置空间</h3>
+<table>
+  <thead><tr><th>轴</th><th>可选值</th></tr></thead>
+  <tbody>
+    <tr><td>Optimizer</td><td>SGD, Adam, AdamW, RMSprop, Adagrad</td></tr>
+    <tr><td>Learning rate</td><td>grid 采样</td></tr>
+    <tr><td>Model depth/width</td><td>grid 采样（mlp: depth 1-6, width 16-256; transformer: d_model 16-64, layers 1-5）</td></tr>
+    <tr><td>Budget</td><td>training_steps × batch_size = total_samples_seen</td></tr>
+    <tr><td>Seeds</td><td>每个候选训练 5 个 seed，取 mean + std</td></tr>
+  </tbody>
+</table>
+
+<h3>1.5 题目生成逻辑</h3>
+<ol>
+  <li>从候选池（candidate set）加载所有候选的 <code>summary.json</code></li>
+  <li>穷举 C(pool, 3) 或随机采样，对每个三元组调用 <code>validate_significance</code></li>
+  <li>通过的三元组成为"题"，winner = argmin(mean_metric)</li>
+  <li>shuffle 选项顺序，记录 correct_letter</li>
+  <li>渲染 prompt.txt：包含 dataset 描述 + 候选代码片段（不含 GT）</li>
+</ol>
+
+<h2 id="significance">2. 显著性检验规范</h2>
+<p>定义在 <code>src/architecture_iq/significance/validator.py</code>，三个 profile 默认值相同：</p>
+<table>
+  <thead><tr><th>条件</th><th>默认值</th><th>语义</th><th>来源</th></tr></thead>
+  <tbody>
+    <tr><td><code>gap_min</code></td><td>0.05</td><td>best 与 second 候选的 mean_{metric} 绝对差</td><td>profile.significance.gap_min</td></tr>
+    <tr><td><code>win_rate_min</code></td><td>0.7</td><td>5 seed 里 winner 一致率（≥4/5）</td><td>profile.significance.win_rate_min</td></tr>
+    <tr><td><code>use_non_overlap</code></td><td>True</td><td>winner+std &lt; runner_up−std（1 个 std，非 2 sigma）</td><td>profile.significance.use_non_overlap</td></tr>
+  </tbody>
+</table>
+<div class="note">
+  <strong>三个条件全部通过才算一题有效。</strong>在 152,592 个穷举三元组中，只有 87,837 个（57.6%）通过。其余 42.4% 是 GT 跨 seed 分不开的噪声题。
+</div>
+
+<h2 id="eval">3. 评测协议</h2>
+
+<h3>3.1 三选一 accuracy</h3>
+<p>对每个 environment 内的全部行穷举 C(n,3) 三元组。对每个三元组，模型预测 3 个候选的 loss，选 argmin 作为预测 winner，与真实 winner 比较。</p>
+<table>
+  <thead><tr><th>n_rows</th><th class="num">C(n,3)</th></tr></thead>
+  <tbody>
+    <tr><td>33</td><td class="num">5,456</td></tr>
+    <tr><td>34</td><td class="num">5,984</td></tr>
+    <tr><td>67</td><td class="num">47,905</td></tr>
+  </tbody>
+</table>
+
+<h3>3.2 三层指标体系</h3>
+<table>
+  <thead><tr><th>指标</th><th>含义</th><th>使用场景</th></tr></thead>
+  <tbody>
+    <tr><td>all 三元组</td><td>全部 C(n,3)，含噪声题</td><td>旧 metric（不准确）</td></tr>
+    <tr><td>gap≥0.05</td><td>best-vs-second raw loss 差≥0.05</td><td>中间过滤，缺 win_rate 和 non_overlap</td></tr>
+    <tr class="best"><td>完整显著通过</td><td>gap + win_rate + non_overlap 全过</td><td>正确主指标</td></tr>
+  </tbody>
+</table>
+
+<h3>3.3 专家模型（Expert）setting（本次实验）</h3>
+<table>
+  <thead><tr><th>项</th><th>值</th></tr></thead>
+  <tbody>
+    <tr><td>协议</td><td>dataset_pooled_id（每 dataset 一个模型）</td></tr>
+    <tr><td>模型数</td><td>15</td></tr>
+    <tr><td>每模型 train rows</td><td>600（部分 300）</td></tr>
+    <tr><td>每模型 locked validation</td><td>66–67</td></tr>
+    <tr><td>目标</td><td>log(mean_loss)，mean 跨 5 seed</td></tr>
+    <tr><td>随机基线</td><td>33.33%</td></tr>
+  </tbody>
+</table>
+
+<h2 id="results">4. 实验结果总表</h2>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">最优 meta-model</div>
+    <div class="value green">82.11%</div>
+    <div class="detail">共享 ExtraTrees（9k rows, 1 model）</div>
+  </div>
+  <div class="card">
+    <div class="label">专家模型(Expert) 最优</div>
+    <div class="value blue">78.33%</div>
+    <div class="detail">per-dataset XGBoost</div>
+  </div>
+</div>
+
+<h3>4.1 回归方法（预测 log loss → argmin）</h3>
+<table>
+  <thead><tr><th>模型</th><th class="num">专家模型 Expert (15模型)</th><th class="num">Shared (1模型)</th><th class="num">差</th><th class="num">train sig</th><th class="num">val sig</th><th class="num">gap</th></tr></thead>
+  <tbody>
+    <tr><td>Compact Ridge</td><td class="num">45.16%</td><td class="num">43.55%</td><td class="num">−1.6</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+    <tr><td>Full Ridge</td><td class="num">53.99%</td><td class="num">55.27%</td><td class="num">+1.3</td><td class="num">55.65%</td><td class="num">54.68%</td><td class="num">1.0pp</td></tr>
+    <tr><td>Full OLS</td><td class="num">55.15%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+    <tr><td>Compact Poly Ridge</td><td class="num">60.63%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+    <tr><td>MLP</td><td class="num">52.44%</td><td class="num">60.31%</td><td class="num">+7.9</td><td class="num">72.12%</td><td class="num">61.01%</td><td class="num">11.1pp</td></tr>
+    <tr><td>Random Forest</td><td class="num">75.35%</td><td class="num">78.60%</td><td class="num">+3.3</td><td class="num">85.64%</td><td class="num">78.16%</td><td class="num">7.5pp</td></tr>
+    <tr><td>ExtraTrees</td><td class="num">77.78%</td><td class="num"><strong>82.11%</strong></td><td class="num">+4.3</td><td class="num">93.75%</td><td class="num">82.80%</td><td class="num">11.0pp</td></tr>
+    <tr class="best"><td>XGBoost</td><td class="num"><strong>78.33%</strong></td><td class="num">70.80%</td><td class="num">−7.5</td><td class="num">74.49%</td><td class="num">70.77%</td><td class="num">3.7pp</td></tr>
+  </tbody>
+</table>
+<p class="small">指标均为 macro 显著三选一准确率（gap≥0.05 + win_rate≥0.7 + non_overlap）。gap = train_sig − val_sig（过拟合程度）。XGBoost 几乎不过拟合但欠拟合（depth=3）；ExtraTrees 过拟合 11pp 但 val 仍最高。</p>
+
+<h3>4.2 直接预测 winner（pairwise 分类 + 投票）</h3>
+<p>把每个三元组拆成三对 pairwise 样本，训练二分类器预测“候选 A 是否优于 B”，然后按投票决定三元组 winner。</p>
+<table>
+  <thead><tr><th>分类器</th><th class="num">专家模型 Expert per-dataset (15模型)</th><th class="num">Shared global (1模型)</th><th class="num">最佳回归器（同 setting）</th></tr></thead>
+  <tbody>
+    <tr><td>Logistic</td><td class="num">68.22%</td><td class="num">62.98%</td><td class="num">—</td></tr>
+    <tr><td>GradientBoosting Clf</td><td class="num">74.85%</td><td class="num">64.92%</td><td class="num">—</td></tr>
+    <tr><td>MLP Clf</td><td class="num">71.07%</td><td class="num">72.31%</td><td class="num">60.31%</td></tr>
+    <tr><td>ExtraTrees Clf</td><td class="num"><strong>77.85%</strong></td><td class="num">61.59%</td><td class="num">82.11%</td></tr>
+    <tr><td>RandomForest Clf</td><td class="num">77.00%</td><td class="num">56.62%</td><td class="num">78.60%</td></tr>
+  </tbody>
+</table>
+<p class="small">per-dataset ExtraTrees Clf 77.85%，接近回归 ExtraTrees 77.78%，但未超过共享回归 82.11%。MLP 分类器（72.31%）明显优于 MLP 回归器（60.31%），说明直接预测 winner 对 MLP 更合适；但 pairwise 差值特征破坏了树模型在 global setting 下的原生判别能力（56–62%）。</p>
+
+<h3>4.3 LLM 评测结果</h3>
+<p>在 <strong>原始 60 题</strong>（3 family 各 20 题，frozen 60 题盲测）上的最新 LLM 结果：</p>
+<table>
+  <thead><tr><th>模型</th><th class="num">60题正确率</th><th class="num">bigram_lm</th><th class="num">multivariate</th><th class="num">univariate</th></tr></thead>
+  <tbody>
+    <tr><td>Claude Opus 4.8 high</td><td class="num"><strong>34/60 = 56.7%</strong></td><td class="num">13/20</td><td class="num">13/20</td><td class="num">8/20</td></tr>
+    <tr><td>GPT-5.5 high</td><td class="num">27/60 = 45.0%</td><td class="num">10/20</td><td class="num">10/20</td><td class="num">7/20</td></tr>
+    <tr><td>GPT-5.6-SOL blind（旧）</td><td class="num">25/60 = 41.7%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+    <tr><td>共享 ExtraTrees（本次）</td><td class="num">43/60 = 71.7%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+    <tr><td>随机</td><td class="num">20/60 = 33.3%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+  </tbody>
+</table>
+<p class="small">Claude Opus 4.8 在 60 题上比 GPT-5.5 高 11.7pp，但仍显著低于共享 ExtraTrees 的 71.7%。univariate_regression 是 LLM 的明显短板（40–35%），显著低于随机 33.3% 的边距很小。</p>
+
+<p>在 <strong>新 ranking 题</strong>（per-dataset 5 选排序、pairwise 显著性过滤、带 calibration）上，尚无 LLM 批量结果；产物路径：<code>artifacts/ranking_questions/ranking_bg0021c1_pairwise_sig5_q10/</code> 与 <code>ranking_sym62678b_pairwise_sig5_q8/</code>。</p>
+
+<h3>4.4 在原 60 题上的 meta-model 性能</h3>
+<table>
+  <thead><tr><th>方法</th><th class="num">60题正确率</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>共享 ExtraTrees（本次）</td><td class="num">43/60 = 71.7%</td><td>30 环境宽协议，60 题来自 3 个环境</td></tr>
+    <tr><td>Claude Opus 4.8 high</td><td class="num">34/60 = 56.7%</td><td>新 LLM 评测</td></tr>
+    <tr><td>GPT-5.5 high</td><td class="num">27/60 = 45.0%</td><td>新 LLM 评测</td></tr>
+    <tr><td>GPT-5.6-SOL blind（旧）</td><td class="num">25/60 = 41.7%</td><td>纯 agent，无 meta-model</td></tr>
+    <tr><td>随机</td><td class="num">20/60 = 33.3%</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h3>4.5 模型参数量对比</h3>
+<table>
+  <thead><tr><th>模型</th><th>结构</th><th class="num">有效参数量</th><th class="num">训练样本</th><th class="num">特征维度</th></tr></thead>
+  <tbody>
+    <tr><td>ExtraTrees</td><td>300 棵 depth-16</td><td class="num">713,068 nodes</td><td class="num">9,000</td><td class="num">122</td></tr>
+    <tr><td>Random Forest</td><td>300 棵 depth-12</td><td class="num">275,808 nodes</td><td class="num">9,000</td><td class="num">122</td></tr>
+    <tr><td>XGBoost</td><td>400 棵 depth-3</td><td class="num">~9,600 leaves</td><td class="num">9,000</td><td class="num">122</td></tr>
+    <tr><td>MLP</td><td>122→128→64→1</td><td class="num">24,065 weights</td><td class="num">9,000</td><td class="num">122</td></tr>
+    <tr><td>Full Ridge</td><td>线性</td><td class="num">122 coeff</td><td class="num">9,000</td><td class="num">122</td></tr>
+  </tbody>
+</table>
+
+<h2 id="conclusions">5. 推论</h2>
+
+<div class="ok">
+  <strong>推论 1：旧 63.50% 是错误的 metric + 不够好的 setting 的组合。</strong>
+  <ul>
+    <li>metric 错误：没做显著性筛选，42% 噪声题拉低 ~9pp</li>
+    <li>setting 不够好：15 个独立模型各 600 行，共享后 +4pp</li>
+    <li>修正后：78.33% → 82.11%</li>
+  </ul>
+</div>
+
+<div class="ok">
+  <strong>推论 2：setting→loss 映射是高度非线性的。</strong>
+  线性模型（OLS/Ridge）只有 45–61%，远低于树模型 75–82%。Compact Polynomial Ridge（60.63%）是线性族里最好的，但仍远不够。
+</div>
+
+<div class="ok">
+  <strong>推论 3：共享样本有帮助，但取决于模型族。</strong>
+  ExtraTrees +4.3pp，RF +3.3pp，MLP +7.9pp，但 XGBoost −7.5pp。浅树 XGBoost 的固定配置在 122 维特征上不如 per-dataset grid 搜索。
+</div>
+
+<div class="ok">
+  <strong>推论 4：直接预测 winner 不一定优于回归。</strong>
+  per-dataset ExtraTrees Clf 77.85% ≈ 回归 ExtraTrees 77.78%，但不如共享回归 82.11%。MLP 分类器（72.31%）明显优于 MLP 回归器（60.31%），说明直接预测 winner 对 MLP 更合适。但 pairwise 差值特征破坏了树模型在 global setting 下的原生判别能力（56–62%）。
+</div>
+
+<div class="alert">
+  <strong>推论 5：Phase-A 90% 不能直接与 Full-30 82% 比较。</strong>
+  cv_champion 90% 是在 3 环境、每环境 900 train / 100 val 的窄协议上训练，60 题恰好来自这 3 个环境（in-distribution）。Full-30 的 82.11% 是在 30 环境的 locked validation 上，其中包含 27 个更难的环境。共享 ExtraTrees 在这 60 题上只有 71.7%，因为它在更宽的配置空间上训练。
+</div>
+
+<div class="alert">
+  <strong>推论 6：ExtraTrees 有过拟合但 val 仍最高。</strong>
+  train 93.75% → val 82.80%，gap 11pp。XGBoost 几乎不过拟合（gap 3.7pp）但 train 只有 74.49%（欠拟合）。最佳平衡点可能在两者之间——更深的 XGBoost 或更正则化的 ExtraTrees。
+</div>
+
+<div class="note">
+  <strong>推论 7：82.11% 不是数学上限。</strong>
+  Oracle = 100%，随机 = 33.33%。82.11% 是"当前已测模型集合 + 当前特征表示 + 当前显著性筛选"的经验结果。未来改进方向：更好的特征工程、更合理的超参搜索、ensemble。
+</div>
+
+<h2 id="open">6. 未解决问题与下一步</h2>
+
+<div class="danger">
+  <strong>问题 1：Phase-A vs Full-30 的 gap 不可解释。</strong>
+  从 90%（Phase-A 3 环境）到 82%（Full-30 30 环境）的下降涉及多个同时变化的因素（环境数、采样宽度、loss 轴、GT seeds）。没有逐项消融，不能归因给单一因素。
+</div>
+
+<div class="danger">
+  <strong>问题 2：60 题是选择过的外部集。</strong>
+  54/60（cv_champion）和 82.11%（Full-30 validation）不可直接横比。前者是 in-distribution 选择过的题，后者是全宽随机穷举三元组。
+</div>
+
+<div class="danger">
+  <strong>问题 3：MLP 的默认配置不理想。</strong>
+  MLP train 72.12% 且 val 61.01%，gap 11.1pp。可能的改进：(a) 用 learned embedding 替代 one-hot；(b) 更大网络 +更强正则；(c) 直接预测 winner 的 MLP 分类器（72.31%，已好于回归 60.31%）。
+</div>
+
+<div class="danger">
+  <strong>问题 4：per-dataset 模型没有做显著性筛选后的 train-val 对比。</strong>
+  目前 train-val gap 只对 shared 模型做了。per-dataset 模型可能过拟合更严重（每模型只有 600 行）。
+</div>
+
+<div class="danger">
+  <strong>问题 5：特征工程是否充分？</strong>
+  当前特征是 setting 的 one-hot + 数值。没有交互特征（如 lr×depth、budget×model_type）、没有 dataset 的统计特征（如 input_dim、domain_size）。Compact Polynomial Ridge 60.63% 说明二阶交互有帮助但不够。
+</div>
+
+<h3>建议的下一步实验</h3>
+<ol>
+  <li><strong>调 XGBoost 深度</strong>：depth 3→5/6，看是否从欠拟合进入最优点</li>
+  <li><strong>ExtraTrees 正则化</strong>：减 max_features 到 0.5 或加 max_depth 限制，降低过拟合</li>
+  <li><strong>交互特征</strong>：在 feature encoder 里加 lr×optimizer_type、depth×width、budget×model_type 交互项</li>
+  <li><strong>Ensemble</strong>：ExtraTrees + XGBoost 的预测平均或 stacking</li>
+  <li><strong>per-dataset 显著性 train-val</strong>：确认 per-dataset 模型的过拟合程度</li>
+  <li><strong>在 60 题上评测 per-dataset 模型</strong>：看 Phase-A 3 环境的 per-dataset 模型在 60 题上是否接近 90%</li>
+</ol>
+
+<h2>7. 产物索引</h2>
+<table>
+  <thead><tr><th>产物</th><th>路径</th></tr></thead>
+  <tbody>
+    <tr><td>最终结果 JSON</td><td><code>artifacts/wide_v2_full30_meta_model_final_summary.json</code></td></tr>
+    <tr><td>专家模型 Expert 回归 + 显著性筛选</td><td><code>artifacts/wide_v2_full30_significant_recheck_dataset_pooled.json</code></td></tr>
+    <tr><td>共享回归 + 显著性筛选</td><td><code>artifacts/wide_v2_full30_significant_recheck_global.json</code></td></tr>
+    <tr><td>OLS + 显著性筛选</td><td><code>artifacts/wide_v2_full30_significant_recheck_ols.json</code></td></tr>
+    <tr><td>Winner 分类 per-dataset（fast）</td><td><code>data/meta_model_studies/wide_v2_full30_winner_clf_fast/</code></td></tr>
+    <tr><td>Winner 分类 per-dataset（trees）</td><td><code>data/meta_model_studies/wide_v2_full30_winner_clf_trees/</code></td></tr>
+    <tr><td>Winner 分类 global（fast）</td><td><code>data/meta_model_studies/wide_v2_full30_winner_clf_global/</code></td></tr>
+    <tr><td>Winner 分类 global（trees）</td><td><code>data/meta_model_studies/wide_v2_full30_winner_clf_global_trees/</code></td></tr>
+    <tr><td>显著性筛选脚本</td><td><code>tools/meta_model_study/significant_recheck.py</code></td></tr>
+    <tr><td>Winner 分类脚本</td><td><code>tools/meta_model_study/winner_classification.py</code></td></tr>
+    <tr><td>Train-val 对比报告</td><td><code>docs/0718_train_val_comparison.html</code></td></tr>
+    <tr><td>本报告</td><td><code>docs/0718_project_review.html</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="llm3x3">8. 7·24 新增：3×3 setting LLM 评测（GPT-5.5 high / Claude Opus 4.8 high）</h2>
+
+<p>本节针对 3 个 family（bigram_lm / multivariate_regression / univariate_regression）× 各 3 个 dataset instance × 10 题，新建了 90 题的 3×3 评测集（详见 <code>artifacts/setting3x3_eval/</code>），并在三种协议下测试 GPT-5.5-high 和 Claude-Opus-4.8-high。全局/隔离 batch 通过 <code>api.gpt.ge</code>（OpenAI-compatible）调用；连续反馈协议 GPT-5.5 通过 <code>codex exec</code>（phybench provider）调用，Claude 因 phybench 无 claude 模型，改用 <code>api.gpt.ge</code> 上的 <code>claude-opus-4-8-medium</code> 并自行实现逐题反馈 loop（等价于 GPT-5.5 的 codex sequential 协议）。</p>
+
+<h3>8.1 三种测试协议</h3>
+<table>
+  <thead><tr><th>协议</th><th>说明</th><th>调用方式</th></tr></thead>
+  <tbody>
+    <tr><td><strong>全局 batch</strong></td><td>90 题一次性喂给模型（跨 setting 混合上下文）</td><td>api.gpt.ge，单次/分 family 3 次调用</td></tr>
+    <tr><td><strong>隔离 batch</strong></td><td>每个 setting 独立一次调用，一次性做完该 setting 的 10 题（无反馈、无跨 setting 干扰）</td><td>api.gpt.ge，9 setting × 2 模型 = 18 次独立调用</td></tr>
+    <tr><td><strong>连续反馈</strong></td><td>10 题逐题作答，每题提交后立即揭示正确答案和 GT 指标，模型可将经验记为 lesson 供后续题参考</td><td><code>codex exec</code>（phybench provider）驱动 <code>tools/sequential_feedback_session.py</code>，工具调用式 agent loop</td></tr>
+  </tbody>
+</table>
+<div class="note">
+  Claude 在 phybench 供应商上不可用（该 provider 只有 GPT 系列，报错 "not supported when using Codex with a ChatGPT account"），因此<strong>连续反馈协议中的 Claude 改用 api.gpt.ge 上的 claude-opus-4-8-medium 直接调用</strong>，推理预算低于 high/max，但 loop 结构完全相同。
+</div>
+
+<h3>8.2 结果总表（90 题）</h3>
+<table>
+  <thead><tr><th>协议</th><th class="num">GPT-5.5 high</th><th class="num">Claude Opus 4.8 medium</th></tr></thead>
+  <tbody>
+    <tr><td>全局 batch（跨 setting 混合）</td><td class="num">32/90 = 35.6%</td><td class="num">29/90 = 32.2%</td></tr>
+    <tr><td>隔离 batch（单 setting 一次性 10 题）</td><td class="num">34/90 = 37.8%</td><td class="num">39/90 = 43.3%</td></tr>
+    <tr class="best"><td>连续反馈（逐题 + 即时反馈）</td><td class="num"><strong>75/90 = 83.3%</strong></td><td class="num"><strong>63/90 = 70.0%</strong></td></tr>
+    <tr><td>随机基线</td><td class="num">≈30/90 = 33.3%</td><td class="num">—</td></tr>
+  </tbody>
+</table>
+<div class="ok">
+  <strong>连续反馈把 GPT-5.5 从接近随机（35.6%）拉到 83.3%，Claude medium 从 32–43% 拉到 70.0%</strong>，与老 60 题结论一致：<strong>逐题反馈+学习是拉开准确率的关键变量，而非模型底座本身。</strong>隔离 batch 也显著优于全局 batch（GPT-5.5 +2.2pp，Claude +11.1pp），说明跨 setting 混合上下文本身会拖累准确率，Claude 受干扰更明显。
+</div>
+
+<h3>8.3 连续反馈分 setting 明细</h3>
+<table>
+  <thead><tr><th>Setting</th><th class="num">Budget</th><th class="num">GPT-5.5 连续反馈</th><th class="num">Claude medium 连续反馈</th><th class="num">GPT-5.5 隔离 batch</th><th class="num">Claude 隔离 batch</th></tr></thead>
+  <tbody>
+    <tr><td>bigram_lm / bg_0021c1</td><td class="num">5,120</td><td class="num">6/10</td><td class="num">6/10</td><td class="num">4/10</td><td class="num">7/10</td></tr>
+    <tr><td>bigram_lm / bg_0fff4b</td><td class="num">81,920</td><td class="num">9/10</td><td class="num">7/10</td><td class="num">0/10</td><td class="num">2/10</td></tr>
+    <tr><td>bigram_lm / bg_a58df7</td><td class="num">20,480</td><td class="num">7/10</td><td class="num">6/10</td><td class="num">1/10</td><td class="num">1/10</td></tr>
+    <tr><td>multivariate_regression / mvar_978f4c</td><td class="num">81,920</td><td class="num">10/10</td><td class="num">8/10</td><td class="num">6/10</td><td class="num">4/10</td></tr>
+    <tr><td>multivariate_regression / mvar_9faf9d</td><td class="num">81,920</td><td class="num">10/10</td><td class="num">9/10</td><td class="num">4/10</td><td class="num">5/10</td></tr>
+    <tr><td>multivariate_regression / mvar_c59a30</td><td class="num">5,120</td><td class="num">6/10</td><td class="num">6/10</td><td class="num">2/10</td><td class="num">4/10</td></tr>
+    <tr><td>univariate_regression / sym_411dbf</td><td class="num">81,920</td><td class="num">10/10</td><td class="num">9/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
+    <tr><td>univariate_regression / sym_62678b</td><td class="num">2,048</td><td class="num">8/10</td><td class="num">5/10</td><td class="num">4/10</td><td class="num">6/10</td></tr>
+    <tr><td>univariate_regression / sym_c804cc</td><td class="num">81,920</td><td class="num">9/10</td><td class="num">7/10</td><td class="num">2/10</td><td class="num">1/10</td></tr>
+  </tbody>
+</table>
+<p class="small">注：Claude 连续反馈使用 api.gpt.ge 的 claude-opus-4-8-medium；bg_0fff4b 在隔离 batch 下唯一 0/10，但在连续反馈协议下 GPT-5.5 跳到 9/10、Claude medium 7/10，说明该 setting 单靠盲猜几乎不可解，但有反馈样例后模式可学。</p>
+
+<h3>8.4 新题是否比原 60 题更难？差异在哪？</h3>
+<div class="alert">
+  <strong>是的，明显更难，但主要不是"算力增大"单一因素，而是三个因素叠加：选项数变多、题型变纯、以及（仅对 bigram_lm 而言）训练算力增大。</strong>
+</div>
+<table>
+  <thead><tr><th>维度</th><th>原 60 题</th><th>新 3×3 90 题</th><th>影响</th></tr></thead>
+  <tbody>
+    <tr><td>选项数</td><td>固定 3 选一（随机基线 33.3%）</td><td>3/4/5 选一混合（34 题 3 选，46 题 4 选，10 题 5 选）</td><td>4/5 选一的随机基线只有 25%/20%，直接拉低可比的 raw accuracy</td></tr>
+    <tr><td>题型</td><td>全部 <code>mixed</code>（同时改多个轴，通常差异更"戏剧化"、更好用常识判断）</td><td>50 题 <code>mixed</code> + 40 题 <code>architecture_only</code>（单轴：仅改架构，其余控制不变）</td><td>单轴题需要精细判断同类架构间细微优劣，比多轴混合题更难用启发式猜</td></tr>
+    <tr><td>训练算力（total_samples_seen）</td><td>bigram_lm 固定 5,120</td><td>同 family 内出现 5,120／10,240／20,480／81,920 四档，6/9 个 setting 用了 20,480+ 高算力</td><td>仅对 bigram_lm 家族观察到清晰的负相关：budget 越大，两模型准确率越低（5,120→0.4~0.7；81,920→0.0~0.2）；回归类 family 里方差主要来自具体 dataset instance 而非 budget 本身</td></tr>
+    <tr><td>显著性 gap</td><td>mean gap 0.162（min 0.052, max 0.451）</td><td>mean gap 0.153（min 0.052, max 0.451）</td><td>两者显著性阈值和 gap 分布几乎一致，<strong>不是差异来源</strong></td></tr>
+  </tbody>
+</table>
+<div class="note">
+  <strong>结论：</strong>"算力增大"确实是 bigram_lm 家族变难的直接原因（更大 budget 让不同架构/优化器收敛得更接近，定性推理更难判断谁更优，即使统计显著性仍然满足）；但对 multivariate/univariate_regression 家族，主要难度来自题目本身选的是<strong>更细粒度的单轴（architecture_only）比较和更多选项数</strong>，而非训练算力。综合来看，二者叠加使盲测/隔离 batch 准确率从原 60 题的 45–57% 降到 3×3 集的 36–43%，接近随机基线；但一旦引入逐题反馈学习，GPT-5.5 依然能像在老 60 题上一样恢复到 80%+ 的水平，说明<strong>新题的难度主要体现在"零样本先验知识不足"，而非"给了反馈也学不会"。</strong>
+</div>
+
+<h3>8.5 产物索引（本节新增）</h3>
+<table>
+  <thead><tr><th>产物</th><th>路径</th></tr></thead>
+  <tbody>
+    <tr><td>3×3 题目集（sanitized，无答案）</td><td><code>artifacts/setting3x3_eval/questions_sanitized.json</code></td></tr>
+    <tr><td>答案 key</td><td><code>artifacts/setting3x3_eval/answer_key.json</code></td></tr>
+    <tr><td>全局 batch 原始输出</td><td><code>artifacts/setting3x3_eval/*_raw.txt</code></td></tr>
+    <tr><td>隔离 batch 全部结果</td><td><code>artifacts/setting3x3_eval/isolated_batch/all_results.json</code></td></tr>
+    <tr><td>连续反馈 per-setting session/summary（GPT-5.5）</td><td><code>artifacts/setting3x3_eval/sequential/{family}__{dataset_id}/summary_gpt-5.5-high.json</code></td></tr>
+    <tr><td>连续反馈汇总（GPT-5.5）</td><td><code>artifacts/setting3x3_eval/sequential/aggregate_gpt-5.5-high.json</code></td></tr>
+    <tr><td>连续反馈 per-setting session/summary（Claude medium）</td><td><code>artifacts/setting3x3_eval/sequential/{family}__{dataset_id}/summary_claude-opus-4-8-medium.json</code></td></tr>
+    <tr><td>连续反馈汇总（Claude medium）</td><td><code>artifacts/setting3x3_eval/sequential/aggregate_claude-opus-4-8-medium.json</code></td></tr>
+    <tr><td>Claude 直接 sequential 脚本</td><td><code>tools/llm_eval/run_sequential_direct_eval.py</code></td></tr>
+    <tr><td>3×3 集构建脚本</td><td><code>tools/llm_eval/build_3x3_setting_eval.py</code></td></tr>
+    <tr><td>全局/隔离 batch 评测脚本</td><td><code>tools/llm_eval/run_3x3_setting_eval.py</code>, <code>tools/llm_eval/run_isolated_batch_eval.py</code></td></tr>
+    <tr><td>连续反馈 bundle 构建脚本</td><td><code>tools/llm_eval/build_sequential_bundles.py</code></td></tr>
+    <tr><td>连续反馈 codex 驱动脚本</td><td><code>tools/llm_eval/run_sequential_codex_eval.py</code></td></tr>
+  </tbody>
+</table>
+
+<p class="small">冻结快照 SHA256: 2b172e0c…40b38ba · 30 environments / 10,000 rows / 5 seeds · 所有 GT 来自执行候选代码，未重算。</p>
+
+</body>
+</html>

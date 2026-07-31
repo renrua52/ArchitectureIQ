@@ -1,0 +1,340 @@
+{
+  "schema_version": "2.0",
+  "profile": "meta_wide_v2",
+  "output_root": "data/meta_model/setting_to_loss_wide_v2",
+  "design": {
+    "objective": "Phase-B wide-distribution setting-to-loss meta-model dataset",
+    "target_selected_rows": 10000,
+    "target_train_rows": 9000,
+    "target_validation_rows": 1000,
+    "split_note": "All split and group labels are frozen before GT. dataset_cohort is for grouped/leave-one-dataset-out evaluation and is not a target feature.",
+    "phases": {
+      "b1_pilot": {
+        "selected_rows": 3006,
+        "purpose": "Run first, validate finite-loss/replacement rates and wall time."
+      },
+      "b2_scale": {
+        "selected_rows": 6994,
+        "purpose": "Run only after the B1 audit passes."
+      }
+    }
+  },
+  "defaults": {
+    "phase": "b2_scale",
+    "num_rows": 333,
+    "train_rows": 300,
+    "reserve_rows": 17,
+    "vary": ["model", "optimizer", "loss"],
+    "stratify_by": ["optimizer.type", "loss.loss_id"],
+    "ground_truth": {
+      "n_seeds": 5,
+      "base_seed": 0,
+      "fail_threshold_mode": "finite_only"
+    }
+  },
+  "exclusions": {
+    "candidate_sets": [
+      "data/datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb",
+      "data/datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677",
+      "data/datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+    ],
+    "sampling_manifests": [
+      "data/meta_model/setting_to_loss_60q_id_v1/univariate_sym_62678b_b2048_bs32_mse/sampling_manifest.json",
+      "data/meta_model/setting_to_loss_60q_id_v1/multivariate_mvar_c59a30_b5120_bs32_mse/sampling_manifest.json",
+      "data/meta_model/setting_to_loss_60q_id_v1/bigram_bg_0021c1_b5120_bs64_cross_entropy/sampling_manifest.json"
+    ]
+  },
+  "experiments": [
+    {
+      "experiment_id": "uni_sym_62678b_b2048_bs32",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/univariate_regression/sym_62678b",
+      "budget": 2048,
+      "batch_size": 32,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "external_anchor"},
+      "sampling_seed": 2026071401,
+      "split_seed": 314201
+    },
+    {
+      "experiment_id": "uni_sym_62678b_b10240_bs128",
+      "dataset_path": "data/datasets/univariate_regression/sym_62678b",
+      "budget": 10240,
+      "batch_size": 128,
+      "group_labels": {"dataset_cohort": "external_anchor"},
+      "sampling_seed": 2026071402,
+      "split_seed": 314202
+    },
+    {
+      "experiment_id": "uni_sym_40f9b4_b1024_bs8",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/univariate_regression/sym_40f9b4",
+      "budget": 1024,
+      "batch_size": 8,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071403,
+      "split_seed": 314203
+    },
+    {
+      "experiment_id": "uni_sym_40f9b4_b5120_bs64",
+      "dataset_path": "data/datasets/univariate_regression/sym_40f9b4",
+      "budget": 5120,
+      "batch_size": 64,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071404,
+      "split_seed": 314204
+    },
+    {
+      "experiment_id": "uni_sym_a2a02f_b2048_bs16",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/univariate_regression/sym_a2a02f",
+      "budget": 2048,
+      "batch_size": 16,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071405,
+      "split_seed": 314205
+    },
+    {
+      "experiment_id": "uni_sym_a2a02f_b20480_bs128",
+      "dataset_path": "data/datasets/univariate_regression/sym_a2a02f",
+      "budget": 20480,
+      "batch_size": 128,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071406,
+      "split_seed": 314206
+    },
+    {
+      "experiment_id": "uni_sym_6b9c98_b5120_bs32",
+      "dataset_path": "data/datasets/univariate_regression/sym_6b9c98",
+      "budget": 5120,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071407,
+      "split_seed": 314207
+    },
+    {
+      "experiment_id": "uni_sym_6b9c98_b10240_bs64",
+      "dataset_path": "data/datasets/univariate_regression/sym_6b9c98",
+      "budget": 10240,
+      "batch_size": 64,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071408,
+      "split_seed": 314208
+    },
+    {
+      "experiment_id": "uni_sym_f5e1e3_b1024_bs32",
+      "dataset_path": "data/datasets/univariate_regression/sym_f5e1e3",
+      "budget": 1024,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "holdout_candidate"},
+      "sampling_seed": 2026071409,
+      "split_seed": 314209
+    },
+    {
+      "experiment_id": "uni_sym_f5e1e3_b20480_bs32",
+      "dataset_path": "data/datasets/univariate_regression/sym_f5e1e3",
+      "budget": 20480,
+      "batch_size": 32,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "holdout_candidate"},
+      "sampling_seed": 2026071410,
+      "split_seed": 314210
+    },
+
+    {
+      "experiment_id": "multi_mvar_c59a30_b5120_bs32",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_c59a30",
+      "budget": 5120,
+      "batch_size": 32,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "external_anchor"},
+      "sampling_seed": 2026071411,
+      "split_seed": 314211
+    },
+    {
+      "experiment_id": "multi_mvar_c59a30_b10240_bs128",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_c59a30",
+      "budget": 10240,
+      "batch_size": 128,
+      "group_labels": {"dataset_cohort": "external_anchor"},
+      "sampling_seed": 2026071412,
+      "split_seed": 314212
+    },
+    {
+      "experiment_id": "multi_mvar_4e315c_b1024_bs8",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_4e315c",
+      "budget": 1024,
+      "batch_size": 8,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071413,
+      "split_seed": 314213
+    },
+    {
+      "experiment_id": "multi_mvar_4e315c_b5120_bs64",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_4e315c",
+      "budget": 5120,
+      "batch_size": 64,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071414,
+      "split_seed": 314214
+    },
+    {
+      "experiment_id": "multi_mvar_978f4c_b2048_bs16",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_978f4c",
+      "budget": 2048,
+      "batch_size": 16,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071415,
+      "split_seed": 314215
+    },
+    {
+      "experiment_id": "multi_mvar_978f4c_b20480_bs128",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_978f4c",
+      "budget": 20480,
+      "batch_size": 128,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071416,
+      "split_seed": 314216
+    },
+    {
+      "experiment_id": "multi_mvar_befdab_b5120_bs32",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_befdab",
+      "budget": 5120,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071417,
+      "split_seed": 314217
+    },
+    {
+      "experiment_id": "multi_mvar_befdab_b10240_bs64",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_befdab",
+      "budget": 10240,
+      "batch_size": 64,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071418,
+      "split_seed": 314218
+    },
+    {
+      "experiment_id": "multi_mvar_866b4e_b1024_bs32",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_866b4e",
+      "budget": 1024,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "holdout_candidate"},
+      "sampling_seed": 2026071419,
+      "split_seed": 314219
+    },
+    {
+      "experiment_id": "multi_mvar_866b4e_b20480_bs32",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_866b4e",
+      "budget": 20480,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "holdout_candidate"},
+      "sampling_seed": 2026071420,
+      "split_seed": 314220
+    },
+
+    {
+      "experiment_id": "bigram_bg_0021c1_b5120_bs64",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/bigram_lm/bg_0021c1",
+      "budget": 5120,
+      "batch_size": 64,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "external_anchor"},
+      "sampling_seed": 2026071421,
+      "split_seed": 314221
+    },
+    {
+      "experiment_id": "bigram_bg_0021c1_b10240_bs128",
+      "dataset_path": "data/datasets/bigram_lm/bg_0021c1",
+      "budget": 10240,
+      "batch_size": 128,
+      "group_labels": {"dataset_cohort": "external_anchor"},
+      "sampling_seed": 2026071422,
+      "split_seed": 314222
+    },
+    {
+      "experiment_id": "bigram_bg_0fff4b_b1024_bs8",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/bigram_lm/bg_0fff4b",
+      "budget": 1024,
+      "batch_size": 8,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071423,
+      "split_seed": 314223
+    },
+    {
+      "experiment_id": "bigram_bg_0fff4b_b5120_bs32",
+      "dataset_path": "data/datasets/bigram_lm/bg_0fff4b",
+      "budget": 5120,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071424,
+      "split_seed": 314224
+    },
+    {
+      "experiment_id": "bigram_bg_5d89d5_b2048_bs16",
+      "phase": "b1_pilot",
+      "dataset_path": "data/datasets/bigram_lm/bg_5d89d5",
+      "budget": 2048,
+      "batch_size": 16,
+      "num_rows": 334,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071425,
+      "split_seed": 314225
+    },
+    {
+      "experiment_id": "bigram_bg_5d89d5_b20480_bs128",
+      "dataset_path": "data/datasets/bigram_lm/bg_5d89d5",
+      "budget": 20480,
+      "batch_size": 128,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071426,
+      "split_seed": 314226
+    },
+    {
+      "experiment_id": "bigram_bg_a58df7_b5120_bs32",
+      "dataset_path": "data/datasets/bigram_lm/bg_a58df7",
+      "budget": 5120,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071427,
+      "split_seed": 314227
+    },
+    {
+      "experiment_id": "bigram_bg_a58df7_b10240_bs64",
+      "dataset_path": "data/datasets/bigram_lm/bg_a58df7",
+      "budget": 10240,
+      "batch_size": 64,
+      "group_labels": {"dataset_cohort": "development"},
+      "sampling_seed": 2026071428,
+      "split_seed": 314228
+    },
+    {
+      "experiment_id": "bigram_bg_e2f7c8_b1024_bs32",
+      "dataset_path": "data/datasets/bigram_lm/bg_e2f7c8",
+      "budget": 1024,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "holdout_candidate"},
+      "sampling_seed": 2026071429,
+      "split_seed": 314229
+    },
+    {
+      "experiment_id": "bigram_bg_e2f7c8_b20480_bs32",
+      "dataset_path": "data/datasets/bigram_lm/bg_e2f7c8",
+      "budget": 20480,
+      "batch_size": 32,
+      "group_labels": {"dataset_cohort": "holdout_candidate"},
+      "sampling_seed": 2026071430,
+      "split_seed": 314230
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_multivariate_regression__mvar_c59a30",
+  "questions_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_c59a30/questions.json",
+  "feedback_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_c59a30/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_219d63",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_5e3933",
+      "confidence": null,
+      "reason": "RMSprop with a higher lr of 0.003 should converge fastest within the tight 160-step budget, outpacing the low-lr Adagrad/SGD options.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_55af76",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.29937672317028047,
+        "B": 0.6217400074005127,
+        "C": 0.5753718584775924
+      },
+      "lesson": "In limited-step budgets, adaptive optimizers with higher learning rates tend to reach lower loss faster.",
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_22a3e7",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_1e92c0",
+      "confidence": null,
+      "reason": "Adagrad with a higher lr of 0.003 and a moderately deep width-32 network should fit well within the budget, echoing last round's Adagrad winner.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_1e92c0",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 1.379821276664734,
+        "B": 0.4291384220123291,
+        "C": 0.6217400074005127
+      },
+      "lesson": "Adagrad performed best last round, so I favor it with adequate model capacity.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "question_id": "q_2f5b25",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_2c1801",
+      "confidence": null,
+      "reason": "Both Adagrad options should beat the tiny-lr RMSprop, and A's larger depth-6 width-128 capacity should fit the regression better than B's narrow width-16 net.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_b64766",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6331444501876831,
+        "B": 0.5704255819320678,
+        "C": 0.3866979509592056
+      },
+      "lesson": "Higher-capacity Adagrad models tend to outperform narrow ones and low-lr RMSprop under this budget.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "question_id": "q_bd68ea",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_ff0831",
+      "confidence": null,
+      "reason": "The two very-low-lr (0.0001) options will barely train in 160 steps, while C's SGD with lr 0.003 and momentum 0.9 gives the highest effective learning rate to converge in time.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_aac3ae",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.7044813334941864,
+        "B": 0.545241242647171,
+        "C": 0.7178696095943451
+      },
+      "lesson": "Under tight step budgets, effective learning rate matters more than optimizer type; avoid lr=0.0001 candidates.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.25
+    },
+    {
+      "n": 5,
+      "question_id": "q_cf534d",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_b64766",
+      "confidence": null,
+      "reason": "Candidate c_b64766 (C) previously achieved the best test_mse of 0.387, so I trust its proven performance here.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_b64766",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6217400074005127,
+        "B": 0.684025514125824,
+        "C": 0.3866979509592056
+      },
+      "lesson": "Reuse the known-best candidate when its exact config reappears.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.4
+    },
+    {
+      "n": 6,
+      "question_id": "q_fe25f8",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_55af76",
+      "confidence": null,
+      "reason": "Candidate c_55af76 (B) previously scored the excellent 0.299 test_mse, far better than A's 0.704 and C's 0.633.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_55af76",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.7044813334941864,
+        "B": 0.29937672317028047,
+        "C": 0.6331444501876831
+      },
+      "lesson": "Prefer candidates with previously observed low test_mse.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 7,
+      "question_id": "q_357cf7",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_55af76",
+      "confidence": null,
+      "reason": "Candidate c_55af76 (C) is the known-best with test_mse 0.299, superior to the small width-64/16 alternatives.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_55af76",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.7620596826076508,
+        "B": 0.6626226961612701,
+        "C": 0.29937672317028047
+      },
+      "lesson": "Reuse the known-best candidate c_55af76 when it appears.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5714285714285714
+    },
+    {
+      "n": 8,
+      "question_id": "q_5d4cf6",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_942f42",
+      "confidence": null,
+      "reason": "AdamW with lr 0.003 gives the strongest effective learning rate among these new configs, while A's lr 0.0001 is too slow to converge in 160 steps.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_626149",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.328464013338089,
+        "B": 0.4388472199440002,
+        "C": 0.6419573128223419
+      },
+      "lesson": "Among unseen candidates, favor adaptive optimizers with lr around 0.003 over lr=0.0001.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 9,
+      "question_id": "q_a2bf05",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_a5eb24",
+      "confidence": null,
+      "reason": "A pairs an adaptive AdamW optimizer at high lr 0.01 with the largest width-256 capacity, favoring fast convergence and good fit.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_a5eb24",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.38648358881473543,
+        "B": 1.092307620578342,
+        "C": 0.727904450893402
+      },
+      "lesson": "Wide models with high-lr adaptive optimizers tend to give the lowest test_mse here.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.5555555555555556
+    },
+    {
+      "n": 10,
+      "question_id": "q_c2f34a",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_b64766",
+      "confidence": null,
+      "reason": "Candidate c_b64766 (A) is a known strong performer with test_mse 0.387, beating the tiny lr=0.0001 SGD and narrow width-16 alternatives.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_b64766",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.3866979509592056,
+        "B": 1.2083765506744384,
+        "C": 0.8057347893714905
+      },
+      "lesson": "Reuse known-best candidate c_b64766 when it appears.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_219d63",
+    "q_22a3e7",
+    "q_2f5b25",
+    "q_bd68ea",
+    "q_cf534d",
+    "q_fe25f8",
+    "q_357cf7",
+    "q_5d4cf6",
+    "q_a2bf05",
+    "q_c2f34a"
+  ],
+  "feedback_ids": [
+    "q_219d63",
+    "q_22a3e7",
+    "q_2f5b25",
+    "q_bd68ea",
+    "q_cf534d",
+    "q_fe25f8",
+    "q_357cf7",
+    "q_5d4cf6",
+    "q_a2bf05",
+    "q_c2f34a"
+  ]
+}

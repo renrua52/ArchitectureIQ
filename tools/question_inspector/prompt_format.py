@@ -130,12 +130,21 @@ def format_dataset_protocol(params: dict) -> str:
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
     expression = params.get("expression", "—")
+    noise = params.get("noise", {}) or {}
+    if noise.get("enabled"):
+        noise_line = (
+            f"- Training labels carry additive Gaussian noise (std={noise.get('std', 0.0)}); "
+            "the held-out test labels are the exact target function (noiseless)"
+        )
+    else:
+        noise_line = "- Labels are noiseless (train and test use the exact target function)"
     lines = [
         f"- Target expression (canonical): `{expression}`",
         f"- Train split size: {params['train_size']} fixed `(x, y)` pairs",
         f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
         f"- Input domain: [{domain[0]}, {domain[1]}], uniform sampling",
         f"- Point-sampling seed: {point_seed} (materializes the fixed train/test splits)",
+        noise_line,
         "- Minibatch construction: each step draws `batch_size` train indices "
         "uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",

@@ -1,0 +1,91 @@
+```json
+{
+  "agent": "blind-baseline",
+  "model": "claude-sonnet-4-5-20250929",
+  "reasoning_effort": "medium",
+  "source_used": "sanitized_questions_only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 11,
+      "question_id": "q_35bf25",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_3c5b8b",
+      "confidence": 0.4,
+      "reason": "Shallower (L2) wide d128/ff256 model converges best under tiny LR and short budget on a simple bigram task."
+    },
+    {
+      "n": 12,
+      "question_id": "q_36afd5",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_1ea95e",
+      "confidence": 0.45,
+      "reason": "Single-layer high-capacity d128 model fits bigram statistics fastest given the low learning rate."
+    },
+    {
+      "n": 13,
+      "question_id": "q_707361",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_8ccf0d",
+      "confidence": 0.4,
+      "reason": "L2 with largest d_model (128) beats deeper or narrower options under the limited step budget."
+    },
+    {
+      "n": 14,
+      "question_id": "q_780d65",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_8ccf0d",
+      "confidence": 0.4,
+      "reason": "Fewest layers (L2) plus widest d_model converges most within budget."
+    },
+    {
+      "n": 15,
+      "question_id": "q_7dc8c1",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_16d16b",
+      "confidence": 0.42,
+      "reason": "Single-layer model converges fastest for the near-lookup bigram task at low LR."
+    },
+    {
+      "n": 16,
+      "question_id": "q_9fd0fc",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_3c5b8b",
+      "confidence": 0.42,
+      "reason": "L2 d128 with largest ff256 gives best capacity-convergence tradeoff here."
+    },
+    {
+      "n": 17,
+      "question_id": "q_e96831",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_76ea95",
+      "confidence": 0.4,
+      "reason": "Among all-L3 options, the widest ff (128) d128 model performs best."
+    },
+    {
+      "n": 18,
+      "question_id": "q_f4ed80",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_8ccf0d",
+      "confidence": 0.42,
+      "reason": "L2 with largest d_model dominates the tiny d32 alternatives."
+    },
+    {
+      "n": 19,
+      "question_id": "q_09d094",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_16d16b",
+      "confidence": 0.35,
+      "reason": "Single-layer model converges fastest on the simple bigram objective under low LR."
+    },
+    {
+      "n": 20,
+      "question_id": "q_eeaf66",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_1ea95e",
+      "confidence": 0.43,
+      "reason": "L1 with high d128/ff256 capacity fits bigram fastest and best among these."
+    }
+  ]
+}
+```

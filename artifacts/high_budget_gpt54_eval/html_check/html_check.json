@@ -1,0 +1,80 @@
+{
+  "schema_version": "architecture_iq.gpteval_html_check.v1",
+  "checked_at": "2026-07-14T09:41:10.019Z",
+  "url": "http://127.0.0.1:8765/docs/0710_gpteval.html",
+  "browser_plugin_bridge": {
+    "attempted": true,
+    "result": "failed",
+    "error": "Cannot redefine property: process",
+    "fallback": "Bundled Playwright headless Chromium"
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "title": "GPT 评测报告｜大模型解题表现的行为学分析",
+      "section_found": true,
+      "section_text_checks": {
+        "report_hash_present": true,
+        "public_bundle_present": true,
+        "prompt_audit_bundle_present": true,
+        "gpt54_new_full_blind_present": true,
+        "gpt54_new_sequential_present": true,
+        "gpt55_56_not_run_present": true,
+        "posthoc_label_present": true,
+        "family_specific_xgboost_present": true
+      },
+      "forbidden_visible_in_new_section": [],
+      "secret_like_visible": false,
+      "horizontal_overflow_outside_table_scroll": [],
+      "section_rect": {
+        "x": 80,
+        "y": 0,
+        "width": 1280,
+        "height": 1000
+      },
+      "screenshots": {
+        "fullpage": "artifacts/high_budget_gpt54_eval/html_check/desktop_fullpage.png",
+        "fullpage_sha256": "e8e1fd08ec5e7d482c4cd310f399a2209b8afeeb2663329482343485204c2a25",
+        "section": "artifacts/high_budget_gpt54_eval/html_check/desktop_heuristic_section.png",
+        "section_sha256": "8ad44fc7ca9126e701f0dc64b461b718b5a6304d1e914eb8ad2a0bca64c026ce"
+      }
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "title": "GPT 评测报告｜大模型解题表现的行为学分析",
+      "section_found": true,
+      "section_text_checks": {
+        "report_hash_present": true,
+        "public_bundle_present": true,
+        "prompt_audit_bundle_present": true,
+        "gpt54_new_full_blind_present": true,
+        "gpt54_new_sequential_present": true,
+        "gpt55_56_not_run_present": true,
+        "posthoc_label_present": true,
+        "family_specific_xgboost_present": true
+      },
+      "forbidden_visible_in_new_section": [],
+      "secret_like_visible": false,
+      "horizontal_overflow_outside_table_scroll": [],
+      "section_rect": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 844
+      },
+      "screenshots": {
+        "fullpage": "artifacts/high_budget_gpt54_eval/html_check/mobile_fullpage.png",
+        "fullpage_sha256": "3cacfcae8654723bdf5bd77c04e3d0f5cec79a21ce5a031cdb55435b728fc421",
+        "section": "artifacts/high_budget_gpt54_eval/html_check/mobile_heuristic_section.png",
+        "section_sha256": "3cacfcae8654723bdf5bd77c04e3d0f5cec79a21ce5a031cdb55435b728fc421"
+      }
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "passed": true
+}

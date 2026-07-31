@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_multivariate_regression__mvar_c59a30",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 6,
+  "overall_accuracy": 0.6,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  ],
+  "by_family": {
+    "multivariate_regression": {
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.25
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.4
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5714285714285714
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.5555555555555556
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6
+    }
+  ],
+  "final_lessons": [
+    "For this regression dataset, high-capacity layer-normalized MLPs can beat faster-looking optimizers even with tiny-lr Adagrad.",
+    "Adagrad at lr 0.003 with a deeper MLP beat shallow AdamW and tiny-lr SGD on this dataset.",
+    "Very wide residual MLPs can win with conservative RMSprop, and Adagrad lr 0.01 may be too aggressive for deeper models.",
+    "Adagrad lr 0.0001 underfits badly here; residual RMSprop lr 0.0001 can beat both it and SGD with weight decay.",
+    "Shallow wide Adam at lr 0.0001 underfits compared with the deep wide residual RMSprop lr 0.0001 setup.",
+    "The depth-5 width-256 mostly layer-normalized Adagrad lr 0.0003 candidate is a top performer among observed choices.",
+    "Shallow SGD lr 0.01 and narrow Adagrad lr 0.01 remain weak versus the deep width-256 Adagrad lr 0.0003 model.",
+    "A depth-4 width-256 partially layer-normalized Adam lr 0.0001 model can be strong despite weight decay, while SGD lr 0.001 is weak.",
+    "A shallow width-256 layer-normalized AdamW lr 0.01 model can be strong; no-momentum tiny-lr SGD and very narrow RMSprop are weak.",
+    "The deep width-256 residual RMSprop lr 0.0001 setup reliably beats no-momentum tiny-lr SGD and very narrow AdamW."
+  ]
+}

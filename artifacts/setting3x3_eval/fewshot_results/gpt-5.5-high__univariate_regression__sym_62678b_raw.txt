@@ -1,0 +1,52 @@
+[
+  {
+    "question_id": "q_073f9b",
+    "predicted_letter": "A",
+    "reason": "C combines a tiny shallow model with very low AdamW learning rate, likely undertraining. B has a larger model but Adagrad at 0.0003 is probably slow over only 64 steps. A has a wide shallow network with Adam at 0.0003, the strongest expected training dynamics among these."
+  },
+  {
+    "question_id": "q_0e556f",
+    "predicted_letter": "B",
+    "reason": "A uses extremely low-learning-rate SGD without momentum and should barely train. C is moderate but Adam at 0.0003 may still be slow. B uses SGD with momentum at 0.01, which matched the best-performing style in the examples."
+  },
+  {
+    "question_id": "q_417b4e",
+    "predicted_letter": "A",
+    "reason": "B has very low-learning-rate SGD and is likely poor. C is a very small one-layer model with only moderate AdamW. A has RMSprop with a high learning rate, which should train much more aggressively within the short budget."
+  },
+  {
+    "question_id": "q_5f12d9",
+    "predicted_letter": "C",
+    "reason": "A uses slow SGD without momentum, and B is a tiny shallow model with AdamW at 0.0001. C has momentum SGD at 0.003 with a deeper residual model, making it the most likely to reduce MSE quickly."
+  },
+  {
+    "question_id": "q_b87c20",
+    "predicted_letter": "B",
+    "reason": "A is essentially undertrained due to SGD at 0.0001 without momentum, and C has RMSprop at only 0.0001. B uses AdamW at 0.001, a much more effective short-budget optimizer setting despite the small model."
+  },
+  {
+    "question_id": "q_d0fad7",
+    "predicted_letter": "B",
+    "reason": "C has a large model but Adam at 0.0003 may train slowly. A has Adam at 0.003 but a narrow deep model with weight decay. B combines high AdamW learning rate with a wide one-hidden-layer model, likely giving the best rapid fit."
+  },
+  {
+    "question_id": "q_e18192",
+    "predicted_letter": "A",
+    "reason": "B uses Adam at 0.0001 and C uses Adagrad at 0.0001, both likely too slow. A uses RMSprop at 0.01 with a residual network, making it the strongest optimizer choice for the short training budget."
+  },
+  {
+    "question_id": "q_e86092",
+    "predicted_letter": "A",
+    "reason": "B is a tiny model with AdamW at 0.0001. C has RMSprop at 0.0003, which may be slow. A has a large deep model with Adagrad at 0.001, likely a better balance of capacity and learning speed."
+  },
+  {
+    "question_id": "q_f745a6",
+    "predicted_letter": "A",
+    "reason": "C uses small SGD without momentum and should lag. B has momentum but only lr 0.001. A uses AdamW at 0.001 with a moderately sized residual model, likely giving the best optimization over 64 steps."
+  },
+  {
+    "question_id": "q_ff5ef6",
+    "predicted_letter": "C",
+    "reason": "A uses Adagrad at only 0.0003, likely too conservative. B has AdamW at 0.01, which can work but may be less reliable with weight decay. C uses Adagrad at 0.01, a more aggressive setting likely to fit fastest among these."
+  }
+]

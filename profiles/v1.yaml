@@ -112,6 +112,7 @@ significance:
 question_generation:
   max_attempts: 20
   targeted_pool_size: 32
+  non_repeating_candidates: false
 
 prompts:
   use_llm_paraphrase: false

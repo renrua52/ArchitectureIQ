@@ -1,0 +1,52 @@
+[
+  {
+    "question_id": "q_0a0c3c",
+    "predicted_letter": "A",
+    "reason": "Among fixed optimizer/loss settings, the 4-layer width-256 MLP has much higher capacity than the narrow width-32 alternatives and avoids the potential optimization issues of all-layer normalization."
+  },
+  {
+    "question_id": "q_0e0195",
+    "predicted_letter": "D",
+    "reason": "The 2-layer width-256 ReLU network is the strongest simple high-capacity architecture here; the other options are much narrower or heavily normalized."
+  },
+  {
+    "question_id": "q_355168",
+    "predicted_letter": "D",
+    "reason": "The width-256, depth-4 architecture offers the best capacity/training balance compared with narrower or more heavily normalized alternatives."
+  },
+  {
+    "question_id": "q_987387",
+    "predicted_letter": "D",
+    "reason": "The depth-5 width-256 model with some layer normalization has the largest useful capacity and should outperform the shallower or narrower choices."
+  },
+  {
+    "question_id": "q_9fc355",
+    "predicted_letter": "A",
+    "reason": "The width-256 depth-4 model is substantially more expressive than the width-32/16 options and likely better than the smaller width-128 model."
+  },
+  {
+    "question_id": "q_a31edc",
+    "predicted_letter": "A",
+    "reason": "The simple 2-layer width-256 ReLU network should train reliably with SGD and has stronger capacity than the narrower or heavily normalized choices."
+  },
+  {
+    "question_id": "q_ddef9b",
+    "predicted_letter": "A",
+    "reason": "The depth-5 width-256 architecture has the strongest capacity among the choices, while the residual alternatives are much narrower."
+  },
+  {
+    "question_id": "q_dfe8c7",
+    "predicted_letter": "B",
+    "reason": "The residual depth-6 width-128 model should provide the best expressiveness and optimization stability relative to the narrower or shallower alternatives."
+  },
+  {
+    "question_id": "q_130b76",
+    "predicted_letter": "A",
+    "reason": "The residual depth-6 width-128 network has strong capacity and skip connections, likely outperforming the shallow or tiny alternatives."
+  },
+  {
+    "question_id": "q_30e31f",
+    "predicted_letter": "C",
+    "reason": "The depth-5 width-256 model with partial normalization is likely the most expressive and stable option, beating the slightly shallower width-256 model and the narrow choices."
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "question_id": "q_094b12",
+    "predicted_letter": "A",
+    "reason": "Adam at 0.0003 with a large 1-layer model is a reliable mid-to-good setting; RMSprop at 0.01 may be too aggressive and the small AdamW 0.0001 option likely undertrains."
+  },
+  {
+    "question_id": "q_44d7aa",
+    "predicted_letter": "C",
+    "reason": "The large model with Adam at 0.003 should train faster than the low-lr RMSprop option and likely outperform the deep RMSprop 0.001 configuration."
+  },
+  {
+    "question_id": "q_530159",
+    "predicted_letter": "C",
+    "reason": "SGD at 0.0001 is consistently poor, while AdamW at 0.0003 on the largest model should edge out Adagrad at only 0.001."
+  },
+  {
+    "question_id": "q_7cac4a",
+    "predicted_letter": "A",
+    "reason": "Adam at 0.003 on a large shallow model should converge quickly; SGD is weak, and Adagrad 0.003 is strong but likely slightly behind this Adam setting."
+  },
+  {
+    "question_id": "q_834cc0",
+    "predicted_letter": "B",
+    "reason": "RMSprop with lr 0.003 is likely a strong fast-learning setup, beating the slower Adam 0.0003 option and the small SGD model."
+  },
+  {
+    "question_id": "q_b9bf98",
+    "predicted_letter": "C",
+    "reason": "The SGD option is very weak; between AdamW 0.001 and RMSprop 0.003, the RMSprop configuration is expected to converge best in this short budget."
+  },
+  {
+    "question_id": "q_b9f2a5",
+    "predicted_letter": "B",
+    "reason": "The large AdamW 0.0003 model is the most reliable choice; the small AdamW 0.0001 option undertrains and SGD is less dependable."
+  },
+  {
+    "question_id": "q_bc3c03",
+    "predicted_letter": "C",
+    "reason": "Adam at 0.0003 is much stronger than the two very low learning-rate SGD configurations."
+  },
+  {
+    "question_id": "q_cad232",
+    "predicted_letter": "C",
+    "reason": "RMSprop at 0.0003 on a large shallow model should outperform low-lr SGD and a smaller Adagrad model despite Adagrad's decent learning rate."
+  },
+  {
+    "question_id": "q_f241b4",
+    "predicted_letter": "B",
+    "reason": "AdamW at 0.01 has shown reasonable performance, while deep large RMSprop 0.001 configurations appear weaker and RMSprop 0.0001 likely undertrains."
+  }
+]

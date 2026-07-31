@@ -54,6 +54,7 @@ def write_run_manifest(
     num_questions: int,
     num_choices: int,
     seed: int,
+    non_repeating_candidates: bool,
     question_ids: list[str],
 ) -> None:
     data_root = DATA_DIR.resolve()
@@ -69,6 +70,7 @@ def write_run_manifest(
         "num_choices": num_choices,
         "question_ids": question_ids,
         "seed": seed,
+        "non_repeating_candidates": non_repeating_candidates,
         "profile": profile.name,
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }

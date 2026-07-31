@@ -250,7 +250,7 @@ def sample_optimizer(profile: Profile, rng: random.Random) -> dict[str, Any]:
 def sample_loss(profile: Profile, family: str, rng: random.Random) -> dict[str, Any]:
     loss_id = rng.choice(profile.pools["losses"][family])
     spec: dict[str, Any] = {"loss_id": loss_id}
-    if loss_id in {"mse_l1", "mse_l2"}:
+    if loss_id.endswith(("_l1", "_l2")):
         spec["lambda"] = rng.choice(profile.loss_grids["lambda"])
     return spec
 

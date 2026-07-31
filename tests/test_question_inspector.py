@@ -78,8 +78,13 @@ def test_load_question_bundle(question_path: Path) -> None:
 def test_load_dataset_tensors(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     tx, ty, vx, vy = load_dataset_tensors(bundle.dataset_dir)
-    assert tx.ndim == 2 and ty.shape == tx.shape
-    assert vx.shape == tx.shape and vy.shape == ty.shape
+    # Inputs are 2-D; targets match their own inputs row-for-row. Train and test
+    # share the feature/context width but may differ in row count (e.g. bigram
+    # uses an 800/200 split, regression uses 256/256).
+    assert tx.ndim == 2 and vx.ndim == 2
+    assert ty.shape[0] == tx.shape[0]
+    assert vy.shape[0] == vx.shape[0]
+    assert vx.shape[1] == tx.shape[1]
 
 
 def test_format_metrics() -> None:

@@ -1,0 +1,257 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_multivariate_regression__mvar_978f4c",
+  "questions_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_978f4c/questions.json",
+  "feedback_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_978f4c/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_0a0c3c",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_e645b2",
+      "confidence": null,
+      "reason": "Depth-3 width-128 MLP with full layer-norm balances capacity and training stability for this regression task.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.37127159237861634,
+        "B": 0.5456831514835357,
+        "C": 0.5191975206136703,
+        "D": 0.5002045661211014
+      },
+      "lesson": "Starting baseline: moderate-depth wide MLPs with layer-norm tend to be reliable for multivariate regression.",
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_0e0195",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "Wide (width-256) MLP without layer-norm won last time, and D is the widest high-capacity option here.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5191975206136703,
+        "B": 0.5153737246990204,
+        "C": 0.4980314403772354,
+        "D": 0.3453646421432495
+      },
+      "lesson": "Higher-capacity wide MLPs without layer-norm outperform narrow or heavily-normalized ones on this dataset.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "question_id": "q_355168",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "Width-256 no-layer-norm MLP (c_c1617c) was the best performer previously, favoring high capacity without normalization.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5157244205474854,
+        "B": 0.5451097458600997,
+        "C": 0.5520249992609024,
+        "D": 0.37127159237861634
+      },
+      "lesson": "The width-256 unnormalized MLP consistently gives the lowest test MSE on this dataset.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "question_id": "q_987387",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "B is c_bec5a1, the width-256 unnormalized MLP that scored the best MSE (0.345) previously.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5002045661211014,
+        "B": 0.3453646421432495,
+        "C": 0.5520249992609024,
+        "D": 0.47556570172309875
+      },
+      "lesson": "Width-256 unnormalized shallow MLPs remain the top performers on this dataset.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "question_id": "q_9fc355",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "A is c_c1617c, the width-256 unnormalized MLP that scored 0.371, the widest high-capacity option here.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.37127159237861634,
+        "B": 0.5579046487808228,
+        "C": 0.730620414018631,
+        "D": 0.509278553724289
+      },
+      "lesson": "Width-256 unnormalized MLPs continue to dominate over narrow/normalized alternatives.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.8
+    },
+    {
+      "n": 6,
+      "question_id": "q_a31edc",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "A is c_bec5a1, the width-256 unnormalized MLP with best MSE (0.345) seen so far.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.3453646421432495,
+        "B": 0.5520249992609024,
+        "C": 0.5002045661211014,
+        "D": 0.5153737246990204
+      },
+      "lesson": "Width-256 unnormalized MLPs remain the strongest choice on this dataset.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.8333333333333334
+    },
+    {
+      "n": 7,
+      "question_id": "q_ddef9b",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "D is c_bec5a1, the width-256 fully unnormalized shallow MLP with the best MSE (0.345) seen repeatedly.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.47556570172309875,
+        "B": 0.467398601770401,
+        "C": 0.6045008957386017,
+        "D": 0.3453646421432495
+      },
+      "lesson": "The shallow width-256 fully-unnormalized MLP is the consistent top performer.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.8571428571428571
+    },
+    {
+      "n": 8,
+      "question_id": "q_dfe8c7",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_ef7608",
+      "confidence": null,
+      "reason": "No width-256 present; D is the shallowest and widest (depth-2, width-128) with minimal normalization, best per prior trends.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_280928",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.730620414018631,
+        "B": 0.4530318260192871,
+        "C": 0.581612429022789,
+        "D": 0.5451097458600997
+      },
+      "lesson": "Absent width-256, favor the shallowest widest MLP with least layer-norm.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 9,
+      "question_id": "q_130b76",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "C is c_bec5a1, the width-256 fully unnormalized MLP with the consistent best MSE (0.345).",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.4827177971601486,
+        "B": 0.4980314403772354,
+        "C": 0.3453646421432495,
+        "D": 0.491769340634346
+      },
+      "lesson": "The width-256 unnormalized MLP remains the top pick whenever present.",
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.7777777777777778
+    },
+    {
+      "n": 10,
+      "question_id": "q_30e31f",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "B is c_c1617c, the width-256 fully unnormalized MLP with a strong known MSE (0.371), and the only fully-unnormalized width-256 option here.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.46836474239826204,
+        "B": 0.37127159237861634,
+        "C": 0.47556570172309875,
+        "D": 0.7781435966491699
+      },
+      "lesson": "Among width-256 options, fully unnormalized ones beat those with any layer-norm.",
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_0a0c3c",
+    "q_0e0195",
+    "q_355168",
+    "q_987387",
+    "q_9fc355",
+    "q_a31edc",
+    "q_ddef9b",
+    "q_dfe8c7",
+    "q_130b76",
+    "q_30e31f"
+  ],
+  "feedback_ids": [
+    "q_0a0c3c",
+    "q_0e0195",
+    "q_355168",
+    "q_987387",
+    "q_9fc355",
+    "q_a31edc",
+    "q_ddef9b",
+    "q_dfe8c7",
+    "q_130b76",
+    "q_30e31f"
+  ]
+}

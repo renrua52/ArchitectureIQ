@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import json
 
-from architecture_iq.candidates.generator import choices_compatible, sample_variant_pool
+from architecture_iq.candidates.generator import choices_compatible, sample_loss, sample_variant_pool
 from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries
 from architecture_iq.questions.generator import (
@@ -75,6 +75,13 @@ def test_mixed_pool_varies_all_training_axes() -> None:
     assert len(optimizers) > 1
     assert len(losses) > 1
     assert len(batch_sizes) == 1
+
+
+def test_bigram_regularized_loss_has_lambda() -> None:
+    profile = load_profile("v1")
+    loss = sample_loss(profile, "bigram_lm", __import__("random").Random(0))
+    assert loss["loss_id"] in {"cross_entropy_l1", "cross_entropy_l2"}
+    assert loss["lambda"] in profile.loss_grids["lambda"]
 
 
 def test_choices_compatible_rejects_mixed_batch_sizes() -> None:
@@ -152,6 +159,32 @@ def test_find_significant_subsets_returns_multiple() -> None:
     assert _pick_distinct_subsets(subsets, 2)[0] != _pick_distinct_subsets(subsets, 2)[1]
 
 
+def test_pick_distinct_subsets_recovers_from_greedy_dead_end() -> None:
+    """A single first-fit pass can consume both endpoints of two valid pairs."""
+    subsets = [
+        [Path("a"), Path("b")],
+        [Path("a"), Path("c")],
+        [Path("b"), Path("d")],
+    ]
+
+    # The listed order is a greedy dead end: accepting {a, b} leaves no
+    # candidate-disjoint subset, even though {a, c} + {b, d} is feasible.
+    used: set[str] = set()
+    first_fit: list[list[Path]] = []
+    for subset in subsets:
+        candidate_ids = {path.name for path in subset}
+        if candidate_ids & used:
+            continue
+        first_fit.append(subset)
+        used.update(candidate_ids)
+    assert len(first_fit) == 1
+
+    picked = _pick_distinct_subsets(subsets, 2, non_repeating_candidates=True)
+    assert len(picked) == 2
+    assert {path.name for subset in picked for path in subset} == {"a", "b", "c", "d"}
+    assert picked == _pick_distinct_subsets(subsets, 2, non_repeating_candidates=True)
+
+
 def test_select_significant_candidates_exhaustive() -> None:
     profile = load_profile("v1")
 
@@ -188,11 +221,14 @@ def test_select_significant_candidates_exhaustive() -> None:
     assert len(selected) == 2
 
 
-def test_eligible_candidate_paths_filters_excluded() -> None:
-    paths = [Path("a"), Path("b")]
+def test_eligible_candidate_paths_filters_excluded_and_failed() -> None:
+    paths = [Path("a"), Path("b"), Path("c")]
 
     def fake_load_summary(path: Path) -> dict:
-        return {"excluded": path.name == "b"}
+        return {
+            "excluded": path.name == "b",
+            "failed_seeds": 1 if path.name == "c" else 0,
+        }
 
     with patch("architecture_iq.questions.generator.load_summary", fake_load_summary):
         assert eligible_candidate_paths(paths) == [Path("a")]

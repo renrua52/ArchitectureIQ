@@ -1,0 +1,85 @@
+{
+  "index_out": "tools/batch_generate/_batch2_noisy_index.json",
+  "sets": [
+    {
+      "label": "NOISY_uni_arch_d6bbf5_s15_82k",
+      "dataset_path": "data/datasets/univariate_regression/sym_d6bbf5",
+      "budget": 81920,
+      "count": 30,
+      "vary": ["model"],
+      "seed": 20001
+    },
+    {
+      "label": "NOISY_uni_arch_f5a3cd_s25_82k",
+      "dataset_path": "data/datasets/univariate_regression/sym_f5a3cd",
+      "budget": 81920,
+      "count": 30,
+      "vary": ["model"],
+      "seed": 20002
+    },
+    {
+      "label": "NOISY_mvar_arch_fcc2d5_d4_s15_82k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_fcc2d5",
+      "budget": 81920,
+      "count": 30,
+      "vary": ["model"],
+      "seed": 20003
+    },
+    {
+      "label": "NOISY_mvar_arch_866b4e_d8_s15_82k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_866b4e",
+      "budget": 81920,
+      "count": 30,
+      "vary": ["model"],
+      "seed": 20004
+    },
+    {
+      "label": "NOISY_mvar_opt_cf432d_d5_s20_41k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_cf432d",
+      "budget": 40960,
+      "count": 28,
+      "vary": ["optimizer"],
+      "seed": 20005
+    },
+    {
+      "label": "NOISY_uni_opt_d6bbf5_s15_41k",
+      "dataset_path": "data/datasets/univariate_regression/sym_d6bbf5",
+      "budget": 40960,
+      "count": 28,
+      "vary": ["optimizer"],
+      "seed": 20006
+    },
+    {
+      "label": "NOISY_mvar_loss_fcc2d5_d4_s15_41k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_fcc2d5",
+      "budget": 40960,
+      "count": 9,
+      "vary": ["loss"],
+      "seed": 20007
+    },
+    {
+      "label": "NOISY_uni_loss_f5a3cd_s25_41k",
+      "dataset_path": "data/datasets/univariate_regression/sym_f5a3cd",
+      "budget": 40960,
+      "count": 9,
+      "vary": ["loss"],
+      "seed": 20008
+    },
+    {
+      "label": "NOISY_mvar_mixed_cf432d_d5_s20_82k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_cf432d",
+      "budget": 81920,
+      "count": 30,
+      "vary": ["model", "optimizer", "loss"],
+      "seed": 20009
+    },
+    {
+      "label": "NOISY_mvar_mixed_866b4e_d8_s15_82k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_866b4e",
+      "budget": 81920,
+      "count": 30,
+      "vary": ["model", "optimizer", "loss"],
+      "seed": 20010
+    }
+  ]
+}

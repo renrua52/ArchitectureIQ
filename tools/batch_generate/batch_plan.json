@@ -1,0 +1,85 @@
+{
+  "index_out": "tools/batch_generate/_batch1_index.json",
+  "sets": [
+    {
+      "label": "uni_arch_c804cc_82k",
+      "dataset_path": "data/datasets/univariate_regression/sym_c804cc",
+      "budget": 81920,
+      "count": 28,
+      "vary": ["model"],
+      "seed": 10001
+    },
+    {
+      "label": "mvar_arch_9faf9d_d4_82k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_9faf9d",
+      "budget": 81920,
+      "count": 28,
+      "vary": ["model"],
+      "seed": 10002
+    },
+    {
+      "label": "mvar_arch_978f4c_d8_82k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_978f4c",
+      "budget": 81920,
+      "count": 28,
+      "vary": ["model"],
+      "seed": 10003
+    },
+    {
+      "label": "bg_arch_0fff4b_81k",
+      "dataset_path": "data/datasets/bigram_lm/bg_0fff4b",
+      "budget": 81920,
+      "count": 24,
+      "vary": ["model"],
+      "seed": 10004
+    },
+    {
+      "label": "uni_opt_316367_41k",
+      "dataset_path": "data/datasets/univariate_regression/sym_316367",
+      "budget": 40960,
+      "count": 24,
+      "vary": ["optimizer"],
+      "seed": 10005
+    },
+    {
+      "label": "mvar_opt_befdab_d5_41k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_befdab",
+      "budget": 40960,
+      "count": 24,
+      "vary": ["optimizer"],
+      "seed": 10006
+    },
+    {
+      "label": "mvar_loss_875292_d3_41k",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_875292",
+      "budget": 40960,
+      "count": 7,
+      "vary": ["loss"],
+      "seed": 10007
+    },
+    {
+      "label": "bg_loss_5d89d5_41k",
+      "dataset_path": "data/datasets/bigram_lm/bg_5d89d5",
+      "budget": 40960,
+      "count": 7,
+      "vary": ["loss"],
+      "seed": 10008
+    },
+    {
+      "label": "uni_mixed_411dbf_82k",
+      "dataset_path": "data/datasets/univariate_regression/sym_411dbf",
+      "budget": 81920,
+      "count": 28,
+      "vary": ["model", "optimizer", "loss"],
+      "seed": 10009
+    },
+    {
+      "label": "uni_mixed_6b9c98_82k",
+      "dataset_path": "data/datasets/univariate_regression/sym_6b9c98",
+      "budget": 81920,
+      "count": 28,
+      "vary": ["model", "optimizer", "loss"],
+      "seed": 10010
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "agent": "blind-answer-agent",
+  "model": "gpt-4.1",
+  "reasoning_effort": "qualitative_cross-question_comparison",
+  "source_used": "visible_sanitized_questions_only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 51,
+      "question_id": "q_0a0c3c",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.55,
+      "reason": "The wide depth-4 MLP has the strongest capacity among these non-residual SGD-trained options."
+    },
+    {
+      "n": 52,
+      "question_id": "q_0e0195",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.52,
+      "reason": "A shallow width-256 ReLU MLP should train reliably and outperform the smaller alternatives."
+    },
+    {
+      "n": 53,
+      "question_id": "q_355168",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.5,
+      "reason": "The width-256 depth-4 model seems like the best balance of capacity and trainability here."
+    },
+    {
+      "n": 54,
+      "question_id": "q_987387",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_7795a2",
+      "confidence": 0.48,
+      "reason": "The depth-5 width-256 model has the highest expressive capacity while retaining some normalization."
+    },
+    {
+      "n": 55,
+      "question_id": "q_9fc355",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.56,
+      "reason": "The wide depth-4 model is more capable than the narrow or partially normalized smaller choices."
+    },
+    {
+      "n": 56,
+      "question_id": "q_a31edc",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.45,
+      "reason": "The simple width-256 depth-2 ReLU network likely trains more cleanly than deeper heavily normalized options."
+    },
+    {
+      "n": 57,
+      "question_id": "q_ddef9b",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_7795a2",
+      "confidence": 0.5,
+      "reason": "The depth-5 width-256 architecture offers the best capacity among these candidates."
+    },
+    {
+      "n": 58,
+      "question_id": "q_dfe8c7",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_280928",
+      "confidence": 0.47,
+      "reason": "The residual depth-6 width-128 model should be more expressive and trainable than the narrower alternatives."
+    },
+    {
+      "n": 59,
+      "question_id": "q_130b76",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_269cd8",
+      "confidence": 0.46,
+      "reason": "The residual depth-6 width-128 model likely beats the shallow baselines on nonlinear regression."
+    },
+    {
+      "n": 60,
+      "question_id": "q_30e31f",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_7795a2",
+      "confidence": 0.49,
+      "reason": "The depth-5 width-256 model edges out the depth-4 width-256 option through greater expressiveness."
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_bigram_lm__bg_0021c1",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 6,
+  "overall_accuracy": 0.6,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  ],
+  "by_family": {
+    "bigram_lm": {
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.25
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.4
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5714285714285714
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.625
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6
+    }
+  ],
+  "final_lessons": [
+    "Awaiting feedback on whether high LR helps in low-step budgets.",
+    "Adam at moderate LR outperformed high-LR RMSprop; prefer Adam-family optimizers with reasonable LR in low-step budgets.",
+    "Adaptive optimizers (Adam/AdamW/RMSprop) with moderate LR reliably beat low-LR SGD/Adagrad under short step budgets.",
+    "Adam with moderate-to-high LR on wide models tends to minimize CE fastest in short budgets.",
+    "Larger d_model (128) combined with an adaptive optimizer tends to yield the lowest CE.",
+    "Among equal-width models, AdamW at moderate LR tends to edge out RMSprop and SGD.",
+    "Wide d_model=128 with AdamW at moderate LR consistently produces the lowest CE.",
+    "When only one option uses an adaptive optimizer, it typically wins over SGD choices.",
+    "Wide d_model=128 plus any adaptive optimizer is the safest bet for lowest CE.",
+    "Between two wide adaptive configs, the one with moderate LR beats the one with excessively high LR."
+  ]
+}

@@ -81,7 +81,7 @@ def create_dataset(
     resolve_dataset_family(profile, family=family_name)
     family = get_dataset_family(family_name)
     options = family_options or {}
-    if family_name == "multivariate_regression":
+    if family_name in ("multivariate_regression", "univariate_regression"):
         partial = family.create_instance(profile, seed, **options)
     else:
         if options:

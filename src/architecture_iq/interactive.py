@@ -167,7 +167,7 @@ def assemble_loss_spec(
     if loss_id is None:
         return sample_loss(profile, family, rng)
     spec: dict[str, Any] = {"loss_id": loss_id}
-    if loss_id in {"mse_l1", "mse_l2"}:
+    if loss_id.endswith(("_l1", "_l2")):
         spec["lambda"] = (
             lambda_value
             if lambda_value is not None
@@ -279,7 +279,7 @@ def prompt_loss_spec(
         write=write,
     )
     lambda_raw: float | None = None
-    if loss_id in {"mse_l1", "mse_l2"}:
+    if loss_id.endswith(("_l1", "_l2")):
         lambda_raw = prompt_grid_value(
             "Loss lambda (for L1/L2 penalties)",
             list(profile.loss_grids["lambda"]),

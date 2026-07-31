@@ -15,6 +15,14 @@ record the full structured trace.
 | Formula prompt, initial pass | 3 | 20, 22, 19 / 60 | 33.9% | 21/60 = 35.0% |
 | Formula prompt, revised final pass | 3 | 18, 21, 20 / 60 | 32.8% | 19/60 = 31.7% |
 
+Sanity baselines:
+
+| Rule | Score | Note |
+|---|---:|---|
+| Uniform random expectation | 20/60 = 33.3% | The formula prompt's revised mean, 32.8%, is effectively random. |
+| Pick the largest learning rate | 17/60 = 28.3% | Below random; "larger LR wins short budget" is a bad rule on this set. |
+| Pick the largest parameter count | 40/60 = 66.7% | A crude capacity rule beats all GPT-5.6-SOL blind/formula variants by a large margin. |
+
 The formula prompt lowered final mean accuracy by **6.7 percentage points**
 relative to the original prompt. Label-free revision also lowered the three-run
 total from 61 correct initial predictions to 59 final predictions.
@@ -25,7 +33,9 @@ failure was therefore the univariate family, where all three formulas strongly
 penalized very large models and conservative learning rates under a 64-step
 budget. The benchmark's observed candidate results often reward capacity even
 under short budgets, so this plausible qualitative prior became a systematic
-error when encoded as a large numeric penalty.
+error when encoded as a large numeric penalty. The simplest evidence is the
+largest-parameter baseline: it reaches 40/60, while the formula prompt ends near
+the random 20/60 line.
 
 The useful outcome is auditability, not accuracy: every run exposes its parameter
 count formulas, numeric feature weights, optimizer/learning-rate interactions,

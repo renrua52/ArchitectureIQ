@@ -1,0 +1,253 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_univariate_regression__sym_411dbf",
+  "questions_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/univariate_regression__sym_411dbf/questions.json",
+  "feedback_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/univariate_regression__sym_411dbf/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_14fae5",
+      "family": "univariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_c1173b",
+      "confidence": null,
+      "reason": "RMSprop with a healthy 0.01 lr and layer norm on a compact depth-3 network should converge fastest and most stably for univariate regression.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_c1173b",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.114969452470541,
+        "B": 0.0007072608132148162,
+        "C": 0.07271954864263534,
+        "D": 0.06147977991495281
+      },
+      "lesson": "Adaptive optimizers with moderate learning rates on shallow normalized nets tend to fit simple regression well.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_29f8c1",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_1b86cd",
+      "confidence": null,
+      "reason": "Candidate c_1b86cd previously achieved the best test_mse among these non-RMSprop options and has the highest learning rate here.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_e33f46",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.06147977991495281,
+        "B": 0.07271954864263534,
+        "C": 0.114969452470541,
+        "D": 0.0004575398561428301
+      },
+      "lesson": "Recall prior candidate metrics: c_1b86cd was the strongest of these SGD/Adagrad configs.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "question_id": "q_368576",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_112a04",
+      "confidence": null,
+      "reason": "Candidate A is the only one with SGD momentum 0.9 on a shallow normalized net, which should converge far better than the previously-seen mediocre configs B/C/D.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_112a04",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 3.918499132851139e-05,
+        "B": 0.07271954864263534,
+        "C": 0.06147977991495281,
+        "D": 0.114969452470541
+      },
+      "lesson": "Known candidates c_af823f, c_1b86cd, c_6bdc9a all scored 0.06-0.11; momentum-enabled shallow nets likely beat them.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "question_id": "q_5cffc9",
+      "family": "univariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_b29c81",
+      "confidence": null,
+      "reason": "The three known candidates all scored 0.06-0.11, and D is a new config with the highest learning rate (0.01), which has correlated with better fits.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_b29c81",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.114969452470541,
+        "B": 0.07271954864263534,
+        "C": 0.06147977991495281,
+        "D": 0.0020777642261236907
+      },
+      "lesson": "Higher learning rates consistently produce better fits on this dataset; known weak candidates stay weak.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "question_id": "q_796ec0",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c7f2b9",
+      "confidence": null,
+      "reason": "B/C/D are known weak candidates (0.06-0.11); A is the new shallow wide residual net, likely the strongest here.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_c7f2b9",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.0010574302112217992,
+        "B": 0.06147977991495281,
+        "C": 0.114969452470541,
+        "D": 0.07271954864263534
+      },
+      "lesson": "When known candidates are all weak, the novel wide/shallow config is the best bet.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.8
+    },
+    {
+      "n": 6,
+      "question_id": "q_990fb0",
+      "family": "univariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_9f805c",
+      "confidence": null,
+      "reason": "A/B/C are known weak candidates (0.06-0.11); D is a novel shallow wide net with AdamW, matching the winning pattern.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_9f805c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.114969452470541,
+        "B": 0.06147977991495281,
+        "C": 0.07271954864263534,
+        "D": 4.991888062022554e-06
+      },
+      "lesson": "Novel shallow/wide adaptive-optimizer nets consistently beat the recurring weak SGD/Adagrad candidates.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.8333333333333334
+    },
+    {
+      "n": 7,
+      "question_id": "q_2d9e8c",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_72ed31",
+      "confidence": null,
+      "reason": "A and B are known weak candidates (~0.06); C is the novel candidate with RMSprop adaptive optimizer, matching the winning pattern.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_72ed31",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.06147977991495281,
+        "B": 0.07271954864263534,
+        "C": 0.0002647445568072726
+      },
+      "lesson": "The novel candidate with an adaptive optimizer beats recurring weak SGD candidates.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.8571428571428571
+    },
+    {
+      "n": 8,
+      "question_id": "q_b290f8",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_80e04e",
+      "confidence": null,
+      "reason": "A and B are known weak candidates; C is the novel shallow wide net with Adam at lr 0.01, matching the winning pattern.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_80e04e",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.114969452470541,
+        "B": 0.07271954864263534,
+        "C": 0.00024762456559983547
+      },
+      "lesson": "Novel adaptive-optimizer shallow/wide nets with high lr dominate the recurring weak SGD/Adagrad candidates.",
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.875
+    },
+    {
+      "n": 9,
+      "question_id": "q_c872ff",
+      "family": "univariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_9d5591",
+      "confidence": null,
+      "reason": "A and C are known weak candidates (~0.11, ~0.07); B is the novel candidate with Adagrad at high lr 0.01, matching the winning high-lr adaptive pattern.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_9d5591",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.114969452470541,
+        "B": 7.141403239074862e-06,
+        "C": 0.07271954864263534
+      },
+      "lesson": "The novel high-lr adaptive-optimizer candidate beats recurring weak known ones.",
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8888888888888888
+    },
+    {
+      "n": 10,
+      "question_id": "q_cda9dd",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_9a38fb",
+      "confidence": null,
+      "reason": "A and B are known weak candidates (~0.07, ~0.06); C is the novel candidate with an adaptive Adagrad optimizer, matching the winning pattern.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_9a38fb",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.07271954864263534,
+        "B": 0.06147977991495281,
+        "C": 7.677517241972964e-05
+      },
+      "lesson": "The novel adaptive-optimizer candidate reliably beats the recurring weak known SGD candidates.",
+      "cumulative_correct": 9,
+      "cumulative_accuracy": 0.9
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_14fae5",
+    "q_29f8c1",
+    "q_368576",
+    "q_5cffc9",
+    "q_796ec0",
+    "q_990fb0",
+    "q_2d9e8c",
+    "q_b290f8",
+    "q_c872ff",
+    "q_cda9dd"
+  ],
+  "feedback_ids": [
+    "q_14fae5",
+    "q_29f8c1",
+    "q_368576",
+    "q_5cffc9",
+    "q_796ec0",
+    "q_990fb0",
+    "q_2d9e8c",
+    "q_b290f8",
+    "q_c872ff",
+    "q_cda9dd"
+  ]
+}

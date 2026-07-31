@@ -1,0 +1,26 @@
+{
+  "profile": "v1",
+  "dataset_path": "data/datasets/multivariate_regression/mvar_866b4e",
+  "candidate_set_paths": [
+    "data/datasets/multivariate_regression/mvar_866b4e/candidates/set_81920_var_fix_fix_9b0d8d"
+  ],
+  "seed": 31001,
+  "questions": [
+    {
+      "candidate_ids": [
+        "c_316869",
+        "c_87c330",
+        "c_181727",
+        "c_c254f6"
+      ]
+    },
+    {
+      "candidate_ids": [
+        "c_8c06ba",
+        "c_87c330",
+        "c_591c43",
+        "c_969b50"
+      ]
+    }
+  ]
+}

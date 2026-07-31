@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import io
 import json
 import sys
+import urllib.error
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 LLM_EVAL = ROOT / "tools" / "llm_eval"
 sys.path.insert(0, str(LLM_EVAL))
 
 from completion import fetch_model_response  # noqa: E402
-from llm_client import LLMCompletion, ModelConfig, _token_limit_payload, message_text  # noqa: E402
+import llm_client as llm_client_module  # noqa: E402
+from llm_client import LLMClient, LLMClientError, LLMCompletion, ModelConfig, _token_limit_payload, message_text  # noqa: E402
 from prompt_wrapper import format_eval_prompt  # noqa: E402
 from question_loader import QuestionItem, load_question_item, prompt_hash  # noqa: E402
 from response_parser import parse_choice_letter, split_chain_of_thought  # noqa: E402
@@ -76,11 +81,145 @@ class SequentialFakeClient:
         return self.completions[idx].to_llm_completion()
 
 
+@dataclass
+class StubHTTPResponse:
+    payload: dict[str, object]
+
+    def __enter__(self) -> "StubHTTPResponse":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload).encode("utf-8")
+
+
+def _completion_payload(letter: str = "A") -> dict[str, object]:
+    return {
+        "choices": [
+            {
+                "message": {"content": f"<answer>{letter}</answer>"},
+                "finish_reason": "stop",
+            }
+        ]
+    }
+
+
 def test_token_limit_payload_sends_one_field() -> None:
     assert _token_limit_payload(ModelConfig(name="m", max_tokens=100)) == {"max_tokens": 100}
     assert _token_limit_payload(
         ModelConfig(name="m", max_tokens=100, extra={"max_completion_tokens": 512})
     ) == {"max_completion_tokens": 512}
+
+
+def test_llm_client_retries_rate_limit_and_respects_retry_after(monkeypatch: pytest.MonkeyPatch) -> None:
+    outcomes: list[object] = [
+        urllib.error.HTTPError(
+            "https://example.test/v1/chat/completions",
+            429,
+            "rate limited",
+            {"Retry-After": "1.25"},
+            io.BytesIO(b"try again"),
+        ),
+        StubHTTPResponse(_completion_payload("B")),
+    ]
+    calls: list[tuple[object, float]] = []
+    sleeps: list[float] = []
+
+    def fake_urlopen(
+        request: object, *, timeout: float, context: object
+    ) -> StubHTTPResponse:
+        calls.append((request, timeout))
+        assert context is not None
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        assert isinstance(outcome, StubHTTPResponse)
+        return outcome
+
+    monkeypatch.setattr(llm_client_module.urllib.request, "urlopen", fake_urlopen)
+    client = LLMClient(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        max_retries=2,
+        retry_base_delay_s=0.5,
+        retry_max_delay_s=8.0,
+        sleep_fn=sleeps.append,
+    )
+
+    completion = client.complete("Pick one.", ModelConfig(name="fake"))
+
+    assert completion.content == "<answer>B</answer>"
+    assert len(calls) == 2
+    assert sleeps == [1.25]
+
+
+def test_llm_client_retries_network_error_with_exponential_backoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outcomes: list[object] = [
+        urllib.error.URLError("connection reset"),
+        urllib.error.HTTPError(
+            "https://example.test/v1/chat/completions",
+            503,
+            "unavailable",
+            {},
+            io.BytesIO(b"busy"),
+        ),
+        StubHTTPResponse(_completion_payload()),
+    ]
+    sleeps: list[float] = []
+
+    def fake_urlopen(*_: object, **__: object) -> StubHTTPResponse:
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        assert isinstance(outcome, StubHTTPResponse)
+        return outcome
+
+    monkeypatch.setattr(llm_client_module.urllib.request, "urlopen", fake_urlopen)
+    client = LLMClient(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        max_retries=2,
+        retry_base_delay_s=0.25,
+        retry_max_delay_s=1.0,
+        sleep_fn=sleeps.append,
+    )
+
+    assert client.complete("Pick one.", ModelConfig(name="fake")).content == "<answer>A</answer>"
+    assert sleeps == [0.25, 0.5]
+
+
+def test_llm_client_does_not_retry_non_transient_http_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    error = urllib.error.HTTPError(
+        "https://example.test/v1/chat/completions",
+        400,
+        "bad request",
+        {},
+        io.BytesIO(b"invalid payload"),
+    )
+    calls = 0
+
+    def fake_urlopen(*_: object, **__: object) -> StubHTTPResponse:
+        nonlocal calls
+        calls += 1
+        raise error
+
+    monkeypatch.setattr(llm_client_module.urllib.request, "urlopen", fake_urlopen)
+    client = LLMClient(
+        base_url="https://example.test/v1",
+        api_key="test-key",
+        max_retries=3,
+        sleep_fn=lambda _: None,
+    )
+
+    with pytest.raises(LLMClientError, match="HTTP 400"):
+        client.complete("Pick one.", ModelConfig(name="fake"))
+    assert calls == 1
 
 
 def test_format_eval_prompt_appends_answer_tags() -> None:
@@ -171,6 +310,83 @@ def test_run_evaluation_concurrent(tmp_path: Path) -> None:
     assert manifest["summary"]["correct"] == 3
     assert manifest["workers"] == 3
     assert len(list((tmp_path / "run" / "results").glob("*.json"))) == 3
+
+
+def test_run_evaluation_selects_manifest_question_ids_in_order(tmp_path: Path) -> None:
+    questions_root = tmp_path / "questions"
+    responses = {}
+    for qid, letter in (("q_a", "A"), ("q_b", "B"), ("q_c", "A")):
+        qdir = questions_root / qid
+        qdir.mkdir(parents=True)
+        (qdir / "prompt.txt").write_text(f"Pick for {qid}.", encoding="utf-8")
+        (qdir / "question.json").write_text(
+            json.dumps(
+                {
+                    "question_id": qid,
+                    "type": "mixed",
+                    "family": "univariate_regression",
+                    "correct_letter": letter,
+                    "choices": [{"letter": "A"}, {"letter": "B"}],
+                    "prompt": {"rendered_path": "prompt.txt"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        item = load_question_item(qdir)
+        responses[prompt_hash(format_eval_prompt(item.prompt_text, item.valid_letters))] = (
+            f"<answer>{letter}</answer>"
+        )
+
+    manifest = run_evaluation(
+        questions_root=questions_root,
+        run_dir=tmp_path / "run",
+        model_config=ModelConfig(name="fake-model"),
+        client=FakeClient(responses),
+        question_ids=["q_c", "q_a"],
+        workers=2,
+    )
+
+    assert manifest["summary"]["total_questions"] == 2
+    assert manifest["question_ids"] == ["q_c", "q_a"]
+
+
+def test_run_evaluation_selects_explicit_question_paths(tmp_path: Path) -> None:
+    questions_root = tmp_path / "questions"
+    paths: list[Path] = []
+    responses = {}
+    for qid, letter in (("q_a", "A"), ("q_b", "B")):
+        qdir = questions_root / qid
+        qdir.mkdir(parents=True)
+        (qdir / "prompt.txt").write_text(f"Pick for {qid}.", encoding="utf-8")
+        (qdir / "question.json").write_text(
+            json.dumps(
+                {
+                    "question_id": qid,
+                    "type": "mixed",
+                    "family": "univariate_regression",
+                    "correct_letter": letter,
+                    "choices": [{"letter": "A"}, {"letter": "B"}],
+                    "prompt": {"rendered_path": "prompt.txt"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        item = load_question_item(qdir)
+        responses[prompt_hash(format_eval_prompt(item.prompt_text, item.valid_letters))] = (
+            f"<answer>{letter}</answer>"
+        )
+        paths.append(qdir)
+
+    manifest = run_evaluation(
+        questions_root=questions_root,
+        run_dir=tmp_path / "run",
+        model_config=ModelConfig(name="fake-model"),
+        client=FakeClient(responses),
+        question_paths=list(reversed(paths)),
+        workers=2,
+    )
+
+    assert manifest["question_ids"] == ["q_b", "q_a"]
 
 
 def test_run_evaluation_writes_run_artifacts(tmp_path: Path) -> None:

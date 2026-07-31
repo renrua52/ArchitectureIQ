@@ -7,75 +7,75 @@
   "base_seed": 0,
   "failed_seeds": 10,
   "excluded": true,
-  "mean_test_mse": Infinity,
-  "std_test_mse": Infinity,
+  "mean_test_mse": null,
+  "std_test_mse": null,
   "seed_results": [
     {
       "seed": 0,
       "failed": true,
-      "final_test_mse": 199281557504.0,
-      "mean_test_mse": 199281557504.0
+      "final_test_mse": 199281803264.0,
+      "mean_test_mse": 199281803264.0
     },
     {
       "seed": 1,
       "failed": true,
-      "final_test_mse": 2.6803444451593304e+32,
-      "mean_test_mse": 2.6803444451593304e+32
+      "final_test_mse": 2.6803432845905436e+32,
+      "mean_test_mse": 2.6803432845905436e+32
     },
     {
       "seed": 2,
       "failed": true,
-      "final_test_mse": 9.004229040714749e+23,
-      "mean_test_mse": 9.004229040714749e+23
+      "final_test_mse": 9.00423048186663e+23,
+      "mean_test_mse": 9.00423048186663e+23
     },
     {
       "seed": 3,
       "failed": true,
-      "final_test_mse": 1.5887601327629972e+24,
-      "mean_test_mse": 1.5887601327629972e+24
+      "final_test_mse": 1.5887612856845018e+24,
+      "mean_test_mse": 1.5887612856845018e+24
     },
     {
       "seed": 4,
       "failed": true,
-      "final_test_mse": 9.710591227723038e+31,
-      "mean_test_mse": 9.710591227723038e+31
+      "final_test_mse": 9.71059316200435e+31,
+      "mean_test_mse": 9.71059316200435e+31
     },
     {
       "seed": 5,
       "failed": true,
-      "final_test_mse": 1.5881933503122637e+17,
-      "mean_test_mse": 1.5881933503122637e+17
+      "final_test_mse": 1.5881947247017984e+17,
+      "mean_test_mse": 1.5881947247017984e+17
     },
     {
       "seed": 6,
       "failed": true,
-      "final_test_mse": 2.1009120020793446e+34,
-      "mean_test_mse": 2.1009120020793446e+34
+      "final_test_mse": 2.1009100213752817e+34,
+      "mean_test_mse": 2.1009100213752817e+34
     },
     {
       "seed": 7,
       "failed": true,
-      "final_test_mse": 1.0336513719308041e+30,
-      "mean_test_mse": 1.0336513719308041e+30
+      "final_test_mse": 1.033650843025758e+30,
+      "mean_test_mse": 1.033650843025758e+30
     },
     {
       "seed": 8,
       "failed": true,
-      "final_test_mse": 1.9806344287293986e+33,
-      "mean_test_mse": 1.9806344287293986e+33
+      "final_test_mse": 1.9805895534029745e+33,
+      "mean_test_mse": 1.9805895534029745e+33
     },
     {
       "seed": 9,
       "failed": true,
-      "final_test_mse": 6186410.0,
-      "mean_test_mse": 6186410.0
+      "final_test_mse": 6186409.5,
+      "mean_test_mse": 6186409.5
     }
   ],
   "environment": {
-    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
-    "platform": "macOS-15.3.1-arm64-arm-64bit",
-    "torch": "2.12.1",
+    "python": "3.10.11 (v3.10.11:7d4cc5aa85, Apr  4 2023, 19:05:19) [Clang 13.0.0 (clang-1300.0.29.30)]",
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "torch": "2.13.0",
     "device": "cpu",
-    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
+    "git_commit": "034aaad7bde1cfb6dd0dd73dcaea22f5c15be0d0"
   }
 }

@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_univariate_regression__sym_62678b",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 8,
+  "overall_accuracy": 0.8,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 8,
+      "total": 10,
+      "accuracy": 0.8
+    }
+  ],
+  "by_family": {
+    "univariate_regression": {
+      "correct": 8,
+      "total": 10,
+      "accuracy": 0.8
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.6
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.7142857142857143
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.7777777777777778
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8
+    }
+  ],
+  "final_lessons": [
+    "On this symbolic univariate task, deep wide layer-normalized MLPs can outperform shallower Adam models even with Adagrad.",
+    "At 64 steps, SGD variants underfit this task badly compared with the 2x256 Adam baseline.",
+    "A 2x128 normalized MLP can be competitive even with low-lr momentum SGD, while narrow high-lr RMSprop may fail.",
+    "Momentum SGD can work when paired with a deeper residual model, but no-momentum SGD and tiny AdamW remain weak.",
+    "A wide 2-layer model can make low-lr RMSprop usable, but tiny AdamW still underfits even with lr 1e-3.",
+    "Deep 256-wide Adam remains the best bet, while a 1x256 high-lr AdamW model can be decent but usually worse.",
+    "Wide 4-layer Adam can be excellent even at lr 1e-4; narrow low-lr Adagrad is very poor.",
+    "Deep 256-wide Adagrad is also strong; tiny low-lr AdamW is among the worst options.",
+    "A medium residual AdamW model at lr 1e-3 beats similar-width momentum SGD, though not as strongly as wide models.",
+    "When a previously strong deep-wide candidate reappears, prefer it over narrow high-lr variants."
+  ]
+}

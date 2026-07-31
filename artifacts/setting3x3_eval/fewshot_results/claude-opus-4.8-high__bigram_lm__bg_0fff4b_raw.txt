@@ -1,0 +1,18 @@
+Looking at these questions, all share the same optimizer (RMSprop, very low lr=1e-4), loss (cross_entropy_l1), and budget. Only the model architecture varies. This is a bigram LM task, meaning prediction depends only on the previous token — a task that requires minimal depth.
+
+My reasoning heuristic: With a very low learning rate (1e-4) and limited steps (1280), the model is in an underfitting regime where trainability and representational width matter most. I favor (1) larger `d_model` (more output-projection capacity accumulating signal per step), (2) fewer layers (shorter gradient path trains faster at low lr; bigram needs no depth), and (3) larger `d_ff`.
+
+```json
+[
+  {"question_id": "q_35bf25", "predicted_letter": "D", "reason": "Among d_model=128 options, D has only 2 layers (vs L3 for A,B) and largest d_ff=256; fewer layers train faster at low lr for this shallow bigram task."},
+  {"question_id": "q_36afd5", "predicted_letter": "B", "reason": "All d_ff=256; among d_model=128, B has fewest layers (L1), which trains fastest at lr=1e-4 and suffices for a bigram task."},
+  {"question_id": "q_707361", "predicted_letter": "D", "reason": "Among d_model=128 candidates, D uses only 2 layers vs 3 for B,C; shallower path favored under low-lr underfitting."},
+  {"question_id": "q_780d65", "predicted_letter": "D", "reason": "d_model=128 with just 2 layers (others L3 or d64); fewest layers among widest models trains fastest."},
+  {"question_id": "q_7dc8c1", "predicted_letter": "D", "reason": "D is the only d_model=128 option with large d_ff=256; width dominates given underfitting regime."},
+  {"question_id": "q_9fd0fc", "predicted_letter": "A", "reason": "A has d_model=128, 2 layers, and largest d_ff=256, beating deeper C and narrower-ff D."},
+  {"question_id": "q_e96831", "predicted_letter": "A", "reason": "All d128/L3 except C; among them A has largest d_ff=128, giving most FFN capacity."},
+  {"question_id": "q_f4ed80", "predicted_letter": "B", "reason": "Among d_model=128, B has 2 layers vs C's 3; shallower width-heavy model trains faster at low lr."},
+  {"question_id": "q_09d094", "predicted_letter": "C", "reason": "C has d_model=128 with only 2 layers and d_ff=256, versus deeper A; best width+shallow combo."},
+  {"question_id": "q_eeaf66", "predicted_letter": "B", "reason": "B is d_model=128, single layer, d_ff=256 — widest, shallowest, largest FFN; fastest to fit bigram at low lr."}
+]
+```

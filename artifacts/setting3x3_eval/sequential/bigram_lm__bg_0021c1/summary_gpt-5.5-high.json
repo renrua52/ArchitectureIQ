@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_bigram_lm__bg_0021c1",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 6,
+  "overall_accuracy": 0.6,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  ],
+  "by_family": {
+    "bigram_lm": {
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.6
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.7142857142857143
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6
+    }
+  ],
+  "final_lessons": [
+    "On this bigram task, Adam at lr 3e-4 with wider transformer capacity can beat aggressive RMSprop even in an 80-step budget.",
+    "For deeper transformers on this bigram task, Adam at lr 0.003 can overshoot while RMSprop around lr 0.001 is safer.",
+    "Large transformers with AdamW or Adam around lr 3e-4 are strong on this task when alternatives use slow SGD or Adagrad settings.",
+    "Adagrad at lr 0.003 with a large/deep transformer can be strong on this bigram task and may beat high-lr Adam.",
+    "Adam at lr 3e-4 with 128-wide transformer capacity is a reliable choice against RMSprop 0.003 or SGD momentum on this dataset.",
+    "AdamW at lr 0.001 can be very strong for a 64-wide two-layer transformer when feed-forward width is sufficient.",
+    "Plain SGD at lr 0.01 and AdamW at lr 1e-4 both undertrain compared with large AdamW at lr 3e-4.",
+    "Low-learning-rate SGD variants stay badly undertrained, so a modest Adam lr 3e-4 model should usually beat them.",
+    "A 128-wide transformer can make RMSprop lr 0.0003 highly competitive, beating smaller Adagrad lr 0.003 despite the lower step size.",
+    "AdamW at lr 0.01 can work for a shallow 128-wide transformer and beat deeper RMSprop lr 0.001 in this setting."
+  ]
+}

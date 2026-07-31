@@ -133,16 +133,6 @@ class BigramLmFamily(DatasetFamily):
     def materialize(self, spec: dict[str, Any], out_dir: Path) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         params = spec["params"]
-        data = make_bigram_dataset(
-            vocab_size=params["vocab_size"],
-            context_length=params["context_length"],
-            train_size=params["train_size"],
-            test_size=params["test_size"],
-            seed=params["sequence_seed"],
-            table_seed=params["table_seed"],
-            alpha=params["alpha"],
-            layout=params["layout"],
-        )
         synth_code = SYNTHESIZE_TEMPLATE.format(
             train_size=params["train_size"],
             test_size=params["test_size"],
@@ -155,10 +145,25 @@ class BigramLmFamily(DatasetFamily):
         )
         (out_dir / "synthesize.py").write_text(synth_code, encoding="utf-8")
 
-        torch.save({"x": torch.from_numpy(data["x_train"]).to(torch.int64),
-                    "y": torch.from_numpy(data["y_train"]).to(torch.int64)}, out_dir / "train.pt")
-        torch.save({"x": torch.from_numpy(data["x_test"]).to(torch.int64),
-                    "y": torch.from_numpy(data["y_test"]).to(torch.int64)}, out_dir / "test.pt")
+        from architecture_iq.runtime.loader import load_synthesize_module
+
+        module = load_synthesize_module(out_dir / "synthesize.py")
+        tx, ty, vx, vy = module.synthesize()
+        torch.save({"x": tx, "y": ty}, out_dir / "train.pt")
+        torch.save({"x": vx, "y": vy}, out_dir / "test.pt")
+
+        # Keep the transition table as an additional reproducibility artifact.
+        # The train/test tensors above always come from executing synthesize.py.
+        data = make_bigram_dataset(
+            vocab_size=params["vocab_size"],
+            context_length=params["context_length"],
+            train_size=params["train_size"],
+            test_size=params["test_size"],
+            seed=params["sequence_seed"],
+            table_seed=params["table_seed"],
+            alpha=params["alpha"],
+            layout=params["layout"],
+        )
         np.savez(
             out_dir / "transition.npz",
             probs=data["probs"],

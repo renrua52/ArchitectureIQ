@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run_20q_3c_3a8a23",
+  "dataset_id": "mvar_c59a30",
+  "family": "multivariate_regression",
+  "candidate_sets": [
+    "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677"
+  ],
+  "num_questions": 20,
+  "num_choices": 3,
+  "question_ids": [
+    "q_546b65",
+    "q_046eb8",
+    "q_621b85",
+    "q_6f6054",
+    "q_80954c",
+    "q_ab55f9",
+    "q_48a555",
+    "q_80133b",
+    "q_bd68ea",
+    "q_ae233d",
+    "q_a2f492",
+    "q_11e75d",
+    "q_908dce",
+    "q_bcf1cf",
+    "q_2f5b25",
+    "q_f25f75",
+    "q_22a3e7",
+    "q_fe25f8",
+    "q_cf534d",
+    "q_219d63"
+  ],
+  "seed": 43,
+  "profile": "v1",
+  "created_at": "2026-07-11T18:09:02+00:00"
+}

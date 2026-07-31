@@ -30,12 +30,21 @@ def synthesize(
     input_dim: int = {input_dim},
     domain_low: float = {domain_low},
     domain_high: float = {domain_high},
+    label_noise_std: float = {label_noise_std},
+    label_noise_seed: int = {label_noise_seed},
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     gen = torch.Generator().manual_seed(point_seed)
     train_x = torch.rand(train_size, input_dim, generator=gen) * (domain_high - domain_low) + domain_low
     test_x = torch.rand(test_size, input_dim, generator=gen) * (domain_high - domain_low) + domain_low
     train_y = target(train_x)
     test_y = target(test_x)
+    # Label noise is added to TRAINING targets only; the test split stays the
+    # exact target function, so test error measures recovery of the true signal.
+    if label_noise_std > 0.0:
+        noise_gen = torch.Generator().manual_seed(label_noise_seed)
+        train_y = train_y + label_noise_std * torch.randn(
+            train_y.shape, generator=noise_gen
+        )
     return train_x, train_y.unsqueeze(-1), test_x, test_y.unsqueeze(-1)
 
 
@@ -49,8 +58,8 @@ class MultivariateRegressionFamily(DatasetFamily):
     name = "multivariate_regression"
 
     @staticmethod
-    def _rng_streams(instance_seed: int) -> tuple[int, int]:
-        return instance_seed, instance_seed + 1_000
+    def _rng_streams(instance_seed: int) -> tuple[int, int, int]:
+        return instance_seed, instance_seed + 1_000, instance_seed + 2_000
 
     def create_instance(
         self,
@@ -58,8 +67,9 @@ class MultivariateRegressionFamily(DatasetFamily):
         seed: int,
         *,
         input_dim: int | None = None,
+        noise_std: float | None = None,
     ) -> dict[str, Any]:
-        expression_seed, point_seed = self._rng_streams(seed)
+        expression_seed, point_seed, label_noise_seed = self._rng_streams(seed)
         cfg = profile.family_config(self.name)
         domain = tuple(cfg["domain"])
         rng = __import__("random").Random(seed + 7)
@@ -71,6 +81,15 @@ class MultivariateRegressionFamily(DatasetFamily):
             max_depth=int(sampler_cfg["max_depth"]),
             max_retries=int(sampler_cfg.get("max_retries", 200)),
             domain=(float(domain[0]), float(domain[1])),
+        )
+        noise_std = float(noise_std) if noise_std is not None else 0.0
+        if noise_std < 0.0:
+            raise ValueError("noise_std must be >= 0")
+        noise = (
+            {"enabled": True, "type": "gaussian_label", "std": noise_std,
+             "seed": label_noise_seed, "applies_to": "train_only"}
+            if noise_std > 0.0
+            else {"enabled": False}
         )
         params = {
             "instance_seed": seed,
@@ -85,7 +104,7 @@ class MultivariateRegressionFamily(DatasetFamily):
             "domain": list(domain),
             "train_size": int(cfg["train_size"]),
             "test_size": int(cfg["test_size"]),
-            "noise": {"enabled": False},
+            "noise": noise,
             "point_sampling": {"distribution": "uniform", "seed": point_seed},
         }
         significance = {
@@ -119,6 +138,9 @@ class MultivariateRegressionFamily(DatasetFamily):
         torch_expr = spec.get("_torch_expression")
         if not torch_expr:
             raise ValueError("Missing _torch_expression for materialization")
+        noise = params.get("noise", {"enabled": False})
+        noise_std = float(noise.get("std", 0.0)) if noise.get("enabled") else 0.0
+        noise_seed = int(noise.get("seed", params["instance_seed"] + 2_000))
         synth_code = SYNTHESIZE_TEMPLATE.format(
             torch_expr=torch_expr,
             train_size=params["train_size"],
@@ -127,6 +149,8 @@ class MultivariateRegressionFamily(DatasetFamily):
             input_dim=params["input_dim"],
             domain_low=domain[0],
             domain_high=domain[1],
+            label_noise_std=noise_std,
+            label_noise_seed=noise_seed,
         )
         (out_dir / "synthesize.py").write_text(synth_code, encoding="utf-8")
 

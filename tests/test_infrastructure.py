@@ -4,6 +4,8 @@ import importlib.util
 import shutil
 from pathlib import Path
 
+import pytest
+
 import architecture_iq.manifest as manifest
 from architecture_iq.candidates.axes import choices_compatible
 from architecture_iq.candidates.sets import (
@@ -75,6 +77,12 @@ def test_write_json_round_trip_creates_parent_dirs(tmp_path: Path) -> None:
 
     assert target.read_text(encoding="utf-8").endswith("\n")
     assert read_json(target) == payload
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_write_json_rejects_non_finite_numbers(tmp_path: Path, value: float) -> None:
+    with pytest.raises(ValueError, match="JSON compliant"):
+        write_json(tmp_path / "invalid.json", {"metric": value})
 
 
 def test_start_quiz_materializes_bundled_demo(tmp_path: Path) -> None:

@@ -1,0 +1,91 @@
+```json
+{
+  "agent": "Claude Code",
+  "model": "Claude",
+  "reasoning_effort": "high",
+  "source_used": "sanitized_questions_only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 41,
+      "question_id": "q_26c64b",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_05808a",
+      "confidence": 0.65,
+      "reason": "Moderate depth and width with layer norm provides best capacity-regularization balance."
+    },
+    {
+      "n": 42,
+      "question_id": "q_64793c",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_1e1c92",
+      "confidence": 0.60,
+      "reason": "Depth-3 width-128 offers good expressiveness without excessive parameters."
+    },
+    {
+      "n": 43,
+      "question_id": "q_849ee7",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_a0c4ca",
+      "confidence": 0.70,
+      "reason": "Residual connections with moderate depth-3 width-64 balances optimization and generalization."
+    },
+    {
+      "n": 44,
+      "question_id": "q_9657e4",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_5743b2",
+      "confidence": 0.68,
+      "reason": "Compact residual depth-2 with layer norm avoids overfitting on small regression task."
+    },
+    {
+      "n": 45,
+      "question_id": "q_c49bc8",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_5743b2",
+      "confidence": 0.68,
+      "reason": "Shallow residual architecture with consistent activations and normalization performs reliably."
+    },
+    {
+      "n": 46,
+      "question_id": "q_da00b0",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_dad831",
+      "confidence": 0.65,
+      "reason": "Depth-5 width-128 with full layer norm and residuals provides strong expressive capacity."
+    },
+    {
+      "n": 47,
+      "question_id": "q_e742fe",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_5743b2",
+      "confidence": 0.70,
+      "reason": "Shallow residual network avoids vanishing gradients and overfitting."
+    },
+    {
+      "n": 48,
+      "question_id": "q_0f7bf9",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.62,
+      "reason": "Single wide layer with residual connection balances capacity and simplicity."
+    },
+    {
+      "n": 49,
+      "question_id": "q_17add0",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.63,
+      "reason": "Wide single-layer with residual and layer norm provides stable training."
+    },
+    {
+      "n": 50,
+      "question_id": "q_808a86",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.64,
+      "reason": "Single wide layer with residual avoids optimization difficulties of deeper networks."
+    }
+  ]
+}
+```

@@ -1,0 +1,251 @@
+```json
+{
+  "agent": "Claude Code",
+  "model": "Claude",
+  "reasoning_effort": "high",
+  "source_used": "sanitized_questions_only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 61,
+      "question_id": "q_073f9b",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_a62e84",
+      "confidence": 0.65,
+      "reason": "Moderate depth/width with Adam and reasonable LR likely outperforms shallow or Adagrad at low budget."
+    },
+    {
+      "n": 62,
+      "question_id": "q_0e556f",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_a62e84",
+      "confidence": 0.7,
+      "reason": "Same strong candidate from q61; Adam optimizer with 256-width at 0.0003 LR is robust."
+    },
+    {
+      "n": 63,
+      "question_id": "q_417b4e",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_d73254",
+      "confidence": 0.55,
+      "reason": "Shallow residual with AdamW likely generalizes better than deep narrow or moderate SGD."
+    },
+    {
+      "n": 64,
+      "question_id": "q_5f12d9",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_0edfea",
+      "confidence": 0.6,
+      "reason": "Simple shallow network with AdamW; avoids overfitting risk of deeper/residual options."
+    },
+    {
+      "n": 65,
+      "question_id": "q_b87c20",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_950b41",
+      "confidence": 0.5,
+      "reason": "Residual 2-layer with modest width; conservative SGD LR may stabilize training."
+    },
+    {
+      "n": 66,
+      "question_id": "q_d0fad7",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_b467b2",
+      "confidence": 0.6,
+      "reason": "Deep residual with Adam 0.0003 LR and low decay balances capacity and regularization."
+    },
+    {
+      "n": 67,
+      "question_id": "q_e18192",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_835f12",
+      "confidence": 0.65,
+      "reason": "4-layer 256-width with Adam 0.0001 LR provides capacity with controlled learning."
+    },
+    {
+      "n": 68,
+      "question_id": "q_e86092",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_6e2a14",
+      "confidence": 0.55,
+      "reason": "Shallow residual with AdamW avoids complexity of deep networks at limited budget."
+    },
+    {
+      "n": 69,
+      "question_id": "q_f745a6",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_bb6049",
+      "confidence": 0.7,
+      "reason": "3-layer residual 64-width with AdamW 0.001 and layer norms balances expressiveness."
+    },
+    {
+      "n": 70,
+      "question_id": "q_ff5ef6",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_428635",
+      "confidence": 0.5,
+      "reason": "Deep 256-width may capture complexity despite Adagrad; other options underperform."
+    },
+    {
+      "n": 71,
+      "question_id": "q_16713a",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_2a1fb8",
+      "confidence": 0.65,
+      "reason": "2-layer 64-width residual with layer norm balances capacity at higher budget."
+    },
+    {
+      "n": 72,
+      "question_id": "q_634771",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_2a1fb8",
+      "confidence": 0.7,
+      "reason": "Same strong 2-layer 64-width residual architecture from q71."
+    },
+    {
+      "n": 73,
+      "question_id": "q_b515dd",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_6e9f78",
+      "confidence": 0.6,
+      "reason": "5-layer 64-width residual provides good capacity without excessive depth."
+    },
+    {
+      "n": 74,
+      "question_id": "q_f3cea8",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_a7f287",
+      "confidence": 0.65,
+      "reason": "3-layer 32-width residual is efficient and likely generalizes well."
+    },
+    {
+      "n": 75,
+      "question_id": "q_f5305f",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_7cc15a",
+      "confidence": 0.7,
+      "reason": "4-layer 64-width residual with alternating layer norms strikes good balance."
+    },
+    {
+      "n": 76,
+      "question_id": "q_ffeda9",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_7cc15a",
+      "confidence": 0.7,
+      "reason": "Same strong 4-layer 64-width residual architecture from q75."
+    },
+    {
+      "n": 77,
+      "question_id": "q_0d4c0e",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_6e9f78",
+      "confidence": 0.65,
+      "reason": "5-layer 64-width residual provides capacity for complex functions."
+    },
+    {
+      "n": 78,
+      "question_id": "q_9e15d7",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_b9b8ad",
+      "confidence": 0.6,
+      "reason": "Simple 1-layer 128-width with layer norm may suffice for smooth regression."
+    },
+    {
+      "n": 79,
+      "question_id": "q_c50e6a",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_6e9f78",
+      "confidence": 0.7,
+      "reason": "5-layer 64-width residual repeatedly shows strength in this setting."
+    },
+    {
+      "n": 80,
+      "question_id": "q_d99731",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_a7f287",
+      "confidence": 0.65,
+      "reason": "3-layer 32-width residual is efficient and consistent performer."
+    },
+    {
+      "n": 81,
+      "question_id": "q_14fae5",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.55,
+      "reason": "5-layer residual with Adagrad provides stability despite low LR."
+    },
+    {
+      "n": 82,
+      "question_id": "q_29f8c1",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.6,
+      "reason": "Same residual architecture with Adagrad likely consistent across questions."
+    },
+    {
+      "n": 83,
+      "question_id": "q_368576",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.6,
+      "reason": "Residual with MSE and Adagrad outperforms deep non-residual alternatives."
+    },
+    {
+      "n": 84,
+      "question_id": "q_5cffc9",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.65,
+      "reason": "Consistent performer with residual connections and plain MSE loss."
+    },
+    {
+      "n": 85,
+      "question_id": "q_796ec0",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.65,
+      "reason": "Same architecture continues to show robustness in mixed settings."
+    },
+    {
+      "n": 86,
+      "question_id": "q_990fb0",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.7,
+      "reason": "Residual with Adagrad remains strongest choice with plain MSE."
+    },
+    {
+      "n": 87,
+      "question_id": "q_2d9e8c",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_72ed31",
+      "confidence": 0.55,
+      "reason": "6-layer residual with RMSprop may capture complexity better than others."
+    },
+    {
+      "n": 88,
+      "question_id": "q_b290f8",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.65,
+      "reason": "Continues strong pattern as residual with MSE loss."
+    },
+    {
+      "n": 89,
+      "question_id": "q_c872ff",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_6bdc9a",
+      "confidence": 0.7,
+      "reason": "Most consistent performer across this dataset setting."
+    },
+    {
+      "n": 90,
+      "question_id": "q_cda9dd",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_9a38fb",
+      "confidence": 0.55,
+      "reason": "6-layer residual with Adagrad and MSE_L2 may balance capacity and regularization."
+    }
+  ]
+}
+```

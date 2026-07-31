@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_multivariate_regression__mvar_978f4c",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 10,
+  "overall_accuracy": 1.0,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 10,
+      "total": 10,
+      "accuracy": 1.0
+    }
+  ],
+  "by_family": {
+    "multivariate_regression": {
+      "correct": 10,
+      "total": 10,
+      "accuracy": 1.0
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 9,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 10,
+      "cumulative_accuracy": 1.0
+    }
+  ],
+  "final_lessons": [
+    "For this regression dataset, much wider MLPs can beat narrower or layer-normalized alternatives under SGD.",
+    "Width 256 without layer norm is consistently strong here, even with only two layers.",
+    "Repeated candidate c_c1617c is a reliable winner against narrower or layer-normalized MLPs in this setting.",
+    "The simple 2-layer width-256 ReLU MLP can beat deeper width-256 variants when layer norm is present.",
+    "Very narrow deep MLPs, especially width 16 with several layer norms, perform poorly on this regression task.",
+    "Repeated candidate c_bec5a1 is the strongest observed choice so far with test MSE around 0.345.",
+    "Residual width-64 can be decent, but c_bec5a1 remains much better than residual or layer-normalized challengers.",
+    "When clean width-256 models are absent, residual width-128 can be the best fallback despite multiple layer norms.",
+    "Shallow width-128 and residual width-128 are mid-tier, while c_bec5a1 remains clearly superior.",
+    "Between width-256 models, removing layer norm is more important than adding depth for this SGD regression setting."
+  ]
+}

@@ -61,6 +61,11 @@ def create_dataset_cmd(
         "--input-dim",
         help="Input dimension n for multivariate_regression (must be in profile input_dims pool)",
     ),
+    noise_std: Optional[float] = typer.Option(
+        None,
+        "--noise-std",
+        help="Gaussian label-noise std added to TRAIN targets only (regression families); test stays the true function",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -78,6 +83,7 @@ def create_dataset_cmd(
         random_family=random_family,
         seed=seed is not None,
         input_dim=input_dim is not None,
+        noise_std=noise_std is not None,
     )
 
     if interactive:
@@ -112,14 +118,26 @@ def create_dataset_cmd(
             "--input-dim requires multivariate_regression (got random family "
             f"{family_name!r})"
         )
+    if noise_std is not None and family_name not in (
+        "multivariate_regression",
+        "univariate_regression",
+    ):
+        raise typer.BadParameter(
+            "--noise-std is only valid for regression families (got "
+            f"{family_name!r})"
+        )
 
-    family_options = {"input_dim": input_dim} if input_dim is not None else None
+    family_options: dict[str, object] = {}
+    if input_dim is not None:
+        family_options["input_dim"] = input_dim
+    if noise_std is not None:
+        family_options["noise_std"] = noise_std
     try:
         spec, path = create_dataset(
             prof,
             instance_seed,
             family_name=family_name,
-            family_options=family_options,
+            family_options=family_options or None,
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
@@ -221,6 +239,11 @@ def generate_question_cmd(
         None,
         help="Number of choices (default: profile num_choices)",
     ),
+    non_repeating_candidates: Optional[bool] = typer.Option(
+        None,
+        "--non-repeating-candidates/--allow-candidate-reuse",
+        help="Override the profile candidate-reuse policy for this question run",
+    ),
     profile: str = typer.Option("v1"),
     seed: int = typer.Option(0),
     interactive: bool = typer.Option(
@@ -239,6 +262,7 @@ def generate_question_cmd(
         candidate_sets=bool(candidate_sets),
         num_questions=num_questions is not None,
         num_choices=num_choices is not None,
+        non_repeating_candidates=non_repeating_candidates is not None,
         seed=seed != 0,
     )
 
@@ -276,6 +300,7 @@ def generate_question_cmd(
         num_questions=num_questions,
         num_choices=n_choices,
         seed=seed,
+        non_repeating_candidates=non_repeating_candidates,
     )
 
     typer.echo(f"Question run written to {run_path}")

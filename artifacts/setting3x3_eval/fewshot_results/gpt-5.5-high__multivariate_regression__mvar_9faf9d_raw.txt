@@ -1,0 +1,52 @@
+[
+  {
+    "question_id": "q_26c64b",
+    "predicted_letter": "D",
+    "reason": "With optimizer/loss fixed, the 3-layer width-256 MLP offers strong capacity while being easier to optimize at low Adam lr than the deeper non-residual option; shallow 1-layer models likely underfit."
+  },
+  {
+    "question_id": "q_64793c",
+    "predicted_letter": "B",
+    "reason": "The 3-layer width-128 architecture should fit the nonlinear regression better than the shallow alternatives, while avoiding the smaller capacity of the width-64 residual model."
+  },
+  {
+    "question_id": "q_849ee7",
+    "predicted_letter": "A",
+    "reason": "Among these, the depth-6 width-128 model has the most useful capacity; the other residual models are much narrower and likely underfit."
+  },
+  {
+    "question_id": "q_9657e4",
+    "predicted_letter": "B",
+    "reason": "The depth-6 width-128 model is likely stronger than the shallow width-256 model and the much smaller width-16/32 residual choices under the same training setup."
+  },
+  {
+    "question_id": "q_c49bc8",
+    "predicted_letter": "B",
+    "reason": "The depth-6 width-128 residual MLP has the best combination of capacity and trainability; the alternatives are narrower or non-residual."
+  },
+  {
+    "question_id": "q_da00b0",
+    "predicted_letter": "D",
+    "reason": "The depth-5 width-128 residual network dominates the smaller width-16/32 candidates in capacity and should achieve lower test MSE."
+  },
+  {
+    "question_id": "q_e742fe",
+    "predicted_letter": "A",
+    "reason": "The depth-6 width-128 residual model is the highest-capacity trainable option here, likely outperforming the shallow and width-64 residual choices."
+  },
+  {
+    "question_id": "q_0f7bf9",
+    "predicted_letter": "D",
+    "reason": "The depth-5 width-64 non-residual model should provide better nonlinear capacity than the shallow width-256 options and the very narrow deep residual model."
+  },
+  {
+    "question_id": "q_17add0",
+    "predicted_letter": "A",
+    "reason": "The depth-3 width-128 architecture is likely a better balance of capacity and optimization than the shallow models and the smaller width-64 residual network."
+  },
+  {
+    "question_id": "q_808a86",
+    "predicted_letter": "C",
+    "reason": "The depth-6 width-128 model should outperform the shallow width-256 and width-32 options because it has substantially more nonlinear capacity under the fixed optimizer."
+  }
+]

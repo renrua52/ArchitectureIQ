@@ -32,7 +32,13 @@ def _letters(n: int) -> list[str]:
 
 
 def eligible_candidate_paths(paths: list[Path]) -> list[Path]:
-    return [p for p in paths if not load_summary(p).get("excluded")]
+    eligible: list[Path] = []
+    for path in paths:
+        summary = load_summary(path)
+        if summary.get("excluded") or int(summary.get("failed_seeds", 0)) > 0:
+            continue
+        eligible.append(path)
+    return eligible
 
 
 def load_candidate_pool_from_sets(set_paths: list[Path]) -> list[Path]:
@@ -137,24 +143,81 @@ def select_significant_candidates(
 
 
 def _candidate_set_key(paths: list[Path]) -> frozenset[str]:
-    return frozenset(p.name for p in paths)
+    """Return identity based on physical candidate artifacts.
+
+    Candidate directory names are content-hash prefixes and can occur in
+    separate candidate sets.  No-reuse must be enforced on the resolved
+    artifact paths, not on the leaf directory names.
+    """
+    return frozenset(str(p.resolve()) for p in paths)
 
 
 def _pick_distinct_subsets(
     subsets: list[list[Path]],
     num_questions: int,
+    *,
+    non_repeating_candidates: bool = False,
+    rng: random.Random | None = None,
+    max_restarts: int = 512,
 ) -> list[list[Path]]:
+    """Pick significant subsets, optionally making candidates disjoint.
+
+    The ordinary path preserves the historical first-fit ordering.  For the
+    strict path this is a set-packing problem, where one ordering can dead-end
+    below a feasible quota.  Retrying deterministic seeded greedy orderings is
+    inexpensive for question pools and avoids a false capacity failure.
+    """
+    if num_questions < 1:
+        return []
+
+    if not non_repeating_candidates:
+        seen: set[frozenset[str]] = set()
+        picked: list[list[Path]] = []
+        for subset in subsets:
+            key = _candidate_set_key(subset)
+            if key in seen:
+                continue
+            seen.add(key)
+            picked.append(subset)
+            if len(picked) >= num_questions:
+                break
+        return picked
+
+    unique_subsets: list[tuple[list[Path], frozenset[str]]] = []
     seen: set[frozenset[str]] = set()
-    picked: list[list[Path]] = []
     for subset in subsets:
         key = _candidate_set_key(subset)
         if key in seen:
             continue
         seen.add(key)
-        picked.append(subset)
-        if len(picked) >= num_questions:
-            break
-    return picked
+        unique_subsets.append((subset, key))
+
+    def greedy(order: list[tuple[list[Path], frozenset[str]]]) -> list[list[Path]]:
+        used_candidates: set[str] = set()
+        packed: list[list[Path]] = []
+        for subset, candidate_paths in order:
+            if candidate_paths & used_candidates:
+                continue
+            used_candidates.update(candidate_paths)
+            packed.append(subset)
+            if len(packed) >= num_questions:
+                break
+        return packed
+
+    best = greedy(unique_subsets)
+    if len(best) >= num_questions or len(unique_subsets) <= 1:
+        return best
+
+    restart_rng = rng if rng is not None else random.Random(0)
+    for _ in range(max_restarts):
+        order = list(unique_subsets)
+        restart_rng.shuffle(order)
+        packed = greedy(order)
+        if len(packed) > len(best):
+            best = packed
+            if len(best) >= num_questions:
+                break
+    return best
 
 
 def _budget_field(specs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -298,6 +361,7 @@ def generate_questions(
     num_questions: int = 1,
     num_choices: int | None = None,
     seed: int = 0,
+    non_repeating_candidates: bool | None = None,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
@@ -327,12 +391,29 @@ def generate_questions(
             f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"
         )
 
-    selected_sets = _pick_distinct_subsets(subsets, num_questions)
+    non_repeating = (
+        bool(profile.question_generation.get("non_repeating_candidates", False))
+        if non_repeating_candidates is None
+        else non_repeating_candidates
+    )
+    selected_sets = _pick_distinct_subsets(
+        subsets,
+        num_questions,
+        non_repeating_candidates=non_repeating,
+        rng=rng,
+    )
     if len(selected_sets) < num_questions:
+        mode = "non-repeating " if non_repeating else ""
+        hint = ""
+        if non_repeating:
+            hint = (
+                "With non-repeating candidates, each question needs unique candidates. "
+                "Try increasing the candidate pool or reducing num_questions."
+            )
         raise RuntimeError(
-            f"Requested {num_questions} distinct questions but only "
+            f"Requested {num_questions} distinct {mode}questions but only "
             f"{len(selected_sets)} significant subsets exist "
-            f"({len(subsets)} total passing subsets)."
+            f"({len(subsets)} total passing subsets). {hint}"
         )
 
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
@@ -373,6 +454,7 @@ def generate_questions(
         num_questions=num_questions,
         num_choices=n_choices,
         seed=seed,
+        non_repeating_candidates=non_repeating,
         question_ids=[record["question_id"] for record, _ in results],
     )
     return run_path, results

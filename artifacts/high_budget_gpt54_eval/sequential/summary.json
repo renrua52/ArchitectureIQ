@@ -1,0 +1,133 @@
+{
+  "experiment_name": "gpt54_high_budget_fixed_order_sequential_20260714_v1",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 15,
+  "answered_questions": 15,
+  "correct_count": 7,
+  "overall_accuracy": 0.4666666666666667,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 5,
+      "total": 10,
+      "accuracy": 0.5
+    },
+    {
+      "block": "11-20",
+      "correct": 2,
+      "total": 5,
+      "accuracy": 0.4
+    }
+  ],
+  "by_family": {
+    "bigram_lm": {
+      "correct": 2,
+      "total": 2,
+      "accuracy": 1.0
+    },
+    "multivariate_regression": {
+      "correct": 4,
+      "total": 11,
+      "accuracy": 0.36363636363636365
+    },
+    "univariate_regression": {
+      "correct": 1,
+      "total": 2,
+      "accuracy": 0.5
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.4
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5714285714285714
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.4444444444444444
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 11,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.45454545454545453
+    },
+    {
+      "n": 12,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 13,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.46153846153846156
+    },
+    {
+      "n": 14,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 15,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.4666666666666667
+    }
+  ],
+  "final_lessons": [
+    "For richer multivariate regression, depth and width can outweigh the residual penalty: a very deep, wide residual MLP may beat a shallow plain network when no strong plain deep option is present.",
+    "With SGD on higher-dimensional regression, extra depth can hurt more than it helps; a wide but relatively shallow plain ReLU MLP may beat deeper stacks even on complex symbolic targets.",
+    "For bigram LM, longer context depth is unnecessary; a small single-layer transformer with enough embedding width can beat deeper or much larger variants, especially under strong regularization.",
+    "For bigram LM under strong regularization, compact transformers remain best; when forced to use more than one layer, keeping d_model small still beats much larger models, and a somewhat larger FF block can help.",
+    "For this normalized regression MLP, conservative Adam can beat both Adagrad and plain SGD even at modest budget; Adam at 1e-2 was too aggressive, but 1e-4 was not too slow here.",
+    "For this regression MLP, SGD with momentum at a moderate LR outperformed both conservative RMSprop and plain SGD; the adaptive/slow heuristic does not transfer automatically across optimizer grids.",
+    "This regression optimizer grid consistently favored SGD with momentum over Adagrad and plain SGD, while Adam at 1e-2 stayed too aggressive.",
+    "Under Adam at short budget, a deep residual MLP with decent width and some layer norm can outperform a shallow plain network by a lot; residual depth is not always a liability in the fast-adaptation regime.",
+    "At short Adam budgets, a balanced non-residual MLP with moderate depth, substantial width, and layer norm can dominate both very narrow deep models and extremely shallow wide ones.",
+    "With noisy training labels and long low-LR SGD, a medium-width deeper plain MLP can beat both shallow residual models and very narrow networks; moderate capacity plus depth can denoise better than a shallow bias-variance compromise.",
+    "In noisy-label mixed setups, the best package can be a balanced combination of moderate Adam, mild explicit regularization, and a reasonably deep residual MLP; too-strong regularization or weaker optimizers can lose badly.",
+    "In this noisy mixed regime, a medium-depth plain MLP with standard Adam at 1e-3 beat both the simpler AdamW option and the more exotic heavily regularized alternatives; mild architectural complexity plus straightforward optimization was enough."
+  ]
+}

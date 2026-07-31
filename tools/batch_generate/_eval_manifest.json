@@ -1,0 +1,106 @@
+[
+  {
+    "prompt": "data/datasets/univariate_regression/sym_c804cc/questions/run_5q_4c_7f8b4c/q_0d4c0e/prompt.txt",
+    "qid": "q_0d4c0e",
+    "type": "architecture_only",
+    "family": "univariate_regression",
+    "num_choices": 4,
+    "correct": "A"
+  },
+  {
+    "prompt": "data/datasets/univariate_regression/sym_c804cc/questions/run_5q_4c_7f8b4c/q_6917e6/prompt.txt",
+    "qid": "q_6917e6",
+    "type": "architecture_only",
+    "family": "univariate_regression",
+    "num_choices": 4,
+    "correct": "A"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_9faf9d/questions/run_5q_4c_2d8100/q_05e4e1/prompt.txt",
+    "qid": "q_05e4e1",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "C"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_9faf9d/questions/run_5q_4c_2d8100/q_0f7bf9/prompt.txt",
+    "qid": "q_0f7bf9",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "D"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_978f4c/questions/run_5q_4c_3882f4/q_130b76/prompt.txt",
+    "qid": "q_130b76",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "C"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_978f4c/questions/run_5q_4c_3882f4/q_231f97/prompt.txt",
+    "qid": "q_231f97",
+    "type": "architecture_only",
+    "family": "multivariate_regression",
+    "num_choices": 4,
+    "correct": "B"
+  },
+  {
+    "prompt": "data/datasets/bigram_lm/bg_0fff4b/questions/run_5q_4c_00dab6/q_09d094/prompt.txt",
+    "qid": "q_09d094",
+    "type": "architecture_only",
+    "family": "bigram_lm",
+    "num_choices": 4,
+    "correct": "D"
+  },
+  {
+    "prompt": "data/datasets/bigram_lm/bg_0fff4b/questions/run_5q_4c_00dab6/q_2bedc1/prompt.txt",
+    "qid": "q_2bedc1",
+    "type": "architecture_only",
+    "family": "bigram_lm",
+    "num_choices": 4,
+    "correct": "D"
+  },
+  {
+    "prompt": "data/datasets/univariate_regression/sym_316367/questions/run_5q_4c_c58d3f/q_052af9/prompt.txt",
+    "qid": "q_052af9",
+    "type": "optimizer_only",
+    "family": "univariate_regression",
+    "num_choices": 4,
+    "correct": "C"
+  },
+  {
+    "prompt": "data/datasets/univariate_regression/sym_316367/questions/run_5q_4c_c58d3f/q_671fc3/prompt.txt",
+    "qid": "q_671fc3",
+    "type": "optimizer_only",
+    "family": "univariate_regression",
+    "num_choices": 4,
+    "correct": "B"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_e3e90e/questions/run_8q_5c_8003b1/q_245c01/prompt.txt",
+    "qid": "q_245c01",
+    "type": "mixed",
+    "family": "multivariate_regression",
+    "num_choices": 5,
+    "correct": "A"
+  },
+  {
+    "prompt": "data/datasets/multivariate_regression/mvar_e3e90e/questions/run_8q_5c_8003b1/q_4268d1/prompt.txt",
+    "qid": "q_4268d1",
+    "type": "mixed",
+    "family": "multivariate_regression",
+    "num_choices": 5,
+    "correct": "E"
+  },
+  {
+    "prompt": "data/datasets/univariate_regression/sym_411dbf/questions/run_4q_3c_d6d96f/q_2d9e8c/prompt.txt",
+    "qid": "q_2d9e8c",
+    "type": "mixed",
+    "family": "univariate_regression",
+    "num_choices": 3,
+    "correct": "C"
+  }
+]

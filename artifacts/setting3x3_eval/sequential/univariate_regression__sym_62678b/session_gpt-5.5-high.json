@@ -1,0 +1,247 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_univariate_regression__sym_62678b",
+  "questions_path": "artifacts/setting3x3_eval/sequential/univariate_regression__sym_62678b/questions.json",
+  "feedback_path": "artifacts/setting3x3_eval/sequential/univariate_regression__sym_62678b/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_073f9b",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_a62e84",
+      "confidence": null,
+      "reason": "Moderate capacity with Adam at lr 3e-4 should learn faster than Adagrad deep stack or tiny low-lr AdamW.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_428635",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.07679398208856583,
+        "B": 0.023174583911895752,
+        "C": 0.6828959465026856
+      },
+      "lesson": "On this symbolic univariate task, deep wide layer-normalized MLPs can outperform shallower Adam models even with Adagrad.",
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_0e556f",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_a62e84",
+      "confidence": null,
+      "reason": "The known wide Adam MLP is likely more reliable than SGD variants under a 64-step budget.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_a62e84",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6855854868888855,
+        "B": 0.30821977108716964,
+        "C": 0.07679398208856583
+      },
+      "lesson": "At 64 steps, SGD variants underfit this task badly compared with the 2x256 Adam baseline.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "question_id": "q_417b4e",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_d1ba7c",
+      "confidence": null,
+      "reason": "RMSprop with a deeper normalized network should beat low-lr SGD and the tiny one-layer AdamW model.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_8bd954",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5927133724093437,
+        "B": 0.22691213488578796,
+        "C": 0.5929859727621078
+      },
+      "lesson": "A 2x128 normalized MLP can be competitive even with low-lr momentum SGD, while narrow high-lr RMSprop may fail.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "question_id": "q_5f12d9",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_e4cf91",
+      "confidence": null,
+      "reason": "The deeper residual MLP with momentum SGD should outperform tiny AdamW and no-momentum SGD.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_e4cf91",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6341366767883301,
+        "B": 0.6828959465026856,
+        "C": 0.1828225865960121
+      },
+      "lesson": "Momentum SGD can work when paired with a deeper residual model, but no-momentum SGD and tiny AdamW remain weak.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 5,
+      "question_id": "q_b87c20",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_4b8dd3",
+      "confidence": null,
+      "reason": "The 2x256 residual model has enough capacity to outweigh the low RMSprop learning rate versus tiny AdamW.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_4b8dd3",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6855854868888855,
+        "B": 0.49200222492218015,
+        "C": 0.28143684267997743
+      },
+      "lesson": "A wide 2-layer model can make low-lr RMSprop usable, but tiny AdamW still underfits even with lr 1e-3.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.6
+    },
+    {
+      "n": 6,
+      "question_id": "q_d0fad7",
+      "family": "univariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_b467b2",
+      "confidence": null,
+      "reason": "The deep 256-wide Adam model matches the capacity pattern that has dominated this symbolic regression task.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_b467b2",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.28171996772289276,
+        "B": 0.2086477220058441,
+        "C": 0.10294435657560826
+      },
+      "lesson": "Deep 256-wide Adam remains the best bet, while a 1x256 high-lr AdamW model can be decent but usually worse.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 7,
+      "question_id": "q_e18192",
+      "family": "univariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_835f12",
+      "confidence": null,
+      "reason": "The 4x256 Adam model preserves the strongest capacity pattern despite a conservative learning rate.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_835f12",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.10495253838598728,
+        "B": 0.032009413838386534,
+        "C": 0.701806640625
+      },
+      "lesson": "Wide 4-layer Adam can be excellent even at lr 1e-4; narrow low-lr Adagrad is very poor.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.7142857142857143
+    },
+    {
+      "n": 8,
+      "question_id": "q_e86092",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_701404",
+      "confidence": null,
+      "reason": "The deep 256-wide Adagrad model matches the earlier strongest non-Adam pattern and should beat narrow alternatives.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_701404",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.042804818227887155,
+        "B": 0.7421036005020142,
+        "C": 0.10720240399241447
+      },
+      "lesson": "Deep 256-wide Adagrad is also strong; tiny low-lr AdamW is among the worst options.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 9,
+      "question_id": "q_f745a6",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_bb6049",
+      "confidence": null,
+      "reason": "A 3x64 residual AdamW model with lr 1e-3 should beat both SGD alternatives at this budget.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_bb6049",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.1789272002875805,
+        "B": 0.27670482993125917,
+        "C": 0.5542664110660553
+      },
+      "lesson": "A medium residual AdamW model at lr 1e-3 beats similar-width momentum SGD, though not as strongly as wide models.",
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.7777777777777778
+    },
+    {
+      "n": 10,
+      "question_id": "q_ff5ef6",
+      "family": "univariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_428635",
+      "confidence": null,
+      "reason": "This is the previously revealed deep 256-wide Adagrad winner, and the alternatives are narrow.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_428635",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.023174583911895752,
+        "B": 0.14758461564779282,
+        "C": 0.1785877138376236
+      },
+      "lesson": "When a previously strong deep-wide candidate reappears, prefer it over narrow high-lr variants.",
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_073f9b",
+    "q_0e556f",
+    "q_417b4e",
+    "q_5f12d9",
+    "q_b87c20",
+    "q_d0fad7",
+    "q_e18192",
+    "q_e86092",
+    "q_f745a6",
+    "q_ff5ef6"
+  ],
+  "feedback_ids": [
+    "q_073f9b",
+    "q_0e556f",
+    "q_417b4e",
+    "q_5f12d9",
+    "q_b87c20",
+    "q_d0fad7",
+    "q_e18192",
+    "q_e86092",
+    "q_f745a6",
+    "q_ff5ef6"
+  ]
+}

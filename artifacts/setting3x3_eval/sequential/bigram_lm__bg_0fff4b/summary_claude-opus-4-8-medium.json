@@ -1,0 +1,89 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_bigram_lm__bg_0fff4b",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 7,
+  "overall_accuracy": 0.7,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 7,
+      "total": 10,
+      "accuracy": 0.7
+    }
+  ],
+  "by_family": {
+    "bigram_lm": {
+      "correct": 7,
+      "total": 10,
+      "accuracy": 0.7
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.6
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.7142857142857143
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.7777777777777778
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.7
+    }
+  ],
+  "final_lessons": [
+    "Smaller d_model with moderate depth outperforms larger models on limited training budgets, suggesting regularization or parameter efficiency is critical.",
+    "Consistently smaller models generalize better here under tight training budgets.",
+    "The d_model 64, 2-layer configuration continues to be optimal, reinforcing that smaller architectures with adequate FFN capacity are best for this task and budget.",
+    "Adding depth to the d_model 64 configuration appears beneficial when FFN capacity remains high, suggesting depth helps when base model size is constrained.",
+    "Shallower models with d_model 64 outperform deeper variants, indicating that excess depth hurts generalization more than limited expressiveness on this budget.",
+    "When forced to choose among deeper models, d_model 64 with high FFN capacity still outperforms larger d_model configurations regardless of depth.",
+    "The smallest d_model option with high FFN capacity outperforms mid-size options, confirming that minimal d_model with compensatory FFN width is optimal for this constrained regime.",
+    "The d_model 64 single-layer config with moderate FFN is a top performer, confirming that minimal depth with small d_model wins in this regime.",
+    "For simple bigram modeling the most parameter-efficient shallow small model tends to generalize best under tight budgets."
+  ]
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Meta-model train-val 对比</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: right; }
+  th { background: #f0f4ff; text-align: center; }
+  td.model { text-align: left; font-weight: 600; }
+  .bar { display: inline-block; height: 18px; border-radius: 3px; vertical-align: middle; }
+  .bar.train { background: #3b82f6; }
+  .bar.val { background: #16a34a; }
+  .bar.gap { background: #f59e0b; }
+  .gap-warn { color: #dc2626; font-weight: 600; }
+  .gap-ok { color: #16a34a; }
+  h2 { color: #1e3a5f; }
+  .note { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<h1>共享回归模型：参数量、训练样本、train-val 对比</h1>
+
+<h2>1. 模型参数量与训练样本</h2>
+<table>
+  <thead><tr><th>模型</th><th>结构</th><th>有效参数量</th><th>训练样本</th><th>特征维度</th></tr></thead>
+  <tbody>
+    <tr><td class="model">ExtraTrees</td><td>300 棵 depth-16 树</td><td>713,068 nodes</td><td>9,000</td><td>122</td></tr>
+    <tr><td class="model">Random Forest</td><td>300 棵 depth-12 树</td><td>275,808 nodes</td><td>9,000</td><td>122</td></tr>
+    <tr><td class="model">XGBoost</td><td>400 棵 depth-3 树</td><td>~9,600 leaves</td><td>9,000</td><td>122</td></tr>
+    <tr><td class="model">MLP</td><td>122→128→64→1</td><td>24,065 weights</td><td>9,000</td><td>122</td></tr>
+    <tr><td class="model">Full Ridge</td><td>线性</td><td>122 coefficients</td><td>9,000</td><td>122</td></tr>
+  </tbody>
+</table>
+<p class="note">ExtraTrees 有效参数量最大（71 万 nodes），但 9000 训练样本足以支撑。XGBoost 最简洁（~9600 leaves），但欠拟合。</p>
+
+<h2>2. Train vs Validation 对比（显著性筛选后）</h2>
+<table>
+  <thead><tr><th>模型</th><th>train sig</th><th>val sig</th><th>gap (过拟合)</th><th>train all</th><th>val all</th><th>gap (all)</th></tr></thead>
+  <tbody>
+    <tr><td class="model">ExtraTrees</td><td>93.75%</td><td>82.80%</td><td class="gap-warn">11.0pp</td><td>84.46%</td><td>72.80%</td><td class="gap-warn">11.7pp</td></tr>
+    <tr><td class="model">Random Forest</td><td>85.64%</td><td>78.16%</td><td class="gap-warn">7.5pp</td><td>76.21%</td><td>68.91%</td><td>7.3pp</td></tr>
+    <tr><td class="model">XGBoost</td><td>74.49%</td><td>70.77%</td><td class="gap-ok">3.7pp</td><td>65.99%</td><td>63.29%</td><td class="gap-ok">2.7pp</td></tr>
+    <tr><td class="model">MLP</td><td>72.12%</td><td>61.01%</td><td class="gap-warn">11.1pp</td><td>65.06%</td><td>55.28%</td><td class="gap-warn">9.8pp</td></tr>
+    <tr><td class="model">Full Ridge</td><td>55.65%</td><td>54.68%</td><td class="gap-ok">1.0pp</td><td>51.44%</td><td>50.20%</td><td class="gap-ok">1.2pp</td></tr>
+  </tbody>
+</table>
+
+<h3>可视化（train vs val sig accuracy）</h3>
+<pre style="font-size:0.85em;line-height:1.3">
+模型              train_sig  ████████████████████████████████  93.75%
+ExtraTrees  val_sig  ██████████████████████████        82.80%
+                  gap      ████                              11.0pp ⚠️
+
+模型              train_sig  ███████████████████████████      85.64%
+Random Forest val_sig  ████████████████████████          78.16%
+                  gap      ██▌                               7.5pp ⚠️
+
+模型              train_sig  ███████████████████████          74.49%
+XGBoost    val_sig  █████████████████████             70.77%
+                  gap      █                                 3.7pp ✅
+
+模型              train_sig  ██████████████████████           72.12%
+MLP        val_sig  ███████████████████               61.01%
+                  gap      ████                              11.1pp ⚠️
+
+模型              train_sig  █████████████████                55.65%
+Full Ridge val_sig  █████████████████▌                 54.68%
+                  gap      ▌                                 1.0pp ✅
+</pre>
+
+<div class="note">
+  <strong>分析：</strong>
+  <ul>
+    <li><strong>ExtraTrees</strong>：train 93.75% → val 82.80%，gap 11pp。有一定过拟合，但 val 仍最高。</li>
+    <li><strong>Random Forest</strong>：gap 7.5pp，过拟合较轻，val 78.16%。</li>
+    <li><strong>XGBoost</strong>：gap 仅 3.7pp，几乎不过拟合，但 train 只有 74.49% — 欠拟合（浅树 depth=3 容量不足）。</li>
+    <li><strong>MLP</strong>：gap 11.1pp，过拟合明显；train 72.12% 也不高，说明 MLP 在当前特征下拟合能力有限。</li>
+    <li><strong>Full Ridge</strong>：gap 1.0pp，无过拟合，但 train 55.65% — 严重欠拟合（线性模型容量不足）。</li>
+  </ul>
+</div>
+
+<h2>3. 在原 60 题上的性能</h2>
+<table>
+  <thead><tr><th>方法</th><th>60 题正确率</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td class="model">cv_champion（旧 meta-model）</td><td>54/60 = 90.0%</td><td>Phase-A 窄协议训练，3 环境</td></tr>
+    <tr><td class="model">共享 ExtraTrees（本次）</td><td>43/60 = 71.7%</td><td>Full-30 宽协议训练，30 环境</td></tr>
+    <tr><td class="model">GPT-5.6-SOL blind</td><td>25/60 = 41.7%</td><td>纯 agent，无 meta-model</td></tr>
+  </tbody>
+</table>
+<p class="note">
+  <strong>为什么共享 ExtraTrees 在 60 题上只有 71.7%，低于 cv_champion 的 90%？</strong>
+  <ul>
+    <li>cv_champion 是在 Phase-A 3 环境窄协议上训练的，而这 60 题恰好来自这 3 个环境 — 是 in-distribution。</li>
+    <li>共享 ExtraTrees 在 30 环境宽协议上训练，其中包含了另外 27 个更难的环境 — 泛化更广但精度下降。</li>
+    <li>60 题是选择过的外部集，不可与 full-30 随机三元组直接横比。</li>
+    <li>共享 ExtraTrees 的 82.11% 是在 full-30 的 locked validation 上，不是在这 60 题上。</li>
+  </ul>
+</div>
+
+</body>
+</html>

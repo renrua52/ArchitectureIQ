@@ -4,14 +4,43 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
+
+from provider_config import provider_api_key, provider_base_url
 
 
 class LLMClientError(RuntimeError):
     pass
+
+
+_RETRYABLE_HTTP_STATUSES = frozenset({429, *range(500, 600)})
+
+
+def _default_ssl_context() -> ssl.SSLContext:
+    """Use the maintained certifi bundle when the system Python lacks one."""
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+def _retry_after_seconds(headers: Any) -> float | None:
+    """Return a valid numeric Retry-After value, if the provider supplied one."""
+    if headers is None:
+        return None
+    value = headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        return None
 
 
 @dataclass(frozen=True)
@@ -75,13 +104,6 @@ def message_parts(message: dict[str, Any]) -> dict[str, str]:
     return parts
 
 
-def _env(name: str) -> str:
-    value = os.environ.get(name, "").strip()
-    if not value:
-        raise LLMClientError(f"Missing required environment variable {name}")
-    return value
-
-
 def _token_limit_payload(config: ModelConfig) -> dict[str, int]:
     """Return a single token-limit field (APIs reject both at once)."""
     if "max_completion_tokens" in config.extra:
@@ -109,10 +131,31 @@ class LLMClient:
         base_url: str | None = None,
         api_key: str | None = None,
         timeout_s: float = 120.0,
+        max_retries: int = 3,
+        retry_base_delay_s: float = 0.5,
+        retry_max_delay_s: float = 8.0,
+        sleep_fn: Callable[[float], None] = time.sleep,
+        ssl_context: ssl.SSLContext | None = None,
     ) -> None:
-        self.base_url = (base_url or _env("OPENAI_API_BASE")).rstrip("/")
-        self.api_key = api_key or _env("OPENAI_API_KEY")
+        if max_retries < 0:
+            raise ValueError("max_retries must be non-negative")
+        if retry_base_delay_s < 0 or retry_max_delay_s < 0:
+            raise ValueError("retry delays must be non-negative")
+        self.base_url = (base_url or provider_base_url()).rstrip("/")
+        self.api_key = api_key or provider_api_key()
         self.timeout_s = timeout_s
+        self.max_retries = max_retries
+        self.retry_base_delay_s = retry_base_delay_s
+        self.retry_max_delay_s = retry_max_delay_s
+        self._sleep = sleep_fn
+        self._ssl_context = ssl_context or _default_ssl_context()
+
+    def _retry_delay(self, retry_index: int, retry_after_s: float | None = None) -> float:
+        backoff = min(
+            self.retry_max_delay_s,
+            self.retry_base_delay_s * (2**retry_index),
+        )
+        return min(self.retry_max_delay_s, max(backoff, retry_after_s or 0.0))
 
     def complete(self, prompt: str, config: ModelConfig) -> LLMCompletion:
         return self.complete_conversation([{"role": "user", "content": prompt}], config)
@@ -144,14 +187,25 @@ class LLMClient:
             },
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
-                raw = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise LLMClientError(f"LLM API HTTP {exc.code}: {detail}") from exc
-        except urllib.error.URLError as exc:
-            raise LLMClientError(f"LLM API request failed: {exc}") from exc
+        for retry_index in range(self.max_retries + 1):
+            try:
+                with urllib.request.urlopen(
+                    request,
+                    timeout=self.timeout_s,
+                    context=self._ssl_context,
+                ) as response:
+                    raw = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")
+                if exc.code not in _RETRYABLE_HTTP_STATUSES or retry_index >= self.max_retries:
+                    raise LLMClientError(f"LLM API HTTP {exc.code}: {detail}") from exc
+                delay = self._retry_delay(retry_index, _retry_after_seconds(exc.headers))
+            except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+                if retry_index >= self.max_retries:
+                    raise LLMClientError(f"LLM API request failed: {exc}") from exc
+                delay = self._retry_delay(retry_index)
+            self._sleep(delay)
 
         try:
             choice = raw["choices"][0]

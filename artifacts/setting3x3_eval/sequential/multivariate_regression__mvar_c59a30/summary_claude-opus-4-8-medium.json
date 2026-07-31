@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_multivariate_regression__mvar_c59a30",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 6,
+  "overall_accuracy": 0.6,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  ],
+  "by_family": {
+    "multivariate_regression": {
+      "correct": 6,
+      "total": 10,
+      "accuracy": 0.6
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.3333333333333333
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.25
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.4
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5714285714285714
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.5555555555555556
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.6
+    }
+  ],
+  "final_lessons": [
+    "In limited-step budgets, adaptive optimizers with higher learning rates tend to reach lower loss faster.",
+    "Adagrad performed best last round, so I favor it with adequate model capacity.",
+    "Higher-capacity Adagrad models tend to outperform narrow ones and low-lr RMSprop under this budget.",
+    "Under tight step budgets, effective learning rate matters more than optimizer type; avoid lr=0.0001 candidates.",
+    "Reuse the known-best candidate when its exact config reappears.",
+    "Prefer candidates with previously observed low test_mse.",
+    "Reuse the known-best candidate c_55af76 when it appears.",
+    "Among unseen candidates, favor adaptive optimizers with lr around 0.003 over lr=0.0001.",
+    "Wide models with high-lr adaptive optimizers tend to give the lowest test_mse here.",
+    "Reuse known-best candidate c_b64766 when it appears."
+  ]
+}

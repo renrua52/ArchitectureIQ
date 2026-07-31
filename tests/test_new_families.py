@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import patch
+
 import pytest
+import torch
 
 from architecture_iq.datasets import create_dataset, format_dataset_summary_lines
 from architecture_iq.families.bigram_lm.bigram import make_bigram_dataset
@@ -79,6 +83,61 @@ def test_create_bigram_dataset() -> None:
     tx, ty, vx, vy = family.load_tensors(path)
     assert tx.shape == ty.shape
     assert tx.dtype == ty.dtype
+
+
+def test_bigram_materialize_executes_generated_synthesize(tmp_path) -> None:
+    ensure_registries()
+    profile = load_profile("v1")
+    family = get_dataset_family("bigram_lm")
+    partial = family.create_instance(profile, 3)
+    spec = family.build_spec_with_id(partial)
+    expected = tuple(torch.full((2, 3), i, dtype=torch.int64) for i in range(4))
+    module = SimpleNamespace(synthesize=lambda: expected)
+
+    with patch(
+        "architecture_iq.runtime.loader.load_synthesize_module",
+        return_value=module,
+    ):
+        family.materialize(spec, tmp_path)
+
+    actual = family.load_tensors(tmp_path)
+    assert all(torch.equal(got, want) for got, want in zip(actual, expected))
+
+
+@pytest.mark.parametrize("family_name", ["univariate_regression", "multivariate_regression"])
+def test_label_noise_train_only_and_reproducible(family_name: str, tmp_path) -> None:
+    """Noise perturbs train labels only; test stays the exact target; id is content-addressed."""
+    ensure_registries()
+    profile = load_profile("v1")
+    family = get_dataset_family(family_name)
+
+    clean_partial = family.create_instance(profile, 5, noise_std=0.0)
+    noisy_partial = family.create_instance(profile, 5, noise_std=0.2)
+    clean_spec = family.build_spec_with_id(clean_partial)
+    noisy_spec = family.build_spec_with_id(noisy_partial)
+
+    # Same seed + different noise => different content-addressed dataset_id.
+    assert clean_spec["dataset_id"] != noisy_spec["dataset_id"]
+    assert noisy_spec["params"]["noise"]["enabled"] is True
+    assert clean_spec["params"]["noise"]["enabled"] is False
+
+    out = tmp_path / "noisy"
+    family.materialize({**noisy_partial, **noisy_spec}, out)
+    tx, ty, vx, vy = family.load_tensors(out)
+
+    # Reload the generated synthesize.py to recompute the true target.
+    from architecture_iq.runtime.loader import load_synthesize_module
+
+    module = load_synthesize_module(out / "synthesize.py")
+    true_train_y = module.target(tx.squeeze(-1) if family_name == "univariate_regression" else tx)
+    true_test_y = module.target(vx.squeeze(-1) if family_name == "univariate_regression" else vx)
+    true_train_y = true_train_y.reshape(ty.shape)
+    true_test_y = true_test_y.reshape(vy.shape)
+
+    # Test labels are exactly the target; train labels are perturbed.
+    assert torch.allclose(vy, true_test_y, atol=1e-6)
+    assert not torch.allclose(ty, true_train_y, atol=1e-6)
+    assert (ty - true_train_y).std().item() > 0.05  # ~0.2 requested
 
 
 def test_bigram_shared_transition_matrix() -> None:

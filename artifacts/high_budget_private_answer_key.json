@@ -1,0 +1,23 @@
+{
+  "schema_version": "architecture_iq.answer_key.v1",
+  "confirmation_index": "artifacts/high_budget_confirmation.json",
+  "base_seed": 10000,
+  "n_seeds": 20,
+  "answers": [
+    {"question_id": "q_f5305f", "correct_letter": "C", "candidate_id": "c_3ae475", "gap": 0.15037871747817919, "win_rate": 1.0},
+    {"question_id": "q_716059", "correct_letter": "A", "candidate_id": "c_4a7b1d", "gap": 0.2478742103015975, "win_rate": 1.0},
+    {"question_id": "q_64793c", "correct_letter": "B", "candidate_id": "c_1e1c92", "gap": 0.1772783648222685, "win_rate": 1.0},
+    {"question_id": "q_e742fe", "correct_letter": "A", "candidate_id": "c_4a0b74", "gap": 0.08457167670130729, "win_rate": 1.0},
+    {"question_id": "q_987387", "correct_letter": "B", "candidate_id": "c_bec5a1", "gap": 0.15265414416790002, "win_rate": 1.0},
+    {"question_id": "q_7dc8c1", "correct_letter": "B", "candidate_id": "c_16d16b", "gap": 0.06145035028457624, "win_rate": 1.0},
+    {"question_id": "q_f4ed80", "correct_letter": "A", "candidate_id": "c_65db3e", "gap": 0.052767026424408225, "win_rate": 1.0},
+    {"question_id": "q_012da8", "correct_letter": "A", "candidate_id": "c_cfde69", "gap": 0.09594556465744972, "win_rate": 1.0},
+    {"question_id": "q_107adc", "correct_letter": "C", "candidate_id": "c_6d3749", "gap": 0.12357414476573468, "win_rate": 1.0},
+    {"question_id": "q_debcbd", "correct_letter": "C", "candidate_id": "c_7613a0", "gap": 0.1102083321660757, "win_rate": 1.0},
+    {"question_id": "q_19574c", "correct_letter": "D", "candidate_id": "c_ee0fb1", "gap": 0.212409732490778, "win_rate": 1.0},
+    {"question_id": "q_988186", "correct_letter": "D", "candidate_id": "c_474755", "gap": 0.43101453185081484, "win_rate": 1.0},
+    {"question_id": "q_e4cb7f", "correct_letter": "C", "candidate_id": "c_8c06ba", "gap": 0.16670574545860295, "win_rate": 0.95},
+    {"question_id": "q_0db04d", "correct_letter": "A", "candidate_id": "c_0e5e1e", "gap": 0.08237874731421471, "win_rate": 1.0},
+    {"question_id": "q_0cb66f", "correct_letter": "D", "candidate_id": "c_3017fd", "gap": 0.16162193641066552, "win_rate": 1.0}
+  ]
+}

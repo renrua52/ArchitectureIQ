@@ -1,0 +1,13 @@
+{
+  "schema_version": "architecture_iq.api_transport_check.v1",
+  "checked_at": "2026-07-14T08:46:16Z",
+  "endpoint": "https://api.openai.com/v1/models",
+  "method": "python urllib",
+  "credential_status": "OPENAI_API_KEY present but not logged",
+  "target_model_id": "gpt-5.4",
+  "result": "failed",
+  "http_status": 403,
+  "error": "HTTPError 403",
+  "target_model_available": false,
+  "fallback": "External chat-completions/model-list API unavailable for this run; retain GPT-5.4 Codex subagent provider result."
+}

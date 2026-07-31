@@ -1,0 +1,52 @@
+[
+  {
+    "question_id": "q_219d63",
+    "predicted_letter": "C",
+    "reason": "RMSprop at lr 0.003 with no weight decay should train much faster than the very small-lr Adagrad and SGD alternatives; B's SGD lr 0.0003 is especially likely to underfit."
+  },
+  {
+    "question_id": "q_22a3e7",
+    "predicted_letter": "B",
+    "reason": "Adagrad with lr 0.003 and a moderate-depth network looks more effective than the tiny AdamW model, while the SGD lr 0.0003 option is likely too slow."
+  },
+  {
+    "question_id": "q_2f5b25",
+    "predicted_letter": "A",
+    "reason": "A combines the same high Adagrad learning rate as B with far more capacity, and should optimize faster than the very low-lr RMSprop candidate."
+  },
+  {
+    "question_id": "q_bd68ea",
+    "predicted_letter": "B",
+    "reason": "The low-lr Adagrad candidate is likely too slow, and RMSprop on a residual width-128 model seems safer than the small-width SGD model at only lr 0.003."
+  },
+  {
+    "question_id": "q_cf534d",
+    "predicted_letter": "C",
+    "reason": "The repeated SGD lr 0.0003 candidate is likely undertrained, and the deep residual RMSprop model should outperform the shallow Adam lr 0.0001 model despite its small learning rate."
+  },
+  {
+    "question_id": "q_fe25f8",
+    "predicted_letter": "C",
+    "reason": "Among the three Adagrad choices, C has by far the largest learning rate, giving it a much better chance to converge within 160 steps than the 0.0001 and 0.0003 options."
+  },
+  {
+    "question_id": "q_357cf7",
+    "predicted_letter": "B",
+    "reason": "B has a strong Adagrad lr 0.01 setting and a small residual model, while C uses a much slower Adagrad rate and A lacks momentum despite its SGD lr 0.01."
+  },
+  {
+    "question_id": "q_5d4cf6",
+    "predicted_letter": "B",
+    "reason": "AdamW at lr 0.003 should make faster progress than Adam at lr 0.0001 or SGD at lr 0.001, and the width-32/depth-6 model should have enough capacity."
+  },
+  {
+    "question_id": "q_a2bf05",
+    "predicted_letter": "A",
+    "reason": "AdamW lr 0.01 on a shallow but wide model is likely to fit better than the very slow SGD option and the much narrower RMSprop model."
+  },
+  {
+    "question_id": "q_c2f34a",
+    "predicted_letter": "A",
+    "reason": "The deep wide residual RMSprop model should be more reliable than the extremely slow SGD candidate and likely has more useful capacity than the tiny one-layer AdamW model."
+  }
+]

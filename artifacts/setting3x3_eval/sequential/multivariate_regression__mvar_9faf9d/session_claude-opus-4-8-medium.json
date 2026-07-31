@@ -1,0 +1,257 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_multivariate_regression__mvar_9faf9d",
+  "questions_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_9faf9d/questions.json",
+  "feedback_path": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_9faf9d/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_26c64b",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_05808a",
+      "confidence": null,
+      "reason": "Moderate depth with wide layers and layer norm balances capacity and stable optimization for multivariate regression.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_05808a",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6298850297927856,
+        "B": 0.11620229855179787,
+        "C": 0.25304140001535413,
+        "D": 0.05127087198197842
+      },
+      "lesson": "Establishing baseline: prefer moderate-depth wide MLPs with layer norm for regression tasks.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_64793c",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_1e1c92",
+      "confidence": null,
+      "reason": "Depth-3 width-128 with layer norm mirrors the previous winning moderate-depth wide configuration.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_1e1c92",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6503864884376526,
+        "B": 0.10331267043948174,
+        "C": 0.3208767905831337,
+        "D": 0.27288339138031004
+      },
+      "lesson": "Moderate depth (3) with reasonably wide layers and some layer norm tends to win regression.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 3,
+      "question_id": "q_849ee7",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_a0c4ca",
+      "confidence": null,
+      "reason": "Depth-3 width-64 with residual and layer norm matches the moderate-depth pattern that has won so far.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_7983c9",
+      "is_correct": false,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.0647699698805809,
+        "B": 0.6224615395069122,
+        "C": 0.3891042500734329,
+        "D": 0.4791933745145798
+      },
+      "lesson": "Moderate depth (~3) with residual and layer norm remains a strong regression choice.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "question_id": "q_9657e4",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_f8850b",
+      "confidence": null,
+      "reason": "Depth-6 width-128 with early layer norm won the last similar question, indicating deep wide capacity fits this dataset well.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_f8850b",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.25304140001535413,
+        "B": 0.11620229855179787,
+        "C": 0.5231973677873611,
+        "D": 0.6224615395069122
+      },
+      "lesson": "Deeper wide MLPs (depth-6, width-128) can outperform moderate-depth ones on this dataset.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "question_id": "q_c49bc8",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_4a0b74",
+      "confidence": null,
+      "reason": "Depth-6 width-128 with residual and layer norm has the highest capacity and matches the winning deep-wide pattern.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_4a0b74",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.6224615395069122,
+        "B": 0.05789346434175968,
+        "C": 0.12569938376545906,
+        "D": 0.5307503432035446
+      },
+      "lesson": "Width matters most; depth-6 width-128 tends to give lowest MSE here.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.8
+    },
+    {
+      "n": 6,
+      "question_id": "q_da00b0",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_dad831",
+      "confidence": null,
+      "reason": "Depth-5 width-128 with full layer norm and residual is the widest, deepest choice, matching the winning high-capacity pattern.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_dad831",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.4791933745145798,
+        "B": 0.5231973677873611,
+        "C": 0.6255066633224488,
+        "D": 0.07532687447965145
+      },
+      "lesson": "Width 128 is the key driver of low MSE; pick the widest deep option.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.8333333333333334
+    },
+    {
+      "n": 7,
+      "question_id": "q_e742fe",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_4a0b74",
+      "confidence": null,
+      "reason": "Depth-6 width-128 residual with layer norm is the known best-performing configuration (c_4a0b74) from a prior question.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_4a0b74",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.05789346434175968,
+        "B": 0.25304140001535413,
+        "C": 0.6224615395069122,
+        "D": 0.1474633164703846
+      },
+      "lesson": "Width-128 deep residual MLPs consistently dominate; choose them when available.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.8571428571428571
+    },
+    {
+      "n": 8,
+      "question_id": "q_0f7bf9",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_a54450",
+      "confidence": null,
+      "reason": "With no width-128 option, depth-5 width-64 with mostly layer norm offers the most capacity and best depth-width tradeoff.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_a54450",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.25304140001535413,
+        "B": 0.5307503432035446,
+        "C": 0.27288339138031004,
+        "D": 0.08907068967819214
+      },
+      "lesson": "When width-128 is unavailable, deeper width-64 layer-normed nets beat shallow width-256 ones.",
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.875
+    },
+    {
+      "n": 9,
+      "question_id": "q_17add0",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_1e1c92",
+      "confidence": null,
+      "reason": "Depth-3 width-128 (c_1e1c92) previously scored ~0.10 MSE, the best available width-128 option here.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_1e1c92",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.10331267043948174,
+        "B": 0.27288339138031004,
+        "C": 0.6298850297927856,
+        "D": 0.3208767905831337
+      },
+      "lesson": "Width-128 depth-3 nets reliably outperform shallow width-256 and small nets.",
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8888888888888888
+    },
+    {
+      "n": 10,
+      "question_id": "q_808a86",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_f8850b",
+      "confidence": null,
+      "reason": "Depth-6 width-128 (c_f8850b) previously scored ~0.116 MSE, far better than the shallow width-256/32 alternatives.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_f8850b",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.25304140001535413,
+        "B": 0.27288339138031004,
+        "C": 0.11620229855179787,
+        "D": 0.6503864884376526
+      },
+      "lesson": "Deep width-128 nets remain the top choice over shallow wide or narrow ones.",
+      "cumulative_correct": 9,
+      "cumulative_accuracy": 0.9
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_26c64b",
+    "q_64793c",
+    "q_849ee7",
+    "q_9657e4",
+    "q_c49bc8",
+    "q_da00b0",
+    "q_e742fe",
+    "q_0f7bf9",
+    "q_17add0",
+    "q_808a86"
+  ],
+  "feedback_ids": [
+    "q_26c64b",
+    "q_64793c",
+    "q_849ee7",
+    "q_9657e4",
+    "q_c49bc8",
+    "q_da00b0",
+    "q_e742fe",
+    "q_0f7bf9",
+    "q_17add0",
+    "q_808a86"
+  ]
+}

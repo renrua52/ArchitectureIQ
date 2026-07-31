@@ -1,0 +1,84 @@
+{
+  "title": "Final meta-model experiment summary",
+  "date": "2026-07-18",
+  "metric": "macro significant three-choice accuracy (gap>=0.05 & win_rate>=0.7 & non_overlap)",
+  "random_baseline": 0.3333,
+  "approaches": {
+    "regression_per_dataset_baseline": {
+      "description": "15 models, one per dataset, 600 train rows each, predict log(mean_loss)",
+      "best": {"model": "xgboost", "sig_accuracy": 0.7833},
+      "results": {
+        "xgboost": 0.7833,
+        "extra_trees": 0.7778,
+        "random_forest": 0.7535,
+        "compact_polynomial_ridge": 0.6063,
+        "full_ols": 0.5515,
+        "full_ridge": 0.5399,
+        "mlp": 0.5244,
+        "compact_ols": 0.4568,
+        "compact_ridge": 0.4516,
+        "params_ols": 0.3114
+      }
+    },
+    "regression_global_shared": {
+      "description": "1 model on all 9000 train rows, dataset identity features, predict log(mean_loss)",
+      "best": {"model": "extra_trees_fixed", "sig_accuracy": 0.8211},
+      "results": {
+        "extra_trees_fixed": 0.8211,
+        "random_forest_fixed": 0.7860,
+        "xgboost_fixed": 0.7080,
+        "mlp_fixed": 0.6031,
+        "full_ridge_fixed": 0.5527,
+        "compact_ridge_fixed": 0.4355
+      }
+    },
+    "winner_classification_per_dataset": {
+      "description": "Pairwise feature differences + binary win/lose classifier + triple vote, one model per dataset",
+      "best_completed": {"model": "gradient_boosting_clf", "sig_accuracy": 0.7485},
+      "results_completed": {
+        "gradient_boosting_clf": 0.7485,
+        "mlp_clf": 0.7107,
+        "logistic": 0.6822
+      },
+      "results_pending": {
+        "extra_trees_clf": "running; single-dataset test on bigram=0.8318",
+        "random_forest_clf": "running"
+      }
+    },
+    "winner_classification_global_shared": {
+      "description": "1 shared pairwise classifier on all 9000 train rows (200k subsampled pairs), dataset identity",
+      "best": {"model": "mlp_clf", "sig_accuracy": 0.7231},
+      "results": {
+        "mlp_clf": 0.7231,
+        "extra_trees_clf": 0.6159,
+        "gradient_boosting_clf": 0.6492,
+        "logistic": 0.6298,
+        "random_forest_clf": 0.5662
+      }
+    }
+  },
+  "best_overall": {
+    "approach": "regression global shared + ExtraTrees",
+    "sig_accuracy": 0.8211,
+    "setting": "1 model, 9000 train rows, 122 features (full + dataset identity), 300 trees depth 16, predict log(mean_loss)"
+  },
+  "key_conclusions": [
+    "1. Baseline (per-dataset regression) best: XGBoost 78.33%, ExtraTrees 77.78% — trees dominate.",
+    "2. Shared model helps ExtraTrees: 77.78% -> 82.11% (+4.33pp) by pooling all 9000 rows.",
+    "3. OLS/linear regression is weak (31-61%), confirming the task is nonlinear.",
+    "4. Winner classification (direct ABC) with gradient_boosting: 74.85% per-dataset — does NOT beat regression.",
+    "5. Winner classification global trees are surprisingly weak (56-62%) — pairwise approach hurts trees in global setting.",
+    "6. MLP classification (72.31% global) beats MLP regression (60.31% global) — direct winner prediction helps MLP but not enough to beat tree regression.",
+    "7. The original 63.50% was wrong due to: (a) no significance filter (+9pp), (b) suboptimal setting (+4pp). Corrected best: 82.11%.",
+    "8. Per-dataset ExtraTrees classifier still running; single-dataset test showed 83.18% on bigram, but macro across all 15 may be lower."
+  ],
+  "artifacts": {
+    "regression_baseline_sig": "artifacts/wide_v2_full30_significant_recheck_dataset_pooled.json",
+    "regression_ols_sig": "artifacts/wide_v2_full30_significant_recheck_ols.json",
+    "regression_global_sig": "artifacts/wide_v2_full30_significant_recheck_global.json",
+    "winner_clf_per_dataset_fast": "data/meta_model_studies/wide_v2_full30_winner_clf_fast/winner_classification_results.json",
+    "winner_clf_global_fast": "data/meta_model_studies/wide_v2_full30_winner_clf_global/winner_classification_results.json",
+    "winner_clf_global_trees": "data/meta_model_studies/wide_v2_full30_winner_clf_global_trees/winner_classification_results.json",
+    "winner_clf_per_dataset_trees": "data/meta_model_studies/wide_v2_full30_winner_clf_trees/winner_classification_results.json (pending)"
+  }
+}

@@ -3,26 +3,42 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import random
+import re
 import secrets
-import shutil
+import subprocess
 import sys
 import tempfile
 from importlib import reload
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Mapping
 
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifact_loader  # noqa: E402
+import feedback  # noqa: E402
+import feedback_browser_outbox  # noqa: E402
+import feedback_outbox  # noqa: E402
+import feedback_recovery  # noqa: E402
 import prompt_format  # noqa: E402
+import release_manifest  # noqa: E402
+import surprise_catalog  # noqa: E402
+import surprise_recommender  # noqa: E402
 
 reload(artifact_loader)
+reload(feedback_browser_outbox)
+reload(feedback_outbox)
+reload(feedback_recovery)
 reload(prompt_format)
+reload(surprise_recommender)
+reload(surprise_catalog)
 from artifact_loader import (  # noqa: E402
     QuestionBundle,
     candidate_file_paths,
@@ -146,6 +162,36 @@ CUSTOM_CSS = """
 </style>
 """
 
+COMMENT_CATEGORY_LABELS = {
+    "question_quality": "Question wording or quality",
+    "answer_or_result": "Answer or ground-truth result",
+    "custom_setting": "Custom / proposed setting",
+    "bug": "Website bug",
+    "suggestion": "Product suggestion",
+    "other": "Other",
+}
+
+BUNDLED_DATA_ROOT = "examples/quiz_demo/bundle"
+DATA_ROOT_ENV = "ARCHITECTURE_IQ_DATA_ROOT"
+INSPECTOR_ENTRY_PATH = "tools/question_inspector/app.py"
+RUNTIME_GIT_SHA_ENV_NAMES = (
+    "ARCHITECTURE_IQ_GIT_SHA",
+    "GIT_COMMIT",
+    "COMMIT_SHA",
+    "SOURCE_VERSION",
+)
+GIT_SHA_PATTERN = re.compile(r"[0-9a-fA-F]{40}\Z")
+BROWSER_OUTBOX_DISABLE_ENV = "ARCHITECTURE_IQ_DISABLE_BROWSER_OUTBOX"
+SURPRISE_POLICY_VERSION = "surprise_policy_v1"
+SEQUENTIAL_POLICY_VERSION = "sequential_fallback_v1"
+RANDOM_POLICY_VERSION = "random_navigation_v1"
+MANUAL_POLICY_VERSION = "manual_navigation_v1"
+_STREAMLIT_TESTING_KEY = "$$STREAMLIT_INTERNAL_KEY_TESTING"
+_BROWSER_OUTBOX_COMPONENT = components.declare_component(
+    "architecture_iq_browser_outbox",
+    path=Path(__file__).resolve().parent / "browser_outbox_component",
+)
+
 
 def _init_state() -> None:
     defaults = {
@@ -156,19 +202,337 @@ def _init_state() -> None:
         "inspect_file": "candidate_spec.json",
         "dataset_file": "dataset_spec.json",
         "question_path": None,
-        "data_root": "data",
+        "data_root": _initial_data_root(),
         "question_pool": [],
         "quiz_results": {},
+        "quiz_answers": {},
         "setting_notice": None,
+        "comment_notices": {},
+        "feedback_uploaded_event_ids": [],
+        "feedback_quarantined_events": {},
+        "feedback_recovery_outboxes": {},
+        "feedback_upload_notice": None,
+        "question_presentation_notice": None,
+        "feedback_browser_outbox_generation": 0,
+        "feedback_browser_outbox_hydrated": False,
+        "feedback_browser_outbox_invalid_raw": None,
+        "feedback_browser_outbox_write_blocked": False,
+        "feedback_browser_outbox_notice": None,
+        "feedback_browser_outbox_saved_checksum": None,
+        "quiz_manifest": None,
+        "quiz_manifest_error": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+    if "quiz_attempt_id" not in st.session_state:
+        st.session_state.quiz_attempt_id = _new_quiz_attempt_id()
+    if "feedback_trace" not in st.session_state:
+        st.session_state.feedback_trace = feedback.SessionTrace.new()
 
 
-def _reset_quiz_state() -> None:
-    st.session_state.committed_letter = None
-    st.session_state.focus_letter = None
+def _new_quiz_attempt_id() -> str:
+    return f"attempt_{secrets.token_hex(12)}"
+
+
+def _feedback_trace() -> feedback.SessionTrace:
+    return st.session_state.feedback_trace
+
+
+def _browser_outbox_enabled() -> bool:
+    disabled = os.environ.get(BROWSER_OUTBOX_DISABLE_ENV, "").strip().lower()
+    if disabled in {"1", "true", "yes", "on"}:
+        return False
+    # Streamlit's Python AppTest cannot execute a component iframe. Keep those
+    # tests deterministic while the pure snapshot and real-browser tests cover
+    # this boundary separately.
+    return _STREAMLIT_TESTING_KEY not in st.session_state
+
+
+def _touch_browser_outbox() -> None:
+    generation = st.session_state.get("feedback_browser_outbox_generation", 0)
+    if isinstance(generation, bool) or not isinstance(generation, int):
+        generation = 0
+    st.session_state.feedback_browser_outbox_generation = min(
+        generation + 1,
+        feedback.MAX_SAFE_JSON_INTEGER,
+    )
+
+
+def _restore_quiz_progress_from_trace(
+    trace: feedback.SessionTrace,
+    *,
+    attempt_id: str,
+) -> tuple[dict[str, dict[str, Any]], dict[str, bool]]:
+    answers: dict[str, dict[str, Any]] = {}
+    results: dict[str, bool] = {}
+    for event in trace.events:
+        if event.get("event_type") != "answer_submitted":
+            continue
+        payload = event.get("payload")
+        if not isinstance(payload, Mapping) or payload.get("attempt_id") != attempt_id:
+            continue
+        question_version = event.get("question_version")
+        question_id = event.get("question_id")
+        selected_letter = payload.get("selected_letter")
+        is_correct = payload.get("is_correct")
+        if (
+            not isinstance(question_version, str)
+            or question_version in answers
+            or not isinstance(question_id, str)
+            or not isinstance(selected_letter, str)
+            or not isinstance(is_correct, bool)
+        ):
+            continue
+        selected_candidate_id = payload.get("selected_candidate_id")
+        answers[question_version] = {
+            "question_id": question_id,
+            "selected_letter": selected_letter,
+            "selected_candidate_id": (
+                selected_candidate_id
+                if isinstance(selected_candidate_id, str)
+                else None
+            ),
+            "is_correct": is_correct,
+        }
+        results[question_version] = is_correct
+    return answers, results
+
+
+def _apply_browser_outbox_snapshot(
+    snapshot: feedback_browser_outbox.BrowserOutboxSnapshot,
+) -> None:
+    st.session_state.feedback_trace = snapshot.trace
+    st.session_state.quiz_attempt_id = snapshot.current_attempt_id
+    st.session_state.feedback_uploaded_event_ids = list(snapshot.acknowledged_event_ids)
+    st.session_state.feedback_quarantined_events = snapshot.quarantined_by_id()
+    st.session_state.feedback_browser_outbox_generation = snapshot.generation
+    st.session_state.feedback_browser_outbox_saved_checksum = snapshot.checksum
+    answers, results = _restore_quiz_progress_from_trace(
+        snapshot.trace,
+        attempt_id=snapshot.current_attempt_id,
+    )
+    st.session_state.quiz_answers = answers
+    st.session_state.quiz_results = results
+
+
+def _browser_component_response(
+    value: Any,
+    *,
+    request_id: str,
+) -> Mapping[str, Any] | None:
+    if not isinstance(value, Mapping) or value.get("request_id") != request_id:
+        return None
+    status = value.get("status")
+    if status not in {"empty", "loaded", "saved", "cleared", "error"}:
+        return None
+    return value
+
+
+def _hydrate_browser_outbox() -> None:
+    if st.session_state.feedback_browser_outbox_hydrated:
+        return
+    if not _browser_outbox_enabled():
+        st.session_state.feedback_browser_outbox_hydrated = True
+        return
+
+    request_id = "load_browser_outbox_v1"
+    raw_response = _BROWSER_OUTBOX_COMPONENT(
+        operation="load",
+        request_id=request_id,
+        default=None,
+        key="feedback_browser_outbox_load",
+    )
+    response = _browser_component_response(raw_response, request_id=request_id)
+    if response is None:
+        st.info("Restoring the browser feedback outbox…")
+        st.stop()
+
+    status = response["status"]
+    if status == "empty":
+        st.session_state.feedback_browser_outbox_hydrated = True
+        return
+    if status == "error":
+        error_name = response.get("error")
+        st.session_state.feedback_browser_outbox_notice = {
+            "level": "warning",
+            "message": (
+                "Browser persistence is unavailable for this session"
+                + (f" ({error_name})." if isinstance(error_name, str) else ".")
+                + " Download the session JSON before closing the page."
+            ),
+        }
+        st.session_state.feedback_browser_outbox_hydrated = True
+        st.session_state.feedback_browser_outbox_write_blocked = True
+        return
+    if status != "loaded" or not isinstance(response.get("value"), str):
+        st.session_state.feedback_browser_outbox_notice = {
+            "level": "warning",
+            "message": (
+                "The browser outbox returned an invalid response. Download session "
+                "JSON before closing the page."
+            ),
+        }
+        st.session_state.feedback_browser_outbox_hydrated = True
+        st.session_state.feedback_browser_outbox_write_blocked = True
+        return
+
+    raw = response["value"]
+    try:
+        snapshot = feedback_browser_outbox.parse_browser_outbox(raw)
+    except feedback_browser_outbox.BrowserOutboxError as exc:
+        st.session_state.feedback_browser_outbox_invalid_raw = (
+            raw
+            if len(raw.encode("utf-8", errors="ignore"))
+            <= feedback_browser_outbox.MAX_BROWSER_OUTBOX_BYTES
+            else None
+        )
+        st.session_state.feedback_browser_outbox_write_blocked = True
+        st.session_state.feedback_browser_outbox_notice = {
+            "level": "error",
+            "message": (
+                "The saved browser outbox is invalid and was not restored or "
+                f"overwritten: {exc}"
+            ),
+        }
+    else:
+        _apply_browser_outbox_snapshot(snapshot)
+        st.session_state.feedback_browser_outbox_notice = {
+            "level": "success",
+            "message": (
+                f"Restored {len(snapshot.trace.events)} browser-saved event(s) "
+                f"for session {snapshot.trace.session_id}."
+            ),
+        }
+    st.session_state.feedback_browser_outbox_hydrated = True
+
+
+def _serialize_current_browser_outbox() -> str:
+    return feedback_browser_outbox.serialize_browser_outbox(
+        generation=st.session_state.feedback_browser_outbox_generation,
+        current_attempt_id=st.session_state.quiz_attempt_id,
+        trace=_feedback_trace(),
+        acknowledged_event_ids=_uploaded_event_ids(),
+        quarantined_events=_quarantined_event_records(),
+    )
+
+
+def _persist_browser_outbox() -> None:
+    if (
+        not _browser_outbox_enabled()
+        or not st.session_state.feedback_browser_outbox_hydrated
+        or st.session_state.feedback_browser_outbox_write_blocked
+    ):
+        return
+    try:
+        serialized = _serialize_current_browser_outbox()
+        snapshot = feedback_browser_outbox.parse_browser_outbox(serialized)
+    except feedback_browser_outbox.BrowserOutboxError as exc:
+        st.session_state.feedback_browser_outbox_notice = {
+            "level": "error",
+            "message": (
+                f"The live outbox could not be saved in the browser: {exc}. "
+                "Download the session JSON before closing the page."
+            ),
+        }
+        st.session_state.feedback_browser_outbox_write_blocked = True
+        return
+
+    request_id = f"save_{snapshot.checksum}"
+    raw_response = _BROWSER_OUTBOX_COMPONENT(
+        operation="save",
+        request_id=request_id,
+        value=serialized,
+        default=None,
+        key="feedback_browser_outbox_save",
+    )
+    response = _browser_component_response(raw_response, request_id=request_id)
+    if response is None:
+        return
+    if response["status"] == "saved":
+        st.session_state.feedback_browser_outbox_saved_checksum = snapshot.checksum
+        return
+    if response["status"] == "error":
+        error_name = response.get("error")
+        st.session_state.feedback_browser_outbox_notice = {
+            "level": "error",
+            "message": (
+                "Browser outbox persistence failed"
+                + (f" ({error_name})." if isinstance(error_name, str) else ".")
+                + " Download the session JSON before closing the page."
+            ),
+        }
+        st.session_state.feedback_browser_outbox_write_blocked = True
+
+
+def _start_new_feedback_session() -> None:
+    st.session_state.feedback_trace = feedback.SessionTrace.new()
+    st.session_state.feedback_uploaded_event_ids = []
+    st.session_state.feedback_quarantined_events = {}
+    st.session_state.comment_notices = {}
+    st.session_state.feedback_upload_notice = None
+    st.session_state.question_presentation_notice = None
+    st.session_state.quiz_results = {}
+    st.session_state.quiz_answers = {}
+    st.session_state.quiz_attempt_id = _new_quiz_attempt_id()
+    st.session_state.feedback_browser_outbox_generation = 0
+    st.session_state.feedback_browser_outbox_invalid_raw = None
+    st.session_state.feedback_browser_outbox_write_blocked = False
+    st.session_state.feedback_browser_outbox_notice = {
+        "level": "info",
+        "message": "Started a new browser feedback session.",
+    }
+    _reset_quiz_state()
+
+
+def _question_session_key(q: Mapping[str, Any]) -> str:
+    return feedback.question_version(q)
+
+
+def _event_context(q: Mapping[str, Any]) -> dict[str, Any]:
+    significance = q.get("significance", {})
+    metric = significance.get("metric") if isinstance(significance, Mapping) else None
+    context = {
+        "attempt_id": st.session_state.quiz_attempt_id,
+        "family": q.get("family"),
+        "dataset_id": q.get("dataset_id"),
+        "question_type": q.get("type"),
+        "selection_metric": metric,
+        "budget": q.get("budget"),
+    }
+    release_id = _matching_release_id(q)
+    if release_id is not None:
+        context["release_id"] = release_id
+    return context
+
+
+def _matching_release_id(q: Mapping[str, Any]) -> str | None:
+    manifest = st.session_state.get("quiz_manifest")
+    bundle = st.session_state.get("bundle")
+    if not isinstance(manifest, release_manifest.QuizManifest):
+        return None
+    if not isinstance(bundle, QuestionBundle) or bundle.question is not q:
+        return None
+    active_root = _resolve_data_root(str(st.session_state.get("data_root", "data")))
+    if manifest.data_root != active_root or bundle.data_root.resolve() != active_root:
+        return None
+    question_id = q.get("question_id")
+    if not isinstance(question_id, str):
+        return None
+    return manifest.release_id_for(
+        question_id,
+        feedback.question_version(q),
+        question_path=bundle.question_root,
+    )
+
+
+def _reset_quiz_state(q: Mapping[str, Any] | None = None) -> None:
+    saved = None
+    if q is not None:
+        saved = st.session_state.quiz_answers.get(_question_session_key(q))
+    letter = saved.get("selected_letter") if saved else None
+    st.session_state.committed_letter = letter
+    st.session_state.focus_letter = letter
     st.session_state.info_letter = None
     st.session_state.inspect_file = "candidate_spec.json"
     st.session_state.setting_notice = None
@@ -183,13 +547,118 @@ def _score_stats() -> tuple[int, int]:
 
 def _reset_score() -> None:
     st.session_state.quiz_results = {}
+    st.session_state.quiz_answers = {}
+    st.session_state.quiz_attempt_id = _new_quiz_attempt_id()
+    _touch_browser_outbox()
+    _reset_quiz_state()
 
 
 def _record_answer(q: dict[str, Any], picked_letter: str) -> None:
-    qid = q["question_id"]
-    if qid in st.session_state.quiz_results:
+    question_key = _question_session_key(q)
+    if question_key in st.session_state.quiz_answers:
         return
-    st.session_state.quiz_results[qid] = picked_letter == q["correct_letter"]
+    choice = next(
+        choice for choice in q["choices"] if choice["letter"] == picked_letter
+    )
+    is_correct = picked_letter == q["correct_letter"]
+    st.session_state.quiz_answers[question_key] = {
+        "question_id": q["question_id"],
+        "selected_letter": picked_letter,
+        "selected_candidate_id": choice["candidate_id"],
+        "is_correct": is_correct,
+    }
+    st.session_state.quiz_results[question_key] = is_correct
+    _feedback_trace().record_answer(
+        q,
+        selected_letter=picked_letter,
+        selected_candidate_id=choice["candidate_id"],
+        extra={**_event_context(q), "is_correct": is_correct},
+    )
+    _touch_browser_outbox()
+
+
+def _question_reaction(q: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Return the first surprise reaction for this question and attempt."""
+    question_version = _question_session_key(q)
+    attempt_id = st.session_state.quiz_attempt_id
+    for event in _feedback_trace().events:
+        if (
+            event.get("event_type") != "question_reaction_submitted"
+            or event.get("question_version") != question_version
+        ):
+            continue
+        payload = event.get("payload")
+        if (
+            isinstance(payload, Mapping)
+            and payload.get("attempt_id") == attempt_id
+            and payload.get("reaction") == "surprise"
+        ):
+            return event
+    return None
+
+
+def _record_question_reaction(
+    q: Mapping[str, Any],
+    *,
+    value: bool,
+) -> dict[str, Any]:
+    context = _event_context(q)
+    attempt_id = context.pop("attempt_id")
+    release_id = context.pop("release_id", None)
+    event = _feedback_trace().record_question_reaction(
+        q,
+        value=value,
+        attempt_id=attempt_id,
+        release_id=release_id,
+        extra=context,
+    )
+    _touch_browser_outbox()
+    return event
+
+
+def _presentation_decision(
+    *,
+    policy_version: str,
+    mode: str,
+    propensity: float,
+    source: str,
+) -> dict[str, Any]:
+    return {
+        "decision_id": f"decision_{secrets.token_hex(16)}",
+        "policy_version": policy_version,
+        "mode": mode,
+        "propensity": propensity,
+        "source": source,
+    }
+
+
+def _record_question_presentation(
+    q: Mapping[str, Any],
+    decision: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    release_id = _matching_release_id(q)
+    if release_id is None:
+        return None
+    attempt_id = st.session_state.quiz_attempt_id
+    position = 1 + sum(
+        event.get("event_type") == "question_presented"
+        and isinstance(event.get("payload"), Mapping)
+        and event["payload"].get("attempt_id") == attempt_id
+        for event in _feedback_trace().events
+    )
+    event = _feedback_trace().record_question_presented(
+        q,
+        attempt_id=attempt_id,
+        release_id=release_id,
+        decision_id=decision.get("decision_id"),
+        policy_version=decision.get("policy_version"),
+        mode=decision.get("mode"),
+        propensity=decision.get("propensity"),
+        source=decision.get("source"),
+        position=position,
+    )
+    _touch_browser_outbox()
+    return event
 
 
 def _commit_selection(q: dict[str, Any], letter: str) -> None:
@@ -207,7 +676,634 @@ def _render_score_panel() -> None:
         st.rerun()
 
 
-def _switch_question(question_path: Path, data_root: str) -> None:
+def _feedback_config() -> feedback.FeedbackConfig:
+    values: Mapping[str, Any] = {}
+    try:
+        configured = st.secrets.get("feedback", {})
+    except FileNotFoundError:
+        configured = {}
+    if isinstance(configured, Mapping):
+        values = configured
+    return feedback.FeedbackConfig.from_sources(
+        endpoint=values.get("endpoint") or values.get("url"),
+        bearer_token=values.get("token") or values.get("bearer_token"),
+        timeout_seconds=values.get("timeout_seconds"),
+    )
+
+
+def _feedback_client() -> feedback.FeedbackClient:
+    return feedback.FeedbackClient(_feedback_config())
+
+
+def _upload_receipt_summary(
+    receipt: feedback.UploadReceipt,
+    *,
+    sent_count: int,
+) -> str:
+    response = receipt.response
+    if isinstance(response, Mapping):
+        values = [
+            response.get("accepted"),
+            response.get("duplicate"),
+            response.get("conflict", 0),
+            response.get("rejected"),
+        ]
+        if all(
+            isinstance(value, int) and not isinstance(value, bool) for value in values
+        ):
+            accepted, duplicate, conflict, rejected = values
+            return (
+                f"{sent_count} sent · {accepted} new · {duplicate} duplicate · "
+                f"{conflict} conflict · {rejected} rejected"
+            )
+    return f"{sent_count} sent · HTTP {receipt.status_code}"
+
+
+def _upload_conflict_message(
+    exc: feedback.FeedbackUploadConflictError,
+    *,
+    subject: str,
+) -> str:
+    request_note = f" Request: {exc.request_id}." if exc.request_id else ""
+    count_note = (
+        f" The server identified {exc.conflict_count} conflicting event ID(s)."
+        if exc.conflict_count is not None
+        else ""
+    )
+    return (
+        f"{subject} was not uploaded because an event ID already stores different "
+        "logical content. The immutable local event is quarantined and excluded "
+        "from future batch retries, so other pending events can still upload. "
+        f"This is not a retryable network error.{count_note}"
+        f"{request_note}"
+    )
+
+
+def _uploaded_event_ids() -> set[str]:
+    raw_ids = st.session_state.get("feedback_uploaded_event_ids", [])
+    if not isinstance(raw_ids, (list, tuple, set)):
+        return set()
+    return {event_id for event_id in raw_ids if isinstance(event_id, str)}
+
+
+def _quarantined_event_records() -> dict[str, dict[str, str | None]]:
+    raw = st.session_state.get("feedback_quarantined_events", {})
+    if not isinstance(raw, Mapping):
+        return {}
+    records: dict[str, dict[str, str | None]] = {}
+    for event_id, value in raw.items():
+        if not isinstance(event_id, str) or not isinstance(value, Mapping):
+            continue
+        request_id = value.get("request_id")
+        error_code = value.get("error_code")
+        records[event_id] = {
+            "event_id": event_id,
+            "request_id": request_id if isinstance(request_id, str) else None,
+            "error_code": (
+                error_code if isinstance(error_code, str) else "EVENT_ID_CONFLICT"
+            ),
+        }
+    return records
+
+
+def _quarantined_event_ids() -> set[str]:
+    return set(_quarantined_event_records())
+
+
+def _set_comment_notice(
+    question_key: str,
+    *,
+    level: str,
+    message: str,
+    event_id: str | None,
+) -> None:
+    notices = st.session_state.get("comment_notices", {})
+    if not isinstance(notices, dict):
+        notices = {}
+    notices[question_key] = {
+        "level": level,
+        "message": message,
+        "event_id": event_id,
+    }
+    st.session_state.comment_notices = notices
+
+
+def _reconcile_comment_notices(
+    *,
+    acknowledged_event_ids: set[str],
+    quarantined_event_ids: set[str],
+) -> None:
+    notices = st.session_state.get("comment_notices", {})
+    if not isinstance(notices, dict):
+        return
+    for question_key, raw_notice in list(notices.items()):
+        if not isinstance(raw_notice, Mapping):
+            continue
+        event_id = raw_notice.get("event_id")
+        if not isinstance(event_id, str):
+            continue
+        if event_id in acknowledged_event_ids:
+            notices[question_key] = {
+                "level": "success",
+                "message": "Comment upload was confirmed by the batch uploader.",
+                "event_id": event_id,
+            }
+        elif event_id in quarantined_event_ids:
+            notices[question_key] = {
+                "level": "error",
+                "message": (
+                    "This comment is quarantined because its event ID conflicts "
+                    "with different stored content. Other pending events can still upload."
+                ),
+                "event_id": event_id,
+            }
+    st.session_state.comment_notices = notices
+
+
+def _mark_events_uploaded(
+    events: tuple[dict[str, Any], ...] | list[dict[str, Any]],
+    receipt: feedback.UploadReceipt,
+) -> bool:
+    if not feedback.upload_receipt_acknowledges_all(
+        receipt,
+        sent_count=len(events),
+    ):
+        return False
+    uploaded = _uploaded_event_ids()
+    uploaded.update(
+        event_id
+        for event in events
+        if isinstance((event_id := event.get("event_id")), str)
+    )
+    st.session_state.feedback_uploaded_event_ids = sorted(uploaded)
+    quarantined = _quarantined_event_records()
+    for event in events:
+        event_id = event.get("event_id")
+        if isinstance(event_id, str):
+            quarantined.pop(event_id, None)
+    st.session_state.feedback_quarantined_events = quarantined
+    _reconcile_comment_notices(
+        acknowledged_event_ids=uploaded,
+        quarantined_event_ids=set(quarantined),
+    )
+    _touch_browser_outbox()
+    return True
+
+
+def _pending_upload_count(events: tuple[dict[str, Any], ...]) -> int:
+    try:
+        selected = feedback_outbox.pending_events(
+            events,
+            acknowledged_event_ids=_uploaded_event_ids(),
+            quarantined_event_ids=_quarantined_event_ids(),
+        )
+    except feedback_outbox.FeedbackOutboxError:
+        return len(events)
+    return len(selected)
+
+
+def _apply_outbox_result(result: feedback_outbox.OutboxUploadResult) -> None:
+    uploaded = _uploaded_event_ids()
+    uploaded.update(result.acknowledged_event_ids)
+    quarantined = _quarantined_event_records()
+    for event_id in result.acknowledged_event_ids:
+        quarantined.pop(event_id, None)
+    for item in result.quarantined_events:
+        quarantined[item.event_id] = item.to_dict()
+    st.session_state.feedback_uploaded_event_ids = sorted(uploaded)
+    st.session_state.feedback_quarantined_events = quarantined
+    _reconcile_comment_notices(
+        acknowledged_event_ids=uploaded,
+        quarantined_event_ids=set(quarantined),
+    )
+    _touch_browser_outbox()
+
+
+def _recovery_outbox_state(
+    recovered: feedback_recovery.RecoveredTrace,
+) -> tuple[set[str], dict[str, dict[str, str | None]]]:
+    """Return safe, content-scoped status for one downloaded trace."""
+
+    event_ids = {
+        str(event["event_id"])
+        for event in recovered.events
+        if isinstance(event.get("event_id"), str)
+    }
+    raw_outboxes = st.session_state.get("feedback_recovery_outboxes", {})
+    raw_state = (
+        raw_outboxes.get(recovered.recovery_id, {})
+        if isinstance(raw_outboxes, Mapping)
+        else {}
+    )
+    if not isinstance(raw_state, Mapping):
+        raw_state = {}
+
+    raw_acknowledged = raw_state.get("acknowledged_event_ids", [])
+    acknowledged = (
+        {
+            event_id
+            for event_id in raw_acknowledged
+            if isinstance(event_id, str) and event_id in event_ids
+        }
+        if isinstance(raw_acknowledged, (list, tuple, set))
+        else set()
+    )
+    raw_quarantined = raw_state.get("quarantined_events", {})
+    quarantined: dict[str, dict[str, str | None]] = {}
+    if isinstance(raw_quarantined, Mapping):
+        for event_id, value in raw_quarantined.items():
+            if (
+                not isinstance(event_id, str)
+                or event_id not in event_ids
+                or event_id in acknowledged
+                or not isinstance(value, Mapping)
+            ):
+                continue
+            request_id = value.get("request_id")
+            error_code = value.get("error_code")
+            quarantined[event_id] = {
+                "event_id": event_id,
+                "request_id": request_id if isinstance(request_id, str) else None,
+                "error_code": (
+                    error_code if isinstance(error_code, str) else "EVENT_ID_CONFLICT"
+                ),
+            }
+    return acknowledged, quarantined
+
+
+def _apply_recovery_outbox_result(
+    recovered: feedback_recovery.RecoveredTrace,
+    result: feedback_outbox.OutboxUploadResult,
+) -> None:
+    """Persist only safe receipt metadata, namespaced by full trace content."""
+
+    event_ids = {
+        str(event["event_id"])
+        for event in recovered.events
+        if isinstance(event.get("event_id"), str)
+    }
+    acknowledged, quarantined = _recovery_outbox_state(recovered)
+    acknowledged.update(set(result.acknowledged_event_ids) & event_ids)
+    for event_id in acknowledged:
+        quarantined.pop(event_id, None)
+    for item in result.quarantined_events:
+        if item.event_id in event_ids and item.event_id not in acknowledged:
+            quarantined[item.event_id] = item.to_dict()
+
+    raw_outboxes = st.session_state.get("feedback_recovery_outboxes", {})
+    outboxes = dict(raw_outboxes) if isinstance(raw_outboxes, Mapping) else {}
+    outboxes[recovered.recovery_id] = {
+        "acknowledged_event_ids": sorted(acknowledged),
+        "quarantined_events": quarantined,
+    }
+    st.session_state.feedback_recovery_outboxes = outboxes
+
+
+def _recovery_pending_events(
+    recovered: feedback_recovery.RecoveredTrace,
+) -> tuple[dict[str, Any], ...]:
+    acknowledged, quarantined = _recovery_outbox_state(recovered)
+    return feedback_outbox.pending_events(
+        recovered.events,
+        acknowledged_event_ids=acknowledged,
+        quarantined_event_ids=quarantined,
+    )
+
+
+def _quarantine_event(
+    event: Mapping[str, Any],
+    exc: feedback.FeedbackUploadConflictError,
+) -> None:
+    event_id = event.get("event_id")
+    if not isinstance(event_id, str):
+        return
+    records = _quarantined_event_records()
+    records[event_id] = {
+        "event_id": event_id,
+        "request_id": exc.request_id,
+        "error_code": exc.error_code or "EVENT_ID_CONFLICT",
+    }
+    st.session_state.feedback_quarantined_events = records
+    _reconcile_comment_notices(
+        acknowledged_event_ids=_uploaded_event_ids(),
+        quarantined_event_ids=set(records),
+    )
+    _touch_browser_outbox()
+
+
+def _render_outbox_result(
+    result: feedback_outbox.OutboxUploadResult,
+    *,
+    subject: str,
+) -> None:
+    """Render a payload-free result shared by live and recovery uploads."""
+
+    if result.all_acknowledged:
+        st.success(
+            f"{subject} complete · {len(result.acknowledged_event_ids)} event(s) "
+            f"confirmed in {result.batch_request_count} batch request(s)."
+        )
+        return
+    if result.quarantined_events and result.issue is None:
+        local_limit_count = sum(
+            item.error_code == "LOCAL_BODY_LIMIT" for item in result.quarantined_events
+        )
+        conflict_count = len(result.quarantined_events) - local_limit_count
+        reasons: list[str] = []
+        if conflict_count:
+            reasons.append(f"{conflict_count} server content conflict")
+        if local_limit_count:
+            reasons.append(f"{local_limit_count} local body-limit rejection")
+        st.warning(
+            f"{subject}: {len(result.acknowledged_event_ids)} event(s) confirmed; "
+            f"{len(result.quarantined_events)} event(s) quarantined "
+            f"({', '.join(reasons)}). "
+            "Other pending events were not blocked."
+        )
+        return
+    issue = result.issue
+    if issue is None:  # Defensive: this state is not produced by the outbox.
+        st.error(f"{subject} stopped without a complete receiver acknowledgement.")
+        return
+    request_note = f" Request: {issue.request_id}." if issue.request_id else ""
+    message = (
+        f"{issue.message} {len(result.acknowledged_event_ids)} confirmed · "
+        f"{len(result.quarantined_events)} quarantined · "
+        f"{len(result.remaining_event_ids)} still pending.{request_note}"
+    )
+    if issue.retryable:
+        st.warning(f"{message} Retrying unchanged event IDs is safe.")
+    else:
+        st.error(
+            f"{message} Fix the endpoint, credentials, or receipt contract "
+            "before retrying."
+        )
+
+
+def _render_recovery_upload(client: feedback.FeedbackClient | None) -> None:
+    """Validate and upload a previously downloaded trace without importing it."""
+
+    st.divider()
+    st.markdown("**Recover a downloaded session**")
+    st.caption(
+        "Upload an ArchitectureIQ session JSON after a refresh or device restart. "
+        "The file is parsed as data only; no code is imported or executed."
+    )
+    uploaded_file = st.file_uploader(
+        "Saved session JSON (maximum 10 MiB)",
+        type=["json"],
+        accept_multiple_files=False,
+        key="recover_session_trace_json",
+        help=(
+            "Only strict ArchitectureIQ session_trace JSON is accepted. Invalid or "
+            "oversized files are rejected before any feedback network request."
+        ),
+    )
+    if uploaded_file is None:
+        return
+
+    file_size = getattr(uploaded_file, "size", None)
+    if (
+        isinstance(file_size, int)
+        and not isinstance(file_size, bool)
+        and file_size > feedback_recovery.MAX_RECOVERY_FILE_BYTES
+    ):
+        st.error(
+            "Saved session trace exceeds the 10 MiB recovery limit and was not read "
+            "or sent."
+        )
+        return
+    try:
+        raw = uploaded_file.getvalue()
+        recovered = feedback_recovery.parse_recovered_trace(raw)
+        pending_events = _recovery_pending_events(recovered)
+    except (OSError, feedback_recovery.FeedbackRecoveryError) as exc:
+        st.error(f"Saved session trace was rejected locally: {exc}")
+        return
+    except feedback_outbox.FeedbackOutboxError as exc:
+        st.error(f"Saved session outbox is invalid: {exc}")
+        return
+
+    acknowledged, quarantined = _recovery_outbox_state(recovered)
+    st.caption(
+        f"Validated trace · {recovered.event_count} event(s) · "
+        f"{len(pending_events)} pending · {len(acknowledged)} confirmed · "
+        f"{len(quarantined)} quarantined · content …{recovered.recovery_id[-12:]}"
+    )
+    if quarantined:
+        st.warning(
+            "Conflicting IDs from this exact saved trace are quarantined locally. "
+            "Changing file content creates a separate recovery outbox."
+        )
+    if client is None or not client.is_configured:
+        st.caption(
+            "Configure both the upload endpoint and Bearer token to send this "
+            "validated trace."
+        )
+    elif not pending_events:
+        if quarantined:
+            st.warning(
+                "Every event in this file is already confirmed or quarantined in "
+                "this browser session."
+            )
+        else:
+            st.success(
+                "Every event in this file has already received a complete storage "
+                "acknowledgement in this browser session."
+            )
+
+    if st.button(
+        "Upload recovered pending events",
+        key="upload_recovered_session_trace",
+        disabled=client is None or not client.is_configured or not pending_events,
+        use_container_width=True,
+    ):
+        assert client is not None
+        try:
+            with st.spinner("Uploading recovered pending events…"):
+                result = feedback_recovery.upload_recovered_trace(
+                    client,
+                    recovered,
+                    acknowledged_event_ids=acknowledged,
+                    quarantined_event_ids=quarantined,
+                )
+        except (
+            feedback_recovery.FeedbackRecoveryError,
+            feedback_outbox.FeedbackOutboxError,
+        ) as exc:
+            st.error(f"Saved session outbox is invalid: {exc}")
+        else:
+            _apply_recovery_outbox_result(recovered, result)
+            _render_outbox_result(result, subject="Recovery upload")
+
+
+def _render_session_feedback_panel() -> None:
+    trace = _feedback_trace()
+    events = trace.events
+    counts = {
+        event_type: sum(event["event_type"] == event_type for event in events)
+        for event_type in feedback.EVENT_TYPES
+    }
+    with st.expander("Session data & upload", expanded=False):
+        pending = _pending_upload_count(events)
+        quarantine_records = _quarantined_event_records()
+        quarantined_ids = set(quarantine_records)
+        quarantined_events = tuple(
+            event for event in events if event.get("event_id") in quarantined_ids
+        )
+        st.caption(
+            f"{len(events)} event(s) · {counts['answer_submitted']} answer(s) · "
+            f"{counts['custom_setting_proposed']} proposed setting(s) · "
+            f"{counts['custom_setting_rejected']} rejected setting(s) · "
+            f"{counts['question_reaction_submitted']} surprise reaction(s) · "
+            f"{counts['comment_submitted']} comment(s) · {pending} pending upload · "
+            f"{len(quarantined_events)} quarantined"
+        )
+        browser_notice = st.session_state.get("feedback_browser_outbox_notice")
+        if isinstance(browser_notice, Mapping):
+            level = browser_notice.get("level")
+            message = browser_notice.get("message")
+            if level in {"info", "success", "warning", "error"} and isinstance(
+                message, str
+            ):
+                getattr(st, level)(message)
+        presentation_notice = st.session_state.get("question_presentation_notice")
+        if isinstance(presentation_notice, str):
+            st.warning(presentation_notice)
+        if _browser_outbox_enabled() and not st.session_state.get(
+            "feedback_browser_outbox_write_blocked", False
+        ):
+            st.caption(
+                "This live outbox is mirrored to this browser's IndexedDB; "
+                "endpoint URLs and tokens are never stored there."
+            )
+        invalid_browser_raw = st.session_state.get(
+            "feedback_browser_outbox_invalid_raw"
+        )
+        if isinstance(invalid_browser_raw, str):
+            st.download_button(
+                "Download invalid browser outbox for diagnosis",
+                data=invalid_browser_raw,
+                file_name="architectureiq-invalid-browser-outbox.json",
+                mime="application/json",
+                use_container_width=True,
+                key="download_invalid_browser_outbox",
+            )
+            if st.button(
+                "Discard invalid browser copy and use this new session",
+                key="discard_invalid_browser_outbox",
+                use_container_width=True,
+            ):
+                st.session_state.feedback_browser_outbox_invalid_raw = None
+                st.session_state.feedback_browser_outbox_write_blocked = False
+                st.session_state.feedback_browser_outbox_notice = {
+                    "level": "warning",
+                    "message": (
+                        "Discarded the invalid browser copy. The current new "
+                        "session will replace it."
+                    ),
+                }
+                _touch_browser_outbox()
+                st.rerun()
+        envelope = trace.to_envelope()
+        serialized = json.dumps(envelope, ensure_ascii=False, indent=2)
+        st.download_button(
+            "Download my session JSON",
+            data=serialized,
+            file_name=f"architectureiq-{trace.session_id}.json",
+            mime="application/json",
+            disabled=not events,
+            use_container_width=True,
+            key="download_session_trace_sidebar",
+        )
+        if quarantined_events:
+            quarantine_envelope = feedback.build_session_trace_envelope(
+                trace.session_id,
+                quarantined_events,
+                created_at=trace.created_at,
+            )
+            st.download_button(
+                "Download quarantined events",
+                data=json.dumps(quarantine_envelope, ensure_ascii=False, indent=2),
+                file_name=f"architectureiq-{trace.session_id}-quarantined.json",
+                mime="application/json",
+                use_container_width=True,
+                key="download_quarantined_trace_sidebar",
+            )
+            local_limit_count = sum(
+                quarantine_records[event_id].get("error_code") == "LOCAL_BODY_LIMIT"
+                for event_id in quarantined_ids
+            )
+            conflict_count = len(quarantined_ids) - local_limit_count
+            if conflict_count:
+                st.warning(
+                    f"{conflict_count} quarantined event ID(s) contain different "
+                    "content than the server's first write. They are excluded from "
+                    "retry batches so other events can continue uploading."
+                )
+            if local_limit_count:
+                st.warning(
+                    f"{local_limit_count} event(s) exceed the receiver's single-event "
+                    "body limit. They were not sent and are excluded from retry "
+                    "batches; download the quarantined trace for inspection."
+                )
+
+        client: feedback.FeedbackClient | None
+        try:
+            client = _feedback_client()
+        except feedback.FeedbackConfigurationError as exc:
+            client = None
+            st.error(f"Feedback upload configuration is invalid: {exc}")
+        if client is not None and not client.is_configured:
+            st.caption(
+                "Upload endpoint and Bearer token are not fully configured. Session "
+                "download and event capture still work locally."
+            )
+        if client is not None and client.is_configured:
+            if st.button(
+                "Upload pending session events",
+                key="upload_session_trace",
+                type="primary",
+                disabled=pending == 0,
+                use_container_width=True,
+            ):
+                try:
+                    with st.spinner("Uploading pending session events…"):
+                        result = feedback_outbox.upload_pending_events(
+                            client,
+                            events,
+                            acknowledged_event_ids=_uploaded_event_ids(),
+                            quarantined_event_ids=_quarantined_event_ids(),
+                        )
+                except feedback_outbox.FeedbackOutboxError as exc:
+                    st.error(f"The local feedback outbox is invalid: {exc}")
+                else:
+                    _apply_outbox_result(result)
+                    _render_outbox_result(result, subject="Session upload")
+
+        st.divider()
+        confirm_new_session = st.checkbox(
+            "I downloaded anything I still need from this session.",
+            key="confirm_start_new_feedback_session",
+        )
+        if st.button(
+            "Start a new feedback session",
+            key="start_new_feedback_session",
+            disabled=not confirm_new_session,
+            use_container_width=True,
+        ):
+            _start_new_feedback_session()
+            st.rerun()
+
+        _render_recovery_upload(client)
+
+
+def _switch_question(
+    question_path: Path,
+    data_root: str,
+    *,
+    presentation: Mapping[str, Any] | None = None,
+) -> None:
     previous_path = st.session_state.get("question_path")
     if previous_path:
         previous_root = Path(previous_path)
@@ -219,11 +1315,24 @@ def _switch_question(question_path: Path, data_root: str) -> None:
                 clear_legacy_question_custom_settings(previous_root)
 
     question_path = question_path.resolve()
+    changed = (
+        not isinstance(previous_path, str)
+        or Path(previous_path).resolve() != question_path
+    )
     clear_legacy_question_custom_settings(question_path)
 
     st.session_state.question_path = str(question_path)
     st.session_state.bundle = _load_selected_question(question_path, data_root)
-    _reset_quiz_state()
+    bundle = st.session_state.bundle
+    _reset_quiz_state(bundle.question if bundle is not None else None)
+    if changed and presentation is not None and bundle is not None:
+        try:
+            _record_question_presentation(bundle.question, presentation)
+        except feedback.FeedbackValidationError as exc:
+            st.session_state.question_presentation_notice = (
+                "Question exposure could not be recorded; this navigation must not "
+                f"be used for recommendation evaluation: {exc}"
+            )
 
 
 def _custom_settings_session_tag() -> str:
@@ -273,8 +1382,149 @@ def _resolve_data_root(data_root: str) -> Path:
     return Path(data_root).expanduser().resolve()
 
 
+def _bundled_data_root(*, root: Path | None = None) -> Path:
+    return ((root or _repo_root()) / BUNDLED_DATA_ROOT).resolve()
+
+
+def _argument_data_root(argv: list[str] | tuple[str, ...]) -> Path | None:
+    """Infer a local data root only from an existing explicit question path."""
+    if len(argv) <= 1:
+        return None
+    candidate = Path(argv[1]).expanduser()
+    if not candidate.exists():
+        return None
+    resolved = candidate.resolve()
+    if resolved.is_file():
+        resolved = resolved.parent
+    for ancestor in (resolved, *resolved.parents):
+        if ancestor.name == "datasets":
+            return ancestor.parent.resolve()
+        if (ancestor / "datasets").is_dir():
+            return ancestor.resolve()
+    return None
+
+
+def _initial_data_root(
+    *,
+    environ: Mapping[str, str] | None = None,
+    argv: list[str] | tuple[str, ...] | None = None,
+    root: Path | None = None,
+) -> str:
+    """Choose explicit local data when requested, otherwise the bundled release."""
+    argument_root = _argument_data_root(sys.argv if argv is None else argv)
+    if argument_root is not None:
+        return str(argument_root)
+    values = os.environ if environ is None else environ
+    configured = values.get(DATA_ROOT_ENV, "").strip()
+    if configured:
+        return str(Path(configured).expanduser().resolve())
+    return str(_bundled_data_root(root=root))
+
+
+def _checkout_git_environment() -> dict[str, str]:
+    """Return a minimal environment with no inherited Git redirection."""
+    return {
+        "PATH": os.defpath,
+        "HOME": os.devnull,
+        "LANG": "C",
+        "LC_ALL": "C",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+
+
+def _checkout_git_sha(repo_root: Path) -> str | None:
+    """Read the deployed checkout commit without consulting a shell."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            cwd=repo_root,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+            timeout=2,
+            env=_checkout_git_environment(),
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    candidate = result.stdout.strip().lower()
+    if result.returncode != 0 or GIT_SHA_PATTERN.fullmatch(candidate) is None:
+        return None
+    return candidate
+
+
+def _runtime_git_sha(
+    environ: Mapping[str, str] | None = None,
+    *,
+    repo_root: Path | None = None,
+    git_reader: Callable[[Path], str | None] | None = None,
+) -> str | None:
+    """Return one commit only when runtime declarations and checkout agree."""
+    values = os.environ if environ is None else environ
+    configured = [
+        raw.strip()
+        for name in RUNTIME_GIT_SHA_ENV_NAMES
+        if (raw := values.get(name)) is not None and raw.strip()
+    ]
+    if any(GIT_SHA_PATTERN.fullmatch(raw) is None for raw in configured):
+        return None
+    candidates = {raw.lower() for raw in configured}
+    root = repo_root or Path(__file__).resolve().parents[2]
+    checkout_sha = (git_reader or _checkout_git_sha)(root)
+    if checkout_sha is None or GIT_SHA_PATTERN.fullmatch(checkout_sha) is None:
+        return None
+    candidates.add(checkout_sha.lower())
+    if len(candidates) != 1:
+        return None
+    return next(iter(candidates))
+
+
 def _discover_questions(data_root: str) -> list[Path]:
     return list_question_dirs(_resolve_data_root(data_root))
+
+
+def _load_active_manifest(data_root: str) -> release_manifest.QuizManifest | None:
+    root = _resolve_data_root(data_root)
+    error: str | None = None
+    try:
+        manifest = release_manifest.load_quiz_manifest(root)
+    except release_manifest.ReleaseManifestError as exc:
+        error = str(exc)
+        manifest = None
+    if manifest is None and error is None and root == _bundled_data_root():
+        error = (
+            f"required {release_manifest.MANIFEST_FILENAME} is missing from the "
+            "version-controlled bundled release"
+        )
+    st.session_state.quiz_manifest_error = error
+    st.session_state.quiz_manifest = manifest
+    return manifest
+
+
+def _ordered_question_pool(
+    data_root: str,
+    manifest: release_manifest.QuizManifest | None,
+) -> list[Path]:
+    discovered = _discover_questions(data_root)
+    if manifest is None:
+        return discovered
+    published = manifest.question_dirs()
+    published_paths = {path.resolve() for path in published}
+    unpublished = [path for path in discovered if path.resolve() not in published_paths]
+    return [*published, *unpublished]
+
+
+def _load_question_pool(
+    data_root: str,
+) -> tuple[release_manifest.QuizManifest | None, list[Path]]:
+    manifest = _load_active_manifest(data_root)
+    if st.session_state.quiz_manifest_error:
+        return manifest, []
+    return manifest, _ordered_question_pool(data_root, manifest)
 
 
 def _default_question_path(pool: list[Path]) -> Path | None:
@@ -287,12 +1537,12 @@ def _default_question_path(pool: list[Path]) -> Path | None:
         for path in pool:
             if path.resolve() == arg:
                 return path
-        if arg.exists():
-            return arg
     return pool[0]
 
 
-def _load_selected_question(question_path: Path, data_root: str) -> QuestionBundle | None:
+def _load_selected_question(
+    question_path: Path, data_root: str
+) -> QuestionBundle | None:
     try:
         bundle = load_question_bundle(question_path, data_root or None)
         _assign_question_cache_scope(bundle)
@@ -309,9 +1559,126 @@ def _assign_question_cache_scope(bundle: QuestionBundle) -> None:
     ).hexdigest()[:16]
 
 
+def _completed_release_questions(
+    manifest: release_manifest.QuizManifest,
+) -> set[surprise_recommender.QuestionIdentity]:
+    completed: set[surprise_recommender.QuestionIdentity] = set()
+    answers = st.session_state.get("quiz_answers", {})
+    if not isinstance(answers, Mapping):
+        return completed
+    for question_version, raw_answer in answers.items():
+        if not isinstance(question_version, str) or not isinstance(raw_answer, Mapping):
+            continue
+        question_id = raw_answer.get("question_id")
+        if not isinstance(question_id, str):
+            continue
+        if manifest.release_id_for(question_id, question_version) is None:
+            continue
+        completed.add(
+            surprise_recommender.QuestionIdentity(
+                manifest.release_id,
+                question_id,
+                question_version,
+            )
+        )
+    return completed
+
+
+def _release_exposure_counts(
+    manifest: release_manifest.QuizManifest,
+) -> dict[surprise_recommender.QuestionIdentity, int]:
+    counts: dict[surprise_recommender.QuestionIdentity, int] = {}
+    attempt_id = st.session_state.quiz_attempt_id
+    for event in _feedback_trace().events:
+        if event.get("event_type") != "question_presented":
+            continue
+        payload = event.get("payload")
+        question_id = event.get("question_id")
+        question_version = event.get("question_version")
+        if (
+            not isinstance(payload, Mapping)
+            or payload.get("attempt_id") != attempt_id
+            or payload.get("release_id") != manifest.release_id
+            or not isinstance(question_id, str)
+            or not isinstance(question_version, str)
+            or manifest.release_id_for(question_id, question_version) is None
+        ):
+            continue
+        identity = surprise_recommender.QuestionIdentity(
+            manifest.release_id,
+            question_id,
+            question_version,
+        )
+        counts[identity] = counts.get(identity, 0) + 1
+    return counts
+
+
+def _recommended_next_path(
+    manifest: release_manifest.QuizManifest,
+    current_path: Path,
+    *,
+    seed: int,
+) -> tuple[Path, surprise_recommender.Recommendation]:
+    """Choose one answer-safe next question from the attested release only."""
+    candidates = surprise_catalog.build_recommendation_candidates(
+        manifest,
+        exposure_counts=_release_exposure_counts(manifest),
+    )
+    completed = _completed_release_questions(manifest)
+    current_resolved = current_path.resolve()
+    last_family: str | None = None
+    for record, path in zip(
+        manifest.questions,
+        manifest.question_dirs(),
+        strict=True,
+    ):
+        if path.resolve() != current_resolved:
+            continue
+        last_family = record.family
+        completed.add(
+            surprise_recommender.QuestionIdentity(
+                manifest.release_id,
+                record.question_id,
+                record.version,
+            )
+        )
+        break
+
+    recommendation = surprise_recommender.select_question(
+        candidates,
+        completed,
+        epsilon=surprise_recommender.DEFAULT_EPSILON,
+        seed=seed,
+        last_family=last_family,
+    )
+    for record, path in zip(
+        manifest.questions,
+        manifest.question_dirs(),
+        strict=True,
+    ):
+        if (
+            record.question_id == recommendation.question.question_id
+            and record.version == recommendation.question.question_version
+        ):
+            return path, recommendation
+    raise surprise_catalog.SurpriseCatalogError(
+        "recommendation returned an identity outside the attested manifest"
+    )
+
+
 def _render_question_picker(data_root: str) -> None:
-    pool = _discover_questions(data_root)
+    manifest, pool = _load_question_pool(data_root)
     st.session_state.question_pool = [str(p) for p in pool]
+
+    manifest_error = st.session_state.quiz_manifest_error
+    if manifest_error:
+        st.error(
+            "Release attestation failed. No questions from this data root will "
+            f"be served: {manifest_error}"
+        )
+        st.session_state.bundle = None
+        st.session_state.question_path = None
+        return
 
     if not pool:
         st.warning("No questions found under the data root.")
@@ -322,7 +1689,16 @@ def _render_question_picker(data_root: str) -> None:
     if current is None or not _pool_contains(pool, Path(current)):
         default = _default_question_path(pool)
         if default is not None:
-            st.session_state.question_path = str(default.resolve())
+            _switch_question(
+                default,
+                data_root,
+                presentation=_presentation_decision(
+                    policy_version=SEQUENTIAL_POLICY_VERSION,
+                    mode="fallback",
+                    propensity=1.0,
+                    source="initial",
+                ),
+            )
 
     current_path = Path(st.session_state.question_path)
     labels = [question_label(p) for p in pool]
@@ -337,13 +1713,50 @@ def _render_question_picker(data_root: str) -> None:
     with nav_next:
         if st.button("Next", use_container_width=True):
             nxt = pool[(current_index + 1) % len(pool)]
-            _switch_question(nxt, data_root)
+            presentation = _presentation_decision(
+                policy_version=SEQUENTIAL_POLICY_VERSION,
+                mode="fallback",
+                propensity=1.0,
+                source="next",
+            )
+            if manifest is not None:
+                try:
+                    nxt, recommendation = _recommended_next_path(
+                        manifest,
+                        current_path,
+                        seed=secrets.randbits(63),
+                    )
+                    presentation = _presentation_decision(
+                        policy_version=SURPRISE_POLICY_VERSION,
+                        mode=recommendation.mode,
+                        propensity=recommendation.propensity,
+                        source="next",
+                    )
+                except (
+                    surprise_catalog.SurpriseCatalogError,
+                    surprise_recommender.SurpriseRecommendationError,
+                    OSError,
+                ):
+                    # Serving remains available even when the private catalog
+                    # or policy cannot be evaluated. The existing sequential
+                    # Next behavior is the explicit fail-safe.
+                    pass
+            _switch_question(nxt, data_root, presentation=presentation)
             st.rerun()
     with nav_random:
         if st.button("Random", use_container_width=True):
             choices = [p for p in pool if p.resolve() != current_path.resolve()]
             pick = random.choice(choices or pool)
-            _switch_question(pick, data_root)
+            _switch_question(
+                pick,
+                data_root,
+                presentation=_presentation_decision(
+                    policy_version=RANDOM_POLICY_VERSION,
+                    mode="explore",
+                    propensity=1.0 / len(choices or pool),
+                    source="random",
+                ),
+            )
             st.rerun()
 
     picked_label = st.selectbox(
@@ -353,14 +1766,62 @@ def _render_question_picker(data_root: str) -> None:
     )
     picked_path = label_to_path[picked_label]
     if picked_path.resolve() != current_path.resolve():
-        _switch_question(picked_path, data_root)
+        _switch_question(
+            picked_path,
+            data_root,
+            presentation=_presentation_decision(
+                policy_version=MANUAL_POLICY_VERSION,
+                mode="manual",
+                propensity=1.0,
+                source="picker",
+            ),
+        )
         st.rerun()
 
-    if st.session_state.bundle is None:
-        clear_legacy_question_custom_settings(picked_path)
-        st.session_state.bundle = _load_selected_question(picked_path, data_root)
+    loaded_bundle = st.session_state.bundle
+    if (
+        not isinstance(loaded_bundle, QuestionBundle)
+        or loaded_bundle.question_root.resolve() != picked_path.resolve()
+        or loaded_bundle.data_root.resolve() != _resolve_data_root(data_root)
+    ):
+        _switch_question(picked_path, data_root)
+        loaded_bundle = st.session_state.bundle
 
-    st.caption(f"{len(pool)} question(s) · `{picked_path.name}`")
+    if manifest is None:
+        st.caption(f"{len(pool)} unversioned question(s) · `{picked_path.name}`")
+        st.caption(
+            f"Runtime Git SHA: `{_runtime_git_sha() or 'N/A'}` · "
+            f"Entry: `{INSPECTOR_ENTRY_PATH}`"
+        )
+    else:
+        unpublished_count = len(pool) - manifest.question_count
+        st.caption(
+            f"Attested release `{manifest.release_id}` · "
+            f"{manifest.question_count} published · {len(pool)} available"
+        )
+        st.caption(
+            f"Manifest SHA-256 `{manifest.manifest_sha256}` · "
+            f"{manifest.artifact_count} verified artifacts"
+        )
+        st.caption(
+            f"Runtime Git SHA: `{_runtime_git_sha() or 'N/A'}` · "
+            f"Entry: `{INSPECTOR_ENTRY_PATH}`"
+        )
+        if unpublished_count:
+            st.caption(
+                f"{unpublished_count} additional local question(s) are not part "
+                "of this release."
+            )
+        published_paths = {path.resolve() for path in manifest.question_dirs()}
+        publication_label = (
+            "published"
+            if picked_path.resolve() in published_paths
+            else "local / unpublished"
+        )
+        st.caption(
+            f"Question {current_index + 1}/{len(pool)} · {publication_label} · "
+            f"`{picked_path.name}`"
+        )
 
 
 def _selection_metric(bundle: QuestionBundle, q: dict[str, Any]) -> str:
@@ -463,7 +1924,9 @@ def _plot_multivariate_regression(
     plt.close(fig)
 
 
-def _plot_bigram_lm(dataset_dir: Path, train_x: torch.Tensor, train_y: torch.Tensor) -> None:
+def _plot_bigram_lm(
+    dataset_dir: Path, train_x: torch.Tensor, train_y: torch.Tensor
+) -> None:
     transition_path = dataset_dir / "transition.npz"
     if transition_path.is_file():
         probs = np.load(transition_path)["probs"]
@@ -641,7 +2104,9 @@ def _render_combined_curves(
 ) -> None:
     st.markdown("#### Learning curves")
     custom_series = _collect_custom_curve_series(bundle)
-    series = (_collect_curve_series(bundle) if include_candidates else []) + custom_series
+    series = (
+        _collect_curve_series(bundle) if include_candidates else []
+    ) + custom_series
     if not series:
         st.info("No learning curve data available yet.")
         return
@@ -717,14 +2182,18 @@ def _render_file_panel(
 ) -> None:
     names = list(paths.keys())
     idx = names.index(selected) if selected in names else 0
-    choice = st.radio("File", names, index=idx, horizontal=True, key=f"{key_prefix}_file_radio")
+    choice = st.radio(
+        "File", names, index=idx, horizontal=True, key=f"{key_prefix}_file_radio"
+    )
     st.session_state[f"{key_prefix}_file"] = choice
     path = paths[choice]
 
     if choice.endswith(".json"):
         st.json(read_json_file(path))
     else:
-        st.code(read_text_file(path), language="python" if choice.endswith(".py") else None)
+        st.code(
+            read_text_file(path), language="python" if choice.endswith(".py") else None
+        )
 
 
 def _format_model_lines(model: dict[str, Any]) -> list[str]:
@@ -801,7 +2270,9 @@ def _ensure_setting_value(q: dict[str, Any], name: str, default: Any) -> str:
 
 def _default_batch_size(bundle: QuestionBundle) -> int:
     if bundle.choices:
-        spec = read_json_file(bundle.choices[0]["candidate_dir"] / "candidate_spec.json")
+        spec = read_json_file(
+            bundle.choices[0]["candidate_dir"] / "candidate_spec.json"
+        )
         value = spec.get("budget", {}).get("batch_size")
         if value is not None:
             return int(value)
@@ -845,7 +2316,9 @@ def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
             key=_ensure_setting_value(q, "mlp_residual", False),
         )
 
-    st.caption("Choose the activation and layer norm independently for each hidden block.")
+    st.caption(
+        "Choose the activation and layer norm independently for each hidden block."
+    )
     activations: list[str] = []
     layer_norm: list[bool] = []
     layer_columns = st.columns(min(depth, 4))
@@ -879,7 +2352,9 @@ def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
     }
 
 
-def _render_transformer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+def _render_transformer_setting_fields(
+    profile: Any, q: dict[str, Any]
+) -> dict[str, Any]:
     st.markdown("**Architecture parameters**")
     d_model_col, layers_col, heads_col, d_ff_col = st.columns(4)
     with d_model_col:
@@ -1036,7 +2511,9 @@ def _apply_inherited_setting(
     q: dict[str, Any],
     source_letter: str,
 ) -> None:
-    choice = next(choice for choice in bundle.choices if choice["letter"] == source_letter)
+    choice = next(
+        choice for choice in bundle.choices if choice["letter"] == source_letter
+    )
     spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
     values = form_values_from_candidate_spec(
         spec,
@@ -1201,8 +2678,33 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
             type="primary",
             key=_setting_key(q, "confirm"),
         ):
+            proposal_event: dict[str, Any] | None = None
+            inherited_candidate_id = st.session_state.get(
+                _setting_key(q, "inherited_candidate_id")
+            )
+            inherited_letter = st.session_state.get(_setting_key(q, "inherited_letter"))
+            raw_inherited_from = None
+            if inherited_candidate_id and inherited_letter:
+                raw_inherited_from = {
+                    "letter": inherited_letter,
+                    "candidate_id": inherited_candidate_id,
+                }
+            raw_setting = {
+                "label": label.strip() or "Setting",
+                "budget": {
+                    "total_samples_seen": budget,
+                    "batch_size": batch_size,
+                },
+                "model": {"type": model_type, **model_params},
+                "optimizer": optimizer_params,
+                "loss": {"loss_id": loss_id, "lambda": lambda_value},
+                "evaluation": {"n_seeds": n_seeds, "base_seed": base_seed},
+                "inherited_from": raw_inherited_from,
+            }
             try:
-                model = build_model_spec(model_type, model_params, dataset_spec.get("params", {}))
+                model = build_model_spec(
+                    model_type, model_params, dataset_spec.get("params", {})
+                )
                 optimizer = build_optimizer_spec(
                     optimizer_params["optimizer_type"],
                     lr=optimizer_params["lr"],
@@ -1220,12 +2722,6 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                     optimizer=optimizer,
                     loss=loss,
                 )
-                inherited_candidate_id = st.session_state.get(
-                    _setting_key(q, "inherited_candidate_id")
-                )
-                inherited_letter = st.session_state.get(
-                    _setting_key(q, "inherited_letter")
-                )
                 inherited_from = None
                 if inherited_candidate_id and inherited_letter:
                     inherited_from = {
@@ -1234,6 +2730,18 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                         "exact_spec_match": spec["candidate_id"]
                         == inherited_candidate_id,
                     }
+                proposal_event = _feedback_trace().record_custom_setting(
+                    q,
+                    setting=spec,
+                    extra={
+                        **_event_context(q),
+                        "label": label.strip() or "Setting",
+                        "n_seeds": n_seeds,
+                        "base_seed": base_seed,
+                        "inherited_from": inherited_from,
+                    },
+                )
+                _touch_browser_outbox()
                 with st.spinner(f"Training {label or 'custom setting'}…"):
                     result = run_custom_setting(
                         _custom_settings_storage_for(q),
@@ -1246,8 +2754,58 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                         inherited_from=inherited_from,
                     )
             except Exception as exc:
+                if proposal_event is not None:
+                    _feedback_trace().record_custom_run(
+                        q,
+                        run={
+                            "proposal_event_id": proposal_event["event_id"],
+                            "status": "failed",
+                            "candidate_id": spec["candidate_id"],
+                            "error_type": type(exc).__name__,
+                        },
+                        extra=_event_context(q),
+                    )
+                    _touch_browser_outbox()
+                else:
+                    try:
+                        _feedback_trace().record_custom_setting_rejected(
+                            q,
+                            setting=raw_setting,
+                            extra={
+                                **_event_context(q),
+                                "label": label.strip() or "Setting",
+                                "n_seeds": n_seeds,
+                                "base_seed": base_seed,
+                                "inherited_from": raw_inherited_from,
+                                "error_type": type(exc).__name__,
+                                "phase": "spec_validation",
+                            },
+                        )
+                        _touch_browser_outbox()
+                    except feedback.FeedbackError:
+                        pass
                 st.error(f"Could not generate the curve: {exc}")
             else:
+                final_metric = result.get("final_metric")
+                if final_metric is not None and not np.isfinite(float(final_metric)):
+                    final_metric = None
+                _feedback_trace().record_custom_run(
+                    q,
+                    run={
+                        "proposal_event_id": proposal_event["event_id"],
+                        "status": "completed",
+                        "custom_setting_id": result["custom_setting_id"],
+                        "candidate_id": result["candidate_id"],
+                        "label": result["label"],
+                        "n_seeds": result["n_seeds"],
+                        "base_seed": result["base_seed"],
+                        "selection_metric": result["selection_metric"],
+                        "final_metric": final_metric,
+                        "inherited_from": result.get("inherited_from"),
+                    },
+                    extra=_event_context(q),
+                )
+                _touch_browser_outbox()
                 inheritance_note = ""
                 if result.get("inherited_from"):
                     inheritance_note = (
@@ -1278,7 +2836,9 @@ def _inspect_paths(candidate_dir: Path, *, show_summary: bool) -> dict[str, Path
 
 
 def _render_metadata(q: dict[str, Any]) -> None:
-    st.markdown(f'<div class="question-id">{q["question_id"]}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="question-id">{q["question_id"]}</div>', unsafe_allow_html=True
+    )
     st.markdown(
         (
             f'<div class="question-meta">'
@@ -1389,11 +2949,15 @@ def _render_candidate_card(
         st.rerun()
 
 
-def _render_answer_banner(q: dict[str, Any], committed_letter: str, *, metric: str) -> None:
+def _render_answer_banner(
+    q: dict[str, Any], committed_letter: str, *, metric: str
+) -> None:
     correct = q["correct_letter"]
     metric_label = _metric_display_name(metric)
     if committed_letter == correct:
-        st.success(f"Correct — **{committed_letter}** achieves the best {metric_label}.")
+        st.success(
+            f"Correct — **{committed_letter}** achieves the best {metric_label}."
+        )
     else:
         st.error(
             f"Incorrect — you picked **{committed_letter}**, "
@@ -1480,6 +3044,405 @@ def _render_prompt_page(bundle: QuestionBundle) -> None:
     st.code(bundle.prompt_text, language="markdown")
 
 
+def _render_session_page() -> None:
+    trace = _feedback_trace()
+    events = trace.events
+    summary = feedback.summarize_session_events(events)
+    answers = summary["answers"]
+    settings = summary["settings"]
+    runs = summary["runs"]
+    reactions = summary["reactions"]
+
+    st.markdown("#### My session")
+    st.caption(
+        f"Session `{trace.session_id}` · append-only activity from this browser "
+        "session, including earlier score attempts."
+    )
+
+    answer_col, accuracy_col, setting_col, reaction_col, comment_col = st.columns(5)
+    answer_col.metric("Answers", answers["total"])
+    accuracy = answers["accuracy"]
+    accuracy_col.metric(
+        "Accuracy",
+        "—" if accuracy is None else f"{accuracy:.0%}",
+    )
+    setting_col.metric(
+        "Settings",
+        settings["proposed"] + settings["rejected"],
+    )
+    reaction_col.metric(
+        "Surprised",
+        f"{reactions['surprised']} / {reactions['total']}",
+    )
+    comment_col.metric("Comments", summary["comments"])
+    st.caption(
+        f"{answers['unique_question_versions']} unique question version(s) · "
+        f"{answers['correct']} correct / {answers['incorrect']} incorrect / "
+        f"{answers['unknown']} unknown · {runs['completed']} custom run(s) completed / "
+        f"{runs['failed']} failed · {summary['presentations']} question exposure(s)"
+    )
+
+    pending = _pending_upload_count(events)
+    quarantined_ids = _quarantined_event_ids()
+    quarantined = sum(event.get("event_id") in quarantined_ids for event in events)
+    try:
+        client = _feedback_client()
+        config_error = None
+    except feedback.FeedbackConfigurationError as exc:
+        client = None
+        config_error = str(exc)
+    if not events:
+        st.info(
+            "Your answers, surprise reactions, proposed settings, custom runs, "
+            "and comments will appear here."
+        )
+    elif quarantined:
+        st.warning(
+            f"{quarantined} event(s) are quarantined after an event-ID content "
+            f"conflict; {pending} other event(s) remain uploadable. Use the sidebar "
+            "to retry the safe pending subset or download the quarantined envelope."
+        )
+    elif pending == 0:
+        st.success("All session events have been acknowledged by the upload endpoint.")
+    elif config_error:
+        st.error(f"Feedback upload configuration is invalid: {config_error}")
+        st.caption(f"{pending} event(s) remain available for download and retry.")
+    elif client is None or not client.is_configured:
+        st.info(
+            f"{pending} event(s) are saved in this session and pending upload. "
+            "The endpoint and Bearer token are not fully configured."
+        )
+    else:
+        st.warning(
+            f"{pending} of {len(events)} event(s) are pending upload. "
+            "Use Upload pending session events in the sidebar."
+        )
+
+    serialized = json.dumps(trace.to_envelope(), ensure_ascii=False, indent=2)
+    st.download_button(
+        "Download session JSON",
+        data=serialized,
+        file_name=f"architectureiq-{trace.session_id}.json",
+        mime="application/json",
+        disabled=not events,
+        key="download_session_trace_page",
+    )
+
+    st.markdown("##### Answers")
+    if summary["answer_rows"]:
+        answer_rows = []
+        for row in summary["answer_rows"]:
+            correctness = row["is_correct"]
+            answer_rows.append(
+                {
+                    "#": row["sequence"],
+                    "Time": row["occurred_at"],
+                    "Question": row["question_id"],
+                    "Choice": row["selected_letter"],
+                    "Candidate": row["selected_candidate_id"] or "—",
+                    "Result": (
+                        "Correct"
+                        if correctness is True
+                        else "Incorrect"
+                        if correctness is False
+                        else "Unknown"
+                    ),
+                }
+            )
+        st.dataframe(answer_rows, hide_index=True, width="stretch")
+    else:
+        st.caption("No answers in this session yet.")
+
+    st.markdown("##### Question exposures")
+    if summary["presentation_rows"]:
+        presentation_rows = [
+            {
+                "#": row["sequence"],
+                "Position": row["position"],
+                "Time": row["occurred_at"],
+                "Question": row["question_id"],
+                "Policy": row["policy_version"],
+                "Mode": row["mode"],
+                "Source": row["source"],
+                "Propensity": row["propensity"],
+            }
+            for row in summary["presentation_rows"]
+        ]
+        st.dataframe(presentation_rows, hide_index=True, width="stretch")
+    else:
+        st.caption("No versioned question exposures in this session yet.")
+
+    st.markdown("##### Proposed settings")
+    if summary["proposal_rows"]:
+        proposal_rows = [
+            {
+                "#": row["sequence"],
+                "Time": row["occurred_at"],
+                "Question": row["question_id"],
+                "Status": row["status"],
+                "Label": row["label"] or "—",
+                "Candidate": row["candidate_id"] or "—",
+                "Model": row["model_type"] or "—",
+                "Optimizer": row["optimizer_type"] or "—",
+                "Loss": row["loss_id"] or "—",
+                "Budget": row["total_samples_seen"] or "—",
+                "Batch": row["batch_size"] or "—",
+                "Error": row["error_type"] or "—",
+            }
+            for row in summary["proposal_rows"]
+        ]
+        st.dataframe(proposal_rows, hide_index=True, width="stretch")
+    else:
+        st.caption("No proposed or rejected settings in this session yet.")
+
+    st.markdown("##### Surprise reactions")
+    if summary["reaction_rows"]:
+        reaction_rows = [
+            {
+                "#": row["sequence"],
+                "Time": row["occurred_at"],
+                "Question": row["question_id"],
+                "Reaction": "Surprised" if row["value"] else "As expected",
+                "Timing": "After result reveal",
+            }
+            for row in summary["reaction_rows"]
+        ]
+        st.dataframe(reaction_rows, hide_index=True, width="stretch")
+    else:
+        st.caption("No surprise reactions in this session yet.")
+
+    st.markdown("##### Comments")
+    if summary["comment_rows"]:
+        comment_rows = [
+            {
+                "#": row["sequence"],
+                "Time": row["occurred_at"],
+                "Question": row["question_id"],
+                "Category": COMMENT_CATEGORY_LABELS.get(
+                    row["category"], row["category"]
+                ),
+                "Message": row["text"],
+            }
+            for row in summary["comment_rows"]
+        ]
+        st.dataframe(comment_rows, hide_index=True, width="stretch")
+    else:
+        st.caption("No comments in this session yet.")
+
+
+def _render_question_reaction(q: dict[str, Any]) -> None:
+    """Collect one explicit post-result surprise label for this attempt."""
+    st.markdown("#### Did the revealed result surprise you?")
+    st.caption(
+        "This is separate from whether your answer was correct and whether you "
+        "liked the question. The first response in this attempt is kept."
+    )
+    existing = _question_reaction(q)
+    if existing is not None:
+        payload = existing["payload"]
+        value = payload["value"]
+        event_id = existing.get("event_id")
+        st.success(
+            "Recorded: **😮 Surprised / 出乎意料**"
+            if value
+            else "Recorded: **As expected / 符合预期**"
+        )
+        if event_id in _uploaded_event_ids():
+            st.caption("This reaction has been acknowledged by the upload endpoint.")
+        elif event_id in _quarantined_event_ids():
+            st.error(
+                "This reaction is quarantined because its event ID conflicts with "
+                "different stored content. The first local response remains unchanged."
+            )
+        else:
+            st.caption(
+                "This reaction is pending in the session outbox and can be uploaded "
+                "with the rest of your trace."
+            )
+        return
+
+    surprised_col, expected_col = st.columns(2)
+    with surprised_col:
+        surprised = st.button(
+            "😮 Surprised / 出乎意料",
+            key=f"reaction_surprised_{_question_session_key(q)[-12:]}",
+            type="primary",
+            use_container_width=True,
+        )
+    with expected_col:
+        expected = st.button(
+            "As expected / 符合预期",
+            key=f"reaction_expected_{_question_session_key(q)[-12:]}",
+            use_container_width=True,
+        )
+    if not surprised and not expected:
+        return
+
+    try:
+        event = _record_question_reaction(q, value=surprised)
+    except feedback.FeedbackValidationError as exc:
+        st.error(str(exc))
+        return
+    try:
+        client = _feedback_client()
+    except feedback.FeedbackConfigurationError:
+        # Capture is independent of transport configuration. The immutable
+        # event stays pending and its durable status appears on the next run.
+        st.rerun()
+
+    if client.is_configured:
+        try:
+            with st.spinner("Uploading reaction…"):
+                receipt = client.post_event(event)
+        except feedback.FeedbackUploadConflictError as exc:
+            _quarantine_event(event, exc)
+        except feedback.FeedbackError:
+            # The immutable event is already in the reliable outbox. The next
+            # render reports it as pending without exposing transport details.
+            pass
+        else:
+            _mark_events_uploaded([event], receipt)
+    st.rerun()
+
+
+def _render_question_comment(q: dict[str, Any]) -> None:
+    question_key = _question_session_key(q)
+    existing_comments = [
+        event
+        for event in _feedback_trace().events
+        if event["event_type"] == "comment_submitted"
+        and event["question_version"] == question_key
+    ]
+    try:
+        client = _feedback_client()
+        config_error = None
+    except feedback.FeedbackConfigurationError as exc:
+        client = None
+        config_error = str(exc)
+
+    with st.expander("Comment on this question", expanded=False):
+        if existing_comments:
+            st.caption(
+                f"{len(existing_comments)} comment(s) from this session are in the trace."
+            )
+        if config_error:
+            st.error(f"Feedback upload configuration is invalid: {config_error}")
+        elif client is None or not client.is_configured:
+            st.caption(
+                "The upload endpoint and Bearer token are not fully configured. "
+                "Your comment will be added to the downloadable session trace."
+            )
+        notice = st.session_state.comment_notices.get(question_key)
+        if notice:
+            if isinstance(notice, Mapping):
+                level = notice.get("level")
+                message = notice.get("message")
+            elif isinstance(notice, (tuple, list)) and len(notice) == 2:
+                level, message = notice
+            else:
+                level, message = None, None
+            if level in {"info", "success", "warning", "error"} and isinstance(
+                message, str
+            ):
+                getattr(st, level)(message)
+
+        with st.form(
+            f"comment_{q['question_id']}_{question_key[-12:]}",
+            clear_on_submit=True,
+        ):
+            category = st.selectbox(
+                "Category",
+                list(COMMENT_CATEGORY_LABELS),
+                format_func=COMMENT_CATEGORY_LABELS.get,
+            )
+            comment_text = st.text_area(
+                "Message",
+                max_chars=feedback.MAX_COMMENT_LENGTH,
+                placeholder="What should the ArchitectureIQ team know about this question?",
+            )
+            upload_available = client is not None and client.is_configured
+            submitted = st.form_submit_button(
+                "Upload comment"
+                if upload_available
+                else "Add comment to session trace",
+                type="primary",
+            )
+
+        if submitted:
+            try:
+                event = _feedback_trace().record_comment(
+                    q,
+                    category=category,
+                    text=comment_text,
+                    extra=_event_context(q),
+                )
+                _touch_browser_outbox()
+            except feedback.FeedbackValidationError as exc:
+                st.error(str(exc))
+            else:
+                event_id = str(event["event_id"])
+                if client is None or not client.is_configured:
+                    _set_comment_notice(
+                        question_key,
+                        level="info",
+                        message=(
+                            "Comment added to this session trace. Configure the endpoint "
+                            "and Bearer token or use the sidebar download to send it later."
+                        ),
+                        event_id=event_id,
+                    )
+                else:
+                    try:
+                        with st.spinner("Uploading comment…"):
+                            receipt = client.post_event(event)
+                    except feedback.FeedbackUploadConflictError as exc:
+                        _quarantine_event(event, exc)
+                        _set_comment_notice(
+                            question_key,
+                            level="error",
+                            message=_upload_conflict_message(exc, subject="Comment"),
+                            event_id=event_id,
+                        )
+                    except feedback.FeedbackError as exc:
+                        _set_comment_notice(
+                            question_key,
+                            level="error",
+                            message=(
+                                "Comment upload failed, but it remains in the session "
+                                f"trace for batch retry. {exc}"
+                            ),
+                            event_id=event_id,
+                        )
+                    else:
+                        request_note = (
+                            f" · request {receipt.request_id}"
+                            if receipt.request_id
+                            else ""
+                        )
+                        if _mark_events_uploaded([event], receipt):
+                            _set_comment_notice(
+                                question_key,
+                                level="success",
+                                message=(
+                                    "Comment upload complete · "
+                                    f"{_upload_receipt_summary(receipt, sent_count=1)}"
+                                    f"{request_note}."
+                                ),
+                                event_id=event_id,
+                            )
+                        else:
+                            _set_comment_notice(
+                                question_key,
+                                level="warning",
+                                message=(
+                                    "The endpoint returned a partial or invalid receipt. "
+                                    "The comment remains pending in the session trace."
+                                ),
+                                event_id=event_id,
+                            )
+                st.rerun()
+
+
 def _render_question_page(
     bundle: QuestionBundle,
     q: dict[str, Any],
@@ -1518,12 +3481,19 @@ def _render_question_page(
         )
     if committed:
         _render_ranked_metrics(bundle, q)
+        _render_question_reaction(q)
+
+    _render_question_comment(q)
 
     inspect_letter = st.session_state.info_letter or st.session_state.focus_letter
     if inspect_letter:
-        selected_choice = next(c for c in bundle.choices if c["letter"] == inspect_letter)
+        selected_choice = next(
+            c for c in bundle.choices if c["letter"] == inspect_letter
+        )
         st.divider()
-        st.markdown(f"#### Files · Choice **{inspect_letter}** · `{selected_choice['candidate_id']}`")
+        st.markdown(
+            f"#### Files · Choice **{inspect_letter}** · `{selected_choice['candidate_id']}`"
+        )
         paths = _inspect_paths(selected_choice["candidate_dir"], show_summary=committed)
         _render_file_panel(
             paths,
@@ -1536,21 +3506,7 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _ensure_demo_data(data_root: str) -> None:
-    """Copy bundled demo questions into data/ when deploying without a local snapshot."""
-    root = _repo_root()
-    resolved = _resolve_data_root(data_root)
-    if _discover_questions(str(resolved)):
-        return
-    bundled = root / "examples" / "quiz_demo" / "bundle"
-    if not bundled.is_dir():
-        return
-    shutil.copytree(bundled, resolved, dirs_exist_ok=True)
-
-
-def main() -> None:
-    _init_state()
-    _ensure_demo_data(st.session_state.data_root)
+def _render_app() -> None:
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
@@ -1560,6 +3516,8 @@ def main() -> None:
         data_root = st.text_input("Data root", value=st.session_state.data_root)
         st.session_state.data_root = data_root
         _render_question_picker(data_root)
+        st.divider()
+        _render_session_feedback_panel()
 
     bundle: QuestionBundle | None = st.session_state.bundle
 
@@ -1573,7 +3531,9 @@ def main() -> None:
     committed = st.session_state.committed_letter is not None
     focus_letter = st.session_state.focus_letter
 
-    tab_question, tab_prompt = st.tabs(["Question", "Prompt"])
+    tab_question, tab_prompt, tab_session = st.tabs(
+        ["Question", "Prompt", "My session"]
+    )
     with tab_question:
         _render_question_page(
             bundle,
@@ -1583,6 +3543,17 @@ def main() -> None:
         )
     with tab_prompt:
         _render_prompt_page(bundle)
+    with tab_session:
+        _render_session_page()
+
+
+def main() -> None:
+    _init_state()
+    _hydrate_browser_outbox()
+    try:
+        _render_app()
+    finally:
+        _persist_browser_outbox()
 
 
 if __name__ == "__main__":

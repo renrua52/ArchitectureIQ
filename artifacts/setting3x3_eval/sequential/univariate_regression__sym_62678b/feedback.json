@@ -1,0 +1,102 @@
+[
+  {
+    "question_id": "q_073f9b",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.07679398208856583,
+      "B": 0.023174583911895752,
+      "C": 0.6828959465026856
+    }
+  },
+  {
+    "question_id": "q_0e556f",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.6855854868888855,
+      "B": 0.30821977108716964,
+      "C": 0.07679398208856583
+    }
+  },
+  {
+    "question_id": "q_417b4e",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.5927133724093437,
+      "B": 0.22691213488578796,
+      "C": 0.5929859727621078
+    }
+  },
+  {
+    "question_id": "q_5f12d9",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.6341366767883301,
+      "B": 0.6828959465026856,
+      "C": 0.1828225865960121
+    }
+  },
+  {
+    "question_id": "q_b87c20",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.6855854868888855,
+      "B": 0.49200222492218015,
+      "C": 0.28143684267997743
+    }
+  },
+  {
+    "question_id": "q_d0fad7",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.28171996772289276,
+      "B": 0.2086477220058441,
+      "C": 0.10294435657560826
+    }
+  },
+  {
+    "question_id": "q_e18192",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.10495253838598728,
+      "B": 0.032009413838386534,
+      "C": 0.701806640625
+    }
+  },
+  {
+    "question_id": "q_e86092",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.042804818227887155,
+      "B": 0.7421036005020142,
+      "C": 0.10720240399241447
+    }
+  },
+  {
+    "question_id": "q_f745a6",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.1789272002875805,
+      "B": 0.27670482993125917,
+      "C": 0.5542664110660553
+    }
+  },
+  {
+    "question_id": "q_ff5ef6",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.023174583911895752,
+      "B": 0.14758461564779282,
+      "C": 0.1785877138376236
+    }
+  }
+]

@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_claude-opus-4-8-medium_multivariate_regression__mvar_978f4c",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 8,
+  "overall_accuracy": 0.8,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 8,
+      "total": 10,
+      "accuracy": 0.8
+    }
+  ],
+  "by_family": {
+    "multivariate_regression": {
+      "correct": 8,
+      "total": 10,
+      "accuracy": 0.8
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.8
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.8333333333333334
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.8571428571428571
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.7777777777777778
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8
+    }
+  ],
+  "final_lessons": [
+    "Starting baseline: moderate-depth wide MLPs with layer-norm tend to be reliable for multivariate regression.",
+    "Higher-capacity wide MLPs without layer-norm outperform narrow or heavily-normalized ones on this dataset.",
+    "The width-256 unnormalized MLP consistently gives the lowest test MSE on this dataset.",
+    "Width-256 unnormalized shallow MLPs remain the top performers on this dataset.",
+    "Width-256 unnormalized MLPs continue to dominate over narrow/normalized alternatives.",
+    "Width-256 unnormalized MLPs remain the strongest choice on this dataset.",
+    "The shallow width-256 fully-unnormalized MLP is the consistent top performer.",
+    "Absent width-256, favor the shallowest widest MLP with least layer-norm.",
+    "The width-256 unnormalized MLP remains the top pick whenever present.",
+    "Among width-256 options, fully unnormalized ones beat those with any layer-norm."
+  ]
+}

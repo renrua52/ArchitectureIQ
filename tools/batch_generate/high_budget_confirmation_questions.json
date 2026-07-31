@@ -1,0 +1,92 @@
+{
+  "questions": [
+    {
+      "question_path": "../../data/datasets/univariate_regression/sym_c804cc/questions/run_10q_4c_574d85/q_f5305f/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/univariate_regression/sym_c804cc/questions/run_10q_4c_574d85/q_716059/question.json",
+      "tier": "architecture_reserve"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_9faf9d/questions/run_10q_4c_7b6d24/q_64793c/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_9faf9d/questions/run_10q_4c_7b6d24/q_e742fe/question.json",
+      "tier": "architecture_reserve"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_978f4c/questions/run_10q_4c_9f90c8/q_987387/question.json",
+      "tier": "architecture_reserve"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_978f4c/questions/run_10q_4c_9f90c8/q_dfe8c7/question.json",
+      "tier": "architecture_reserve"
+    },
+    {
+      "question_path": "../../data/datasets/bigram_lm/bg_0fff4b/questions/run_10q_4c_7ba428/q_7dc8c1/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/bigram_lm/bg_0fff4b/questions/run_10q_4c_7ba428/q_f4ed80/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_befdab/questions/run_8q_4c_e764ec/q_012da8/question.json",
+      "tier": "mechanics_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_befdab/questions/run_8q_4c_e764ec/q_107adc/question.json",
+      "tier": "mechanics_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_befdab/questions/run_8q_4c_e764ec/q_debcbd/question.json",
+      "tier": "mechanics_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_35761e/questions/run_6q_4c_ce703a/q_19574c/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_35761e/questions/run_6q_4c_ce703a/q_988186/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/bigram_lm/bg_e2f7c8/questions/run_6q_4c_37fa38/q_4a79f5/question.json",
+      "tier": "architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_866b4e/questions/run_2q_4c_25df16/q_e4cb7f/question.json",
+      "tier": "noisy_architecture_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_866b4e/questions/run_2q_4c_25df16/q_04d42b/question.json",
+      "tier": "noisy_architecture_reserve"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_0db04d/question.json",
+      "tier": "noisy_mixed_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_a02494/question.json",
+      "tier": "noisy_mixed_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_866b4e/questions/run_1q_4c_5e7900/q_0664d6/question.json",
+      "tier": "noisy_mixed_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_cf432d/questions/run_4q_4c_e052d5/q_0cb66f/question.json",
+      "tier": "noisy_mixed_reserve"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_cf432d/questions/run_2q_4c_5acd6a/q_e706cb/question.json",
+      "tier": "noisy_optimizer_core"
+    },
+    {
+      "question_path": "../../data/datasets/multivariate_regression/mvar_cf432d/questions/run_2q_4c_5acd6a/q_dfa68a/question.json",
+      "tier": "noisy_optimizer_reserve"
+    }
+  ]
+}

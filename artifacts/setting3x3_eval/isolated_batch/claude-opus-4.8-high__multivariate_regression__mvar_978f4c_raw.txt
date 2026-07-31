@@ -1,0 +1,91 @@
+```json
+{
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4",
+  "reasoning_effort": "high",
+  "source_used": "sanitized_questions_only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 51,
+      "question_id": "q_0a0c3c",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_e645b2",
+      "confidence": 0.65,
+      "reason": "Moderate depth with full layer norm and wider width balances capacity and trainability."
+    },
+    {
+      "n": 52,
+      "question_id": "q_0e0195",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.68,
+      "reason": "Wide shallow network with consistent activations offers stable training without normalization complexity."
+    },
+    {
+      "n": 53,
+      "question_id": "q_355168",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.70,
+      "reason": "Wide network at depth 4 without layer norm provides strong capacity for regression."
+    },
+    {
+      "n": 54,
+      "question_id": "q_987387",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.72,
+      "reason": "Shallow wide architecture with simple activations should train efficiently for this task."
+    },
+    {
+      "n": 55,
+      "question_id": "q_9fc355",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.71,
+      "reason": "Large capacity at moderate depth likely outperforms narrow or very shallow alternatives."
+    },
+    {
+      "n": 56,
+      "question_id": "q_a31edc",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.69,
+      "reason": "Simpler shallow wide network should generalize well compared to deeper alternatives."
+    },
+    {
+      "n": 57,
+      "question_id": "q_ddef9b",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.67,
+      "reason": "Consistent shallow wide pattern continues to show advantage across questions."
+    },
+    {
+      "n": 58,
+      "question_id": "q_dfe8c7",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_ef7608",
+      "confidence": 0.66,
+      "reason": "Moderate width with minimal depth and modern activations balances expressiveness and stability."
+    },
+    {
+      "n": 59,
+      "question_id": "q_130b76",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.70,
+      "reason": "Width 256 at depth 2 provides strong baseline capacity without over-engineering."
+    },
+    {
+      "n": 60,
+      "question_id": "q_30e31f",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.68,
+      "reason": "Balanced depth and width without excessive layer norm overhead likely performs best."
+    }
+  ]
+}
+```

@@ -1,0 +1,89 @@
+{
+  "agent": "blind-answer-agent",
+  "model": "qualitative-reasoning",
+  "reasoning_effort": "medium",
+  "source_used": "visible sanitized questions only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 1,
+      "question_id": "q_094b12",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_2e1fc1",
+      "confidence": 0.43,
+      "reason": "RMSprop with lr 0.01 should learn the simple bigram task faster than the slower Adam variants."
+    },
+    {
+      "n": 2,
+      "question_id": "q_44d7aa",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_e38ba5",
+      "confidence": 0.66,
+      "reason": "Adam at lr 0.003 on a large model is likely fastest among these options."
+    },
+    {
+      "n": 3,
+      "question_id": "q_530159",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_18c742",
+      "confidence": 0.72,
+      "reason": "AdamW with moderate lr and the largest model should beat tiny-lr SGD and low-lr Adagrad."
+    },
+    {
+      "n": 4,
+      "question_id": "q_7cac4a",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_55f852",
+      "confidence": 0.7,
+      "reason": "Adam at lr 0.003 is the strongest optimizer choice and the model is ample."
+    },
+    {
+      "n": 5,
+      "question_id": "q_834cc0",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_30f47a",
+      "confidence": 0.55,
+      "reason": "RMSprop at lr 0.003 should converge quickly on this simple language task."
+    },
+    {
+      "n": 6,
+      "question_id": "q_b9bf98",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_a47b05",
+      "confidence": 0.62,
+      "reason": "AdamW at lr 0.001 is likely more reliable than RMSprop and far better than tiny-lr SGD."
+    },
+    {
+      "n": 7,
+      "question_id": "q_b9f2a5",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_18c742",
+      "confidence": 0.69,
+      "reason": "The larger AdamW model with lr 0.0003 should outperform the slower small model and SGD."
+    },
+    {
+      "n": 8,
+      "question_id": "q_bc3c03",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_c9461b",
+      "confidence": 0.78,
+      "reason": "Adam with a reasonable lr should easily beat the two very slow SGD configurations."
+    },
+    {
+      "n": 9,
+      "question_id": "q_cad232",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_541556",
+      "confidence": 0.45,
+      "reason": "Adagrad at lr 0.003 may learn faster than low-lr RMSprop and SGD despite the smaller model."
+    },
+    {
+      "n": 10,
+      "question_id": "q_f241b4",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_4e6738",
+      "confidence": 0.58,
+      "reason": "RMSprop at lr 0.001 on a large model is safer than very high-lr AdamW and faster than tiny-lr RMSprop."
+    }
+  ]
+}

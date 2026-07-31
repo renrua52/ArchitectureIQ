@@ -13,6 +13,14 @@ export OPENAI_API_KEY="sk-..."
 # export OPENAI_MAX_TOKENS_PARAM=max_completion_tokens
 ```
 
+For a V-API (or another OpenAI-compatible gateway), use the equivalent local
+environment variables instead. Credentials are never read from source files:
+
+```bash
+export V_API_BASE="https://your-gateway.example/v1"
+export V_API_KEY="..."
+```
+
 ## Run
 
 ```bash

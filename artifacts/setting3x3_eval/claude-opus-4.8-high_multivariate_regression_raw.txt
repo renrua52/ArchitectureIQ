@@ -1,0 +1,251 @@
+```json
+{
+  "agent": "Claude Code",
+  "model": "Claude",
+  "reasoning_effort": "high",
+  "source_used": "sanitized_questions_only",
+  "forbidden_files_viewed": false,
+  "predictions": [
+    {
+      "n": 31,
+      "question_id": "q_219d63",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_50f30b",
+      "confidence": 0.65,
+      "reason": "Moderate depth/width with SGD momentum and layer norm often generalizes well."
+    },
+    {
+      "n": 32,
+      "question_id": "q_22a3e7",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_50f30b",
+      "confidence": 0.65,
+      "reason": "Same configuration as n31-B, likely consistent performer."
+    },
+    {
+      "n": 33,
+      "question_id": "q_2f5b25",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_b64766",
+      "confidence": 0.55,
+      "reason": "Large residual network with conservative RMSprop lr balances capacity and stability."
+    },
+    {
+      "n": 34,
+      "question_id": "q_bd68ea",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_aac3ae",
+      "confidence": 0.6,
+      "reason": "Moderate residual depth with RMSprop and regularization offers good tradeoff."
+    },
+    {
+      "n": 35,
+      "question_id": "q_cf534d",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_50f30b",
+      "confidence": 0.65,
+      "reason": "Repeated strong configuration from earlier questions."
+    },
+    {
+      "n": 36,
+      "question_id": "q_fe25f8",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_308419",
+      "confidence": 0.6,
+      "reason": "Deep residual with selective layer norm and conservative Adagrad lr."
+    },
+    {
+      "n": 37,
+      "question_id": "q_357cf7",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_55af76",
+      "confidence": 0.6,
+      "reason": "Large non-residual network with moderate lr should capture complexity adequately."
+    },
+    {
+      "n": 38,
+      "question_id": "q_5d4cf6",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_626149",
+      "confidence": 0.6,
+      "reason": "Deep wide network with Adam and weight decay balances expressiveness and regularization."
+    },
+    {
+      "n": 39,
+      "question_id": "q_a2bf05",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_a5eb24",
+      "confidence": 0.5,
+      "reason": "High lr with AdamW on single wide layer may converge fast despite simplicity."
+    },
+    {
+      "n": 40,
+      "question_id": "q_c2f34a",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_b64766",
+      "confidence": 0.6,
+      "reason": "Large residual with conservative RMSprop offers stable training."
+    },
+    {
+      "n": 41,
+      "question_id": "q_26c64b",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_05808a",
+      "confidence": 0.65,
+      "reason": "Moderate depth and large width with layer norm strikes good balance."
+    },
+    {
+      "n": 42,
+      "question_id": "q_64793c",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.7,
+      "reason": "Wide residual single layer with layer norm provides efficient expressive capacity."
+    },
+    {
+      "n": 43,
+      "question_id": "q_849ee7",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_a0c4ca",
+      "confidence": 0.65,
+      "reason": "Moderate residual depth with layer norm balances capacity and trainability."
+    },
+    {
+      "n": 44,
+      "question_id": "q_9657e4",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_5743b2",
+      "confidence": 0.7,
+      "reason": "Small residual with full layer norm is simple yet effective."
+    },
+    {
+      "n": 45,
+      "question_id": "q_c49bc8",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_5743b2",
+      "confidence": 0.7,
+      "reason": "Same strong configuration as n44-D."
+    },
+    {
+      "n": 46,
+      "question_id": "q_da00b0",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_dad831",
+      "confidence": 0.65,
+      "reason": "Large residual network with full layer norm and consistent activations."
+    },
+    {
+      "n": 47,
+      "question_id": "q_e742fe",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_5743b2",
+      "confidence": 0.7,
+      "reason": "Repeated reliable small residual configuration."
+    },
+    {
+      "n": 48,
+      "question_id": "q_0f7bf9",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.7,
+      "reason": "Wide residual single layer with layer norm, consistent strong performer."
+    },
+    {
+      "n": 49,
+      "question_id": "q_17add0",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.7,
+      "reason": "Same reliable wide residual configuration."
+    },
+    {
+      "n": 50,
+      "question_id": "q_808a86",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_7dca08",
+      "confidence": 0.7,
+      "reason": "Repeated strong wide residual configuration."
+    },
+    {
+      "n": 51,
+      "question_id": "q_0a0c3c",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_e645b2",
+      "confidence": 0.7,
+      "reason": "Moderate depth with full layer norm and sufficient width for 8D input."
+    },
+    {
+      "n": 52,
+      "question_id": "q_0e0195",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_e0d723",
+      "confidence": 0.65,
+      "reason": "Small residual with layer norm balances simplicity and regularization."
+    },
+    {
+      "n": 53,
+      "question_id": "q_355168",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_ef7608",
+      "confidence": 0.7,
+      "reason": "Moderate non-residual depth with layer norm offers good baseline performance."
+    },
+    {
+      "n": 54,
+      "question_id": "q_987387",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_e645b2",
+      "confidence": 0.7,
+      "reason": "Same reliable configuration as n51-D."
+    },
+    {
+      "n": 55,
+      "question_id": "q_9fc355",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_2a4835",
+      "confidence": 0.65,
+      "reason": "Moderate depth with partial layer norm and sufficient capacity."
+    },
+    {
+      "n": 56,
+      "question_id": "q_a31edc",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_e645b2",
+      "confidence": 0.7,
+      "reason": "Repeated strong configuration from n51 and n54."
+    },
+    {
+      "n": 57,
+      "question_id": "q_ddef9b",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.65,
+      "reason": "Large shallow network with minimal regularization may converge effectively."
+    },
+    {
+      "n": 58,
+      "question_id": "q_dfe8c7",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_ef7608",
+      "confidence": 0.7,
+      "reason": "Same configuration as n53-B, proven reliable."
+    },
+    {
+      "n": 59,
+      "question_id": "q_130b76",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": 0.65,
+      "reason": "Large shallow network repeated from n57."
+    },
+    {
+      "n": 60,
+      "question_id": "q_30e31f",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": 0.6,
+      "reason": "Deep wide non-residual without layer norm may leverage capacity effectively."
+    }
+  ]
+}
+```

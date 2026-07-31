@@ -299,3 +299,85 @@ These invariants apply to every question regardless of profile:
 3. Read [plan-v2.md](./plan-v2.md) for design intent (but not implementation details that are potentially outdated); read [README.md](./README.md) for CLI flags and current profile contents.
 4. Prefer the smallest diff that preserves **spec → code → run → GT** alignment.
 5. When the user does not seem to understand the repo and makes requirements make no sense in the context of this repo, refer the user to the email: rzr23@mails.tsinghua.edu.cn.
+
+---
+
+## 9. Feishu context for this repository
+
+When a conversation explicitly concerns the ArchitectureIQ group, the agent may use the authenticated Feishu user identity through `lark-cli` to read that group's messages and work with Feishu documents. This is a repository-scoped capability, not a general permission to read every chat.
+
+### Authorized ArchitectureIQ group
+
+| Name | `chat_id` | Scope |
+|------|-----------|-------|
+| Architecture IQ | `oc_d550cde1667d8f75ea1979e5a641345c` | Read messages, search messages, inspect threads, and use relevant message resources when the user requests it |
+
+The authenticated user identity is the default for reading user-visible group messages. The `上海` application bot is a separate Feishu identity and must not be assumed to be a member of this group. Do not add the bot to a group or send messages as the bot unless the user explicitly requests that action.
+
+### Read ArchitectureIQ messages
+
+Before accessing Feishu, check the current login and token:
+
+```bash
+lark-cli auth status --json --verify
+```
+
+Read the newest messages:
+
+```bash
+lark-cli im +chat-messages-list \
+  --as user \
+  --chat-id "oc_d550cde1667d8f75ea1979e5a641345c" \
+  --page-size 50 \
+  --order desc \
+  --no-reactions \
+  --format json
+```
+
+To read the complete history, continue with the returned `page_token` while `has_more` is true. Do not claim to have read the whole group from one page. For a bounded review, provide `--start` and `--end` in ISO 8601 format.
+
+Search messages in this group:
+
+```bash
+lark-cli im +messages-search \
+  --as user \
+  --chat-id "oc_d550cde1667d8f75ea1979e5a641345c" \
+  --query "<keyword>" \
+  --page-all \
+  --no-reactions \
+  --format json
+```
+
+Use `--download-resources` only when the user asks to inspect attached images or files. It writes resources to the current working directory under `./lark-im-resources/`.
+
+### Feishu document workflow
+
+Use the authenticated user identity for Feishu documents. Before editing an existing document, fetch its current content and understand the requested insertion point:
+
+```bash
+lark-cli docs +fetch --as user --doc "<feishu-doc-url-or-token>"
+```
+
+For a document URL containing a `#share-...` anchor, preserve and use the anchor when the user refers to that specific location. For full-document review, fetch the full document and do not infer missing sections from a preview.
+
+Append content only after the user explicitly asks for the write:
+
+```bash
+lark-cli docs +update \
+  --as user \
+  --doc "<feishu-doc-url-or-token>" \
+  --command append \
+  --content "<p>...</p>"
+```
+
+For a precise existing-block edit, prefer the document update command's block-aware operations and re-fetch after structural changes. Do not edit a Feishu document by changing a local copy or by sending a chat message unless the user asks for that.
+
+When the user asks to read a document and add a summary at the bottom, use this sequence:
+
+1. Fetch the complete document with `lark-cli docs +fetch --as user`.
+2. Draft the summary from the fetched content only.
+3. Show or state the intended summary and confirm the target document if the request is ambiguous.
+4. Append the summary with `lark-cli docs +update --as user --command append`.
+5. Fetch the document again and verify that the summary is present at the end.
+
+If the required document or Wiki scopes are missing, request only the needed domains with `lark-cli auth login --domain docs --domain wiki --no-wait --json` and wait for the user's authorization before continuing. Never print app secrets, access tokens, or other credentials.

@@ -1,0 +1,257 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_multivariate_regression__mvar_978f4c",
+  "questions_path": "artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_978f4c/questions.json",
+  "feedback_path": "artifacts/setting3x3_eval/sequential/multivariate_regression__mvar_978f4c/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_0a0c3c",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "Largest-width MLP should have the best capacity under the shared optimizer and budget.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.37127159237861634,
+        "B": 0.5456831514835357,
+        "C": 0.5191975206136703,
+        "D": 0.5002045661211014
+      },
+      "lesson": "For this regression dataset, much wider MLPs can beat narrower or layer-normalized alternatives under SGD.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_0e0195",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "The width-256 network offers far more capacity while avoiding layer normalization complications.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5191975206136703,
+        "B": 0.5153737246990204,
+        "C": 0.4980314403772354,
+        "D": 0.3453646421432495
+      },
+      "lesson": "Width 256 without layer norm is consistently strong here, even with only two layers.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 3,
+      "question_id": "q_355168",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "The known strong width-256 no-layer-norm architecture should outperform the narrower variants.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5157244205474854,
+        "B": 0.5451097458600997,
+        "C": 0.5520249992609024,
+        "D": 0.37127159237861634
+      },
+      "lesson": "Repeated candidate c_c1617c is a reliable winner against narrower or layer-normalized MLPs in this setting.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 4,
+      "question_id": "q_987387",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "Candidate c_bec5a1 already showed very strong performance and avoids layer norm.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.5002045661211014,
+        "B": 0.3453646421432495,
+        "C": 0.5520249992609024,
+        "D": 0.47556570172309875
+      },
+      "lesson": "The simple 2-layer width-256 ReLU MLP can beat deeper width-256 variants when layer norm is present.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 5,
+      "question_id": "q_9fc355",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "Candidate c_c1617c has repeatedly won and the alternatives are narrower with layer norm.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.37127159237861634,
+        "B": 0.5579046487808228,
+        "C": 0.730620414018631,
+        "D": 0.509278553724289
+      },
+      "lesson": "Very narrow deep MLPs, especially width 16 with several layer norms, perform poorly on this regression task.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 6,
+      "question_id": "q_a31edc",
+      "family": "multivariate_regression",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "Candidate c_bec5a1 is the known strongest simple width-256 model in the session so far.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.3453646421432495,
+        "B": 0.5520249992609024,
+        "C": 0.5002045661211014,
+        "D": 0.5153737246990204
+      },
+      "lesson": "Repeated candidate c_bec5a1 is the strongest observed choice so far with test MSE around 0.345.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 7,
+      "question_id": "q_ddef9b",
+      "family": "multivariate_regression",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "The repeated c_bec5a1 width-256 ReLU model has the best observed feedback so far.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.47556570172309875,
+        "B": 0.467398601770401,
+        "C": 0.6045008957386017,
+        "D": 0.3453646421432495
+      },
+      "lesson": "Residual width-64 can be decent, but c_bec5a1 remains much better than residual or layer-normalized challengers.",
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 8,
+      "question_id": "q_dfe8c7",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_280928",
+      "confidence": null,
+      "reason": "With no clean width-256 option, the width-128 residual model seems most likely to train best.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_280928",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.730620414018631,
+        "B": 0.4530318260192871,
+        "C": 0.581612429022789,
+        "D": 0.5451097458600997
+      },
+      "lesson": "When clean width-256 models are absent, residual width-128 can be the best fallback despite multiple layer norms.",
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 9,
+      "question_id": "q_130b76",
+      "family": "multivariate_regression",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_bec5a1",
+      "confidence": null,
+      "reason": "Candidate c_bec5a1 is the strongest observed architecture and appears again here.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_bec5a1",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.4827177971601486,
+        "B": 0.4980314403772354,
+        "C": 0.3453646421432495,
+        "D": 0.491769340634346
+      },
+      "lesson": "Shallow width-128 and residual width-128 are mid-tier, while c_bec5a1 remains clearly superior.",
+      "cumulative_correct": 9,
+      "cumulative_accuracy": 1.0
+    },
+    {
+      "n": 10,
+      "question_id": "q_30e31f",
+      "family": "multivariate_regression",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_c1617c",
+      "confidence": null,
+      "reason": "Candidate c_c1617c is a known strong no-layer-norm width-256 model and beats the layer-normalized alternative.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_c1617c",
+      "is_correct": true,
+      "metric": "test_mse",
+      "choice_mean_metrics": {
+        "A": 0.46836474239826204,
+        "B": 0.37127159237861634,
+        "C": 0.47556570172309875,
+        "D": 0.7781435966491699
+      },
+      "lesson": "Between width-256 models, removing layer norm is more important than adding depth for this SGD regression setting.",
+      "cumulative_correct": 10,
+      "cumulative_accuracy": 1.0
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_0a0c3c",
+    "q_0e0195",
+    "q_355168",
+    "q_987387",
+    "q_9fc355",
+    "q_a31edc",
+    "q_ddef9b",
+    "q_dfe8c7",
+    "q_130b76",
+    "q_30e31f"
+  ],
+  "feedback_ids": [
+    "q_0a0c3c",
+    "q_0e0195",
+    "q_355168",
+    "q_987387",
+    "q_9fc355",
+    "q_a31edc",
+    "q_ddef9b",
+    "q_dfe8c7",
+    "q_130b76",
+    "q_30e31f"
+  ]
+}

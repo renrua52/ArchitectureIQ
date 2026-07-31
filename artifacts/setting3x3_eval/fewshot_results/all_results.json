@@ -1,0 +1,170 @@
+[
+  {
+    "model": "gpt-5.5-high",
+    "setting": "bigram_lm/bg_0021c1",
+    "family": "bigram_lm",
+    "dataset_id": "bg_0021c1",
+    "correct": 6,
+    "total": 10,
+    "accuracy": 0.6,
+    "elapsed_seconds": 51.05959510803223,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "bigram_lm/bg_0fff4b",
+    "family": "bigram_lm",
+    "dataset_id": "bg_0fff4b",
+    "correct": 7,
+    "total": 10,
+    "accuracy": 0.7,
+    "elapsed_seconds": 63.671446800231934,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "bigram_lm/bg_a58df7",
+    "family": "bigram_lm",
+    "dataset_id": "bg_a58df7",
+    "correct": 4,
+    "total": 10,
+    "accuracy": 0.4,
+    "elapsed_seconds": 78.03741908073425,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "multivariate_regression/mvar_c59a30",
+    "family": "multivariate_regression",
+    "dataset_id": "mvar_c59a30",
+    "correct": 5,
+    "total": 10,
+    "accuracy": 0.5,
+    "elapsed_seconds": 60.62136387825012,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "multivariate_regression/mvar_9faf9d",
+    "family": "multivariate_regression",
+    "dataset_id": "mvar_9faf9d",
+    "correct": 10,
+    "total": 10,
+    "accuracy": 1.0,
+    "elapsed_seconds": 42.088639974594116,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "multivariate_regression/mvar_978f4c",
+    "family": "multivariate_regression",
+    "dataset_id": "mvar_978f4c",
+    "correct": 6,
+    "total": 10,
+    "accuracy": 0.6,
+    "elapsed_seconds": 48.439064264297485,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "univariate_regression/sym_62678b",
+    "family": "univariate_regression",
+    "dataset_id": "sym_62678b",
+    "correct": 3,
+    "total": 10,
+    "accuracy": 0.3,
+    "elapsed_seconds": 54.3965380191803,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "univariate_regression/sym_c804cc",
+    "family": "univariate_regression",
+    "dataset_id": "sym_c804cc",
+    "correct": 2,
+    "total": 10,
+    "accuracy": 0.2,
+    "elapsed_seconds": 85.30221223831177,
+    "n_predictions": 10
+  },
+  {
+    "model": "gpt-5.5-high",
+    "setting": "univariate_regression/sym_411dbf",
+    "family": "univariate_regression",
+    "dataset_id": "sym_411dbf",
+    "correct": 9,
+    "total": 10,
+    "accuracy": 0.9,
+    "elapsed_seconds": 46.89811897277832,
+    "n_predictions": 10
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "bigram_lm/bg_0021c1",
+    "family": "bigram_lm",
+    "dataset_id": "bg_0021c1",
+    "correct": 7,
+    "total": 10,
+    "accuracy": 0.7,
+    "elapsed_seconds": 60.53209376335144,
+    "n_predictions": 10
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "bigram_lm/bg_0fff4b",
+    "family": "bigram_lm",
+    "dataset_id": "bg_0fff4b",
+    "correct": 0,
+    "total": 10,
+    "accuracy": 0.0,
+    "elapsed_seconds": 62.51703596115112,
+    "n_predictions": 10
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "bigram_lm/bg_a58df7",
+    "family": "bigram_lm",
+    "dataset_id": "bg_a58df7",
+    "correct": 5,
+    "total": 10,
+    "accuracy": 0.5,
+    "elapsed_seconds": 39.47188210487366,
+    "n_predictions": 10
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "multivariate_regression/mvar_c59a30",
+    "family": "multivariate_regression",
+    "dataset_id": "mvar_c59a30",
+    "correct": 2,
+    "total": 10,
+    "accuracy": 0.2,
+    "elapsed_seconds": 87.83775997161865,
+    "n_predictions": 10
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "multivariate_regression/mvar_9faf9d",
+    "error": "Connection error."
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "multivariate_regression/mvar_978f4c",
+    "error": "Connection error."
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "univariate_regression/sym_62678b",
+    "error": "Connection error."
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "univariate_regression/sym_c804cc",
+    "error": "Connection error."
+  },
+  {
+    "model": "claude-opus-4.8-high",
+    "setting": "univariate_regression/sym_411dbf",
+    "error": "Connection error."
+  }
+]

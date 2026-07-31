@@ -1,0 +1,112 @@
+[
+  {
+    "question_id": "q_0a0c3c",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.37127159237861634,
+      "B": 0.5456831514835357,
+      "C": 0.5191975206136703,
+      "D": 0.5002045661211014
+    }
+  },
+  {
+    "question_id": "q_0e0195",
+    "correct_letter": "D",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.5191975206136703,
+      "B": 0.5153737246990204,
+      "C": 0.4980314403772354,
+      "D": 0.3453646421432495
+    }
+  },
+  {
+    "question_id": "q_355168",
+    "correct_letter": "D",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.5157244205474854,
+      "B": 0.5451097458600997,
+      "C": 0.5520249992609024,
+      "D": 0.37127159237861634
+    }
+  },
+  {
+    "question_id": "q_987387",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.5002045661211014,
+      "B": 0.3453646421432495,
+      "C": 0.5520249992609024,
+      "D": 0.47556570172309875
+    }
+  },
+  {
+    "question_id": "q_9fc355",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.37127159237861634,
+      "B": 0.5579046487808228,
+      "C": 0.730620414018631,
+      "D": 0.509278553724289
+    }
+  },
+  {
+    "question_id": "q_a31edc",
+    "correct_letter": "A",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.3453646421432495,
+      "B": 0.5520249992609024,
+      "C": 0.5002045661211014,
+      "D": 0.5153737246990204
+    }
+  },
+  {
+    "question_id": "q_ddef9b",
+    "correct_letter": "D",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.47556570172309875,
+      "B": 0.467398601770401,
+      "C": 0.6045008957386017,
+      "D": 0.3453646421432495
+    }
+  },
+  {
+    "question_id": "q_dfe8c7",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.730620414018631,
+      "B": 0.4530318260192871,
+      "C": 0.581612429022789,
+      "D": 0.5451097458600997
+    }
+  },
+  {
+    "question_id": "q_130b76",
+    "correct_letter": "C",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.4827177971601486,
+      "B": 0.4980314403772354,
+      "C": 0.3453646421432495,
+      "D": 0.491769340634346
+    }
+  },
+  {
+    "question_id": "q_30e31f",
+    "correct_letter": "B",
+    "metric": "test_mse",
+    "choice_mean_metrics": {
+      "A": 0.46836474239826204,
+      "B": 0.37127159237861634,
+      "C": 0.47556570172309875,
+      "D": 0.7781435966491699
+    }
+  }
+]

@@ -129,6 +129,17 @@ def format_loss_nl(loss: dict) -> str:
     return f"- Loss: {loss['loss_id']}"
 
 
+def _label_noise_line(params: dict) -> str:
+    noise = params.get("noise", {}) or {}
+    if noise.get("enabled"):
+        std = noise.get("std", 0.0)
+        return (
+            f"- Training labels carry additive Gaussian noise (std={std}); "
+            "the held-out test labels are the exact target function (noiseless)"
+        )
+    return "- Labels are noiseless (train and test use the exact target function)"
+
+
 def format_regression_protocol(params: dict) -> str:
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
@@ -139,6 +150,7 @@ def format_regression_protocol(params: dict) -> str:
         f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
         f"- Input domain: [{domain[0]}, {domain[1]}], uniform sampling",
         f"- Point-sampling seed: {point_seed} (materializes the fixed train/test splits)",
+        _label_noise_line(params),
         "- Minibatch construction: each step draws `batch_size` train indices "
         "uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",
@@ -160,6 +172,7 @@ def format_multivariate_protocol(params: dict) -> str:
             f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
             f"- Input domain: [{domain[0]}, {domain[1]}] per coordinate, uniform sampling",
             f"- Point-sampling seed: {point_seed}",
+            _label_noise_line(params),
             "- Evaluation: **test MSE** on the held-out split",
         ]
     )

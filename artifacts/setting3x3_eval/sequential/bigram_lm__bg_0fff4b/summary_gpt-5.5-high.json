@@ -1,0 +1,90 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_bigram_lm__bg_0fff4b",
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "total_questions": 10,
+  "answered_questions": 10,
+  "correct_count": 9,
+  "overall_accuracy": 0.9,
+  "block_accuracy": [
+    {
+      "block": "1-10",
+      "correct": 9,
+      "total": 10,
+      "accuracy": 0.9
+    }
+  ],
+  "by_family": {
+    "bigram_lm": {
+      "correct": 9,
+      "total": 10,
+      "accuracy": 0.9
+    }
+  },
+  "cumulative_curve": [
+    {
+      "n": 1,
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.8
+    },
+    {
+      "n": 6,
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.8333333333333334
+    },
+    {
+      "n": 7,
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.8571428571428571
+    },
+    {
+      "n": 8,
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.875
+    },
+    {
+      "n": 9,
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8888888888888888
+    },
+    {
+      "n": 10,
+      "cumulative_correct": 9,
+      "cumulative_accuracy": 0.9
+    }
+  ],
+  "final_lessons": [
+    "For this bigram LM with RMSprop lr 1e-4 and L1, the compact 2-layer d_model 64 transformer beat larger and deeper variants.",
+    "At fixed RMSprop lr 1e-4 and L1, d_model 64 with 2 layers stayed best, while d_model 128 degraded as layers increased.",
+    "Very compact d_model 32 can beat d_model 128 variants under RMSprop plus L1, but prior d_model 64 results still look strongest.",
+    "The d_model 64, 2-layer, d_ff 256 transformer is a reliable winner over d_model 128 variants with this fixed RMSprop/L1 setup.",
+    "For this simple bigram LM, a 1-layer d_model 64 transformer can beat deeper d_model 64 and d_model 32 variants under RMSprop plus L1.",
+    "A d_model 64 transformer remains preferable to d_model 128 even with d_ff 64, reinforcing that width 128 is overkill for this setup.",
+    "Even a 3-layer d_model 64 transformer beats 3-layer d_model 128 models here; avoid d_model 128 whenever d_model 64 is present.",
+    "When using d_model 32, a wide d_ff 256 feed-forward layer helps substantially and can outperform narrower d_model 32 variants.",
+    "The 1-layer d_model 64, d_ff 128 transformer is the best observed architecture so far, beating deeper d_model 64 and all d_model 128 options shown.",
+    "A d_model 64, 2-layer, d_ff 64 transformer beats shallow d_model 32 and d_model 128 choices, so d_model 64 remains the safest width."
+  ]
+}

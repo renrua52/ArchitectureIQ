@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1",
+  "output_root": "data/meta_model/setting_to_loss_60q_id_v1",
+  "defaults": {
+    "num_rows": 1000,
+    "train_rows": 900,
+    "reserve_rows": 50,
+    "sampling_seed": 20260713,
+    "split_seed": 314159,
+    "ground_truth": {
+      "n_seeds": 10,
+      "base_seed": 0,
+      "fail_threshold_mode": "finite_only"
+    }
+  },
+  "experiments": [
+    {
+      "experiment_id": "univariate_sym_62678b_b2048_bs32_mse",
+      "dataset_path": "data/datasets/univariate_regression/sym_62678b",
+      "budget": 2048,
+      "batch_size": 32,
+      "vary": [
+        "model",
+        "optimizer"
+      ],
+      "fixed": {
+        "loss": {
+          "loss_id": "mse"
+        }
+      },
+      "exclude_candidate_sets": [
+        "data/datasets/univariate_regression/sym_62678b/candidates/set_2048_var_var_fix_696edb"
+      ],
+      "stratify_by": [
+        "optimizer.type",
+        "model.width"
+      ],
+      "sampling_seed": 20260713,
+      "split_seed": 314159
+    },
+    {
+      "experiment_id": "multivariate_mvar_c59a30_b5120_bs32_mse",
+      "dataset_path": "data/datasets/multivariate_regression/mvar_c59a30",
+      "budget": 5120,
+      "batch_size": 32,
+      "vary": [
+        "model",
+        "optimizer"
+      ],
+      "fixed": {
+        "loss": {
+          "loss_id": "mse"
+        }
+      },
+      "exclude_candidate_sets": [
+        "data/datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677"
+      ],
+      "stratify_by": [
+        "optimizer.type",
+        "model.width"
+      ],
+      "sampling_seed": 20260714,
+      "split_seed": 314160
+    },
+    {
+      "experiment_id": "bigram_bg_0021c1_b5120_bs64_cross_entropy",
+      "dataset_path": "data/datasets/bigram_lm/bg_0021c1",
+      "budget": 5120,
+      "batch_size": 64,
+      "vary": [
+        "model",
+        "optimizer"
+      ],
+      "fixed": {
+        "loss": {
+          "loss_id": "cross_entropy"
+        }
+      },
+      "exclude_candidate_sets": [
+        "data/datasets/bigram_lm/bg_0021c1/candidates/set_5120_var_var_fix_f94f2e"
+      ],
+      "stratify_by": [
+        "optimizer.type",
+        "model.d_model"
+      ],
+      "sampling_seed": 20260715,
+      "split_seed": 314161
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": "architecture_iq.leakage_scan.v1",
+  "created_at": "2026-07-14T09:00:26+00:00",
+  "bundle_sha256": "35511502fed3c96ec28152f682b69283ace479351663f46c3ced37b7c581e10b",
+  "passed": true,
+  "findings": [],
+  "blind_fullset_prompt_sha256": "932ab35bb52f666aa8e8a1b2b296445faa6bd38adb96bc9a5e4599c4b7e3eb6f",
+  "model_input_prompt_preserved": true,
+  "model_input_prompt_bundle_sha256": "a4d5e445473ce7bb01b9d1af45112c5acd15c9ccbc6ebd178d1202317878aec7"
+}

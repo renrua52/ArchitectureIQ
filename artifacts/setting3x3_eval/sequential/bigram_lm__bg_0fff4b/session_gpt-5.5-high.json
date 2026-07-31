@@ -1,0 +1,257 @@
+{
+  "experiment_name": "setting3x3_sequential_gpt-5.5-high_bigram_lm__bg_0fff4b",
+  "questions_path": "artifacts/setting3x3_eval/sequential/bigram_lm__bg_0fff4b/questions.json",
+  "feedback_path": "artifacts/setting3x3_eval/sequential/bigram_lm__bg_0fff4b/feedback.json",
+  "total_questions": 10,
+  "next_index": 10,
+  "records": [
+    {
+      "n": 1,
+      "question_id": "q_35bf25",
+      "family": "bigram_lm",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_3c5b8b",
+      "confidence": null,
+      "reason": "A 2-layer d_model 128 transformer with wider feed-forward capacity should fit the simple bigram structure without the extra optimization burden of 3 layers.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_ba0755",
+      "is_correct": false,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.5276739835739135,
+        "B": 3.6482683658599853,
+        "C": 3.1611506938934326,
+        "D": 3.4189996480941773
+      },
+      "lesson": "For this bigram LM with RMSprop lr 1e-4 and L1, the compact 2-layer d_model 64 transformer beat larger and deeper variants.",
+      "cumulative_correct": 0,
+      "cumulative_accuracy": 0.0
+    },
+    {
+      "n": 2,
+      "question_id": "q_36afd5",
+      "family": "bigram_lm",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_f366d7",
+      "confidence": null,
+      "reason": "The prior feedback favored compact d_model 64 transformers in this RMSprop plus L1 bigram setting.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_f366d7",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.162535214424133,
+        "B": 3.2168953895568846,
+        "C": 3.4189996480941773,
+        "D": 3.6482683658599853
+      },
+      "lesson": "At fixed RMSprop lr 1e-4 and L1, d_model 64 with 2 layers stayed best, while d_model 128 degraded as layers increased.",
+      "cumulative_correct": 1,
+      "cumulative_accuracy": 0.5
+    },
+    {
+      "n": 3,
+      "question_id": "q_707361",
+      "family": "bigram_lm",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_34fcf7",
+      "confidence": null,
+      "reason": "The feedback so far favors compact transformers, and d_model 32 should be sufficient for a simple 32-token bigram task under L1 regularization.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_34fcf7",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.213482666015625,
+        "B": 3.6482683658599853,
+        "C": 3.5276739835739135,
+        "D": 3.3674883604049684
+      },
+      "lesson": "Very compact d_model 32 can beat d_model 128 variants under RMSprop plus L1, but prior d_model 64 results still look strongest.",
+      "cumulative_correct": 2,
+      "cumulative_accuracy": 0.6666666666666666
+    },
+    {
+      "n": 4,
+      "question_id": "q_780d65",
+      "family": "bigram_lm",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_f366d7",
+      "confidence": null,
+      "reason": "The 2-layer d_model 64 model has repeatedly been the best compact-capacity choice versus d_model 128 alternatives in this setting.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_f366d7",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.162535214424133,
+        "B": 3.6043127298355104,
+        "C": 3.4382709741592405,
+        "D": 3.3674883604049684
+      },
+      "lesson": "The d_model 64, 2-layer, d_ff 256 transformer is a reliable winner over d_model 128 variants with this fixed RMSprop/L1 setup.",
+      "cumulative_correct": 3,
+      "cumulative_accuracy": 0.75
+    },
+    {
+      "n": 5,
+      "question_id": "q_7dc8c1",
+      "family": "bigram_lm",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_16d16b",
+      "confidence": null,
+      "reason": "Without the proven 2-layer d_model 64 option, the shallow d_model 64 model should avoid the depth penalty while retaining enough capacity.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_16d16b",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.198937511444092,
+        "B": 3.146836018562317,
+        "C": 3.207911968231201,
+        "D": 3.6482683658599853
+      },
+      "lesson": "For this simple bigram LM, a 1-layer d_model 64 transformer can beat deeper d_model 64 and d_model 32 variants under RMSprop plus L1.",
+      "cumulative_correct": 4,
+      "cumulative_accuracy": 0.8
+    },
+    {
+      "n": 6,
+      "question_id": "q_9fd0fc",
+      "family": "bigram_lm",
+      "predicted_letter": "B",
+      "predicted_candidate_id": "c_6d33ee",
+      "confidence": null,
+      "reason": "The d_model 64 transformer should continue to outperform the larger d_model 128 choices under the observed L1-regularized RMSprop regime.",
+      "correct_letter": "B",
+      "correct_candidate_id": "c_6d33ee",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.4189996480941773,
+        "B": 3.1717018127441405,
+        "C": 3.5276739835739135,
+        "D": 3.3674883604049684
+      },
+      "lesson": "A d_model 64 transformer remains preferable to d_model 128 even with d_ff 64, reinforcing that width 128 is overkill for this setup.",
+      "cumulative_correct": 5,
+      "cumulative_accuracy": 0.8333333333333334
+    },
+    {
+      "n": 7,
+      "question_id": "q_e96831",
+      "family": "bigram_lm",
+      "predicted_letter": "C",
+      "predicted_candidate_id": "c_6d804f",
+      "confidence": null,
+      "reason": "The only d_model 64 candidate should beat the d_model 128 three-layer alternatives in this over-parameterized bigram setup.",
+      "correct_letter": "C",
+      "correct_candidate_id": "c_6d804f",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.6043127298355104,
+        "B": 3.4382709741592405,
+        "C": 3.198937511444092,
+        "D": 3.5276739835739135
+      },
+      "lesson": "Even a 3-layer d_model 64 transformer beats 3-layer d_model 128 models here; avoid d_model 128 whenever d_model 64 is present.",
+      "cumulative_correct": 6,
+      "cumulative_accuracy": 0.8571428571428571
+    },
+    {
+      "n": 8,
+      "question_id": "q_f4ed80",
+      "family": "bigram_lm",
+      "predicted_letter": "A",
+      "predicted_candidate_id": "c_65db3e",
+      "confidence": null,
+      "reason": "With no d_model 64 option, a d_model 32 model with larger feed-forward capacity should beat the overlarge d_model 128 choices and the narrower d_model 32 variant.",
+      "correct_letter": "A",
+      "correct_candidate_id": "c_65db3e",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.1588916063308714,
+        "B": 3.3674883604049684,
+        "C": 3.6043127298355104,
+        "D": 3.213482666015625
+      },
+      "lesson": "When using d_model 32, a wide d_ff 256 feed-forward layer helps substantially and can outperform narrower d_model 32 variants.",
+      "cumulative_correct": 7,
+      "cumulative_accuracy": 0.875
+    },
+    {
+      "n": 9,
+      "question_id": "q_09d094",
+      "family": "bigram_lm",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_16d16b",
+      "confidence": null,
+      "reason": "The shallow d_model 64 transformer has already shown the best tradeoff, outperforming deeper d_model 64 and d_model 128 variants.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_16d16b",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.5276739835739135,
+        "B": 3.198937511444092,
+        "C": 3.4189996480941773,
+        "D": 3.146836018562317
+      },
+      "lesson": "The 1-layer d_model 64, d_ff 128 transformer is the best observed architecture so far, beating deeper d_model 64 and all d_model 128 options shown.",
+      "cumulative_correct": 8,
+      "cumulative_accuracy": 0.8888888888888888
+    },
+    {
+      "n": 10,
+      "question_id": "q_eeaf66",
+      "family": "bigram_lm",
+      "predicted_letter": "D",
+      "predicted_candidate_id": "c_60c42d",
+      "confidence": null,
+      "reason": "The d_model 64 option has consistently beaten d_model 128 models and should be more capable than the shallow d_model 32 alternative.",
+      "correct_letter": "D",
+      "correct_candidate_id": "c_60c42d",
+      "is_correct": true,
+      "metric": "test_ce",
+      "choice_mean_metrics": {
+        "A": 3.224399781227112,
+        "B": 3.2168953895568846,
+        "C": 3.6043127298355104,
+        "D": 3.1645910501480103
+      },
+      "lesson": "A d_model 64, 2-layer, d_ff 64 transformer beats shallow d_model 32 and d_model 128 choices, so d_model 64 remains the safest width.",
+      "cumulative_correct": 9,
+      "cumulative_accuracy": 0.9
+    }
+  ],
+  "protocol": {
+    "prediction_before_feedback": true,
+    "tool": "tools/sequential_feedback_session.py"
+  },
+  "question_ids": [
+    "q_35bf25",
+    "q_36afd5",
+    "q_707361",
+    "q_780d65",
+    "q_7dc8c1",
+    "q_9fd0fc",
+    "q_e96831",
+    "q_f4ed80",
+    "q_09d094",
+    "q_eeaf66"
+  ],
+  "feedback_ids": [
+    "q_35bf25",
+    "q_36afd5",
+    "q_707361",
+    "q_780d65",
+    "q_7dc8c1",
+    "q_9fd0fc",
+    "q_e96831",
+    "q_f4ed80",
+    "q_09d094",
+    "q_eeaf66"
+  ]
+}

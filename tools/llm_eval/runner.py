@@ -11,7 +11,7 @@ from typing import Any, Protocol
 
 from completion import ModelExchange, fetch_model_response
 from prompt_wrapper import format_eval_prompt
-from question_loader import QuestionItem, list_questions
+from question_loader import QuestionItem, list_questions, load_question_item
 from response_parser import parse_choice_letter, split_chain_of_thought
 
 
@@ -175,10 +175,31 @@ def run_evaluation(
     model_config: Any,
     client: LLMBackend,
     limit: int | None = None,
+    question_ids: list[str] | None = None,
+    question_paths: list[Path] | None = None,
     skip_existing: bool = False,
     workers: int = 4,
 ) -> dict[str, Any]:
-    items = list_questions(questions_root)
+    if question_ids is not None and question_paths is not None:
+        raise ValueError("Specify question_ids or question_paths, not both")
+    if question_paths is not None:
+        resolved_paths = [path.resolve() for path in question_paths]
+        if len(resolved_paths) != len(set(resolved_paths)):
+            raise ValueError("Question manifest contains duplicate question paths")
+        items = [load_question_item(path) for path in resolved_paths]
+    else:
+        items = list_questions(questions_root)
+    if question_ids is not None:
+        if len(question_ids) != len(set(question_ids)):
+            raise ValueError("Question manifest contains duplicate question_id values")
+        by_id = {item.question_id: item for item in items}
+        missing = [question_id for question_id in question_ids if question_id not in by_id]
+        if missing:
+            raise ValueError(
+                "Question manifest references question IDs not found under "
+                f"{questions_root}: {', '.join(missing)}"
+            )
+        items = [by_id[question_id] for question_id in question_ids]
     if limit is not None:
         items = items[:limit]
 
@@ -212,6 +233,8 @@ def run_evaluation(
         "run_id": run_dir.name,
         "created_at": _utc_now_iso(),
         "questions_root": str(questions_root.resolve()),
+        "question_ids": [item.question_id for item in items],
+        "question_paths": [str(item.question_dir) for item in items],
         "model": model_config.to_dict() if hasattr(model_config, "to_dict") else model_config,
         "workers": workers,
         "summary": summary,

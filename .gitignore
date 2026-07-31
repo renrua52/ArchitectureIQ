@@ -149,7 +149,10 @@ activemq-data/
 
 # Environments
 .env
+.env.vapi
 .envrc
+.streamlit/secrets.toml
+supabase/.env.local
 .venv
 env/
 venv/
@@ -217,6 +220,12 @@ __marimo__/
 # Benchmark generated artifacts
 data/
 llm_runs/
+
+# User-owned local workspace (never tracked by normal Git operations)
+/workspace/
+
+# Deployment ledger append lock (the ledger and reviewed evidence stay trackable)
+deployments/.ledger.jsonl.lock
 
 # Local analysis and report-build outputs. Curated report assets are force-added.
 artifacts/.cache/
