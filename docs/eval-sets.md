@@ -61,9 +61,9 @@ backend/eval/sets/{set_name}/
 ## 3. 生成器用法
 
 ```bash
-# select_best（v1.2，当前推荐）
+# select_best（v2，当前推荐；v1/v1.1/v1.2 因答案键 bug 已删除）
 .venv/bin/python -m backend.eval.questions --type select_best \
-    --items-per-problem 5 --set-name select_best_v1.2 --seed 20260804
+    --items-per-problem 5 --set-name select_best_v2 --seed 20260804
 
 # propose_improvement
 .venv/bin/python -m backend.eval.questions --type propose_improvement \
@@ -79,9 +79,9 @@ backend/eval/sets/{set_name}/
     --out artifacts/eval_probe/propose_improvement_v1/pi_736c27_score.json
 
 # 探针抽样（分层 tight/medium/loose，批次内 problem 不重复）
-.venv/bin/python -m backend.eval.probe --set select_best_v1.2 --num-batches 2 --batch-size 6 --seed 20260805
+.venv/bin/python -m backend.eval.probe --set select_best_v2 --num-batches 2 --batch-size 6 --seed 20260805
 # 探针评分（subagent 把答案写到 batches/batch_{i}_answers.jsonl 后）
-.venv/bin/python -m backend.eval.probe --set select_best_v1.2 --score
+.venv/bin/python -m backend.eval.probe --set select_best_v2 --score
 ```
 
 ---
@@ -107,19 +107,17 @@ base config + proposal overrides
 
 ## 5. 探针结果（subagent 做题，2026-08-01）
 
+> **作废声明**：本节所有 `select_best_v1/v1.1/v1.2` 的分数均基于坏答案键（见 §8），全部作废并已清理；机制性发现（DeepSeek 位置偏置、短答案解码塌缩、few-shot 影响）仍有效。有效分数以 §9–§12 为准。
+
 | 题集 | 题目数 | 正确率 | 随机基线 | 备注 |
 |------|--------|--------|----------|------|
-| `select_best_v1`（参考按全量分位数） | 12 | 3/12（25%） | 16.7% | 参考区间外推难 |
-| `select_best_v1.1`（参考锚定选项区间） | 12 | 2/12（16.7%） | 16.7% | 未见提升；选项含"看似相同"的 ill pairs |
-| `select_best_v1.2`（显著字段过滤 + 分 metric 阈值） | 5 | 1/5（20%） | 16.7% | 结构更干净（中位 ratio 1.27 → 1.48），仍接近随机 |
-| `select_best_v1.2` 细查 | 1（ratio 3.4 错题） | — | — | 参考未覆盖判别轴（残差），对选项有误导 |
 | `two_choice_loss_compare`（诊断） | 8 | 7/8（87.5%） | 50% | 二选一 + 参考校准对 LLM 可解 |
 | `propose_improvement_v1`（config 修改） | 2 次出题 | 2/2 击败 base | — | ratio 1.14x / 1.20x，win_rate 1.0 |
 
 **关键发现**：
 
-1. **任务格式决定可解性**：同样基于参考 loss 校准，二选一 87.5%、六选一 ≈ 随机。
-   六选一更接近"鉴别 LLM 是否具备从实验中推断架构规律"的基准目标，但当前对 LLM 过难（地板效应）。
+1. **任务格式决定可解性**（v2 修键后重评）：六选一 claude 70% / terra 72%（§8.2，随机 16.7%）、
+   二选一 74–87.5%；选择题仍存在天花板效应（§10），主指标建议转 propose_improvement。
 2. **propose_improvement 信号强**：subagent 依据参考（RMSprop/宽网络等）提出的 config 两次都真实打败 base
    （GT 新跑验证，非猜测）。这是最有生产意义的方向（贴近 autoresearch：提出修改 → 实测涨跌）。
 3. **CE 轴压缩**：bigram CE 整体 max/min 仅 ~1.14x，单点修改区分度低；LLM 提修改时应避开 loss 轴
@@ -144,8 +142,6 @@ base config + proposal overrides
 
 | 题集 | 题量 | 正确 / 击败 | 随机基线 | 结论 |
 |------|------|-------------|----------|------|
-| `select_best_v1.1` | 50 | 9/50（18%） | 16.7% | 六选一 ≈ 随机 |
-| `select_best_v1.2` | 50 | 4/50（8%，另一 run 2/50；修复解析 bug 后 ~6/50=12%） | 16.7% | 六选一 ≈ 随机（或更低） |
 | `two_choice` seed1（range demo） | 50 | 27/50（54%） | 50% | 二选一 ≈ 随机 |
 | `two_choice` seed2（range demo） | 50 | 26/50（52%） | 50% | 二选一 ≈ 随机 |
 | `two_choice` config_near demo | 50 | 21/50（42%） | 50% | 配置邻居 demo 是负优化 |
@@ -156,14 +152,13 @@ base config + proposal overrides
 
 | 题集 | 题量 | 正确率 | 随机基线 |
 |------|------|--------|----------|
-| `select_best_v1.2` | 50 | 9/50（18%） | 16.7% |
 | `two_choice` seed1（range demo） | 50 | 38/50（76%） | 50% |
 | `two_choice` config_near demo | 50 | 31/50（62%） | 50% |
 
 **50 题样本下的结论（替代小样本探针）**：
 
-1. **六选一 select_best 对两个模型都是地板**（8–18%，随机 16.7%）；gpt-5.6-terra 略高于随机，
-   deepseek 偶尔低于随机（被参考误导）。
+1. **select_best 六选一（v1.x 坏键版本）分数作废**：修键后 v2 为 claude 70% / terra 72%（§8.2）。
+   选择题的主要问题是天花板效应而非地板（见 §10）。
 2. **二选一区分两个模型**：gpt-5.6-terra 76% 显著高于 deepseek 52–54%（≈随机）。
    → 二选一可以作为**模型能力的有效度量**；六选一作为上限测试。
 3. **config_near demo 在两个模型上都是负优化**（gpt 76%→62%，deepseek 54%→42%），
@@ -291,18 +286,18 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
 答案放 content 或 reasoning_content，视推理模式而定；空 content 自动重试）。同批
 `artifacts/eval_probe_local/items` 前 50 题 two_choice + `select_best_v1.2` 前 50 题：
 
-| 模型 | two_choice local（标准） | two_choice local（强制推理） | select_best_v1.2 | 备注 |
-|------|------|------|------|------|
-| gpt-5.6-terra（gpt.ge） | **33/50 = 66%** | **33/50 = 66%** | 8/50 = 16% | 快（50 题 ~15s）、无塌缩、答案均衡 |
-| Kimi-K3（gpt.ge） | —（慢/超时） | 32/50 = 64%（重试 1 轮后，2 题仍空） | 6/50 = 12%（**21/50 空响应**） | 慢（50 题 13–15 min），长 prompt 大量空响应 |
-| DeepSeek v4-flash（官方 API） | 26/50 = 52%（全 A 塌缩） | **~74%**（3 轮均值 73.5%） | 6/50 = 12%（修复解析后） | 短答案格式塌缩，需强制推理 |
-| gpt-5.6-terra（phybench，旧 range 题） | 76%（旧题集，不可直接比） | — | 9/50 = 18% | 中转恢复窗口 |
-| claude-opus-5（gpt.ge，20 题探针） | — | 14/20 = 70%（子集，n 小） | 2/20 = 10% | 快（20 题 ~12s）、均衡、无塌缩 |
+| 模型 | two_choice local（标准） | two_choice local（强制推理） | 备注 |
+|------|------|------|------|
+| gpt-5.6-terra（gpt.ge） | **33/50 = 66%** | **33/50 = 66%** | 快（50 题 ~15s）、无塌缩、答案均衡 |
+| Kimi-K3（gpt.ge） | —（慢/超时） | 32/50 = 64%（重试 1 轮后，2 题仍空） | 慢（50 题 13–15 min），长 prompt 大量空响应 |
+| DeepSeek v4-flash（官方 API） | 26/50 = 52%（全 A 塌缩） | **~74%**（3 轮均值 73.5%） | 短答案格式塌缩，需强制推理 |
+| gpt-5.6-terra（phybench，旧 range 题） | 76%（旧题集，不可直接比） | — | 中转恢复窗口 |
+| claude-opus-5（gpt.ge，20 题探针） | — | 14/20 = 70%（子集，n 小） | 快（20 题 ~12s）、均衡、无塌缩 |
 
 **结论**：
 
-1. **两个"更强"模型在本基准上并不更强**：two_choice 上 DeepSeek+强制推理（74%）> terra（66%）≈
-   Kimi（64%，重试后）；select_best 全部 ≈ 随机（8–16%），与"题面欠定"的既有结论一致。
+1. **两个"更强"模型在 two_choice 上并不更强**：DeepSeek+强制推理（74%）> terra（66%）≈
+   Kimi（64%，重试后）；select_best 的 v1.x 分数作废，修键后见 §8.2（70%+）。
 2. **terra 走 gpt.ge 工程上最顺**：快、稳定、无首选项塌缩、两种模式分数一致（66%）。它不做可见推理
    （`reasoning_content` 只有标题，被中转截断），只能看到最终字母，回答过程不透明。
 3. **Kimi-K3 走 gpt.ge 目前不可靠**：单次 40–60s+，50 题并发 10 要 13–15 分钟；`select_best`（长
@@ -310,8 +305,8 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
    建议换模型或等中转稳定。
 4. **推理强度参数**：`reasoning_effort=high` 被中转接受（两模型 200）；对 terra 两种模式分数无差异，
    对 Kimi 是必须项（不带该参数更容易超时）。
-5. **claude-opus-5 首跑探针（AGENTS.md §10 协议）**：20 题 two_choice 70%、20 题 select_best 10%
-   ——two_choice 目前最高（n=20 子集，需扩到 50 确认）；select_best 依旧地板。
+5. **claude-opus-5 首跑探针（AGENTS.md §10 协议）**：20 题 two_choice 70%（n=20 子集，需扩到 50 确认）；
+   select_best 修键后同题重评为 68%（§8.2）。
 6. **harness 变更**：`backend/eval/batch_eval.py` 现在默认读 relay.json（`eval` key + `models.debug[0]`），
    支持 `--model Kimi-K3` 等任意模型名、`--reason-suffix`、空响应自动重试；不再设 token 上限。
 
@@ -374,19 +369,20 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
    + summary），`backend/eval/report_html.py` 生成含完整思考过程的 `report.html`（含事后评审表）。
 
 
-## 6. 结论与建议
+## 6. 结论与建议（2026-08-01 修订，旧结论因答案键 bug 作废）
 
-- **select_best 保留为"难任务"**（v1.2 结构更干净），用于测 LLM 的上限；分数接近随机是预期现象，需要记录随机基线与置信区间。
-- **two_choice 作为诊断/控制任务**：验证模型确实在做参考校准（87.5%），防止"所有任务都随机"的系统性失效。
-- **propose_improvement 作为主推进方向**：闭环已验证（LLM propose → 校验 → GT → 涨跌），
-  下一步可批量并行 propose 5 个修改跑 GT，按涨/跌/平分层入库。
-- **曲线暂存不展示**：GT 的 `curves.npz` 已随候选存于 `backend/data/results/`，observable 阶段再接入，仅改评测端代码。
+- **select_best_v2 可解**：修键后 claude 70% / terra 72% / luna 74%（6 选 1，随机 16.7%），
+  rank_score 4.4–4.6/5；"接近随机是预期"的旧结论错误。
+- **区分度问题仍在**：选择题（6 选 1 / 2 选 1）模型全挤在 66–74%，天花板效应（见 §10）；
+  主指标建议转 propose_improvement（开放式生成、按落点/涨跌打分）。
+- **参数量 prior 泄露**：select_best_v2 中 66% 的题 winner=参数量最大选项（中位数跨度 163×），
+  违反 1.1× 对齐规则，题目需按 §12.4 修。
+- **曲线暂存不展示**：GT 的 `curves.npz` 已随候选存于 `backend/data/results/`，observable 阶段再接入。
 
 ---
 
 ## 7. 待办
 
-- [ ] v1.2 探针补测（大样本），确认显著字段过滤是否提升可答性
 - [ ] propose_improvement 批量闭环：LLM 并行 propose 5 个修改 → GT → 分层入库（`tools/batch_generate` 已有并行骨架）
 - [ ] 同数据集多题跨批次（避免跨题泄漏）的完整评测协议
 - [ ] meta-model（TabPFN）评测（第三 section，暂不实现）
@@ -417,7 +413,7 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
 
 - `build_select_best`：在 `rng.shuffle(pool)` **之前**提取 `winner_id` / `runner_id`，shuffle 后仅用 candidate_id 匹配字母。
 - 已用原 seed `20260804` 重建 `backend/eval/sets/select_best_v2/questions.jsonl`：59 题与 v1.2 **同池同参考**，
-  仅答案键修正，59/59 与当前 `summary.json` 一致。旧 `select_best_v1.2` 保留供对比，不再用于打分。
+  仅答案键修正，59/59 与当前 `summary.json` 一致。坏键的 `select_best_v1/v1.1/v1.2` 题集、相关探针/打分记录（`artifacts/eval_probe/select_best_v1.x`、`artifacts/eval_runs/select_best_v1.2_*`、50 题 run 中的 select_best 部分）已于 2026-08-02 全部删除。
 
 ### 8.4 对后续出题的启示（与用户"好 base + 改进"方向一致）
 

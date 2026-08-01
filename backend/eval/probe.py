@@ -17,9 +17,9 @@ per line (question_id / answer / reason); ``--score`` checks them against
 the set's ground truth and prints accuracy.
 
 Usage:
-    .venv/bin/python -m backend.eval.probe --set select_best_v1.1 \\
+    .venv/bin/python -m backend.eval.probe --set select_best_v2 \\
         --num-batches 2 --batch-size 6 --seed 20260802
-    .venv/bin/python -m backend.eval.probe --set select_best_v1.1 --score
+    .venv/bin/python -m backend.eval.probe --set select_best_v2 --score
 """
 from __future__ import annotations
 

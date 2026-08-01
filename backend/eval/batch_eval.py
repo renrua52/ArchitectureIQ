@@ -7,10 +7,10 @@ the letter answer, scores against ground truth, and writes per-question results
 plus a summary with family / ratio-stratum breakdown.
 
 Usage:
-    .venv/bin/python -m backend.eval.batch_eval --set select_best_v1.2 --limit 50
+    .venv/bin/python -m backend.eval.batch_eval --set select_best_v2 --limit 50
     .venv/bin/python -m backend.eval.batch_eval --two-choice-dir artifacts/eval_probe/items --limit 50
     OPENAI_API_KEY=... OPENAI_BASE_URL=https://openai.phybench.cn/v1 \\
-        .venv/bin/python -m backend.eval.batch_eval --set select_best_v1.2 --limit 50
+        .venv/bin/python -m backend.eval.batch_eval --set select_best_v2 --limit 50
 """
 from __future__ import annotations
 
@@ -284,7 +284,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--set", default=None)
     ap.add_argument("--sets", default=None, help="comma-separated set names: mixed "
-                    "concurrency with per-set results (e.g. select_best_v1.2,select_best_v1.1)")
+                    "concurrency with per-set results (e.g. select_best_v2,select_best_old60)")
     ap.add_argument("--two-choice-dir", default=None)
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--concurrency", type=int, default=50)
