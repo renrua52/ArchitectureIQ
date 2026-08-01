@@ -384,9 +384,14 @@ If the required document or Wiki scopes are missing, request only the needed dom
 
 ---
 
-## 10. Model usage via the relay station (中转站)
+## 10. Model access & benchmark evaluation (中转站)
 
-All local agents may use the relay station for model access. The relay exposes many models (OpenAI, DeepSeek, Claude, etc.) behind one OpenAI-compatible endpoint.
+The relay station exposes many models (OpenAI, DeepSeek, Claude, Gemini, GLM, Kimi, Qwen, etc.) behind one OpenAI-compatible endpoint. Two keys are registered for different purposes and must never be mixed:
+
+| Key | Purpose |
+|-----|---------|
+| `coding` | The coding agent's own key (agent/tooling calls). |
+| `eval` | Dedicated key for **concurrent benchmark evaluation** (all eval-harness calls). |
 
 ### Key file (single source of truth)
 
@@ -397,31 +402,59 @@ All local agents may use the relay station for model access. The relay exposes m
 ```json
 {
   "name": "relay",
-  "base_url": "https://.../v1",
-  "api_key": "sk-...",
+  "coding": {
+    "base_url": "https://.../v1",
+    "api_key": "sk-..."
+  },
+  "eval": {
+    "base_url": "https://.../v1",
+    "api_key": "sk-..."
+  },
   "models": {
-    "deepseek": "<deepseek model name>",
-    "gpt": "<gpt model name>",
-    "claude": "<claude model name>"
+    "debug": [
+      "gpt-5.6-luna",
+      "gpt-5.6-terra",
+      "gemini-3.6-flash"
+    ],
+    "mature": [
+      "claude-opus-5",
+      "gpt-5.5",
+      "gpt-5.6-sol",
+      "gemini-3.1-pro-preview-high",
+      "GLM-5.2",
+      "Kimi-K3",
+      "qwen3.7-max"
+    ]
   }
 }
 ```
 
-`models` maps role → exact model name as the relay expects it. The user fills in the real key/base_url/model names; agents only read the file. Additional roles/keys may be added as needed.
+The user fills in the real `base_url` / `api_key` values; agents only read the file. `models` lists the exact model names the relay expects, by tier. The eval harness must load `eval` credentials and model names from this file.
+
+### Relay protocol support (gpt.ge, verified)
+
+`base_url` is the host only (`https://api.gpt.ge`); clients append the protocol path:
+
+| Protocol | Path | Works for | Use with |
+|----------|------|-----------|----------|
+| OpenAI chat completions | `/v1/chat/completions` | all models in `models` (GPT, Gemini, Claude, GLM, Kimi, Qwen) | Codex `wire_api = "chat"`, OpenAI-compatible SDKs, eval harness |
+| OpenAI Responses | `/v1/responses` | OpenAI-family models (GPT); Claude returns 501 not implemented | Codex `wire_api = "responses"` |
+| Anthropic Messages | `/v1/messages` | Claude models (native protocol) | Claude Code / Anthropic SDK, not Codex |
+
+For Codex agent operations: use `wire_api = "chat"` (covers every model above, including Claude) or `wire_api = "responses"` (OpenAI-family models only). The Anthropic `/v1/messages` path is for Claude Code / Anthropic SDK clients, not Codex.
 
 ### Rules for agents
 
-1. Read model names and credentials from `~/.agents/relay.json`; never hard-code model names in code or prompts.
-2. If the file is missing, `api_key` is empty, or a needed role has no model name, stop and ask the user to fill it in — do not guess.
-3. Never print, echo, or write the `api_key` into outputs, logs, prompts, specs, or git-tracked files.
-4. Use the relay base_url + api_key as an OpenAI-compatible client (or the per-agent provider config); prefer reusing existing helper/scripts in the repo when present.
+1. Read keys, base URLs, and model names from `~/.agents/relay.json`; never hard-code credentials or model names in code, prompts, or specs.
+2. Use `eval` for all benchmark-evaluation calls; use `coding` only for the coding agent's own tooling. Keep the two separate.
+3. If the file is missing, a key is empty, or a tier/model is missing, stop and ask the user — do not guess or substitute another key/provider.
+4. Never print, echo, or write any `api_key` into outputs, logs, prompts, question specs, or git-tracked files.
+5. **No token caps:** never set `max_tokens` or any token limit on model calls; models must generate without a cap.
+6. **Reasoning effort:** default to `high` for all evaluation calls.
 
-### Evaluation workflow (ArchitectureIQ)
+### Evaluation protocol (ArchitectureIQ)
 
-Use models in three stages for benchmark evaluations:
-
-1. **Debugging (daily):** run large, parallel evaluation batches with **DeepSeek** for fast iteration.
-2. **After initial results:** run small evaluation batches with **GPT** and **Claude**, preferring **GPT** when only one is needed.
-3. **Final freeze:** run large experiments with **all three** (DeepSeek + GPT + Claude) before locking results.
-
-The exact model names for each role come from the `models` field of the key file above.
+1. **Tiers:** `debug` models (gpt-5.6-luna, gpt-5.6-terra, gemini-3.6-flash) for fast daily iteration; `mature` models (claude-opus-5, gpt-5.5, gpt-5.6-sol, gemini-3.1-pro-preview-high, GLM-5.2, Kimi-K3, qwen3.7-max) for mature-setting runs.
+2. **First run:** once the harness is set up, start with **claude-opus-5 on 20–50 questions** to estimate difficulty. Inspect cases to confirm the evaluation is fair and fully exercises model capability before scaling to more models or larger batches.
+3. **Scale gate:** multi-model runs with **total requests ≥ 300 questions** require mature settings and **explicit user approval** before launching.
+4. **Final leaderboard:** before locking the leaderboard, ask the user to confirm the reasoning effort per provider; default to the **highest reasoning-effort value each provider supports**.

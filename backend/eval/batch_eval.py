@@ -153,26 +153,25 @@ async def call_llm(
                 r = await client.post("/chat/completions", json=payload, timeout=timeout)
             if r.status_code == 200:
                 msg = r.json()["choices"][0]["message"]
-                # Some relay models (Kimi-K3, qwen3.7-max) put the answer in
-                # content or reasoning_content depending on reasoning mode.
                 content = msg.get("content") or ""
-                if not content.strip():
-                    content = msg.get("reasoning_content") or ""
-                if content.strip():
-                    return content
+                reasoning = msg.get("reasoning_content") or ""
+                if not content.strip() and reasoning.strip():
+                    content = reasoning  # some relays put the answer there
+                if content.strip() or reasoning.strip():
+                    return content, reasoning
                 # empty 200: relay hiccup — retry (loop continues)
             if r.status_code in (429, 500, 502, 503, 529):
                 wait = backoff[min(attempt, len(backoff) - 1)]
                 await asyncio.sleep(wait)
                 continue
             print(f"  !! HTTP {r.status_code}: {r.text[:200]}", file=sys.stderr)
-            return None
+            return "", ""
         except httpx.TimeoutException:
             await asyncio.sleep(backoff[min(attempt, len(backoff) - 1)])
         except Exception as e:  # noqa: BLE001
             print(f"  !! error: {e}", file=sys.stderr)
             await asyncio.sleep(backoff[min(attempt, len(backoff) - 1)])
-    return None
+    return "", ""
 
 
 def family_of(problem_id: str) -> str:
@@ -190,7 +189,7 @@ async def run_batch(items: list[dict], model: str, concurrency: int, base_url: s
     async with httpx.AsyncClient(base_url=base_url, headers=headers) as client:
         tasks = [call_llm(client, sem, it["prompt"], model) for it in items]
         responses = await asyncio.gather(*tasks)
-    for it, text in zip(items, responses):
+    for it, (text, reasoning) in zip(items, responses):
         answer = parse_answer(text)
         correct_key = "correct_letter" if "correct_letter" in it else "answer"
         correct = it.get(correct_key)
@@ -207,6 +206,8 @@ async def run_batch(items: list[dict], model: str, concurrency: int, base_url: s
             "answer": answer,
             "is_correct": answer is not None and answer == correct,
             "raw_response": text,
+            "content": text,
+            "reasoning_content": reasoning,
         })
     return results
 
@@ -271,6 +272,9 @@ def main() -> int:
     ap.add_argument("--reason-suffix", action="store_true",
                     help="append a step-by-step reasoning instruction before the answer "
                          "request (avoids first-option decode collapse on short-answer formats)")
+    ap.add_argument("--run-dir", default=None,
+                    help="write a per-run folder under artifacts/eval_runs/{name}: run.json + "
+                         "question snapshot + results/{model}/responses.jsonl + summary.json")
     args = ap.parse_args()
 
     if args.sets:
@@ -298,6 +302,11 @@ def main() -> int:
             it["prompt"] = (it.get("prompt") or "") + suffix
 
     out = Path(args.out) if args.out else OUT_ROOT / f"{label.replace('/', '_')}.jsonl"
+    run_root = None
+    if args.run_dir:
+        run_root = OUT_ROOT / args.run_dir
+        run_root.mkdir(parents=True, exist_ok=True)
+        (run_root / "results").mkdir(exist_ok=True)
     done_ids = set()
     if out.exists() and args.resume:
         for line in out.open(encoding="utf-8"):
@@ -342,6 +351,33 @@ def main() -> int:
         for r in results:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     print(f"wrote {len(results)} results to {out}")
+
+    if run_root is not None:
+        model_dir = run_root / "results" / args.model
+        model_dir.mkdir(parents=True, exist_ok=True)
+        safe_set = label.replace("/", "_")
+        (model_dir / f"responses_{safe_set}.jsonl").write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in results), encoding="utf-8")
+        (model_dir / f"summary_{safe_set}.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        qsnap = run_root / f"set_{label.replace('/', '_')}_questions.jsonl"
+        qsnap.write_text("\n".join(
+            json.dumps({k: it.get(k) for k in ("question_id", "problem_id", "type", "metric",
+                                               "correct_letter", "statistics", "prompt", "references",
+                                               "options", "answer", "demos", "target", "ask") if k in it},
+                       ensure_ascii=False) for it in items), encoding="utf-8")
+        run_json = run_root / "run.json"
+        manifest = {"label": label, "model": args.model, "base_url": args.base_url,
+                    "question_sets": sorted({it.get("_set") for it in items}),
+                    "n_questions": len(items), "reason_suffix": args.reason_suffix,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S %z")}
+        if run_json.exists():
+            old_m = json.loads(run_json.read_text())
+            old_m.setdefault("models", []).append(manifest)
+            run_json.write_text(json.dumps(old_m, indent=2, ensure_ascii=False), encoding="utf-8")
+        else:
+            run_json.write_text(json.dumps({"models": [manifest]}, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"run folder written: {run_root}")
     return 0
 
 

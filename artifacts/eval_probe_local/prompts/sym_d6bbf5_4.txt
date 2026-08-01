@@ -1,0 +1,96 @@
+You are given a dataset, plus several reference settings with their measured losses.
+Use the references to calibrate your judgment — do not rely on general priors.
+
+[Dataset]
+problem: sym_d6bbf5
+metric: test_mse (lower is better)
+
+[Reference settings (5)]
+1. - Type: MLP
+- Depth: 3 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, True, True]
+- Activations: [silu, gelu, relu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.005102
+2. - Type: MLP
+- Depth: 2 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, True]
+- Activations: [relu, leaky_relu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.00366
+3. - Type: MLP
+- Depth: 2 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [False, True]
+- Activations: [relu, silu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.002437
+4. - Type: MLP
+- Depth: 4 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, False, True, False]
+- Activations: [gelu, leaky_relu, gelu, leaky_relu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.003549
+5. - Type: MLP
+- Depth: 3 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, True, True]
+- Activations: [gelu, relu, leaky_relu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.00507
+
+[Question] Which setting has the HIGHER loss?
+A. - Type: MLP
+- Depth: 3 hidden layers
+- Width: 32 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, True, True]
+- Activations: [gelu, gelu, silu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)
+B. - Type: MLP
+- Depth: 3 hidden layers
+- Width: 64 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [True, True, True]
+- Activations: [silu, gelu, relu]
+- Initialization: PyTorch Linear defaults | - Optimizer: AdamW
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: mean squared error (MSE) on the minibatch | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)
+
+Answer with the letter only.

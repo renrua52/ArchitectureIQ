@@ -1,0 +1,31 @@
+{
+  "label": "two_choice_local",
+  "total": 50,
+  "scored": 50,
+  "unparsed": 0,
+  "accuracy": 0.7,
+  "random_baseline": 0.5,
+  "by_stratum": {
+    "loose(>=2)": {
+      "acc": 0.9167,
+      "n": 12
+    },
+    "medium(1.15-2)": {
+      "acc": 0.6316,
+      "n": 38
+    }
+  },
+  "by_family": {
+    "multivariate_regression": {
+      "acc": 0.7083,
+      "n": 48
+    },
+    "univariate_regression": {
+      "acc": 0.5,
+      "n": 2
+    }
+  },
+  "model": "gpt-5.6-terra",
+  "concurrency": 20,
+  "elapsed_s": 18.1
+}

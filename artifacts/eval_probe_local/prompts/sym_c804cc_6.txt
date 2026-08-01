@@ -1,0 +1,96 @@
+You are given a dataset, plus several reference settings with their measured losses.
+Use the references to calibrate your judgment — do not rely on general priors.
+
+[Dataset]
+problem: sym_c804cc
+metric: test_mse (lower is better)
+
+[Reference settings (5)]
+1. - Type: MLP
+- Depth: 1 hidden layers
+- Width: 128 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True]
+- Activations: [gelu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.3067
+2. - Type: MLP
+- Depth: 5 hidden layers
+- Width: 256 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [False, False, True, True, False]
+- Activations: [leaky_relu, leaky_relu, silu, leaky_relu, silu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 7.46e-05
+3. - Type: MLP
+- Depth: 2 hidden layers
+- Width: 64 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, True]
+- Activations: [silu, silu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.01245
+4. - Type: MLP
+- Depth: 3 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [True, False, False]
+- Activations: [relu, gelu, leaky_relu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.5254
+5. - Type: MLP
+- Depth: 1 hidden layers
+- Width: 128 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [False]
+- Activations: [silu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)  =>  loss = 0.4145
+
+[Question] Which setting has the LOWER loss?
+A. - Type: MLP
+- Depth: 1 hidden layers
+- Width: 32 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [False]
+- Activations: [silu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)
+B. - Type: MLP
+- Depth: 5 hidden layers
+- Width: 16 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [False, False, True, True, False]
+- Activations: [silu, relu, leaky_relu, gelu, gelu]
+- Initialization: PyTorch Linear defaults | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: MSE on the minibatch + L1 weight penalty (lambda=0.0001, mean absolute parameter magnitude) | - training_steps: 2560
+- batch_size: 32
+- total_samples_seen: 81920 (= training_steps × batch_size)
+
+Answer with the letter only.

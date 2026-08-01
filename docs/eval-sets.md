@@ -316,6 +316,64 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
    支持 `--model Kimi-K3` 等任意模型名、`--reason-suffix`、空响应自动重试；不再设 token 上限。
 
 
+## 5.5 显著性检验与"题目是否可答"：claude-opus-5 事后评审（2026-08-01 第五轮）
+
+### 5.5.1 已做的显著性检验（出题端）
+
+| 过滤 | select_best | two_choice |
+|------|-------------|------------|
+| 跨 seed win_rate | winner vs runner-up ≥ 0.7（10 seed 里 ≥7） | ≥ 0.8（10 seed 里 ≥8） |
+| ratio 下限 | CE ≥ 1.03 / MSE ≥ 1.15 | [1.2, 5.0] |
+| 结构过滤 | v1.2 显著字段两两差异 ≥ 2 | `choices_have_contrast` |
+
+**关键局限**：这只保证"GT 胜者 vs 亚军在统计上有区分"，**不保证"参考 settings 能支撑测试者推出答案"**。
+参考是随机采样，从不做"覆盖判别轴"校验——这正是 5.2 中 kNN oracle 只有 8%、判别轴覆盖率仅 11% 的原因。
+
+### 5.5.2 两道有代表性的题
+
+- **`sb_fedea4`（ratio 3.4，误导型）**：参考最优指向"深+宽"（d6w128 / d3w256，loss 0.05–0.06），
+  真胜者是 **d2w32+残差**（C）。残差轴在参考里从不被单独检验，照参考选必错。
+- **`sb_a5b412`（ratio 1.07，噪声型）**：5 个参考 loss 全在 3.19–3.63 的窄带内（80 步、接近 ln(32)=3.47
+  随机基线），胜者只比亚军好 7%；参考里 SGD 表现最差（3.63），胜者却恰好是 SGD lr=0.003——优化器×lr
+  轴在参考里无覆盖，信息不足且方向误导。
+
+### 5.5.3 我的分析：规律几乎找不到，题目欠定（与模型强弱无关）
+
+- 参考 kNN 外推预测器只有 **5/59（8%）**，低于随机 16.7%——按题面信息"不可答"是结构性事实。
+- winner vs runner-up 判别轴 134 个，仅 15 个（11%）有单轴邻居参考；残差 0/16、weight_decay 0/13、
+  momentum 0/7 完全无覆盖；59 题里仅 2 题可完全校准。
+- 分 ratio 看：tight（<1.15）两模型 0/5；medium 11–15%（低于随机）；loose（≥2）33%（2 倍随机）。
+  越紧的题参考越可能误导——就像复杂系统：5 个随机采样点无法约束高维 loss 曲面。
+
+### 5.5.4 claude-opus-5 事后盲审（18 题：12 select_best + 6 two_choice，不给 GT）
+
+| 题型 | 盲答正确 | 可答性均值(1-5) | 判定 fair |
+|------|----------|------------------|-----------|
+| select_best | **1/12（8%）** | 2.58 | 1/12 |
+| two_choice | 3/6（50%） | 3.67 | 4/6 |
+
+- **claude-opus-5 盲答 select_best 也是 8%，与随机持平、与 kNN oracle 一致**——不是模型不行，是信息不够。
+- 典型评审意见（节选）：
+  - "All losses sit within ~0.4 of the ln(32)=3.47 random baseline after only 80 steps… optimizer/lr
+    effects are indistinguishable from run-to-run noise."（sb_a5b412）
+  - "References only show SGD at a tiny lr… the optimizer/effective-lr axis that decides the winner is
+    never probed, and the top candidates differ by amounts likely near run-to-run noise."（sb_c17bb6）
+  - "References only show one learning rate per optimizer, so the lr-vs-optimizer interaction must be
+    extrapolated…"（sb_d5f3cc）
+  - "References only sample a coarse depth/width trend and never disambiguate the close cases…"（sb_4f62f7）
+- 18 题里没有一题被判 unfair，13 题 borderline、5 题 fair——claude 措辞温和，但可答性 1–3 分占 13/18，
+  与量化结论吻合。
+
+### 5.5.5 结论与建议
+
+1. **用户的判断成立**：多数 select_best 题像复杂系统，5 个随机参考无法逻辑推出胜者；claude-opus-5
+   盲审（8%）与 kNN oracle（8%）互相印证。
+2. **修题面**：参考必须覆盖选项的判别轴（base + 1–2 点修改并测 loss 的 few-shot，即 propose 范式）；
+   或把 tight（<1.15）题移出主指标只作诊断。
+3. **评测协议**：`--run-dir` 每次评测一个文件夹（run.json + 题目快照 + results/{model}/responses.jsonl
+   + summary），`backend/eval/report_html.py` 生成含完整思考过程的 `report.html`（含事后评审表）。
+
+
 ## 6. 结论与建议
 
 - **select_best 保留为"难任务"**（v1.2 结构更干净），用于测 LLM 的上限；分数接近随机是预期现象，需要记录随机基线与置信区间。
