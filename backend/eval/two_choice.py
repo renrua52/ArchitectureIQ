@@ -8,9 +8,14 @@ Design (eval-side prototype):
   * Demos are sampled from the SAME problem (same metric scale) and never
     overlap the target pair (no leakage). Target pairs are filtered to be
     answerable but not trivial (ratio in [1.2, 5], win_rate >= 0.8).
+  * ``--demo-strategy range`` (default): 3 demos at min / median / max loss.
+  * ``--demo-strategy config_near``: 3 demos structurally closest to either target.
+  * ``--demo-strategy local``: 5 demos = anchor candidate nearest the pair + 4
+    closest neighbors (all with losses), and both targets must lie within
+    ``LOCAL_TARGET_MAX_DIST`` edits of the star (locally calibratable question).
 
 Usage:
-    .venv/bin/python -m backend.eval.two_choice --items-per-problem 3
+    .venv/bin/python -m backend.eval.two_choice --items-per-problem 5 --demo-strategy local
 """
 from __future__ import annotations
 
@@ -35,6 +40,8 @@ MIN_RATIO = 1.2
 MAX_RATIO = 5.0
 MIN_WIN_RATE = 0.8
 N_DEMOS = 3
+N_LOCAL_DEMOS = 5  # user design: 1 anchor + 4 perturbations
+LOCAL_TARGET_MAX_DIST = 4  # both targets must be within this many edits of the star
 
 
 def _mean_key(metric: str) -> str:
@@ -110,6 +117,31 @@ def _pick_demos_near(pool: list[tuple], target_a: dict, target_b: dict,
     return [pool[i] for _, i in scored[:n]]
 
 
+
+def _pick_local_demos(pool: list[tuple], target_a: dict, target_b: dict,
+                      n: int, rng: random.Random) -> list[tuple] | None:
+    """Star-topology demos: one anchor candidate near the target pair plus the
+    ``n - 1`` closest perturbation neighbors of the anchor.
+
+    This makes the few-shot a *local experiment* around a similar config
+    ("main candidate, modified once, then perturbed a few times") instead of
+    global min/median/max anchors. All demos carry measured losses, so the
+    model can calibrate which local edit direction lowers the loss.
+    """
+    anchor = min(range(len(pool)),
+                 key=lambda i: min(config_edit_distance(pool[i][1], target_a),
+                                   config_edit_distance(pool[i][1], target_b)))
+    _, anchor_cfg, _ = pool[anchor]
+    neigh = [(i, config_edit_distance(anchor_cfg, cfg)) for i, (_, cfg, _) in enumerate(pool)]
+    neigh.sort(key=lambda x: (x[1], x[0]))
+    picked = [pool[i] for i, _ in neigh if i != anchor][: n - 1]
+    if len(picked) < n - 1:
+        return None
+    demos = [pool[anchor]] + picked
+    rng.shuffle(demos)
+    return demos
+
+
 def build_item(problem_id: str, rng: random.Random, metric: str,
                demo_strategy: str = "range") -> dict | None:
     rows = _load_candidates(problem_id)
@@ -134,6 +166,16 @@ def build_item(problem_id: str, rng: random.Random, metric: str,
             if demo_strategy == "config_near":
                 pool = [r for r in rows if r[0] not in (cid_a, cid_b)]
                 demos = _pick_demos_near(pool, config_a, config_b, N_DEMOS, rng)
+            elif demo_strategy == "local":
+                pool = [r for r in rows if r[0] not in (cid_a, cid_b)]
+                demos = _pick_local_demos(pool, config_a, config_b, N_LOCAL_DEMOS, rng)
+                if demos is None:
+                    continue  # no local star around the pair; skip the pair
+                demo_cfgs = [d[1] for d in demos]
+                da = min(config_edit_distance(config_a, c) for c in demo_cfgs)
+                db = min(config_edit_distance(config_b, c) for c in demo_cfgs)
+                if da > LOCAL_TARGET_MAX_DIST or db > LOCAL_TARGET_MAX_DIST:
+                    continue  # pair not locally calibratable from the star
             else:  # range: spread across min / median / max
                 pool = [r for r in rows if r[0] not in (cid_a, cid_b)]
                 pool.sort(key=lambda r: float(r[2][mean_key]))
@@ -197,7 +239,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--items-per-problem", type=int, default=3)
     ap.add_argument("--seed", type=int, default=20260801)
-    ap.add_argument("--demo-strategy", choices=("range", "config_near"), default="range")
+    ap.add_argument("--demo-strategy", choices=("range", "config_near", "local"), default="range")
     ap.add_argument("--out", type=Path, default=OUT_DIR)
     args = ap.parse_args()
     rng = random.Random(args.seed)
