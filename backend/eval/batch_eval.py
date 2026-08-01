@@ -57,27 +57,37 @@ def resolve_api_key() -> str:
 
 
 def parse_answer(text: str) -> str | None:
-    """Extract the answer letter from a model response (normalized to upper)."""
+    """Extract the answer letter from a model response (normalized to upper).
+
+    Handles bare letters, bolded final answers (``Answer: **B**``), trailing
+    standalone letters, and final-line answers. The LAST conclusive letter wins
+    (final answer), never the first letter mentioned in reasoning.
+    """
     if not text:
         return None
     t = text.strip()
     # exact letter (possibly lowercase)
     if re.fullmatch(r"[A-Fa-f]", t):
         return t.upper()
-    # "Answer: B" / "letter = b" style — prefer the LAST occurrence (the
-    # final answer), not a mention inside the reasoning.
-    matches = list(re.finditer(
-        r"(?i)(?:answer|letter|option|choice)\s*[:=\-]?\s*\(?([A-Fa-f])\)?", t))
-    if matches:
-        return matches[-1].group(1).upper()
-    # last standalone letter on the final line
+    # standalone letter alone on the final line: "B", "B.", "B)", "**B**"
     for line in reversed(t.splitlines()):
-        m = re.fullmatch(r"\s*([A-Fa-f])[).:]?\s*", line)
+        m = re.fullmatch(r"\s*[\*# ]*([A-Fa-f])[\*#.):\s]*\s*", line)
         if m:
             return m.group(1).upper()
-    m = re.search(r"\b([A-Fa-f])\b", t)
-    return m.group(1).upper() if m else None
-
+    # "Answer: B" / "letter = b" / "Answer: **B**" / "answer is B" /
+    # "pick B" — prefer the LAST occurrence (the final answer), not a mention
+    # inside the reasoning.
+    for pat in (
+        r"(?i)(?:answer|letter|option|choice)\s*[:=\-]?\s*[\*# ]*\(?\s*([A-Fa-f])\s*\)?\s*[\*#.]*",
+        r"(?i)\banswer\s+is\s+[\*# ]*([A-Fa-f])[\*#.]*",
+        r"(?i)\b(?:pick|choose|select)\s+[\*# ]*([A-Fa-f])[\*#.]*",
+    ):
+        matches = list(re.finditer(pat, t))
+        if matches:
+            return matches[-1].group(1).upper()
+    # fallback: last standalone letter anywhere in the text
+    matches = list(re.finditer(r"\b([A-Fa-f])\b", t))
+    return matches[-1].group(1).upper() if matches else None
 
 def load_items(set_name: str | None, two_choice_dir: str | None) -> list[dict]:
     if set_name:

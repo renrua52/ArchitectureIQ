@@ -381,3 +381,47 @@ When the user asks to read a document and add a summary at the bottom, use this 
 5. Fetch the document again and verify that the summary is present at the end.
 
 If the required document or Wiki scopes are missing, request only the needed domains with `lark-cli auth login --domain docs --domain wiki --no-wait --json` and wait for the user's authorization before continuing. Never print app secrets, access tokens, or other credentials.
+
+---
+
+## 10. Model usage via the relay station (中转站)
+
+All local agents may use the relay station for model access. The relay exposes many models (OpenAI, DeepSeek, Claude, etc.) behind one OpenAI-compatible endpoint.
+
+### Key file (single source of truth)
+
+- **Path:** `~/.agents/relay.json` (outside any git repo; never commit it)
+- **Permissions:** `600` (`chmod 600 ~/.agents/relay.json`)
+- **Schema:**
+
+```json
+{
+  "name": "relay",
+  "base_url": "https://.../v1",
+  "api_key": "sk-...",
+  "models": {
+    "deepseek": "<deepseek model name>",
+    "gpt": "<gpt model name>",
+    "claude": "<claude model name>"
+  }
+}
+```
+
+`models` maps role → exact model name as the relay expects it. The user fills in the real key/base_url/model names; agents only read the file. Additional roles/keys may be added as needed.
+
+### Rules for agents
+
+1. Read model names and credentials from `~/.agents/relay.json`; never hard-code model names in code or prompts.
+2. If the file is missing, `api_key` is empty, or a needed role has no model name, stop and ask the user to fill it in — do not guess.
+3. Never print, echo, or write the `api_key` into outputs, logs, prompts, specs, or git-tracked files.
+4. Use the relay base_url + api_key as an OpenAI-compatible client (or the per-agent provider config); prefer reusing existing helper/scripts in the repo when present.
+
+### Evaluation workflow (ArchitectureIQ)
+
+Use models in three stages for benchmark evaluations:
+
+1. **Debugging (daily):** run large, parallel evaluation batches with **DeepSeek** for fast iteration.
+2. **After initial results:** run small evaluation batches with **GPT** and **Claude**, preferring **GPT** when only one is needed.
+3. **Final freeze:** run large experiments with **all three** (DeepSeek + GPT + Claude) before locking results.
+
+The exact model names for each role come from the `models` field of the key file above.
