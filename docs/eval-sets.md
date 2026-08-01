@@ -536,3 +536,40 @@ deepseek 3x3binary180 108/180 = 60%。
 2. 但一旦给 hint（11.2），旧题也被便宜模型推到 69%——区分度主要来自"盲答无参考"。
 3. 建议：选择题都当"可解性诊断"，主指标走 propose_improvement（开放式、按落点/涨跌打分），
    或继续用旧题盲答格式做模型能力排序。
+
+## 12. 同事推送的新题分析 + opus 事后审计（2026-08-01）
+
+### 12.1 新题来源（origin/main，本地分支落后 51 个提交）
+
+- **唐晨成（tcc）**：`benchmark_releases/question_packs/` 两个 100 题包（2 选 1、architecture_only）：
+  - `xor-v2.5-100q-37b9da`：synthetic_tabular_classification，30 MLP / 70 KAN；
+  - `gru-v2.5-100q-a48abc`：bigram_lm，50 transformer_lm / 50 gru_lm。
+- **任梓睿（renrua52）**：`tools/benchmark_v1_build.py`（分层配额 + audit 报告）、
+  `src/architecture_iq/questions/quality.py`（可选质量过滤器：gap_max/gap_worst_max/require_finite_mean/max_failed_seeds）、
+  `profiles/v1.yaml`（统一池、num_choices: 2）、XOR/spiral 分类 family、TabPFN 管线。
+
+### 12.2 程序化检查（两包共 200 题）
+
+| 包 | 答案键==GT | ratio 中位数 | tight(<1.05) | 预算一致 | 参数量比值中位数 | winner=参数量最大 |
+|---|---|---|---|---|---|---|
+| XOR | 100/100 | 1.19 | 0% | 100/100 | 2.12×（max 18.7×） | 52%>2× 跨度 |
+| GRU | 100/100 | **1.017** | **95%** | 100/100 | 3.61×（max 64×） | 78%>2× 跨度 |
+
+- GRU 包：CE 压缩，winner-runner 差距中位数 1.7%，落在 seed 噪声内 → 本质不可判。
+- XOR 包：KAN 赢 70%（= 集合标题 30 MLP / 70 KAN），参数量/模型族 prior 直接泄露答案。
+
+### 12.3 claude-opus-5 事后审计（12 题：XOR 3 / GRU 3 / select_best_v2 3 / old60 3，优先 tight）
+
+- 判定可答题性（1–5，5=可推理）：mean 3.08；GRU 全部 2 分、XOR 3–4 分、select_best_v2 3 分、**old60 全部 4 分（最高）**。
+- 失败模式：`gap_too_small` ×5（GRU 3 + select_best_v2 2）、`type_prior` ×3（全部 XOR）、`ok` ×4（全部 old60 + 1）。
+- opus 原话（GRU）："gap 需要明显超过 ~0.007 的 seed 噪声"；opus 原话（XOR）："答案取决于 task-specific fit 而不是
+  'KAN 在低维光滑 tabular 上赢' 的一般 prior"。
+- 结论与用户判断一致：**旧 60 风格的题（hints 版）最合理；GRU 包是噪声；XOR 包被 type/params prior 污染**。
+
+### 12.4 参数量/预算 1.1× 对齐检查（用户规则：候选 ≤ 最大 baseline 的 1.1 倍）
+
+- `score_proposal.py` 已实现：`MAX_PARAM_RATIO=1.1`，`total_samples_seen` 固定为 base 的（50 个提案里 47 个通过）。
+- 但**题库选项没遵守**：select_best_v2 的 59 题里 43 题选项间参数量跨度 >1.1×（中位数 **163×**）、
+  old60 48/48（中位数 47×）、propose_v1.1 的 demos 55/66（中位数 65×）；
+  select_best_v2 里 **66% 的题 winner=参数量最大选项**（old60 62%）→ 分数主要来自"选最大模型"prior，不是推理。
+- 训练预算 total_samples_seen：select_best_v2 / old60 全部对齐（0 mixed）；propose_v1.1 有 4/66 demo 预算混合。
