@@ -484,3 +484,55 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
   当前 6 选 1 / 二选一题面无法区分模型能力。
 - **建议**：把 select_best/two_choice 保留为"可解性诊断"，主推进方向改为 propose_improvement
   （开放式生成、按涨跌打分），或调难选择题（减少参考、收紧 gap、去掉局部校准 demos）。
+
+## 11. 旧 60 题 → 新评测框架 + 模型偏序（2026-08-01）
+
+### 11.1 旧 60 题转新评测（用户方案：三选项进 hint）
+
+- 旧 60 题 = `examples/quiz_demo/bundle/datasets/{family}/{dataset_id}/questions/run_20q_3c_*/`
+  （sym_62678b / mvar_c59a30 / bg_0021c1 各 20 题，三选一）。
+- 转换器 `backend/eval/old60.py`：每题保留旧的三选项（带 loss）作 calibration hints，
+  再加 2 个同池邻近 setting；新选项 = 同池内离旧 winner 1–8 个 config 编辑、salient 1–3 的 3 个
+  setting（保留三选一结构，便于与旧盲答数字对比）；选项 loss 不展示，模型选最低。
+- 产出 `backend/eval/sets/select_best_old60/questions.jsonl`：48 题（uni 18 / multi 17 / bg 13；
+  bg 压缩 CE 用放宽阈值 ratio≥1.02、wr≥0.6，MSE 用 ratio≥1.15、wr≥0.7）。
+- 完整性：选项与 references 零重叠、correct key 全部与当前 summary 一致。
+
+### 11.2 luna 结果（3 选 1 + hints，48 题，无 token 上限、reasoning high）
+
+| 指标 | 值 |
+|---|---|
+| top1 正确率 | 33/48 = **68.8%**（random 33.3%） |
+| mean_rank / rank_score | 1.44 / 1.56 of 2（78.1%）；top2 87.5% |
+| 分层 | loose(≥2) 88.9% / medium 58.8% / tight 54% |
+| 分 family | univariate 83.3% / multivariate 64.7% / bigram 53.8% |
+
+对比：旧 60 盲答（无 hint）GPT-5.5 只有 46.7%、人类基线 70%——给 hint 后便宜模型即达人类盲答水平。
+
+### 11.3 模型偏序（docs/0710_gpteval.html + 本地 llm_runs/vapi_* + 新评测）
+
+**旧 60 盲答（3 选 1，无反馈，外部评分）：**
+gemini-3.5-flash-thinking 48.3% ≈ gpt-5 46.7% ≈ gpt-5.5 46.7% > claude-opus-4-8 40.0%
+≈ claude-sonnet-5 40.0% > o3 35.0% > gemini-2.5-pro 23.3%（跨度 25pp，能区分模型）；
+人类 唐晨成 70%，只看参数量规则 66.7%。
+
+**旧 60 全程顺序（先答后反馈）：** GPT-5.5 79.7% ≈ GPT-5.4 78.3% ≈ GPT-5.6-SOL 78.3%（无区分）。
+
+**新题 high_budget 13/15 盲答（llm_runs/vapi_*）：**
+gpt-5.6-terra 7/13 = 53.8% > deepseek-v4-pro 3/13 = 23.1% > claude-sonnet-5 1/13 = 7.7%；
+deepseek-v4-pro budget15 5/15 = 33.3%（同题 GPT-5.4 盲答 20%、顺序 46.7%）；
+deepseek 3x3binary180 108/180 = 60%。
+
+**新评测框架 50 题：** two_choice_local：luna 74% ≈ deepseek 74% ≈ claude-opus-5 72%
+≈ terra 70% > kimi 66.7%；select_best_v2：luna 74% ≈ terra 72% ≈ claude 70%。
+
+**meta-model 对照（旧 60 external）：** CV champion / XGBoost 54/60 = 90% > MLP 76.7%
+> 参数量规则 66.7%（删参数量列仅 -3 题，主信号在 optimizer/lr/architecture 交互）。
+
+### 11.4 结论
+
+1. **用户判断成立**：旧 60 盲答能拉开模型（25pp 跨度），新题 6 选 1/二选一挤在 66–74%（8pp），
+   新题区分度差；旧题"更合理"的观感有数据支持。
+2. 但一旦给 hint（11.2），旧题也被便宜模型推到 69%——区分度主要来自"盲答无参考"。
+3. 建议：选择题都当"可解性诊断"，主指标走 propose_improvement（开放式、按落点/涨跌打分），
+   或继续用旧题盲答格式做模型能力排序。

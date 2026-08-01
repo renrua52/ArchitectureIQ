@@ -246,7 +246,9 @@ def summarize(results: list[dict], label: str) -> dict:
         family_tot[r["family"]] += 1
         family_ok[r["family"]] += r["is_correct"]
     first_type = (results[0].get("type") if results else None) or ""
-    n_choices = 2 if "two_choice" in first_type else 6
+    n_choices = max((r.get("n_options") or 0) for r in results) if results else 0
+    if not n_choices:
+        n_choices = 2 if "two_choice" in first_type else 6
     scored_rank = [r for r in scored if r.get("rank") is not None]
     n_rank = len(scored_rank)
     rank_scores = [r["rank_score"] for r in scored_rank]

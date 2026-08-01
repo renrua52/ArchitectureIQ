@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1",
+  "set_name": "select_best_old60",
+  "type": "select_best_old60",
+  "seed": 20260801,
+  "items": 48,
+  "old_questions_loaded": 60,
+  "skipped_old_questions": [
+    "q_094b12",
+    "q_530159",
+    "q_70c35c",
+    "q_b0b228",
+    "q_b9f2a5",
+    "q_bc3c03",
+    "q_d4e25d",
+    "q_48a555",
+    "q_546b65",
+    "q_621b85",
+    "q_b87c20",
+    "q_f745a6"
+  ],
+  "filters": {
+    "win_rate_min": "per-metric (CE 0.6 / MSE 0.7)",
+    "ratio_min": "per-metric (CE 1.02 / MSE 1.15)",
+    "n_references": 5,
+    "n_options": 3,
+    "max_edit_dist_from_winner": 8,
+    "salient_min": 1,
+    "salient_max": 2,
+    "pairwise_salient_min": 2
+  }
+}
