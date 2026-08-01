@@ -454,3 +454,33 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
 - select_best 分层（claude）：tight(<1.15) top1 80%、medium 67%、loose 72%——修复答案键后
   tight 题不再是 0%，"tight 不可判"的旧结论作废。
 - 排名分布（claude select_best）：rank1×35、rank2×5、rank3×7、rank4×2、rank6×1——模型很少落到倒数两名。
+
+## 10. 为什么二选一 ≈ 六选一？+ 便宜模型校准（gpt-5.6-luna）
+
+### 10.1 现象
+
+修键后各模型 50 题 top1 正确率几乎都落在 70–74%，六选一并不比二选一"更难"：
+
+| 模型 | select_best 6选1 top1 | select_best rank_score | two_choice 2选1 top1 |
+|---|---|---|---|
+| claude-opus-5 | 70% | 4.40/5 = 88% | 72% |
+| gpt-5.6-terra | 72% | 4.44/5 = 88.8% | 70% |
+| gpt-5.6-luna（最便宜 debug） | **74%** | 4.60/5 = 92% | **74%** |
+
+### 10.2 原因
+
+1. **两套题池难度不同**：two_choice local 的 50 题里 38/50（76%）是 ratio 1.2–2× 的 medium 对，
+   medium 层正确率只有 68–71%（claude 68% / luna 71%）；select_best 各层 67–80%。
+2. **信息量不对称**：select_best 每题给 5 个带 loss 的参考 setting，判别轴更丰富，六选一只比二选一"看起来难"；
+   而 select_best 的随机基线是 16.7%，**超出基线 +53–57pp**；two_choice 基线 50%，只超出 +22–24pp。
+   绝对正确率撞在 ~70% 是巧合。
+3. **ask 方向**：two_choice 里 ask=lower 略难（claude 62% / terra 65% vs higher 83% / 75%），
+   luna 无此差异（73% vs 75%），样本小（24–26 题），先不据此调题。
+
+### 10.3 题目是否合理？（校准结论）
+
+- **可解性与合理性 ✅**：远超随机基线、答案键修复后分数可信、模型几乎不落到倒数（rank_score 88–92%）。
+- **区分度 ⚠️ 天花板效应**：最便宜的 luna 与 claude/terra 打平甚至略高（74% vs 70–72%），
+  当前 6 选 1 / 二选一题面无法区分模型能力。
+- **建议**：把 select_best/two_choice 保留为"可解性诊断"，主推进方向改为 propose_improvement
+  （开放式生成、按涨跌打分），或调难选择题（减少参考、收紧 gap、去掉局部校准 demos）。
