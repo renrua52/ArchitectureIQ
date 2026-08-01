@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import tempfile
 from pathlib import Path
 
@@ -112,6 +113,84 @@ def _snap_optimizer(opt: dict, notes: list[str]) -> dict:
     return out
 
 
+def normalize_proposal_display(proposal: dict) -> tuple[dict, list[str]]:
+    """Map LLM display names to closed-set schema keys.
+
+    LLMs write e.g. ``"type": "causal transformer LM"``, ``"learning_rate"``,
+    or ``"loss": "cross-entropy on next-token labels"`` instead of the schema
+    values (``transformer_lm`` / ``lr`` / ``{"loss_id": ...}``). This layer
+    normalizes those before ``normalize_proposal`` merges them over the base.
+    """
+    notes: list[str] = []
+    p = json.loads(json.dumps(proposal, sort_keys=True))
+
+    def norm(s: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+
+    model = p.get("model")
+    if isinstance(model, dict) and "type" in model:
+        t = str(model["type"])
+        n = norm(t)
+        if "transformer" in n:
+            mapped = "transformer_lm"
+        elif "mlp" in n or "perceptron" in n or "linearnet" in n:
+            mapped = "mlp"
+        else:
+            mapped = t
+        if mapped != t:
+            notes.append(f"model.type {t!r} -> {mapped!r}")
+        model["type"] = mapped
+
+    opt = p.get("optimizer")
+    if isinstance(opt, dict):
+        if "type" in opt:
+            t = str(opt["type"])
+            n = norm(t)
+            alias = {"sgd": "SGD", "adam": "Adam", "adamw": "AdamW",
+                     "rmsprop": "RMSprop", "adagrad": "Adagrad"}
+            mapped = alias.get(n, t)
+            if mapped != t:
+                notes.append(f"optimizer.type {t!r} -> {mapped!r}")
+            opt["type"] = mapped
+        lr_key = next((k for k in opt if k.lower() in ("lr", "learning_rate")), None)
+        if lr_key is not None and lr_key != "lr":
+            opt["lr"] = opt.pop(lr_key)
+            notes.append(f"optimizer.{lr_key} -> lr")
+        wd_key = next((k for k in opt if k.lower() in ("weight_decay", "weight decay", "wd")), None)
+        if wd_key is not None and wd_key != "weight_decay":
+            opt["weight_decay"] = opt.pop(wd_key)
+            notes.append(f"optimizer.{wd_key} -> weight_decay")
+
+    def map_loss(value: str) -> str:
+        n = norm(value)
+        if "cross" in n or "softmax" in n or n == "ce":
+            lid = "cross_entropy"
+        elif "mse" in n or "square" in n or "mean" in n:
+            lid = "mse"
+        else:
+            lid = value
+        if "l1" in n:
+            lid += "_l1"
+        elif "l2" in n:
+            lid += "_l2"
+        return lid
+
+    loss = p.get("loss")
+    if isinstance(loss, str):
+        lid = map_loss(loss)
+        notes.append(f"loss {loss!r} -> {lid!r}")
+        p["loss"] = {"loss_id": lid}
+    elif isinstance(loss, dict):
+        raw = loss.get("loss_id") or loss.get("type") or loss.get("name")
+        if isinstance(raw, str):
+            lid = map_loss(raw)
+            if lid != raw:
+                notes.append(f"loss {raw!r} -> {lid!r}")
+            p["loss"] = {"loss_id": lid}
+
+    return p, notes
+
+
 def normalize_proposal(base_cfg: dict, proposal: dict) -> tuple[dict, list[str], list[str]]:
     """Merge proposal over base, snap to closed set. Returns (spec, notes, errors)."""
     notes: list[str] = []
@@ -134,7 +213,17 @@ def normalize_proposal(base_cfg: dict, proposal: dict) -> tuple[dict, list[str],
             if model["depth"] not in range(1, 7):
                 errors.append(f"mlp depth {model['depth']} out of [1, 6]")
             if len(model["activations"]) != model["depth"] or len(model["layer_norm"]) != model["depth"]:
-                errors.append("mlp activations/layer_norm length must equal depth")
+                if len(model["activations"]) < model["depth"]:
+                    base = model["activations"]
+                    model["activations"] = (base * (model["depth"] // max(1, len(base)) + 1))[: model["depth"]]
+                else:
+                    model["activations"] = model["activations"][: model["depth"]]
+                if len(model["layer_norm"]) < model["depth"]:
+                    base = model["layer_norm"]
+                    model["layer_norm"] = (base * (model["depth"] // max(1, len(base)) + 1))[: model["depth"]]
+                else:
+                    model["layer_norm"] = model["layer_norm"][: model["depth"]]
+                notes.append("mlp activations/layer_norm refit to new depth")
         else:
             model["d_model"] = int(_nearest(model["d_model"], (32, 64, 128)))
             model["num_layers"] = int(_nearest(model["num_layers"], (1, 2, 3)))
@@ -163,6 +252,11 @@ def normalize_proposal(base_cfg: dict, proposal: dict) -> tuple[dict, list[str],
 
     if "loss" in proposal:
         loss = dict(proposal["loss"])
+        for k, v in spec["loss"].items():
+            loss.setdefault(k, v)  # inherit lambda etc. from the base loss
+        if "lambda" not in loss and str(loss.get("loss_id", "")).endswith(("_l1", "_l2")):
+            loss["lambda"] = 1.0e-3  # closed-set default from loss_grids.lambda
+            notes.append("loss.lambda default 1e-3 (not in base)")
         spec["loss"] = loss
         notes.append(f"loss={loss.get('loss_id')}")
     else:
@@ -260,7 +354,13 @@ def score_question(question: dict, proposal: dict) -> dict:
 
     mean_key = _mean_key(metric)
     final_key = _final_key(metric)
-    proposal_loss = float(summary[mean_key])
+    proposal_loss = summary.get(mean_key)
+    if proposal_loss is None:
+        return {"ok": False, "question_id": question["question_id"],
+                "problem_id": problem_id, "errors": ["proposal excluded: all seeds "
+                "failed/diverged in GT run"], "notes": notes,
+                "snapped_spec": spec}
+    proposal_loss = float(proposal_loss)
     base_sum = repo.read_summary(problem_id, base_id)
     base_loss = float(base_sum[mean_key])
 

@@ -20,6 +20,7 @@ import random
 from pathlib import Path
 
 from architecture_iq.candidates.axes import choices_have_contrast
+from backend.eval.questions import config_edit_distance
 from architecture_iq.prompts.formatters import (
     format_loss_nl,
     format_model_nl,
@@ -94,23 +95,34 @@ def _load_candidates(problem_id: str) -> list[tuple[str, dict, dict]]:
     return rows
 
 
-def build_item(problem_id: str, rng: random.Random, metric: str) -> dict | None:
+def _pick_demos_near(pool: list[tuple], target_a: dict, target_b: dict,
+                     n: int, rng: random.Random) -> list[tuple]:
+    """Demos = candidates structurally closest to either target option, so the
+    model sees local calibration ("what happens if you tweak this exact config")
+    instead of global min/median/max anchors."""
+    scored = []
+    for i, (_, config, _) in enumerate(pool):
+        d = min(config_edit_distance(config, target_a),
+                config_edit_distance(config, target_b))
+        scored.append((d, i))
+    scored.sort(key=lambda x: x[0])
+    rng.shuffle([x for x in scored if x[0] == scored[0][0]] or scored)
+    return [pool[i] for _, i in scored[:n]]
+
+
+def build_item(problem_id: str, rng: random.Random, metric: str,
+               demo_strategy: str = "range") -> dict | None:
     rows = _load_candidates(problem_id)
     if len(rows) < N_DEMOS + 2:
         return None
     mean_key = _mean_key(metric)
     rows.sort(key=lambda r: float(r[2][mean_key]))
 
-    # demos: spread across the loss range (near min / median / max)
-    demo_idx = sorted({0, len(rows) // 2, len(rows) - 1})
-    demos = [rows[i] for i in demo_idx]
-    pool = [r for i, r in enumerate(rows) if i not in demo_idx]
-
-    rng.shuffle(pool)
-    for idx_a in range(len(pool) - 1):
-        for idx_b in range(idx_a + 1, len(pool)):
-            cid_a, config_a, sum_a = pool[idx_a]
-            cid_b, config_b, sum_b = pool[idx_b]
+    rng.shuffle(rows)
+    for idx_a in range(len(rows) - 1):
+        for idx_b in range(idx_a + 1, len(rows)):
+            cid_a, config_a, sum_a = rows[idx_a]
+            cid_b, config_b, sum_b = rows[idx_b]
             if not choices_have_contrast([config_a, config_b]):
                 continue
             st = pair_stats(sum_a, sum_b, metric)
@@ -119,6 +131,14 @@ def build_item(problem_id: str, rng: random.Random, metric: str) -> dict | None:
             win = max(st["win_rate_a_higher"], 1 - st["win_rate_a_higher"])
             if win < MIN_WIN_RATE:
                 continue
+            if demo_strategy == "config_near":
+                pool = [r for r in rows if r[0] not in (cid_a, cid_b)]
+                demos = _pick_demos_near(pool, config_a, config_b, N_DEMOS, rng)
+            else:  # range: spread across min / median / max
+                pool = [r for r in rows if r[0] not in (cid_a, cid_b)]
+                pool.sort(key=lambda r: float(r[2][mean_key]))
+                demo_idx = sorted({0, len(pool) // 2, len(pool) - 1})
+                demos = [pool[i] for i in demo_idx]
             higher = st["mean_a"] > st["mean_b"]
             ask_higher = bool(rng.getrandbits(1))
             if ask_higher:
@@ -131,6 +151,7 @@ def build_item(problem_id: str, rng: random.Random, metric: str) -> dict | None:
                 "problem_id": problem_id,
                 "metric": metric,
                 "ask": "higher" if ask_higher else "lower",
+                "demo_strategy": demo_strategy,
                 "demos": [
                     {"candidate_id": cid, "setting": config, "loss": float(summary[mean_key])}
                     for cid, config, summary in demos
@@ -176,6 +197,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--items-per-problem", type=int, default=3)
     ap.add_argument("--seed", type=int, default=20260801)
+    ap.add_argument("--demo-strategy", choices=("range", "config_near"), default="range")
     ap.add_argument("--out", type=Path, default=OUT_DIR)
     args = ap.parse_args()
     rng = random.Random(args.seed)
@@ -189,7 +211,7 @@ def main() -> int:
         metric = spec.get("selection_metric", "test_mse")
         n_items = 0
         for _ in range(args.items_per_problem):
-            item = build_item(problem_id, rng, metric)
+            item = build_item(problem_id, rng, metric, demo_strategy=args.demo_strategy)
             if item is None:
                 continue
             n_items += 1

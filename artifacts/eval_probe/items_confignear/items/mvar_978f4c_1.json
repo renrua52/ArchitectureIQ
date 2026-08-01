@@ -1,0 +1,235 @@
+{
+  "schema_version": "0.1",
+  "task": "two_choice_loss_compare",
+  "problem_id": "mvar_978f4c",
+  "metric": "test_mse",
+  "ask": "higher",
+  "demo_strategy": "config_near",
+  "demos": [
+    {
+      "candidate_id": "c_3b6d02",
+      "setting": {
+        "schema_version": "2.0",
+        "problem_id": "mvar_978f4c",
+        "candidate_id": "c_3b6d02",
+        "family": "multivariate_regression",
+        "budget": {
+          "training_steps": 5120,
+          "batch_size": 16,
+          "total_samples_seen": 81920
+        },
+        "model": {
+          "type": "mlp",
+          "depth": 3,
+          "width": 32,
+          "residual": false,
+          "layer_norm": [
+            false,
+            true,
+            true
+          ],
+          "activations": [
+            "leaky_relu",
+            "leaky_relu",
+            "relu"
+          ],
+          "input_dim": 8
+        },
+        "optimizer": {
+          "type": "SGD",
+          "lr": 0.003,
+          "weight_decay": 1e-05,
+          "momentum": 0.9
+        },
+        "loss": {
+          "loss_id": "mse_l2",
+          "lambda": 0.001
+        }
+      },
+      "loss": 0.5579046487808228
+    },
+    {
+      "candidate_id": "c_a2e435",
+      "setting": {
+        "schema_version": "2.0",
+        "problem_id": "mvar_978f4c",
+        "candidate_id": "c_a2e435",
+        "family": "multivariate_regression",
+        "budget": {
+          "training_steps": 5120,
+          "batch_size": 16,
+          "total_samples_seen": 81920
+        },
+        "model": {
+          "type": "mlp",
+          "depth": 6,
+          "width": 16,
+          "residual": false,
+          "layer_norm": [
+            false,
+            true,
+            false,
+            false,
+            true,
+            true
+          ],
+          "activations": [
+            "leaky_relu",
+            "gelu",
+            "leaky_relu",
+            "leaky_relu",
+            "silu",
+            "relu"
+          ],
+          "input_dim": 8
+        },
+        "optimizer": {
+          "type": "SGD",
+          "lr": 0.003,
+          "weight_decay": 1e-05,
+          "momentum": 0.9
+        },
+        "loss": {
+          "loss_id": "mse_l2",
+          "lambda": 0.001
+        }
+      },
+      "loss": 0.7781435966491699
+    },
+    {
+      "candidate_id": "c_2a4835",
+      "setting": {
+        "schema_version": "2.0",
+        "problem_id": "mvar_978f4c",
+        "candidate_id": "c_2a4835",
+        "family": "multivariate_regression",
+        "budget": {
+          "training_steps": 5120,
+          "batch_size": 16,
+          "total_samples_seen": 81920
+        },
+        "model": {
+          "type": "mlp",
+          "depth": 3,
+          "width": 128,
+          "residual": false,
+          "layer_norm": [
+            true,
+            false,
+            false
+          ],
+          "activations": [
+            "silu",
+            "relu",
+            "relu"
+          ],
+          "input_dim": 8
+        },
+        "optimizer": {
+          "type": "SGD",
+          "lr": 0.003,
+          "weight_decay": 1e-05,
+          "momentum": 0.9
+        },
+        "loss": {
+          "loss_id": "mse_l2",
+          "lambda": 0.001
+        }
+      },
+      "loss": 0.509278553724289
+    }
+  ],
+  "target": {
+    "A": {
+      "candidate_id": "c_b46a17",
+      "setting": {
+        "schema_version": "2.0",
+        "problem_id": "mvar_978f4c",
+        "candidate_id": "c_b46a17",
+        "family": "multivariate_regression",
+        "budget": {
+          "training_steps": 1280,
+          "batch_size": 64,
+          "total_samples_seen": 81920
+        },
+        "model": {
+          "type": "mlp",
+          "depth": 5,
+          "width": 16,
+          "residual": true,
+          "layer_norm": [
+            true,
+            false,
+            false,
+            true,
+            false
+          ],
+          "activations": [
+            "silu",
+            "relu",
+            "silu",
+            "leaky_relu",
+            "silu"
+          ],
+          "input_dim": 8
+        },
+        "optimizer": {
+          "type": "SGD",
+          "lr": 0.01,
+          "weight_decay": 1e-05,
+          "momentum": 0
+        },
+        "loss": {
+          "loss_id": "mse"
+        }
+      }
+    },
+    "B": {
+      "candidate_id": "c_8595e4",
+      "setting": {
+        "schema_version": "2.0",
+        "problem_id": "mvar_978f4c",
+        "candidate_id": "c_8595e4",
+        "family": "multivariate_regression",
+        "budget": {
+          "training_steps": 5120,
+          "batch_size": 16,
+          "total_samples_seen": 81920
+        },
+        "model": {
+          "type": "mlp",
+          "depth": 3,
+          "width": 16,
+          "residual": false,
+          "layer_norm": [
+            false,
+            true,
+            true
+          ],
+          "activations": [
+            "gelu",
+            "silu",
+            "gelu"
+          ],
+          "input_dim": 8
+        },
+        "optimizer": {
+          "type": "SGD",
+          "lr": 0.003,
+          "weight_decay": 1e-05,
+          "momentum": 0.9
+        },
+        "loss": {
+          "loss_id": "mse_l2",
+          "lambda": 0.001
+        }
+      }
+    }
+  },
+  "answer": "B",
+  "statistics": {
+    "ratio": 1.275,
+    "win_rate": 0.9,
+    "n_seeds": 10
+  }
+}

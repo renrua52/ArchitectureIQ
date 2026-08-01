@@ -132,6 +132,48 @@ base config + proposal overrides
 
 ---
 
+## 5.1 大规模批量评测（50 题/setting，2026-08-01 第二轮）
+
+批量并发评测脚本：`backend/eval/batch_eval.py`（选择题）与 `backend/eval/batch_propose.py`
+（config 修改题）；默认 provider 为**本地 DeepSeek key**（`~/.codex-deepseek/.deepseek_api_key`
+→ `api.deepseek.com`，模型 `deepseek-chat` = deepseek-v4-flash），默认 50 并发，
+支持 `--sets a,b` 混合并发。phybench 中转（`openai.phybench.cn`，gpt-5.6-terra）不稳定，
+仅在其中转恢复窗口内补跑对照。
+
+### DeepSeek-V4-Flash（50 题/setting）
+
+| 题集 | 题量 | 正确 / 击败 | 随机基线 | 结论 |
+|------|------|-------------|----------|------|
+| `select_best_v1.1` | 50 | 9/50（18%） | 16.7% | 六选一 ≈ 随机 |
+| `select_best_v1.2` | 50 | 4/50（8%，另一 run 2/50） | 16.7% | 六选一 ≈ 随机（或更低） |
+| `two_choice` seed1（range demo） | 50 | 27/50（54%） | 50% | 二选一 ≈ 随机 |
+| `two_choice` seed2（range demo） | 50 | 26/50（52%） | 50% | 二选一 ≈ 随机 |
+| `two_choice` config_near demo | 50 | 21/50（42%） | 50% | 配置邻居 demo 是负优化 |
+| `propose_improvement_v1.1` | 50 | **48/50 击败 base（96%）** | — | 中位 ratio 1.33，win_rate≥0.7 有 45 题 |
+| `propose_improvement_v1` | 50 | **43/49 击败 base（88%）** | — | 中位 ratio 1.32，win_rate≥0.7 有 39 题 |
+
+### gpt-5.6-terra（phybench 中转恢复窗口，50 题/setting）
+
+| 题集 | 题量 | 正确率 | 随机基线 |
+|------|------|--------|----------|
+| `select_best_v1.2` | 50 | 9/50（18%） | 16.7% |
+| `two_choice` seed1（range demo） | 50 | 38/50（76%） | 50% |
+| `two_choice` config_near demo | 50 | 31/50（62%） | 50% |
+
+**50 题样本下的结论（替代小样本探针）**：
+
+1. **六选一 select_best 对两个模型都是地板**（8–18%，随机 16.7%）；gpt-5.6-terra 略高于随机，
+   deepseek 偶尔低于随机（被参考误导）。
+2. **二选一区分两个模型**：gpt-5.6-terra 76% 显著高于 deepseek 52–54%（≈随机）。
+   → 二选一可以作为**模型能力的有效度量**；六选一作为上限测试。
+3. **config_near demo 在两个模型上都是负优化**（gpt 76%→62%，deepseek 54%→42%），
+   保留 range（min/median/max）demo 策略。
+4. **propose_improvement 是强信号任务**：deepseek 两组 50 题分别 96% / 88% 击败 base
+   （GT 全部新跑），中位 ratio ~1.32；top 案例 ratio 数百倍（如 base 0.208 → 0.0003）。
+   即使一个只会"抄参考中最优 config"的模型也能赢，说明任务对 LLM 友好、可度量。
+5. **工程结论**：50 并发 + 多 setting 并行（`--sets`）稳定跑通（3 setting × 50 题 ≈ 10s API 时间）；
+   DeepSeek 官方 API 无限流问题；phybench 中转不可靠（会整批空响应）。
+
 ## 6. 结论与建议
 
 - **select_best 保留为"难任务"**（v1.2 结构更干净），用于测 LLM 的上限；分数接近随机是预期现象，需要记录随机基线与置信区间。
