@@ -390,3 +390,38 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
 - [ ] propose_improvement 批量闭环：LLM 并行 propose 5 个修改 → GT → 分层入库（`tools/batch_generate` 已有并行骨架）
 - [ ] 同数据集多题跨批次（避免跨题泄漏）的完整评测协议
 - [ ] meta-model（TabPFN）评测（第三 section，暂不实现）
+
+## 8. 勘误（2026-08-01）：select_best v1.2 答案键 bug —— 根因已定位并修复
+
+### 8.1 现象
+
+- 上一版结论（§5.5.5 / §6）认为 select_best 接近随机是"题目太难、复杂系统不可判"，**结论错误**。
+- 实际根因：`backend/eval/questions.py` 的 `build_select_best` 存在**索引失效 bug**：
+  1. 先按 `mean_{metric}` 算出 `winner_i` / `runner_i`（shuffle 前的下标）；
+  2. `rng.shuffle(pool)` 之后，又用**旧下标**去取 `pool[winner_i][0]` 当作 winner；
+  3. 结果 `winner_candidate` / `correct_letter` 是 shuffle 后的**随机选项**，与 GT 无关。
+- 量化：select_best_v1.2 的 59 题中，嵌入答案键与当前 `summary.json`（执行 GT）一致的只有 **12/59**；
+  47 题答案键是错的（≈ 随机标注，符合 1/6 预期）。`ratio` / `win_rate` 字段本身算对了，但挂在了错误的候选上。
+
+### 8.2 影响（旧数字作废）
+
+| 模型 | select_best v1.2（坏键） | select_best v2（修复后同题重打分） | two_choice local（对照，未受影响） |
+|---|---|---|---|
+| claude-opus-5 | 9/50 = 18% | **34/50 = 68%** | 36/50 = 72% |
+| gpt-5.6-terra | 10/50 = 20% | **35/50 = 70%** | 35/50 = 70% |
+
+- 在 47 道"键被改对"的题里，claude 答对 29 道、terra 答对 27 道——模型其实是**按当前 GT 选了真最优**，只是被判错。
+- two_choice 路径（`backend/eval/two_choice.py`）无此 bug：84 个 local 题答案键 84/84 与当前 summary 一致。
+
+### 8.3 修复
+
+- `build_select_best`：在 `rng.shuffle(pool)` **之前**提取 `winner_id` / `runner_id`，shuffle 后仅用 candidate_id 匹配字母。
+- 已用原 seed `20260804` 重建 `backend/eval/sets/select_best_v2/questions.jsonl`：59 题与 v1.2 **同池同参考**，
+  仅答案键修正，59/59 与当前 `summary.json` 一致。旧 `select_best_v1.2` 保留供对比，不再用于打分。
+
+### 8.4 对后续出题的启示（与用户"好 base + 改进"方向一致）
+
+- select_best 可解性比之前认为的好得多（~70%），但 5 个随机参考仍欠定：tight 题（<1.15）和
+  判别轴未覆盖的题仍会拖低分数。
+- 下一版题面按 §5.5.5 建议改造：base 取候选池最优/次优，参考改为"base + 1–2 点修改并带 loss"
+  的 few-shot（即 propose 范式），选项包含 base 本身。

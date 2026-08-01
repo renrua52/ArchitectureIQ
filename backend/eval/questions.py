@@ -284,6 +284,8 @@ def build_select_best(problem_id: str, rng: random.Random, max_tries: int = 20) 
         ratio = max(means[winner_i], means[runner_i]) / max(min(means[winner_i], means[runner_i]), 1e-12)
         if wr < WIN_RATE_MIN or ratio < floor:
             continue
+        winner_id = pool[winner_i][0]
+        runner_id = pool[runner_i][0]
 
         exclude = {p[0] for p in pool}
         opt_lo = min(means)
@@ -294,7 +296,6 @@ def build_select_best(problem_id: str, rng: random.Random, max_tries: int = 20) 
 
         rng.shuffle(pool)
         letters = [chr(ord("A") + i) for i in range(len(pool))]
-        winner_id = pool[winner_i][0]
         options = []
         correct = None
         for letter, (cid, cfg, _, is_base) in zip(letters, pool):
@@ -313,7 +314,7 @@ def build_select_best(problem_id: str, rng: random.Random, max_tries: int = 20) 
             "correct_letter": correct,
             "statistics": {
                 "winner_candidate": winner_id,
-                "runner_up_candidate": pool[runner_i][0],
+                "runner_up_candidate": runner_id,
                 "ratio": round(ratio, 3),
                 "win_rate": round(wr, 3),
                 "n_seeds": len(base_sum["seed_results"]),
