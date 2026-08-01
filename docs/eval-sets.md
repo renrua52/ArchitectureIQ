@@ -284,6 +284,35 @@ select_best 长回答显示其核心策略是**"找与最优参考配置最相�
   → 出题端应优先保证"目标对在配置空间里可比"（同一锚点邻域内），demo 是 star 还是分位点影响其次。
 
 
+## 5.4 跨模型对照：gpt-5.6-terra / Kimi-K3 via gpt.ge 中转（2026-08-01 第四轮）
+
+harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` 读取（`eval` key），
+不设 token 上限，默认 `reasoning_effort=high`，并兼容 `reasoning_content`（Kimi/qwen 会把
+答案放 content 或 reasoning_content，视推理模式而定；空 content 自动重试）。同批
+`artifacts/eval_probe_local/items` 前 50 题 two_choice + `select_best_v1.2` 前 50 题：
+
+| 模型 | two_choice local（标准） | two_choice local（强制推理） | select_best_v1.2 | 备注 |
+|------|------|------|------|------|
+| gpt-5.6-terra（gpt.ge） | **33/50 = 66%** | **33/50 = 66%** | 8/50 = 16% | 快（50 题 ~15s）、无塌缩、答案均衡 |
+| Kimi-K3（gpt.ge） | —（慢/超时） | 32/50 = 64%（重试 1 轮后，2 题仍空） | 6/50 = 12%（**21/50 空响应**） | 慢（50 题 13–15 min），长 prompt 大量空响应 |
+| DeepSeek v4-flash（官方 API） | 26/50 = 52%（全 A 塌缩） | **~74%**（3 轮均值 73.5%） | 6/50 = 12%（修复解析后） | 短答案格式塌缩，需强制推理 |
+| gpt-5.6-terra（phybench，旧 range 题） | 76%（旧题集，不可直接比） | — | 9/50 = 18% | 中转恢复窗口 |
+
+**结论**：
+
+1. **两个"更强"模型在本基准上并不更强**：two_choice 上 DeepSeek+强制推理（74%）> terra（66%）≈
+   Kimi（64%，重试后）；select_best 全部 ≈ 随机（8–16%），与"题面欠定"的既有结论一致。
+2. **terra 走 gpt.ge 工程上最顺**：快、稳定、无首选项塌缩、两种模式分数一致（66%）。它不做可见推理
+   （`reasoning_content` 只有标题，被中转截断），只能看到最终字母，回答过程不透明。
+3. **Kimi-K3 走 gpt.ge 目前不可靠**：单次 40–60s+，50 题并发 10 要 13–15 分钟；`select_best`（长
+   prompt）空响应率 42%（重试后仍有 21/50 空）；two_choice 空响应率 12%。短 prompt 尚可，长 prompt
+   建议换模型或等中转稳定。
+4. **推理强度参数**：`reasoning_effort=high` 被中转接受（两模型 200）；对 terra 两种模式分数无差异，
+   对 Kimi 是必须项（不带该参数更容易超时）。
+5. **harness 变更**：`backend/eval/batch_eval.py` 现在默认读 relay.json（`eval` key + `models.debug[0]`），
+   支持 `--model Kimi-K3` 等任意模型名、`--reason-suffix`、空响应自动重试；不再设 token 上限。
+
+
 ## 6. 结论与建议
 
 - **select_best 保留为"难任务"**（v1.2 结构更干净），用于测 LLM 的上限；分数接近随机是预期现象，需要记录随机基线与置信区间。

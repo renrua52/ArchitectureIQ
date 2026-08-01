@@ -32,8 +32,9 @@ from architecture_iq.storage import repository as repo
 # Default provider: local DeepSeek key (deepseek-v4-flash). The phybench relay
 # (openai.phybench.cn, gpt-5.6-terra) is used only when explicitly requested via
 # --base-url / --model or OPENAI_BASE_URL.
-DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
-DEFAULT_MODEL = "deepseek-chat"  # deepseek-v4-flash
+RELAY_FILE = Path.home() / ".agents" / "relay.json"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
+DEEPSEEK_MODEL = "deepseek-chat"  # deepseek-v4-flash
 DEEPSEEK_KEY_FILES = (
     Path.home() / ".codex-deepseek/.deepseek_api_key",
     Path.home() / ".codex/.deepseek_api_key",
@@ -43,7 +44,32 @@ OUT_ROOT = Path("artifacts/eval_runs")
 LETTER_RE = re.compile(r"\b([A-F])\b")
 
 
+def relay_config() -> dict | None:
+    """Read the relay key file (eval credentials + model names); None if missing."""
+    try:
+        return json.loads(RELAY_FILE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def default_base_url() -> str:
+    d = relay_config()
+    if d and d.get("eval", {}).get("base_url"):
+        return d["eval"]["base_url"].rstrip("/") + "/v1"
+    return DEEPSEEK_BASE_URL
+
+
+def default_model() -> str:
+    d = relay_config()
+    if d and d.get("models", {}).get("debug"):
+        return d["models"]["debug"][0]
+    return DEEPSEEK_MODEL
+
+
 def resolve_api_key() -> str:
+    d = relay_config()
+    if d and d.get("eval", {}).get("api_key"):
+        return d["eval"]["api_key"]
     for var in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY"):
         v = os.environ.get(var)
         if v:
@@ -117,7 +143,7 @@ async def call_llm(
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 2048,
+        "reasoning_effort": "high",  # AGENTS.md §10: default high, no token caps
         "temperature": 0.0,
     }
     backoff = [1, 2, 4, 8, 16, 30]
@@ -126,8 +152,15 @@ async def call_llm(
             async with sem:
                 r = await client.post("/chat/completions", json=payload, timeout=timeout)
             if r.status_code == 200:
-                data = r.json()
-                return data["choices"][0]["message"]["content"]
+                msg = r.json()["choices"][0]["message"]
+                # Some relay models (Kimi-K3, qwen3.7-max) put the answer in
+                # content or reasoning_content depending on reasoning mode.
+                content = msg.get("content") or ""
+                if not content.strip():
+                    content = msg.get("reasoning_content") or ""
+                if content.strip():
+                    return content
+                # empty 200: relay hiccup — retry (loop continues)
             if r.status_code in (429, 500, 502, 503, 529):
                 wait = backoff[min(attempt, len(backoff) - 1)]
                 await asyncio.sleep(wait)
@@ -164,6 +197,7 @@ async def run_batch(items: list[dict], model: str, concurrency: int, base_url: s
         results.append({
             "_set": it.get("_set"),
             "question_id": it.get("question_id", it.get("task")),
+            "model": model,
             "problem_id": it.get("problem_id"),
             "family": family_of(it.get("problem_id", "")),
             "type": it.get("type", it.get("task", "two_choice")),
@@ -228,12 +262,15 @@ def main() -> int:
     ap.add_argument("--two-choice-dir", default=None)
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--concurrency", type=int, default=50)
-    ap.add_argument("--model", default=DEFAULT_MODEL)
-    ap.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", DEFAULT_BASE_URL),
+    ap.add_argument("--model", default=default_model())
+    ap.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", default_base_url()),
                     help="default DeepSeek api.deepseek.com; phybench relay only via --base-url")
     ap.add_argument("--label", default=None)
     ap.add_argument("--out", default=None)
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--reason-suffix", action="store_true",
+                    help="append a step-by-step reasoning instruction before the answer "
+                         "request (avoids first-option decode collapse on short-answer formats)")
     args = ap.parse_args()
 
     if args.sets:
@@ -254,6 +291,11 @@ def main() -> int:
         for it in items:
             it["_set"] = args.set or Path(args.two_choice_dir).name
         label = args.label or args.set or Path(args.two_choice_dir).name
+    if args.reason_suffix:
+        suffix = ("\n\nFirst reason step by step about how the reference losses "
+                  "calibrate each option, then answer with the letter only.")
+        for it in items:
+            it["prompt"] = (it.get("prompt") or "") + suffix
 
     out = Path(args.out) if args.out else OUT_ROOT / f"{label.replace('/', '_')}.jsonl"
     done_ids = set()
