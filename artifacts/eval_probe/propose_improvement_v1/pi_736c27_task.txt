@@ -1,0 +1,158 @@
+You are given a dataset, a base setting, and several settings (with losses).
+Propose a NEW setting (JSON config) that you expect to beat the base setting.
+
+[Dataset]  problem: bg_0021c1  metric: test_ce (lower is better)
+
+[Reference settings (5)]
+1. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 128
+- num_layers: 1
+- num_heads: 2
+- d_ff: 128 | - Optimizer: RMSprop
+- Learning rate: 0.0003
+- Weight decay: 0.001 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.188
+2. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 32
+- num_layers: 1
+- num_heads: 2
+- d_ff: 256 | - Optimizer: Adagrad
+- Learning rate: 0.003
+- Weight decay: 0.001 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.356
+3. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 128
+- num_layers: 1
+- num_heads: 2
+- d_ff: 64 | - Optimizer: AdamW
+- Learning rate: 0.0001
+- Weight decay: 1e-05
+- Betas: [0.9, 0.999] | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.465
+4. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 128
+- num_layers: 1
+- num_heads: 4
+- d_ff: 128 | - Optimizer: Adam
+- Learning rate: 0.0003
+- Weight decay: 0.001
+- Betas: [0.9, 0.999] | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.275
+5. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 64
+- num_layers: 1
+- num_heads: 2
+- d_ff: 64 | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.0001
+- Momentum: 0 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.625
+
+[Base setting]
+loss = 3.625
+- Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 64
+- num_layers: 1
+- num_heads: 4
+- d_ff: 256 | - Optimizer: SGD
+- Learning rate: 0.0003
+- Weight decay: 0.001
+- Momentum: 0 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)
+
+[Other settings with losses (for calibration)]
+1. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 64
+- num_layers: 1
+- num_heads: 4
+- d_ff: 256 | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0.001
+- Momentum: 0.9 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.621
+2. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 128
+- num_layers: 1
+- num_heads: 4
+- d_ff: 64 | - Optimizer: SGD
+- Learning rate: 0.0003
+- Weight decay: 0.0001
+- Momentum: 0 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.627
+3. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 64
+- num_layers: 3
+- num_heads: 4
+- d_ff: 64 | - Optimizer: SGD
+- Learning rate: 0.0001
+- Weight decay: 0
+- Momentum: 0 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.625
+4. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 32
+- num_layers: 3
+- num_heads: 2
+- d_ff: 256 | - Optimizer: SGD
+- Learning rate: 0.003
+- Weight decay: 0.001
+- Momentum: 0 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.615
+5. - Type: causal transformer LM
+- Vocab size: 32
+- Context length: 16
+- d_model: 128
+- num_layers: 1
+- num_heads: 2
+- d_ff: 256 | - Optimizer: SGD
+- Learning rate: 0.003
+- Weight decay: 0.0001
+- Momentum: 0 | - Loss: cross-entropy on next-token labels | - training_steps: 80
+- batch_size: 64
+- total_samples_seen: 5120 (= training_steps × batch_size)  =>  loss = 3.587
+
+Output your proposed config as a JSON object with keys model / optimizer / loss / budget (batch_size).
+
+=== SUBMISSION FORMAT ===
+Output your proposed config as a single JSON object with these keys:
+- "model": full model dict (same schema as the base setting, e.g. type/depth/width/layer_norm/activations/residual/input_dim for MLP, or type/d_model/num_layers/num_heads/d_ff/vocab_size/context_length for transformer_lm)
+- "optimizer": full optimizer dict (type/lr/weight_decay + momentum for SGD or betas for Adam/AdamW)
+- "loss": {"loss_id": "..."}
+- "budget": {"batch_size": ...}  (total_samples_seen stays at the base value)
+
+Allowed optimizer types: SGD, Adam, AdamW, RMSprop, Adagrad.
+Allowed model types: mlp, transformer_lm (use the base setting's model type unless you have a strong reason).
+The proposal is interpreted as edits to the base setting: omitted model/optimizer/loss fields inherit the base.
+
+Write your proposed JSON to the file:
+artifacts/eval_probe/propose_improvement_v1/pi_736c27_proposal.json
+Do NOT modify anything else. Keep the budget the same. Try to actually beat the base loss, not just guess.

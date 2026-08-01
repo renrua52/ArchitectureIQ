@@ -224,6 +224,9 @@ llm_runs/
 # User-owned local workspace (never tracked by normal Git operations)
 /workspace/
 
+# Columnar backend problem repository (gitignored like legacy data/)
+backend/data/
+
 # Deployment ledger append lock (the ledger and reviewed evidence stay trackable)
 deployments/.ledger.jsonl.lock
 

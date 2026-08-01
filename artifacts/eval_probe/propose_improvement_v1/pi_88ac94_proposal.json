@@ -1,0 +1,23 @@
+{
+  "model": {
+    "type": "mlp",
+    "input_dim": 8,
+    "depth": 5,
+    "width": 256,
+    "residual": false,
+    "layer_norm": [false, true, true, false, false],
+    "activations": ["relu", "relu", "silu", "leaky_relu", "leaky_relu"]
+  },
+  "optimizer": {
+    "type": "SGD",
+    "lr": 0.001,
+    "weight_decay": 1e-05,
+    "momentum": 0
+  },
+  "loss": {
+    "loss_id": "mse"
+  },
+  "budget": {
+    "batch_size": 16
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "set": "select_best_v1.2",
+  "seed": 20260805,
+  "batches": [
+    [
+      "sb_c4c744",
+      "sb_a5c693",
+      "sb_597395",
+      "sb_8d6bef",
+      "sb_fedea4"
+    ]
+  ]
+}

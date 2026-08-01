@@ -185,3 +185,70 @@ $AIQ generate-question <dataset> <set> --profile v2 --num-questions 5 --num-choi
 # 测难度
 python tools/difficulty/score_questions.py --top 25
 ```
+
+---
+
+## 8. 2026-07-31 周会：题目实例/评测实例分离 + 评测落地
+
+> 来源：飞书 “ArchitectureIQ 0714” 文档 → 7月31日 Weekly（2026-07-31 已登记，lark-cli 以用户身份可读可写）。
+> 目标产物：一个 benchmark + 一篇 paper，两周 + 两个 section。
+> 对应架构文档：`plan-v2.md`；评测协议：`PROTOCOLS.md`。
+
+### 8.1 总原则
+
+- 题目实例与评测实例独立：
+  - **题目实例 = 数据集 + demo settings**（demo settings 是一组 config JSON）；其余全部 offload 给评测端。
+  - **评测实例 = 把 settings 组合成选择题 / config 修改题（架构生成题）**。
+- Demo setting 是否筛选、如何筛选：先做数据质量与 demo 质量初筛；demo settings 可直接在 autoresearch 过程中产生。
+
+### 8.2 评测实例（本轮重点，郭绍阳）
+
+- 题型：
+  1. **选择题**：选择哪个 setting loss 最低（可给 few shot）。
+  2. **config 修改题**：约定闭集可调参数，模型输出 json config，目标最小化 loss（应给 few shot；实际做实验也有参考）。
+- 限制：模型 size 与 flops 不得超过 demos 中最大的 1.1 倍。
+- 筛选器（唐晨成）放评测端：删 ill setting；过于接近/悬殊的 setting 不组进同一题；可用指标让 LLM 判断题目是否合理。
+- 先只支持**给大模型的评测**；meta-model（TabPFN）评测作为第三 section 后续再做。
+
+### 8.3 题库实例
+
+- 题库扩展目标 ~100 种题型；总结出好的题目形式后进入自动化阶段。
+- 可用 Kaggle / 已有 benchmark 数据改造为我们的题型，配合 few shot 与 observable 辅助范式。
+- 自动生成训练 baseline，避免 ill setting。
+
+### 8.4 存储结构设计（2026-07-31 对齐，列式存储）
+
+> **已实现**（2026-07-31，分支 `shaoyang/local-agent-dev`）：权威设计见 [`docs/backend-storage.md`](./backend-storage.md)，storage API 在 `src/architecture_iq/storage/`，迁移工具 `tools/storage/migrate_data_layout.py`，存量数据已迁移到 `backend/data/`（27 problems / 941 candidates / 940 results / 3 trainers，旧 `data/datasets` 保留待验证）。
+
+- 后端一级目录 `backend/`，二级 `data / generator / eval`；`data` 即“题目实例仓库”，三级起按列组织：
+
+```
+backend/
+├── data/                                # 题目实例仓库（列式存储）
+│   ├── problems/{problem_id}/           # dataset_spec.json + README(介绍文档) + synthesize.py + 物化张量
+│   ├── trainers/{trainer_id}/           # 训练脚本（train.py 模板，按 family/trainer 独立）
+│   ├── candidates/{problem_id}/         # 该 problem 的 config JSON 闭集（每个 candidate 一个 json）
+│   └── results/{problem_id}/{candidate_id}/  # summary.json + curves.npz（+ 可选 ckpt），与 candidates 一一对应
+├── generator/                           # 生成套件（与存储系统解耦）：数据集/训练脚本/config 生成 + GT 执行
+└── eval/                                # 评测端：组合选择题/config修改题、LLM 评测、后续 meta-model
+```
+
+- 列式组织：`problems / trainers / candidates / results` 在第二层并排，题目编号在各自文件夹内；一次可以取出“所有 problem / 所有 configs”，各列体积可以悬殊。
+- 原来的一种“数据集实例” → 现在变成一个 `problem` + 一堆 `candidates`；**评测端**用 problem + candidates 组合出题目（选择题 / config 修改题），不再由题目实例自己产出问题。
+- 闭合集要求：所有代码设计都包含在题目代码里（config 只描述 `model / optimizer / loss / budget`，渲染与训练代码由 generator 或 trainers 提供，config 不引入新逻辑）。
+- demo settings = candidates 的子集（config 元数据加 `role: demo|eval` 标记，供 few-shot 使用）。
+
+### 8.5 现状 → 目标映射与迁移评估（2026-07-31）
+
+| 现状（`data/datasets/...`） | 目标 | 迁移动作 |
+|---|---|---|
+| `{family}/{dataset_id}/dataset_spec.json` + `synthesize.py` + `train.pt/test.pt` | `data/problems/{problem_id}/` | 目录搬家；ID（content-addressed）不变 |
+| `candidates/generator.py` 内嵌 train 模板 + `c_{hash}/train.py` | `data/trainers/{trainer_id}/` | 训练代码从每候选生成改为按 trainer 落盘 |
+| `set_{budget}_{axes}_{hash}/c_{hash}/candidate_spec.json` | `data/candidates/{problem_id}/{candidate_id}.json` | 拍平 set 层级；config 只存 JSON |
+| `c_{hash}/results/{summary.json,curves.npz}` | `data/results/{problem_id}/{candidate_id}/` | 搬家；路径引用改 ID |
+| `questions/run_*/q_*/`（在题目实例内） | 移到 `eval/`（组合+渲染在评测端） | question 只存 candidate_id 引用，不再存路径 |
+
+- **可行性：高**。`candidate_spec.json` 已是闭合 config；ID 全部 content-addressed，搬目录不换 ID；`paths.py` 是唯一集中点。
+- **主要成本**：布局被 `src + tools` 共 508 处直接引用，且 `question.json` 里存了相对路径（`candidate_path`）——需要一次协同迁移（storage repository 层 + 引用改 ID + 存量数据迁移脚本 + 测试更新）。
+- **解耦方式**：新增 `storage` 层（repository API：写 problem/trainer/candidate、读 result）；`generator` 只通过它写，`eval` 只通过它读 + 写自己的评测产物；双方互不感知对方内部格式。
+- **保持不变量**：spec→code→run→GT 一致；GT 只来自执行生成代码；non-repeating candidates；anti-shortcut gates。

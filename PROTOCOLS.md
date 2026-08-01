@@ -132,3 +132,35 @@ Gate 检查工具：`tools/anti_shortcut_gates.py`
 | 题目质量 | 无 gate | 必须通过 anti-shortcut gates |
 | 随机 baseline | 未报告 | 明确报告 |
 | Protocol 文档 | 分散在 artifacts README | 集中定义 |
+
+
+---
+
+## 评测端协议（2026-08 起，backend/eval）
+
+题目由评测端从 `backend/data/` 的 problem + candidates 组合而成（题集 JSONL，
+见 [`docs/eval-sets.md`](./docs/eval-sets.md)），不再由题目实例自带 question。
+
+### Eval-A: select_best（选择题，主任务）
+
+- **输入**：problem + 5 个带 loss 的参考 setting + 6 个选项（base + 5 个修改，含不改）。
+- **输出**：一个字母（A–F）。
+- **约束**：base 必在选项中；选项两两在显著字段上差异 ≥ 2；winner vs runner-up 跨 seed win_rate ≥ 0.7，
+  且 ratio 满足分 metric 阈值（MSE ≥ 1.15，CE ≥ 1.03）。
+- **随机 baseline**：1/6 ≈ 16.7%。探针实测 LLM 接近随机（v1 25% / v1.1 16.7%），
+  属"地板效应"任务，用于测上限，需报告置信区间。
+- **评分**：`accuracy = correct / total`。
+
+### Eval-B: propose_improvement（config 修改题）
+
+- **输入**：problem + 5 个带 loss 的参考 + base（带 loss）+ 5 个改进 demo（带 loss）。
+- **输出**：闭集内的新 JSON config。
+- **评分**：`backend/eval/score_proposal.py` 跑 GT（新执行），对比 base：`ratio`、`win_rate_vs_base`。
+- **约束**：参数量 ≤ demos 最大参数量 × 1.1；预算固定为 base 的 `total_samples_seen`。
+- 探针实测 2/2 次提案击败 base（ratio 1.14x / 1.20x）。
+
+### Eval-C: two_choice_loss_compare（二选一，诊断）
+
+- **输入**：problem + 3 个带 loss 的参考 + 目标对 A/B，问"哪个 loss 更高/更低"。
+- **输出**：一个字母（A/B）。过滤：ratio ∈ [1.2, 5]，win_rate ≥ 0.8。
+- **随机 baseline**：50%。探针实测 87.5%（8 题）——验证参考校准可解，防止系统性失效。

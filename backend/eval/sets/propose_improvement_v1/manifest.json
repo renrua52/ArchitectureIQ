@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.1",
+  "set_name": "propose_improvement_v1",
+  "type": "propose_improvement",
+  "seed": 20260801,
+  "items": 66,
+  "problems": 27,
+  "skipped_problems": [
+    "bg_5d89d5",
+    "mvar_4e315c",
+    "mvar_875292",
+    "sym_40f9b4",
+    "sym_56d46a"
+  ],
+  "filters": {
+    "win_rate_min": 0.7,
+    "ratio_min": 1.05,
+    "n_references": 5,
+    "n_mods": 5
+  }
+}
