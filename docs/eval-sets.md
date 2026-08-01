@@ -297,6 +297,7 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
 | Kimi-K3（gpt.ge） | —（慢/超时） | 32/50 = 64%（重试 1 轮后，2 题仍空） | 6/50 = 12%（**21/50 空响应**） | 慢（50 题 13–15 min），长 prompt 大量空响应 |
 | DeepSeek v4-flash（官方 API） | 26/50 = 52%（全 A 塌缩） | **~74%**（3 轮均值 73.5%） | 6/50 = 12%（修复解析后） | 短答案格式塌缩，需强制推理 |
 | gpt-5.6-terra（phybench，旧 range 题） | 76%（旧题集，不可直接比） | — | 9/50 = 18% | 中转恢复窗口 |
+| claude-opus-5（gpt.ge，20 题探针） | — | 14/20 = 70%（子集，n 小） | 2/20 = 10% | 快（20 题 ~12s）、均衡、无塌缩 |
 
 **结论**：
 
@@ -309,7 +310,9 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
    建议换模型或等中转稳定。
 4. **推理强度参数**：`reasoning_effort=high` 被中转接受（两模型 200）；对 terra 两种模式分数无差异，
    对 Kimi 是必须项（不带该参数更容易超时）。
-5. **harness 变更**：`backend/eval/batch_eval.py` 现在默认读 relay.json（`eval` key + `models.debug[0]`），
+5. **claude-opus-5 首跑探针（AGENTS.md §10 协议）**：20 题 two_choice 70%、20 题 select_best 10%
+   ——two_choice 目前最高（n=20 子集，需扩到 50 确认）；select_best 依旧地板。
+6. **harness 变更**：`backend/eval/batch_eval.py` 现在默认读 relay.json（`eval` key + `models.debug[0]`），
    支持 `--model Kimi-K3` 等任意模型名、`--reason-suffix`、空响应自动重试；不再设 token 上限。
 
 
