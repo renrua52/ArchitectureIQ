@@ -28,6 +28,7 @@ from pathlib import Path
 import httpx
 
 from architecture_iq.storage import repository as repo
+from backend.eval.ranking import rank_result
 
 # Default provider: local DeepSeek key (deepseek-v4-flash). The phybench relay
 # (openai.phybench.cn, gpt-5.6-terra) is used only when explicitly requested via
@@ -193,6 +194,13 @@ async def run_batch(items: list[dict], model: str, concurrency: int, base_url: s
         answer = parse_answer(text)
         correct_key = "correct_letter" if "correct_letter" in it else "answer"
         correct = it.get(correct_key)
+        rank_item = {"problem_id": it.get("problem_id"), "metric": it.get("metric"),
+                     "ask": it.get("ask")}
+        if "options" in it:
+            rank_item["options"] = it["options"]
+        elif "target" in it:
+            rank_item["target"] = it["target"]
+        rank = rank_result(rank_item, answer)
         results.append({
             "_set": it.get("_set"),
             "question_id": it.get("question_id", it.get("task")),
@@ -205,6 +213,9 @@ async def run_batch(items: list[dict], model: str, concurrency: int, base_url: s
             "correct": correct,
             "answer": answer,
             "is_correct": answer is not None and answer == correct,
+            "rank": rank["rank"],
+            "rank_score": rank["rank_score"],
+            "n_options": rank["n_options"],
             "raw_response": text,
             "content": text,
             "reasoning_content": reasoning,
@@ -234,8 +245,13 @@ def summarize(results: list[dict], label: str) -> dict:
         stratum_ok[name] += r["is_correct"]
         family_tot[r["family"]] += 1
         family_ok[r["family"]] += r["is_correct"]
-    first_type = results[0].get("type") if results else ""
+    first_type = (results[0].get("type") if results else None) or ""
     n_choices = 2 if "two_choice" in first_type else 6
+    scored_rank = [r for r in scored if r.get("rank") is not None]
+    n_rank = len(scored_rank)
+    rank_scores = [r["rank_score"] for r in scored_rank]
+    ranks = [r["rank"] for r in scored_rank]
+    max_score = max((r.get("n_options") or 2) - 1 for r in scored_rank) if scored_rank else 0
     out = {
         "label": label,
         "total": n,
@@ -243,6 +259,13 @@ def summarize(results: list[dict], label: str) -> dict:
         "unparsed": n - len(scored),
         "accuracy": round(acc, 4),
         "random_baseline": round(1.0 / n_choices, 4),
+        "rank_scored": n_rank,
+        "mean_rank": round(sum(ranks) / n_rank, 3) if n_rank else None,
+        "mean_rank_score": round(sum(rank_scores) / n_rank, 3) if n_rank else None,
+        "max_rank_score": max_score,
+        "rank_score_norm": round((sum(rank_scores) / n_rank) / max(max_score, 1), 4) if n_rank else None,
+        "top2": round(sum(1 for r in scored_rank if r["rank"] <= 2) / n_rank, 4) if n_rank else None,
+        "top3": round(sum(1 for r in scored_rank if r["rank"] <= 3) / n_rank, 4) if n_rank else None,
         "by_stratum": {
             k: {"acc": round(stratum_ok[k] / stratum_tot[k], 4), "n": stratum_tot[k]}
             for k in stratum_tot

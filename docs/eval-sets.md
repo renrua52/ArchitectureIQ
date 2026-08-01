@@ -425,3 +425,32 @@ harness 按 AGENTS.md §10 改造：凭证/模型名从 `~/.agents/relay.json` �
   判别轴未覆盖的题仍会拖低分数。
 - 下一版题面按 §5.5.5 建议改造：base 取候选池最优/次优，参考改为"base + 1–2 点修改并带 loss"
   的 few-shot（即 propose 范式），选项包含 base 本身。
+
+## 9. 排名计分（partial credit）—— 2026-08-01 决策
+
+### 9.1 规则
+
+- 每个选项的 GT 排名 = 该选项在当前 `results/summary.json`（执行 GT）上的选择指标排名
+  （select_best 恒为 lower-is-better；two_choice 按 `ask` 字段决定 higher/lower）。
+- 得分 = `n_options - rank`：6 选 1 时第 1 名 5 分、…、第 6 名 0 分；二选一时退化为 1/0（= 旧准确率）。
+- 排名只依赖「选项 candidate_id + 当前 summary」，因此对 §8 的坏答案键免疫。
+- 实现：`backend/eval/ranking.py`（`rank_result` / `score_rows` / `summarize`），
+  `batch_eval.py` 的 live 打分与 `python -m backend.eval.ranking --responses <file> --set <set>` 离线重打分共用同一逻辑。
+- 汇总指标：`mean_rank`、`mean_rank_score`（0..n-1）、`rank_score_norm`（%）、`top1/top2/top3`、`rank_dist`、按 ratio 分层的 mean_rank/top1。
+
+### 9.2 二选一审计（用户询问"二选一是否也要修"）
+
+- two_choice 无 shuffle 索引 bug：`artifacts/eval_probe_local/items` 84/84、
+  `artifacts/eval_probe/items` 57/57、`items_confignear/items` 57/57、`items_seed2/items` 57/57，
+  全部与当前 summary 一致，无需修复。
+
+### 9.3 50 题重打分（rank 计分，与 §8 修复后的答案键一致）
+
+| 模型 | select_best 6选1（50题） | two_choice 2选1（50题） |
+|---|---|---|
+| claude-opus-5 | mean_rank 1.60，mean_score 4.40/5 = **88%**，top1 70% / top2 80% / top3 94% | mean_rank 1.28，score 0.72/1 = **72%** |
+| gpt-5.6-terra | mean_rank 1.56，mean_score 4.44/5 = **88.8%**，top1 72% / top2 84% / top3 94% | mean_rank 1.30，score 0.70/1 = **70%** |
+
+- select_best 分层（claude）：tight(<1.15) top1 80%、medium 67%、loose 72%——修复答案键后
+  tight 题不再是 0%，"tight 不可判"的旧结论作废。
+- 排名分布（claude select_best）：rank1×35、rank2×5、rank3×7、rank4×2、rank6×1——模型很少落到倒数两名。
