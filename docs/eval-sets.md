@@ -514,10 +514,11 @@ gemini-3.5-flash-thinking 48.3% ≈ gpt-5 46.7% ≈ gpt-5.5 46.7% > claude-opus-
 
 **旧 60 全程顺序（先答后反馈）：** GPT-5.5 79.7% ≈ GPT-5.4 78.3% ≈ GPT-5.6-SOL 78.3%（无区分）。
 
-**新题 high_budget 13/15 盲答（llm_runs/vapi_*）：**
+**新题 high_budget 13/15 盲答（llm_runs/vapi_*；4 选 1，随机 25%）**：
 gpt-5.6-terra 7/13 = 53.8% > deepseek-v4-pro 3/13 = 23.1% > claude-sonnet-5 1/13 = 7.7%；
 deepseek-v4-pro budget15 5/15 = 33.3%（同题 GPT-5.4 盲答 20%、顺序 46.7%）；
 deepseek 3x3binary180 108/180 = 60%。
+⚠ 这些是 **4 选 1**（不是 6 选 1）；且 n=13 单次抽取噪声大——重跑控制见 §11.5。
 
 **新评测框架 50 题：** two_choice_local：luna 74% ≈ deepseek 74% ≈ claude-opus-5 72%
 ≈ terra 70% > kimi 66.7%；select_best_v2：luna 74% ≈ terra 72% ≈ claude 70%。
@@ -532,6 +533,31 @@ deepseek 3x3binary180 108/180 = 60%。
 2. 但一旦给 hint（11.2），旧题也被便宜模型推到 69%——区分度主要来自"盲答无参考"。
 3. 建议：选择题都当"可解性诊断"，主指标走 propose_improvement（开放式、按落点/涨跌打分），
    或继续用旧题盲答格式做模型能力排序。
+
+### 11.5 字母交换控制实验（2026-08-02，回答"claude-sonnet-5 为什么比随机差"）
+
+把 vapi 的 13 个零样本 prompt 原样重跑 + A↔B 内容交换变体重跑（`tools/llm_eval/run_letter_swap_control.py`，
+relay eval key，temp=0，记录保留在 gitignored `llm_runs/control_letterswap_20260802/`）：
+
+| 模型 | vapi 原跑 | 重跑 original | 重跑 swapped_ab | 字母交换后同候选率 |
+|---|---|---|---|---|
+| claude-sonnet-5 | 1/13 = 7.7% | 2/13 = 15.4% | 2/13 = 15.4% | 6/13 = 46.2% |
+| gpt-5.6-terra | 7/13 = 53.8% | 5/13 = 38.5% | 3/13 = 23.1% | 5/13 = 38.5% |
+
+结论：
+
+1. **7.7% 是低抽，不是稳定水平**：temp=0 重跑 claude 2/13（15.4%）；两轮合并 3/26 = 11.5%。
+   terra 也从 53.8% 掉到 38.5%（两轮 12/26 = 46.2%）；terra vs claude 合并 Fisher 双尾 **p=0.013**，
+   差距真实存在但远小于 46pp 的表观差。
+2. **claude 有轻微"避开首选项 A"的位置偏置**：两轮 A 只选 2/26（均匀期望 6.5），P(X≤2)=0.026；
+   terra 无此偏置（A 6/26，p=0.52）。这与 §5.2.2 的 DeepSeek 位置偏置是同类现象（方向相反），
+   在出题端应做 per-item 字母乱序 + 一致性检查。
+3. **模型主要是"位置/字母驱动"而非内容驱动**：字母交换后 claude 54% / terra 62% 的题换了候选
+   （同候选率 46%/38%，随机基线 25%）——这批 4 选 1 题对 LLM 的内容信号很弱，
+   与"部分题混沌/先验误导"的判断一致；唯一稳健可解的仍是 q_7dc8c1（bigram 最小模型题，
+   交换字母后两模型都跟着内容走）。
+4. 含义：high_budget 13 题的模型排序不可靠，需要 ≥50 题 + 字母乱序重跑才有意义；
+   该 release 应并入"可解性诊断"，不作模型能力排序。
 
 ## 12. 同事推送的新题分析 + opus 事后审计（2026-08-01）
 
