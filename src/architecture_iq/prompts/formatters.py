@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 LEGACY_LEAKY_RELU_SLOPE = 0.1
 
 SINGLE_AXIS_TYPES = frozenset({"architecture_only", "optimizer_only", "loss_only"})
@@ -247,6 +249,22 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
     active_features = [int(feature) for feature in params["active_features"]]
     weights = [float(weight) for weight in params["rule_weights"]]
     active = ", ".join(f"`x_{feature}`" for feature in active_features)
+
+    if rule_family == "spiral":
+        turns = float(params.get("spiral_turns", 2.0))
+        noise_std = float(params["noise_std"])
+        sampling = params["point_sampling"]
+        left, right = active_features[:2]
+        return "\n".join(
+            [
+                f"- Rule family: `spiral`; active coordinates: `x_{left}`, `x_{right}` (input is 2-dimensional).",
+                f"- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, {0.5 + turns * 2.0 * math.pi:.6g}]` ({turns:.6g} full turns), radius `r = t`, coordinates `(r·cos(t + phase), r·sin(t + phase))` with `phase ∈ {{0, π}}`; independent Gaussian noise `ε ~ Normal(0, {noise_std:.6g}²)` is then added to each coordinate.",
+                "- Label rule: `y = 0` for points drawn from the `phase = 0` arm and `y = 1` for points from the `phase = π` arm; both arms are equally likely, so classes are balanced.",
+                "- Nominal soft score (intuition only): `s(x) = sin(atan2(x_1, x_0) − ‖x‖₂)`; its zero level sets trace the two arms, but labels come from the generative arm, not from thresholding `s(x)`.",
+                f"- Bayes decision boundary: assign each point to the nearer of the two noiseless arms (up to label-flip symmetry); with `{turns:.6g}` turns the arms interleave, so the boundary is highly non-linear.",
+                f"- Reproducibility: point/noise seed `{sampling['seed']}`, spiral turns `{turns:.6g}`.",
+            ]
+        )
 
     if rule_family == "smooth_additive":
         terms = [

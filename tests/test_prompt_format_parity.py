@@ -126,6 +126,29 @@ def test_classification_rule_card_parity(
         assert "need not follow" in text
 
 
+def test_spiral_rule_card_parity() -> None:
+    params = {
+        "input_dim": 2,
+        "rule_family": "spiral",
+        "active_features": [0, 1],
+        "interaction_pairs": [],
+        "rule_weights": [1.0],
+        "piecewise_breakpoint": 0.0,
+        "spiral_turns": 2.0,
+        "noise_std": 0.05,
+        "decision_threshold": 0.0,
+        "point_sampling": {"distribution": "two_spirals", "seed": 11, "turns": 2.0},
+        "calibration": {"seed": 22, "size": 0, "target_positive_rate": 0.5},
+    }
+    text = pkg.format_synthetic_tabular_classification_rule(params)
+    assert text == insp.format_synthetic_tabular_classification_rule(params)
+    assert "two-spirals" in text
+    assert "Label rule" in text
+    assert "Bayes decision boundary" in text
+    assert "phase = π" in text
+    assert "def " not in text
+
+
 def test_classification_dataset_protocol_uses_family_dispatch_without_rule_family() -> None:
     params = {
         "input_dim": 2,
