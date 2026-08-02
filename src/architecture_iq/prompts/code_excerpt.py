@@ -37,7 +37,7 @@ def extract_function_definitions(source: str, names: set[str]) -> str:
 def excerpt_model_py(source: str) -> str:
     parts: list[str] = []
     try:
-        parts.append(extract_function_definitions(source, {"_activation"}))
+        parts.append(extract_function_definitions(source, {"_activation", "_make_grid", "_bspline_bases"}))
     except ValueError:
         pass
     parts.append(extract_class_definitions(source))
@@ -53,8 +53,8 @@ def excerpt_optimizer_py(source: str) -> str:
 
 
 def excerpt_synthesize_py(source: str) -> str:
-    """Return ``target`` and ``synthesize`` top-level definitions (dataset ground truth + I/O generation)."""
-    names = {"target", "synthesize"}
+    """Return dataset synthesis definitions needed to reproduce materialized data."""
+    names = {"target", "build_transition", "synthesize"}
     tree = ast.parse(source)
     parts: list[str] = []
     for node in tree.body:

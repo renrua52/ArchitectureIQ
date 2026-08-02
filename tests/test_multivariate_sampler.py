@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 
 from architecture_iq.families.multivariate_regression.sampler import (
     sample_symbolic_expression,

@@ -8,11 +8,13 @@ import typer
 
 from architecture_iq.candidates.sets import (
     generate_candidate_set,
+    parse_model_type_counts,
     parse_varying_axes,
 )
 from architecture_iq.datasets import (
     create_dataset,
     format_dataset_summary_lines,
+    load_dataset_spec,
     resolve_dataset_family,
 )
 from architecture_iq.interactive import (
@@ -152,14 +154,27 @@ def generate_candidates_cmd(
         None,
         help="Path to dataset instance dir (required unless --interactive)",
     ),
-    budget: Optional[int] = typer.Option(None, help="total_samples_seen"),
+    budget: Optional[int] = typer.Option(
+        None,
+        help="total_samples_seen (uses the family default when configured)",
+    ),
     count: Optional[int] = typer.Option(None, help="Number of candidates to generate"),
     vary: list[str] = typer.Option(
         [],
         "--vary",
         help="Axis that may vary: model, optimizer, loss (repeat flag)",
     ),
+    model_type_count: list[str] = typer.Option(
+        [],
+        "--model-type-count",
+        help="Exact model quota as model_type=count; repeat for each type (requires --vary model)",
+    ),
     profile: str = typer.Option("v1"),
+    device: Optional[str] = typer.Option(
+        None,
+        "--device",
+        help="Execution device for newly generated candidates: cpu or cuda",
+    ),
     seed: int = typer.Option(0),
     interactive: bool = typer.Option(
         False,
@@ -171,6 +186,7 @@ def generate_candidates_cmd(
     """Generate a named candidate set with ground truth."""
     prof = load_profile(profile)
     rng = random.Random(seed)
+    model_type_counts: dict[str, int] | None = None
 
     _reject_interactive_flags(
         interactive,
@@ -178,6 +194,8 @@ def generate_candidates_cmd(
         budget=budget is not None,
         count=count is not None,
         vary=bool(vary),
+        model_type_count=bool(model_type_count),
+        device=device is not None,
         seed=seed != 0,
     )
 
@@ -198,13 +216,26 @@ def generate_candidates_cmd(
         if dataset_path is None:
             raise typer.BadParameter("dataset_path is required unless --interactive is set")
         if budget is None:
-            raise typer.BadParameter("--budget is required unless --interactive is set")
+            family = load_dataset_spec(dataset_path)["family"]
+            defaults = prof.family_training_defaults(family)
+            if not defaults:
+                raise typer.BadParameter(
+                    "--budget is required unless the dataset family has a training default"
+                )
+            budget = defaults["total_samples_seen"]
         if count is None:
             raise typer.BadParameter("--count is required unless --interactive is set")
         if not vary:
             raise typer.BadParameter("At least one --vary axis is required unless --interactive")
         varying_axes = parse_varying_axes(vary)
         fixed_shared = None
+        if model_type_count:
+            try:
+                model_type_counts = parse_model_type_counts(model_type_count)
+            except ValueError as exc:
+                raise typer.BadParameter(str(exc)) from exc
+            if "model" not in varying_axes:
+                raise typer.BadParameter("--model-type-count requires --vary model")
 
     assert dataset_path is not None and budget is not None and count is not None
     set_path = generate_candidate_set(
@@ -215,8 +246,10 @@ def generate_candidates_cmd(
         varying_axes=varying_axes,
         rng=rng,
         fixed_shared=fixed_shared,
+        model_type_counts=model_type_counts,
         seed=seed,
         on_progress=lambda i, total, cid: typer.echo(f"[{i}/{total}] {cid}"),
+        execution_device=device,
     )
     typer.echo(f"Candidate set written to {set_path}")
 
@@ -246,6 +279,26 @@ def generate_question_cmd(
     ),
     profile: str = typer.Option("v1"),
     seed: int = typer.Option(0),
+    candidate_reuse_policy: str = typer.Option(
+        "globally_disjoint_within_run",
+        "--candidate-reuse-policy",
+        help="Run-level candidate reuse policy",
+    ),
+    max_candidate_uses: Optional[int] = typer.Option(
+        None,
+        "--max-candidate-uses",
+        help="Required only for sequential_bounded_reuse",
+    ),
+    winner_type_max_fraction: Optional[float] = typer.Option(
+        None,
+        "--winner-type-max-fraction",
+        help="Maximum fraction of questions won by any one model type (for example 0.70)",
+    ),
+    required_model_types: list[str] = typer.Option(
+        [],
+        "--required-model-type",
+        help="Repeat once per required model type (for example: gru_lm and transformer_lm)",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -264,6 +317,10 @@ def generate_question_cmd(
         num_choices=num_choices is not None,
         non_repeating_candidates=non_repeating_candidates is not None,
         seed=seed != 0,
+        candidate_reuse_policy=candidate_reuse_policy != "globally_disjoint_within_run",
+        max_candidate_uses=max_candidate_uses is not None,
+        winner_type_max_fraction=winner_type_max_fraction is not None,
+        required_model_types=bool(required_model_types),
     )
 
     if interactive:
@@ -301,6 +358,10 @@ def generate_question_cmd(
         num_choices=n_choices,
         seed=seed,
         non_repeating_candidates=non_repeating_candidates,
+        required_model_types=frozenset(required_model_types) or None,
+        candidate_reuse_policy=candidate_reuse_policy,
+        max_candidate_uses=max_candidate_uses,
+        winner_type_max_fraction=winner_type_max_fraction,
     )
 
     typer.echo(f"Question run written to {run_path}")

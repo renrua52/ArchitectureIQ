@@ -219,6 +219,13 @@ __marimo__/
 
 # Benchmark generated artifacts
 data/
+# Immutable benchmark question-pack payloads are intentionally tracked.
+# This exception does not alter the top-level data/ ignore rule.
+!benchmark_releases/
+!benchmark_releases/question_packs/
+!benchmark_releases/question_packs/*/
+!benchmark_releases/question_packs/*/data/
+!benchmark_releases/question_packs/*/data/**
 llm_runs/
 
 # User-owned local workspace (never tracked by normal Git operations)
@@ -241,3 +248,20 @@ artifacts/ranking_questions/
 
 # Finder metadata from imported templates
 templates/**/__MACOSX/
+
+# Local frontend/build and test scratch
+node_modules/
+*.tsbuildinfo
+.tmp/
+.pytest-tmp-*/
+.pytest-audit*/
+pytest-*/
+.prepush-tmp/
+
+# Generated release/smoke outputs. Keep only the selected v2 release record.
+outputs/*
+!outputs/
+!outputs/demo_release_integration/
+outputs/demo_release_integration/*
+!outputs/demo_release_integration/DEMO_RELEASE_INTEGRATION_FINAL_REPORT.md
+!outputs/demo_release_integration/RELEASE_FREEZE_MANIFEST.json

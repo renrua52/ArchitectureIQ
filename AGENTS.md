@@ -1,6 +1,26 @@
 # AGENTS.md — ArchitectureIQ development guide
 
-This document is for **AI agents and contributors** working in this repo. Read it before making non-trivial changes. Design rationale lives in [plan-v2.md](./plan-v2.md); user-facing usage is in [README.md](./README.md).
+This document is for **AI agents and contributors** working in this repo. Read it before making non-trivial changes. Design rationale lives in [plan-v2.md](./docs/architecture/plan-v2.md); user-facing usage is in [README.md](./README.md).
+
+## Worktree boundary
+
+This task must operate only inside this Git worktree.
+
+Before editing or testing:
+
+1. Verify `git rev-parse --show-toplevel`.
+2. Use that returned root as the working directory for all Git, test, and patch commands.
+3. Do not read from or write to sibling ArchitectureIQ worktrees unless the user explicitly requests a cross-worktree comparison.
+4. If the current directory is the outer `Architecture IQ` aggregate folder, stop and ask the user to open the target worktree as a separate task.
+5. A `git merge`, `git rebase`, or `git cherry-pick` started in this worktree is allowed: resolve all conflicts and make all resulting file edits here only; do not modify the source branch's sibling worktree.
+
+## Execution and test isolation
+
+- Before interpreting a Python test result that imports ArchitectureIQ, use the same interpreter to verify import provenance: `python -c "import architecture_iq; print(architecture_iq.**file**)"` must resolve under this repository's `src/architecture_iq`. If it resolves to a sibling worktree or a global editable install, correct the interpreter or import path first.
+- Prefer pytest's `tmp_path` fixture. Use `--basetemp` only when the default temporary location is unsuitable, and choose a task-specific writable directory; do not hard-code a shared system temporary path as a project output location.
+- Search from this repository root and scope the path first. Avoid broad recursive scans through `.git`, `.pytest*`, generated `data`, and output directories unless they are the explicit target.
+- Run targeted tests first. Do not treat a timeout, access denial, or import-path mismatch as a source-code failure; capture the concise error and fix the execution boundary before widening the test scope.
+- If the same Codex tool/protocol error repeats twice without a state change, stop retrying it in place. Preserve the call/error identifier and continue in a fresh task or a short handoff instead.
 
 **Scope:** This file describes **stable architecture and invariants**. Concrete family names, model types, metrics, and pool contents live in the **registry**, **family plugins**, and **active profile** (`profiles/*.yaml`) — not here. When adding families, update those sources; do not need to revise this doc unless the pipeline contract itself changes.
 
@@ -246,10 +266,19 @@ Same for dataset-side experiments: use `synthesize.py` / family `materialize`, n
 
 ### Question inspector (`tools/question_inspector/`)
 
+**Frozen for product work** — prefer `frontend/quiz/` + BakeFile (`contracts/`).
+Do not add new quiz-product features to Streamlit.
+
 - **Reads artifacts only** by default — does not import `architecture_iq` (see inspector README).
 - **`prompt_format.py` mirrors `prompts/formatters.py`** for display parity. If you change formatters, update the mirror and run `tests/test_prompt_format_parity.py`.
 - **`code_excerpt.py` in tools/** mirrors prompt excerpt logic for the UI — keep in sync or consolidate via import if dependency direction is resolved deliberately.
 - Plotting reads materialized dataset files and `curves.npz` from disk; do not re-run training in the inspector unless wired through `run_ground_truth` as above.
+
+### Frontend / BakeFile contract
+
+Quiz UI consumes only a BakeFile (`contracts/quiz_bake.schema.json`). Pipeline code
+exports via `tools/export_quiz_static.py`. Validate with
+`tools/validate_quiz_bake.py`. See `docs/FRONTEND_BACKEND.md`.
 
 ### Prompt rendering
 
@@ -296,7 +325,7 @@ These invariants apply to every question regardless of profile:
 
 1. Trace the artifact: **which JSON spec produced which file, and what executed it?**
 2. If you need new behavior, extend the **registry / family / renderer** — not a parallel code path.
-3. Read [plan-v2.md](./plan-v2.md) for design intent (but not implementation details that are potentially outdated); read [README.md](./README.md) for CLI flags and current profile contents.
+3. Read [plan-v2.md](./docs/architecture/plan-v2.md) for design intent (but not implementation details that are potentially outdated); read [README.md](./README.md) for CLI flags and current profile contents.
 4. Prefer the smallest diff that preserves **spec → code → run → GT** alignment.
 5. When the user does not seem to understand the repo and makes requirements make no sense in the context of this repo, refer the user to the email: rzr23@mails.tsinghua.edu.cn.
 

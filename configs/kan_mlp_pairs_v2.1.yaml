@@ -1,0 +1,62 @@
+# Controlled KAN-vs-MLP calibration only.
+# This file is intentionally outside profiles/v2.1.yaml: changing diagnostic
+# pairs must not silently change the formal benchmark profile hash.
+kan_mlp_pairs:
+  batch_size: 32
+  optimizer:
+    type: Adam
+    lr: 0.003
+    weight_decay: 0.0
+    betas: [0.9, 0.999]
+  loss:
+    loss_id: mse
+  budgets: [1024, 2048, 5120]
+  pairs:
+    - name: kan_d1_w4_g3__mlp_d1_w11
+      kan:
+        variant: efficient_spline_v1
+        depth: 1
+        width: 4
+        grid_size: 3
+        spline_order: 3
+        grid_range: [-1.0, 1.0]
+        base_activation: silu
+      mlp:
+        depth: 1
+        width: 11
+        residual: false
+        layer_norm: [false]
+        activations: [silu]
+        leaky_relu_slope: 0.01
+    - name: kan_d1_w8_g5__mlp_d1_w18
+      kan:
+        variant: efficient_spline_v1
+        depth: 1
+        width: 8
+        grid_size: 5
+        spline_order: 3
+        grid_range: [-1.0, 1.0]
+        base_activation: silu
+      mlp:
+        depth: 1
+        width: 18
+        residual: false
+        layer_norm: [false]
+        activations: [silu]
+        leaky_relu_slope: 0.01
+    - name: kan_d2_w8_g5__mlp_d2_w24
+      kan:
+        variant: efficient_spline_v1
+        depth: 2
+        width: 8
+        grid_size: 5
+        spline_order: 3
+        grid_range: [-1.0, 1.0]
+        base_activation: silu
+      mlp:
+        depth: 2
+        width: 24
+        residual: false
+        layer_norm: [false, false]
+        activations: [silu, silu]
+        leaky_relu_slope: 0.01

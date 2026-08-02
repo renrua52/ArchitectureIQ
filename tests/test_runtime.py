@@ -92,7 +92,7 @@ def test_fully_failed_ground_truth_writes_strict_null_aggregates(
         {
             "candidate_id": "c_failed",
             "family": "fake_family",
-            "budget": {"batch_size": 16},
+            "budget": {"batch_size": 16, "training_steps": 64, "total_samples_seen": 1024},
         },
     )
 
@@ -113,6 +113,8 @@ def test_fully_failed_ground_truth_writes_strict_null_aggregates(
         fail_threshold,
         *,
         selection_metric,
+        device,
+        progress_callback=None,
     ):
         del (
             candidate,

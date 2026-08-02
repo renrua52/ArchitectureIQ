@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://architecture-iq.com/contracts/quiz_bake.schema.json",
+  "title": "ArchitectureIQ Quiz BakeFile",
+  "description": "Static question pack consumed by frontend/quiz. Backend export must produce documents that validate against this schema. Frontend must not read raw q_* artifact directories.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "questions", "byId"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "BakeFile format version. Bump only for breaking changes; see contracts/CHANGELOG.md."
+    },
+    "ordered": {
+      "type": "boolean",
+      "description": "If true, questions[] order is the intended quiz order."
+    },
+    "collection": {
+      "type": ["object", "null"],
+      "description": "Optional release/collection metadata. Extra keys allowed for provenance.",
+      "properties": {
+        "schema_version": { "type": "string" },
+        "collection_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "question_count": { "type": "integer", "minimum": 0 },
+        "candidate_count": { "type": "integer", "minimum": 0 },
+        "candidate_reuse_policy": { "type": "string" },
+        "question_order_policy": { "type": "string" },
+        "profiles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tracks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "source_runs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "question_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "records": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered catalog entries. Each id must exist in byId.",
+      "items": { "$ref": "#/$defs/questionSummary" }
+    },
+    "byId": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/bakedQuestion" },
+      "description": "Map of question_id -> full baked question."
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "required": ["label", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    },
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "plotPoint": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "label": { "type": "number" }
+      }
+    },
+    "questionId": {
+      "type": "string",
+      "pattern": "^q_[0-9a-f]+$",
+      "description": "Content-addressed question id from the pipeline (e.g. q_6b7b54)."
+    },
+    "questionSummary": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/questionId" },
+        "type": { "type": "string" },
+        "datasetId": { "type": "string" },
+        "family": { "type": "string" },
+        "budget": { "type": ["number", "integer", "null"] },
+        "choices": { "type": "integer", "minimum": 1 },
+        "metric": { "type": "string" },
+        "profile": { "type": "string" },
+        "profileHash": { "type": "string" },
+        "track": { "type": "string" },
+        "order": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "required": [
+        "letter",
+        "candidateId",
+        "color",
+        "variant",
+        "modelLines",
+        "optimizerLines",
+        "lossLines",
+        "files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "letter": {
+          "type": "string",
+          "pattern": "^[A-Z]$"
+        },
+        "candidateId": { "type": "string", "minLength": 1 },
+        "color": { "type": "string", "minLength": 1 },
+        "variant": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        },
+        "modelLines": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "optimizerLines": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "lossLines": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "files": { "type": "object" }
+      }
+    },
+    "datasetPlot": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Frontend-supported kinds include scatter, heatmap, classification, none."
+        },
+        "train": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/plotPoint" }
+        },
+        "test": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/plotPoint" }
+        },
+        "matrix": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": ["number", "null"] }
+          }
+        },
+        "xEdges": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "yEdges": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "probability": {
+          "type": "array",
+          "description": "Sparse grids may use null cells.",
+          "items": {
+            "type": "array",
+            "items": { "type": ["number", "null"] }
+          }
+        },
+        "featurePair": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "integer" }
+        },
+        "selectionNote": { "type": "string" },
+        "xLabel": { "type": "string" },
+        "yLabel": { "type": "string" },
+        "legend": { "type": "string" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "datasetBlock": {
+      "type": "object",
+      "required": ["family", "datasetId"],
+      "additionalProperties": false,
+      "properties": {
+        "family": { "type": "string" },
+        "datasetId": { "type": "string" },
+        "selectionMetric": { "type": "string" },
+        "params": { "type": "object" },
+        "plot": { "$ref": "#/$defs/datasetPlot" },
+        "example": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "input": {},
+            "output": {}
+          }
+        },
+        "files": { "type": "object" },
+        "tensorShapes": { "type": "object" }
+      }
+    },
+    "rankedRow": {
+      "type": "object",
+      "required": ["letter", "candidateId", "metric", "mean", "std", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "letter": { "type": "string", "pattern": "^[A-Z]$" },
+        "candidateId": { "type": "string" },
+        "metric": { "type": "string" },
+        "mean": { "type": ["number", "null"] },
+        "std": { "type": ["number", "null"] },
+        "label": { "type": "string" }
+      }
+    },
+    "curveSeries": {
+      "type": "object",
+      "required": ["letter", "samples", "mean", "std"],
+      "additionalProperties": false,
+      "properties": {
+        "letter": { "type": "string", "pattern": "^[A-Z]$" },
+        "samples": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "mean": {
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "std": {
+          "type": "array",
+          "items": { "type": "number" }
+        }
+      }
+    },
+    "revealBlock": {
+      "type": "object",
+      "required": ["correctLetter", "ranked", "curves"],
+      "additionalProperties": false,
+      "properties": {
+        "correctLetter": { "type": "string", "pattern": "^[A-Z]$" },
+        "ranked": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rankedRow" }
+        },
+        "curves": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/curveSeries" }
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        }
+      }
+    },
+    "bakedQuestion": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "family",
+        "datasetId",
+        "type",
+        "budget",
+        "detail",
+        "reveal"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "$ref": "#/$defs/questionId" },
+        "title": { "type": "string", "minLength": 1 },
+        "family": { "type": "string", "minLength": 1 },
+        "datasetId": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "profile": { "type": "string" },
+        "profileHash": { "type": "string" },
+        "track": { "type": "string" },
+        "sourceRun": { "type": ["string", "null"] },
+        "provenance": { "type": "object" },
+        "budget": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "integer" },
+            { "type": "object" }
+          ]
+        },
+        "metric": { "type": "string" },
+        "evaluation": { "type": "object" },
+        "invariantAxes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "varyingAxes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "numChoices": { "type": "integer", "minimum": 1 },
+        "summary": { "type": "object" },
+        "detail": {
+          "type": "object",
+          "required": ["prompt", "shared", "dataset", "choices"],
+          "additionalProperties": false,
+          "properties": {
+            "prompt": { "type": "string" },
+            "shared": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/field" }
+            },
+            "dataset": { "$ref": "#/$defs/datasetBlock" },
+            "choices": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/choice" }
+            }
+          }
+        },
+        "reveal": { "$ref": "#/$defs/revealBlock" }
+      }
+    }
+  }
+}

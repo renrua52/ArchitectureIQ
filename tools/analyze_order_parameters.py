@@ -62,11 +62,25 @@ def transformer_params(model: dict[str, Any]) -> int:
     return embeddings + num_layers * per_layer + head
 
 
+def gru_params(model: dict[str, Any]) -> int:
+    vocab = int(model["vocab_size"])
+    d_model = int(model["d_model"])
+    num_layers = int(model["num_layers"])
+
+    embeddings = vocab * d_model
+    # Each GRU layer has W_ih, W_hh, b_ih, and b_hh, each with three gates.
+    gru = num_layers * (6 * d_model * d_model + 6 * d_model)
+    head = d_model * vocab + vocab
+    return embeddings + gru + head
+
+
 def count_params(model: dict[str, Any]) -> int:
     if model["type"] == "mlp":
         return mlp_params(model)
     if model["type"] == "transformer_lm":
         return transformer_params(model)
+    if model["type"] == "gru_lm":
+        return gru_params(model)
     raise ValueError(f"unknown model type {model['type']!r}")
 
 

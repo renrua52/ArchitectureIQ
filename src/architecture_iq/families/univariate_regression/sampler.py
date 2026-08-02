@@ -4,7 +4,6 @@ import math
 import random
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable
 
 import numpy as np
 

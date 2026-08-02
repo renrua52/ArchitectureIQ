@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import numpy as np
 from types import SimpleNamespace
 from unittest.mock import patch
-
 import pytest
 import torch
 
 from architecture_iq.datasets import create_dataset, format_dataset_summary_lines
+from architecture_iq.families.bigram_lm import family as bigram_family_module
 from architecture_iq.families.bigram_lm.bigram import make_bigram_dataset
 from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries, get_dataset_family, list_dataset_families
+from architecture_iq.runtime.loader import load_synthesize_module
 
 
 def test_registry_lists_new_families() -> None:
@@ -92,10 +94,13 @@ def test_bigram_materialize_executes_generated_synthesize(tmp_path) -> None:
     partial = family.create_instance(profile, 3)
     spec = family.build_spec_with_id(partial)
     expected = tuple(torch.full((2, 3), i, dtype=torch.int64) for i in range(4))
-    module = SimpleNamespace(synthesize=lambda: expected)
+    module = SimpleNamespace(
+        synthesize=lambda: expected,
+        build_transition=lambda: (np.zeros((2, 2)), np.ones(2)),
+    )
 
     with patch(
-        "architecture_iq.runtime.loader.load_synthesize_module",
+        "architecture_iq.families.bigram_lm.family.load_synthesize_module",
         return_value=module,
     ):
         family.materialize(spec, tmp_path)
@@ -140,6 +145,88 @@ def test_label_noise_train_only_and_reproducible(family_name: str, tmp_path) -> 
     assert (ty - true_train_y).std().item() > 0.05  # ~0.2 requested
 
 
+@pytest.mark.parametrize(
+    "family_name",
+    ["univariate_regression", "multivariate_regression", "bigram_lm"],
+)
+def test_materialized_tensors_match_generated_synthesizer(tmp_path, family_name: str) -> None:
+    ensure_registries()
+    profile = load_profile("v1")
+    family = get_dataset_family(family_name)
+    partial = family.create_instance(profile, 17)
+    partial["params"]["train_size"] = 32
+    partial["params"]["test_size"] = 16
+    spec = family.build_spec_with_id(partial)
+    materialized = {**partial, **spec}
+    dataset_path = tmp_path / family_name
+
+    family.materialize(materialized, dataset_path)
+
+    module = load_synthesize_module(dataset_path / "synthesize.py")
+    regenerated = module.synthesize()
+    saved = family.load_tensors(dataset_path)
+    assert all(
+        torch.equal(actual, expected)
+        for actual, expected in zip(saved, regenerated, strict=True)
+    )
+
+
+def test_bigram_transition_metadata_matches_generated_synthesizer(tmp_path) -> None:
+    ensure_registries()
+    profile = load_profile("v1")
+    family = get_dataset_family("bigram_lm")
+    partial = family.create_instance(profile, 23)
+    partial["params"]["train_size"] = 16
+    partial["params"]["test_size"] = 8
+    spec = family.build_spec_with_id(partial)
+    dataset_path = tmp_path / "bigram_lm"
+
+    family.materialize({**partial, **spec}, dataset_path)
+
+    module = load_synthesize_module(dataset_path / "synthesize.py")
+    probs, pi = module.build_transition()
+    with np.load(dataset_path / "transition.npz") as saved:
+        assert np.array_equal(saved["probs"], probs)
+        assert np.array_equal(saved["pi"], pi)
+
+
+def test_bigram_materialize_executes_rendered_synthesizer(tmp_path, monkeypatch) -> None:
+    sentinel_template = '''import numpy as np
+import torch
+
+def build_transition():
+    return np.array([[0.25, 0.75], [0.5, 0.5]]), np.array([0.4, 0.6])
+
+def synthesize():
+    return (
+        torch.tensor([[101]], dtype=torch.int64),
+        torch.tensor([[102]], dtype=torch.int64),
+        torch.tensor([[103]], dtype=torch.int64),
+        torch.tensor([[104]], dtype=torch.int64),
+    )
+'''
+    monkeypatch.setattr(bigram_family_module, "SYNTHESIZE_TEMPLATE", sentinel_template)
+    ensure_registries()
+    profile = load_profile("v1")
+    family = get_dataset_family("bigram_lm")
+    partial = family.create_instance(profile, 29)
+    spec = family.build_spec_with_id(partial)
+    dataset_path = tmp_path / "bigram_lm"
+
+    family.materialize({**partial, **spec}, dataset_path)
+
+    saved_tensors = family.load_tensors(dataset_path)
+    assert [tensor.item() for tensor in saved_tensors] == [101, 102, 103, 104]
+    with np.load(dataset_path / "transition.npz") as saved:
+        assert np.array_equal(
+            saved["probs"],
+            np.array([[0.25, 0.75], [0.5, 0.5]]),
+        )
+        assert np.array_equal(saved["pi"], np.array([0.4, 0.6]))
+
+
+
+
 def test_bigram_shared_transition_matrix() -> None:
     data1 = make_bigram_dataset(
         vocab_size=16,
@@ -163,5 +250,5 @@ def test_bigram_shared_transition_matrix() -> None:
 
 def test_compatible_models_by_family() -> None:
     ensure_registries()
-    assert get_dataset_family("multivariate_regression").compatible_model_types() == ["mlp"]
+    assert get_dataset_family("multivariate_regression").compatible_model_types() == ["mlp", "kan"]
     assert get_dataset_family("bigram_lm").compatible_model_types() == ["transformer_lm"]

@@ -67,6 +67,7 @@ def prompt_grid_value(
     input_fn: InputFn = _default_input,
     write: WriteFn = _default_write,
     allow_random: bool = True,
+    default: Any | None = None,
 ) -> Any | None:
     """Pick from grid by index, exact value, or None for random."""
     if not grid:
@@ -75,10 +76,11 @@ def prompt_grid_value(
     for i, value in enumerate(grid, start=1):
         write(f"  {i}) {_format_option(value)}")
     if allow_random:
-        write("  Enter = random")
+        blank_value = _format_option(default) if default is not None else "random"
+        write(f"  Enter = {blank_value}")
     raw = prompt_line("> ", input_fn=input_fn)
     if allow_random and raw == "":
-        return None
+        return default
     if raw.isdigit():
         idx = int(raw)
         if 1 <= idx <= len(grid):
@@ -218,6 +220,7 @@ def assemble_model_spec(
         "residual": r,
         "layer_norm": norms,
         "activations": acts,
+        "leaky_relu_slope": float(cfg["leaky_relu_slope"]),
     }
 
 
@@ -385,17 +388,25 @@ def prompt_batch_size(
     budget: int,
     rng: random.Random,
     *,
+    family: str | None = None,
     input_fn: InputFn = _default_input,
     write: WriteFn = _default_write,
 ) -> int:
     options = valid_batch_sizes(profile, budget)
     if not options:
         raise ValueError(f"No batch size divides budget {budget}")
+    defaults = profile.family_training_defaults(family) if family is not None else {}
+    default_batch_size = (
+        defaults["batch_size"]
+        if defaults and budget == defaults["total_samples_seen"]
+        else None
+    )
     picked = prompt_grid_value(
         "Batch size",
         options,
         input_fn=input_fn,
         write=write,
+        default=default_batch_size,
     )
     return picked if picked is not None else _pick_batch_size(profile, budget, rng)
 
@@ -418,7 +429,7 @@ def prompt_fixed_components(
 
     fixed: dict[str, Any] = {
         "batch_size": prompt_batch_size(
-            profile, budget, rng, input_fn=input_fn, write=write
+            profile, budget, rng, family=family, input_fn=input_fn, write=write
         ),
     }
 
@@ -565,7 +576,7 @@ def prompt_fixed_components_for_axes(
     )
     fixed: dict[str, Any] = {
         "batch_size": prompt_batch_size(
-            profile, budget, rng, input_fn=input_fn, write=write
+            profile, budget, rng, family=family, input_fn=input_fn, write=write
         ),
     }
     if "model" in invariant_axes:
@@ -651,11 +662,18 @@ def interactive_generate_candidate_set(
     )
     ds = read_json(resolved_dataset / "dataset_spec.json")
 
+    defaults = profile.family_training_defaults(ds["family"])
+    default_budget = defaults.get("total_samples_seen")
+    budget_options = list(profile.budget_values)
+    if default_budget is not None and default_budget not in budget_options:
+        budget_options.append(default_budget)
+        budget_options.sort()
     budget_raw = prompt_grid_value(
         "Budget (total_samples_seen)",
-        profile.budget_values,
+        budget_options,
         input_fn=input_fn,
         write=write,
+        default=default_budget,
     )
     budget = int(budget_raw) if budget_raw is not None else rng.choice(profile.budget_values)
 

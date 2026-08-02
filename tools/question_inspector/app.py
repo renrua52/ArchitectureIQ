@@ -11,6 +11,7 @@ import secrets
 import subprocess
 import sys
 import tempfile
+import time
 from importlib import reload
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -22,6 +23,10 @@ import streamlit.components.v1 as components
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Prefer the package from this checkout over another editable worktree.
+_LOCAL_SRC = Path(__file__).resolve().parents[2] / "src"
+if _LOCAL_SRC.is_dir() and str(_LOCAL_SRC) not in sys.path:
+    sys.path.insert(0, str(_LOCAL_SRC))
 import artifact_loader  # noqa: E402
 import feedback  # noqa: E402
 import feedback_browser_outbox  # noqa: E402
@@ -71,7 +76,14 @@ from custom_settings import (  # noqa: E402
     run_custom_setting,
 )
 from expression_latex import expression_to_latex  # noqa: E402
+from architecture_iq.models.kan import BASE_ACTIVATIONS  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
+
+
+QUESTION_PACKS_ROOT = (
+    Path(__file__).resolve().parents[2] / "benchmark_releases" / "question_packs"
+)
+LOCAL_QUESTION_PACK = "local"
 
 st.set_page_config(
     page_title="ArchitectureIQ Question Inspector",
@@ -206,6 +218,8 @@ def _init_state() -> None:
         "question_pool": [],
         "quiz_results": {},
         "quiz_answers": {},
+        "review_collection_path": None,
+        "active_question_pack": None,
         "setting_notice": None,
         "comment_notices": {},
         "feedback_uploaded_event_ids": [],
@@ -1527,9 +1541,189 @@ def _load_question_pool(
     return manifest, _ordered_question_pool(data_root, manifest)
 
 
-def _default_question_path(pool: list[Path]) -> Path | None:
+def _question_pack_registry(
+    packs_root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Return valid tracked question packs keyed by their stable pack ID."""
+    root = (packs_root or QUESTION_PACKS_ROOT).resolve()
+    if not root.is_dir():
+        return {}
+
+    packs: dict[str, dict[str, Any]] = {}
+    for manifest_path in sorted(root.glob("*/pack.json")):
+        try:
+            manifest = read_json_file(manifest_path)
+        except (OSError, ValueError):
+            continue
+        pack_root = manifest_path.parent.resolve()
+        pack_id = manifest.get("pack_id")
+        display_name = manifest.get("display_name")
+        collection_value = manifest.get("collection_path")
+        data_root_value = manifest.get("data_root")
+        if not all(
+            isinstance(value, str) and value
+            for value in (pack_id, display_name, collection_value, data_root_value)
+        ):
+            continue
+        if pack_id != pack_root.name or pack_id in packs:
+            continue
+        collection_path = (pack_root / collection_value).resolve()
+        pack_data_root = (pack_root / data_root_value).resolve()
+        if (
+            not collection_path.is_relative_to(pack_root)
+            or not pack_data_root.is_relative_to(pack_root)
+            or not collection_path.is_file()
+            or not pack_data_root.is_dir()
+        ):
+            continue
+        packs[pack_id] = {
+            **manifest,
+            "manifest_path": manifest_path.resolve(),
+            "pack_root": pack_root,
+            "collection_path": collection_path,
+            "data_root": pack_data_root,
+        }
+    return packs
+
+
+def _reset_for_question_pack(pack_id: str) -> None:
+    """Clear per-question state when the URL-selected pack changes."""
+    if st.session_state.active_question_pack == pack_id:
+        return
+    st.session_state.active_question_pack = pack_id
+    st.session_state.bundle = None
+    st.session_state.question_path = None
+    st.session_state.question_pool = []
+    st.session_state.review_collection_path = None
+    _reset_score()
+    _reset_quiz_state()
+
+
+def _render_question_pack_selector(
+    packs: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Render a URL-addressable pack selector and return the active pack."""
+    options = [LOCAL_QUESTION_PACK, *packs]
+
+    def format_pack(pack_id: str) -> str:
+        if pack_id == LOCAL_QUESTION_PACK:
+            return "Local data root"
+        return str(packs[pack_id]["display_name"])
+
+    query_value = st.query_params.get("question_pack", LOCAL_QUESTION_PACK)
+    query_selected = (
+        query_value if query_value in options else LOCAL_QUESTION_PACK
+    )
+    widget_key = "question_pack_widget"
+    widget_selected = st.session_state.get(widget_key)
+    active = st.session_state.active_question_pack
+    if widget_selected not in options:
+        st.session_state[widget_key] = query_selected
+    elif query_selected != active and query_selected != widget_selected:
+        # The address bar changed outside the widget; make the URL authoritative.
+        st.session_state[widget_key] = query_selected
+
+    selected = st.selectbox(
+        "Question pack",
+        options,
+        format_func=format_pack,
+        key=widget_key,
+    )
+    if selected == LOCAL_QUESTION_PACK:
+        if "question_pack" in st.query_params:
+            del st.query_params["question_pack"]
+    elif st.query_params.get("question_pack") != selected:
+        st.query_params["question_pack"] = selected
+
+    _reset_for_question_pack(selected)
+    if selected == LOCAL_QUESTION_PACK:
+        if st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve())):
+            st.session_state.data_root = "data"
+        return None
+
+    pack = packs[selected]
+    st.session_state.data_root = str(pack["data_root"])
+    return pack
+
+
+def _collection_manifest_path(
+    collection_path: Path | str | None = None,
+) -> Path | None:
+    if collection_path is not None:
+        candidate = Path(collection_path).resolve()
+        if candidate.suffix.lower() == ".json" and candidate.is_file():
+            return candidate
+        return None
+    if len(sys.argv) <= 1:
+        return None
+
+    candidate = Path(sys.argv[1]).resolve()
+    if candidate.suffix.lower() == ".json" and candidate.is_file():
+        return candidate
+    return None
+
+
+def _startup_question_collection(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> list[Path] | None:
+    """Load a review collection from a tracked pack or Streamlit CLI argument."""
+    manifest_path = _collection_manifest_path(collection_path)
+    if manifest_path is None:
+        return None
+
+    try:
+        manifest = read_json_file(manifest_path)
+    except (OSError, ValueError):
+        return []
+    values = manifest.get("question_paths")
+    if not isinstance(values, list):
+        return []
+
+    root = _resolve_data_root(data_root)
+    questions: list[Path] = []
+    seen: set[Path] = set()
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        path = Path(value)
+        resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
+        if (
+            resolved in seen
+            or not resolved.is_relative_to(root)
+            or not (resolved / "question.json").is_file()
+        ):
+            continue
+        seen.add(resolved)
+        questions.append(resolved)
+    return questions
+
+
+def _discover_questions(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> list[Path]:
+    collection = _startup_question_collection(data_root, collection_path)
+    if collection is not None:
+        return collection
+    return [Path(path) for path in _cached_question_dirs(str(_resolve_data_root(data_root)))]
+
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _cached_question_dirs(data_root: str) -> tuple[str, ...]:
+    """Avoid recursively scanning every question twice on each UI rerun."""
+    return tuple(str(path) for path in list_question_dirs(Path(data_root)))
+
+
+def _default_question_path(
+    pool: list[Path],
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> Path | None:
     if not pool:
         return None
+    if _startup_question_collection(data_root, collection_path) is not None:
+        return pool[0]
     if len(sys.argv) > 1:
         arg = Path(sys.argv[1]).resolve()
         if arg.is_file():
@@ -1666,8 +1860,16 @@ def _recommended_next_path(
     )
 
 
-def _render_question_picker(data_root: str) -> None:
-    manifest, pool = _load_question_pool(data_root)
+def _render_question_picker(
+    data_root: str,
+    collection_path: Path | str | None = None,
+) -> None:
+    collection = _startup_question_collection(data_root, collection_path)
+    collection_mode = collection is not None
+    if collection_mode:
+        pool = collection
+    else:
+        _, pool = _load_question_pool(data_root)
     st.session_state.question_pool = [str(p) for p in pool]
 
     manifest_error = st.session_state.quiz_manifest_error
@@ -1681,13 +1883,26 @@ def _render_question_picker(data_root: str) -> None:
         return
 
     if not pool:
-        st.warning("No questions found under the data root.")
+        if collection_mode:
+            st.warning("This review collection contains no valid questions.")
+        else:
+            st.warning("No questions found under the data root.")
         st.session_state.bundle = None
         return
 
+    if collection_mode:
+        manifest_path = _collection_manifest_path(collection_path)
+        assert manifest_path is not None
+        collection_identity = str(manifest_path)
+        if st.session_state.review_collection_path != collection_identity:
+            st.session_state.review_collection_path = collection_identity
+            _reset_score()
+    else:
+        st.session_state.review_collection_path = None
+
     current = st.session_state.question_path
     if current is None or not _pool_contains(pool, Path(current)):
-        default = _default_question_path(pool)
+        default = _default_question_path(pool, data_root, collection_path)
         if default is not None:
             _switch_question(
                 default,
@@ -1701,82 +1916,104 @@ def _render_question_picker(data_root: str) -> None:
             )
 
     current_path = Path(st.session_state.question_path)
-    labels = [question_label(p) for p in pool]
-    label_to_path = dict(zip(labels, pool, strict=True))
     try:
         current_index = pool.index(current_path.resolve())
     except ValueError:
         current_index = 0
         st.session_state.question_path = str(pool[0])
 
-    nav_next, nav_random = st.columns(2)
-    with nav_next:
-        if st.button("Next", use_container_width=True):
-            nxt = pool[(current_index + 1) % len(pool)]
-            presentation = _presentation_decision(
-                policy_version=SEQUENTIAL_POLICY_VERSION,
-                mode="fallback",
-                propensity=1.0,
-                source="next",
-            )
-            if manifest is not None:
-                try:
-                    nxt, recommendation = _recommended_next_path(
-                        manifest,
-                        current_path,
-                        seed=secrets.randbits(63),
-                    )
-                    presentation = _presentation_decision(
-                        policy_version=SURPRISE_POLICY_VERSION,
-                        mode=recommendation.mode,
-                        propensity=recommendation.propensity,
-                        source="next",
-                    )
-                except (
-                    surprise_catalog.SurpriseCatalogError,
-                    surprise_recommender.SurpriseRecommendationError,
-                    OSError,
-                ):
-                    # Serving remains available even when the private catalog
-                    # or policy cannot be evaluated. The existing sequential
-                    # Next behavior is the explicit fail-safe.
-                    pass
-            _switch_question(nxt, data_root, presentation=presentation)
-            st.rerun()
-    with nav_random:
-        if st.button("Random", use_container_width=True):
-            choices = [p for p in pool if p.resolve() != current_path.resolve()]
-            pick = random.choice(choices or pool)
-            _switch_question(
-                pick,
-                data_root,
-                presentation=_presentation_decision(
-                    policy_version=RANDOM_POLICY_VERSION,
-                    mode="explore",
-                    propensity=1.0 / len(choices or pool),
-                    source="random",
-                ),
-            )
-            st.rerun()
-
-    picked_label = st.selectbox(
-        "Question",
-        labels,
-        index=current_index,
-    )
-    picked_path = label_to_path[picked_label]
-    if picked_path.resolve() != current_path.resolve():
-        _switch_question(
-            picked_path,
-            data_root,
-            presentation=_presentation_decision(
-                policy_version=MANUAL_POLICY_VERSION,
-                mode="manual",
-                propensity=1.0,
-                source="picker",
-            ),
+    if collection_mode:
+        picker_key = (
+            "review_question_picker_"
+            + hashlib.sha256(collection_identity.encode("utf-8")).hexdigest()[:12]
         )
-        st.rerun()
+        if current_index < len(pool) - 1:
+            if st.button(
+                f"Next question ({current_index + 2}/{len(pool)})",
+                use_container_width=True,
+                disabled=st.session_state.committed_letter is None,
+            ):
+                st.session_state[picker_key] = current_index + 1
+                _switch_question(pool[current_index + 1], data_root)
+                st.rerun()
+        elif st.session_state.committed_letter is not None:
+            correct, total = _score_stats()
+            st.success(f"Review sequence complete · score {correct} / {total}")
+            if st.button("Restart sequence", use_container_width=True):
+                st.session_state[picker_key] = 0
+                _reset_score()
+                _switch_question(pool[0], data_root)
+                st.rerun()
+        else:
+            st.info("Submit this final answer to complete the review sequence.")
+
+        picked_index = st.selectbox(
+            "Review question",
+            options=list(range(len(pool))),
+            index=current_index,
+            format_func=lambda index: (
+                f"{index + 1}/{len(pool)} · {question_label(pool[index])}"
+            ),
+            key=picker_key,
+        )
+        picked_path = pool[picked_index]
+        if picked_index != current_index:
+            _switch_question(picked_path, data_root)
+            st.rerun()
+    else:
+        manifest = _load_active_manifest(data_root)
+        nav_next, nav_random = st.columns(2)
+        with nav_next:
+            if st.button("Next", use_container_width=True):
+                nxt = pool[(current_index + 1) % len(pool)]
+                presentation = _presentation_decision(
+                    policy_version=SEQUENTIAL_POLICY_VERSION,
+                    mode="fallback",
+                    propensity=1.0,
+                    source="next",
+                )
+                if manifest is not None:
+                    try:
+                        nxt, recommendation = _recommended_next_path(
+                            manifest,
+                            current_path,
+                            seed=secrets.randbits(63),
+                        )
+                        presentation = _presentation_decision(
+                            policy_version=SURPRISE_POLICY_VERSION,
+                            mode=recommendation.mode,
+                            propensity=recommendation.propensity,
+                            source="next",
+                        )
+                    except (
+                        surprise_catalog.SurpriseCatalogError,
+                        surprise_recommender.SurpriseRecommendationError,
+                        OSError,
+                    ):
+                        # Serving remains available even when the private catalog
+                        # or policy cannot be evaluated. The existing sequential
+                        # Next behavior is the explicit fail-safe.
+                        pass
+                _switch_question(nxt, data_root, presentation=presentation)
+                st.rerun()
+        with nav_random:
+            if st.button("Random", use_container_width=True):
+                choices = [p for p in pool if p.resolve() != current_path.resolve()]
+                pick = random.choice(choices or pool)
+                _switch_question(pick, data_root)
+                st.rerun()
+
+        labels = [question_label(p) for p in pool]
+        label_to_path = dict(zip(labels, pool, strict=True))
+        picked_label = st.selectbox(
+            "Question",
+            labels,
+            index=current_index,
+        )
+        picked_path = label_to_path[picked_label]
+        if picked_path.resolve() != current_path.resolve():
+            _switch_question(picked_path, data_root)
+            st.rerun()
 
     loaded_bundle = st.session_state.bundle
     if (
@@ -1787,7 +2024,9 @@ def _render_question_picker(data_root: str) -> None:
         _switch_question(picked_path, data_root)
         loaded_bundle = st.session_state.bundle
 
-    if manifest is None:
+    if collection_mode:
+        st.caption(f"Question {current_index + 1} / {len(pool)} · `{picked_path.name}`")
+    elif manifest is None:
         st.caption(f"{len(pool)} unversioned question(s) · `{picked_path.name}`")
         st.caption(
             f"Runtime Git SHA: `{_runtime_git_sha() or 'N/A'}` · "
@@ -1812,16 +2051,6 @@ def _render_question_picker(data_root: str) -> None:
                 f"{unpublished_count} additional local question(s) are not part "
                 "of this release."
             )
-        published_paths = {path.resolve() for path in manifest.question_dirs()}
-        publication_label = (
-            "published"
-            if picked_path.resolve() in published_paths
-            else "local / unpublished"
-        )
-        st.caption(
-            f"Question {current_index + 1}/{len(pool)} · {publication_label} · "
-            f"`{picked_path.name}`"
-        )
 
 
 def _selection_metric(bundle: QuestionBundle, q: dict[str, Any]) -> str:
@@ -1951,6 +2180,349 @@ def _plot_bigram_lm(
         st.code(f"x: {x_row}\ny: {y_row}", language="text")
 
 
+def _valid_classification_feature_pair(
+    first_feature: int,
+    second_feature: int,
+    input_dim: int,
+) -> tuple[int, int]:
+    if input_dim < 2:
+        raise ValueError("A 2-D classification projection needs at least two features.")
+    if (
+        first_feature != second_feature
+        and 0 <= first_feature < input_dim
+        and 0 <= second_feature < input_dim
+    ):
+        return first_feature, second_feature
+    first = 0 if first_feature < 0 or first_feature >= input_dim else first_feature
+    second = next(feature for feature in range(input_dim) if feature != first)
+    return first, second
+
+
+def _select_rule_aware_classification_pair(
+    params: dict[str, Any],
+    input_dim: int,
+) -> tuple[int, int, str]:
+    """Choose a semantically informative pair from the frozen rule specification."""
+    active = [
+        int(feature)
+        for feature in params.get("active_features", [])
+        if isinstance(feature, int) and 0 <= int(feature) < input_dim
+    ]
+    rule_family = str(params.get("rule_family", ""))
+
+    if rule_family == "sparse_interaction":
+        pairs = params.get("interaction_pairs", [])
+        weights = params.get("rule_weights", [])
+        weighted_pairs: list[tuple[float, int, int]] = []
+        for index, pair in enumerate(pairs):
+            if (
+                not isinstance(pair, list)
+                or len(pair) != 2
+                or not all(isinstance(feature, int) for feature in pair)
+            ):
+                continue
+            weight = float(weights[index]) if index < len(weights) else 0.0
+            weighted_pairs.append((abs(weight), int(pair[0]), int(pair[1])))
+        if weighted_pairs:
+            _, first, second = max(weighted_pairs, key=lambda item: item[0])
+            first, second = _valid_classification_feature_pair(first, second, input_dim)
+            return first, second, "largest-magnitude interaction"
+    if rule_family == "piecewise_boundary" and len(active) >= 2:
+        first, second = _valid_classification_feature_pair(active[0], active[1], input_dim)
+        return first, second, "piecewise-boundary coordinates"
+
+    if rule_family == "smooth_additive" and active:
+        weights = params.get("rule_weights", [])
+        ranked = sorted(
+            (
+                (
+                    abs(float(weights[index])) if index < len(weights) else 0.0,
+                    feature,
+                )
+                for index, feature in enumerate(active)
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        first = ranked[0][1]
+        second = next((feature for _, feature in ranked if feature != first), -1)
+        first, second = _valid_classification_feature_pair(first, second, input_dim)
+        return first, second, "largest-magnitude additive effects"
+    first = active[0] if active else 0
+    second = active[1] if len(active) >= 2 else -1
+    first, second = _valid_classification_feature_pair(first, second, input_dim)
+    return first, second, "available feature coordinates"
+
+
+def _classification_probability_grid(
+    x: np.ndarray,
+    y: np.ndarray,
+    first_feature: int,
+    second_feature: int,
+    *,
+    bins: int = 24,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Estimate empirical P(y=1) on a feature-pair grid; empty cells are NaN."""
+    if bins < 2:
+        raise ValueError("bins must be at least 2")
+    values = np.asarray(x)
+    labels = np.asarray(y).reshape(-1)
+    if values.ndim != 2 or values.shape[0] != labels.shape[0]:
+        raise ValueError("x must be [N, D] and y must have N entries")
+    first_feature, second_feature = _valid_classification_feature_pair(
+        first_feature, second_feature, values.shape[1]
+    )
+    first_values = values[:, first_feature]
+    second_values = values[:, second_feature]
+    finite = np.isfinite(first_values) & np.isfinite(second_values) & np.isfinite(labels)
+    if not np.any(finite):
+        raise ValueError("No finite points are available for the classification projection")
+    first_values = first_values[finite]
+    second_values = second_values[finite]
+    labels = labels[finite]
+
+    def edges(values: np.ndarray) -> np.ndarray:
+        low = float(np.min(values))
+        high = float(np.max(values))
+        if low == high:
+            low -= 0.5
+            high += 0.5
+        margin = 0.05 * (high - low)
+        return np.linspace(low - margin, high + margin, bins + 1)
+
+    first_edges = edges(first_values)
+    second_edges = edges(second_values)
+    counts, _, _ = np.histogram2d(
+        first_values, second_values, bins=(first_edges, second_edges)
+    )
+    positive, _, _ = np.histogram2d(
+        first_values[labels == 1],
+        second_values[labels == 1],
+        bins=(first_edges, second_edges),
+    )
+    probability = np.full(counts.shape, np.nan, dtype=float)
+    np.divide(positive, counts, out=probability, where=counts > 0)
+    return first_edges, second_edges, probability, counts
+
+
+def _select_observed_classification_pair(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    bins: int = 12,
+) -> tuple[int, int, float]:
+    """Select the pair with the strongest count-weighted empirical class contrast."""
+    values = np.asarray(x)
+    labels = np.asarray(y).reshape(-1)
+    if values.ndim != 2 or values.shape[0] != labels.shape[0] or values.shape[1] < 2:
+        raise ValueError("Observed feature-pair selection needs x=[N, D], y=[N], D>=2")
+    baseline = float(np.mean(labels == 1))
+    best_pair = (0, 1)
+    best_score = float("-inf")
+    for first_feature in range(values.shape[1]):
+        for second_feature in range(first_feature + 1, values.shape[1]):
+            _, _, probability, counts = _classification_probability_grid(
+                values, labels, first_feature, second_feature, bins=bins
+            )
+            occupied = counts > 0
+            score = float(
+                np.sum(counts[occupied] * (probability[occupied] - baseline) ** 2)
+                / np.sum(counts[occupied])
+            )
+            if score > best_score:
+                best_pair = (first_feature, second_feature)
+                best_score = score
+    return best_pair[0], best_pair[1], best_score
+
+
+def _sample_classification_indices(
+    labels: np.ndarray,
+    label: int,
+    *,
+    maximum: int,
+) -> np.ndarray:
+    indices = np.flatnonzero(labels == label)
+    if len(indices) <= maximum:
+        return indices
+    return indices[np.linspace(0, len(indices) - 1, maximum, dtype=int)]
+
+
+def _plot_synthetic_tabular_classification(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
+    *,
+    params: dict[str, Any] | None = None,
+    feature_pair: tuple[int, int] | None = None,
+    selection_note: str = "available feature coordinates",
+) -> None:
+    """Plot empirical class probability and a sampled, low-overlap point overlay."""
+    x_train = train_x.detach().cpu().numpy()
+    x_test = test_x.detach().cpu().numpy()
+    y_train = train_y.detach().cpu().reshape(-1).numpy()
+    y_test = test_y.detach().cpu().reshape(-1).numpy()
+    if (
+        x_train.ndim != 2
+        or x_test.ndim != 2
+        or x_train.shape[1] < 2
+        or x_test.shape[1] < 2
+    ):
+        st.info(
+            "Classification dataset has fewer than two tabular features; "
+            "no 2-D projection is available."
+        )
+        return
+
+    if feature_pair is None:
+        first_feature, second_feature, selection_note = (
+            _select_rule_aware_classification_pair(params or {}, x_train.shape[1])
+        )
+    else:
+        first_feature, second_feature = _valid_classification_feature_pair(
+            feature_pair[0], feature_pair[1], x_train.shape[1]
+        )
+    first_edges, second_edges, probability, _ = _classification_probability_grid(
+        x_train, y_train, first_feature, second_feature
+    )
+
+    fig, ax = plt.subplots(figsize=(7.4, 4.1))
+    image = ax.pcolormesh(
+        first_edges,
+        second_edges,
+        probability.T,
+        shading="auto",
+        cmap="RdBu_r",
+        vmin=0.0,
+        vmax=1.0,
+        alpha=0.82,
+    )
+    finite_probability = probability[np.isfinite(probability)]
+    if (
+        finite_probability.size
+        and float(np.min(finite_probability)) < 0.5
+        and float(np.max(finite_probability)) > 0.5
+    ):
+        first_centers = (first_edges[:-1] + first_edges[1:]) / 2
+        second_centers = (second_edges[:-1] + second_edges[1:]) / 2
+        ax.contour(
+            first_centers,
+            second_centers,
+            probability.T,
+            levels=[0.5],
+            colors="#0f172a",
+            linewidths=1.0,
+        )
+
+    colors = ("#1d4ed8", "#b91c1c")
+    for label, color in enumerate(colors):
+        train_indices = _sample_classification_indices(y_train, label, maximum=220)
+        test_indices = _sample_classification_indices(y_test, label, maximum=90)
+        ax.scatter(
+            x_train[train_indices, first_feature],
+            x_train[train_indices, second_feature],
+            s=10,
+            alpha=0.32,
+            c=color,
+            label=f"train · class {label}",
+            edgecolors="none",
+        )
+        ax.scatter(
+            x_test[test_indices, first_feature],
+            x_test[test_indices, second_feature],
+            s=20,
+            alpha=0.72,
+            c=color,
+            marker="x",
+        )
+
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+    colorbar.set_label("empirical P(class 1) in train bins")
+    ax.set_xlabel(f"feature {first_feature}")
+    ax.set_ylabel(f"feature {second_feature}")
+    ax.set_title(f"Classification projection · {selection_note}")
+    ax.legend(loc="upper right", fontsize="small")
+    ax.grid(False)
+    fig.tight_layout()
+    st.pyplot(fig, clear_figure=True)
+    plt.close(fig)
+
+
+def _render_synthetic_tabular_classification_plot(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
+    *,
+    params: dict[str, Any],
+    dataset_id: str,
+) -> None:
+    if train_x.ndim != 2 or train_x.shape[1] < 2:
+        _plot_synthetic_tabular_classification(train_x, train_y, test_x, test_y)
+        return
+
+    input_dim = int(train_x.shape[1])
+    default_first, default_second, default_note = (
+        _select_rule_aware_classification_pair(params, input_dim)
+    )
+    mode = st.radio(
+        "Projection",
+        ("Decision-relevant", "Observed labels", "Manual"),
+        horizontal=True,
+        key=f"classification_projection_mode_{dataset_id}",
+    )
+    if mode == "Decision-relevant":
+        first_feature, second_feature, note = (
+            default_first,
+            default_second,
+            f"rule-aware: {default_note}",
+        )
+    elif mode == "Observed labels":
+        first_feature, second_feature, score = _select_observed_classification_pair(
+            train_x.detach().cpu().numpy(),
+            train_y.detach().cpu().reshape(-1).numpy(),
+        )
+        note = f"label-driven pair (contrast {score:.3f})"
+    else:
+        feature_options = list(range(input_dim))
+        first_feature = st.selectbox(
+            "Horizontal feature",
+            feature_options,
+            index=feature_options.index(default_first),
+            format_func=lambda feature: f"feature {feature}",
+            key=f"classification_projection_x_{dataset_id}",
+        )
+        second_options = [
+            feature for feature in feature_options if feature != first_feature
+        ]
+        second_default = (
+            second_options.index(default_second)
+            if default_second in second_options
+            else 0
+        )
+        second_feature = st.selectbox(
+            "Vertical feature",
+            second_options,
+            index=second_default,
+            format_func=lambda feature: f"feature {feature}",
+            key=f"classification_projection_y_{dataset_id}",
+        )
+        note = "manual feature pair"
+
+    st.caption(
+        "Background: empirical train-set class rate per bin. "
+        "Filled points: sampled train data; crosses: sampled test data."
+    )
+    _plot_synthetic_tabular_classification(
+        train_x,
+        train_y,
+        test_x,
+        test_y,
+        params=params,
+        feature_pair=(first_feature, second_feature),
+        selection_note=note,
+    )
+
 def _plot_dataset(bundle: QuestionBundle) -> None:
     spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
     family = spec.get("family", "univariate_regression")
@@ -1964,6 +2536,15 @@ def _plot_dataset(bundle: QuestionBundle) -> None:
             test_x,
             test_y,
             input_dim=int(params.get("input_dim", train_x.shape[1])),
+        )
+    elif family == "synthetic_tabular_classification":
+        _render_synthetic_tabular_classification_plot(
+            train_x,
+            train_y,
+            test_x,
+            test_y,
+            params=params,
+            dataset_id=bundle.dataset_dir.name,
         )
     elif family == "bigram_lm":
         _plot_bigram_lm(bundle.dataset_dir, train_x, train_y)
@@ -1991,6 +2572,7 @@ def _curve_series_from_candidate(
     label: str,
     color: str,
     linestyle: str = "-",
+    diagnostics: list[str] | None = None,
 ) -> dict[str, Any] | None:
     curves_path = candidate_dir / "results" / "curves.npz"
     spec = read_json_file(candidate_dir / "candidate_spec.json")
@@ -2006,17 +2588,41 @@ def _curve_series_from_candidate(
         batch_size=int(batch_size),
     )
     if "error" in loaded:
+        if diagnostics is not None:
+            diagnostics.append(f"{label}: {loaded['error']}")
         return None
+    if loaded.get("warning") and diagnostics is not None:
+        diagnostics.append(f"{label}: {loaded['warning']}")
 
     curves = loaded["curves"]
     x = np.asarray(loaded["eval_samples"], dtype=np.int64)
     if curves.size == 0 or not np.isfinite(curves).any():
+        if diagnostics is not None:
+            diagnostics.append(f"{label}: curves.npz contains no finite values")
         return None
 
-    mean = np.nanmean(curves, axis=0)
-    std = np.nanstd(curves, axis=0)
-    valid = np.isfinite(mean)
+    finite = np.isfinite(curves)
+    valid = finite.any(axis=0)
+    mean = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    std = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    if valid.any():
+        mean[valid] = np.nanmean(curves[:, valid], axis=0)
+        std[valid] = np.nanstd(curves[:, valid], axis=0)
+    positive_curves = np.where(finite & (curves > 0), curves, np.nan)
+    positive = np.isfinite(positive_curves).any(axis=0)
+    log_q10 = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    log_median = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    log_q90 = np.full(curves.shape[1], np.nan, dtype=np.float64)
+    if positive.any():
+        quantiles = np.nanquantile(
+            positive_curves[:, positive],
+            (0.10, 0.50, 0.90),
+            axis=0,
+        )
+        log_q10[positive], log_median[positive], log_q90[positive] = quantiles
     if not valid.any():
+        if diagnostics is not None:
+            diagnostics.append(f"{label}: curves.npz contains no finite columns")
         return None
     return {
         "label": label,
@@ -2025,23 +2631,32 @@ def _curve_series_from_candidate(
         "x": x[valid],
         "mean": mean[valid],
         "std": std[valid],
+        "log_q10": log_q10[valid],
+        "log_median": log_median[valid],
+        "log_q90": log_q90[valid],
     }
 
-
-def _collect_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
+def _collect_curve_series(
+    bundle: QuestionBundle,
+    diagnostics: list[str] | None = None,
+) -> list[dict[str, Any]]:
     series: list[dict[str, Any]] = []
     for index, choice in enumerate(bundle.choices):
         item = _curve_series_from_candidate(
             choice["candidate_dir"],
             label=f"{choice['letter']} · {choice['candidate_id']}",
             color=_choice_color(index),
+            diagnostics=diagnostics,
         )
         if item is not None:
             series.append(item)
     return series
 
 
-def _collect_custom_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]:
+def _collect_custom_curve_series(
+    bundle: QuestionBundle,
+    diagnostics: list[str] | None = None,
+) -> list[dict[str, Any]]:
     series: list[dict[str, Any]] = []
     for index, setting in enumerate(
         list_custom_setting_runs(_custom_settings_storage_for(bundle.question))
@@ -2051,6 +2666,7 @@ def _collect_custom_curve_series(bundle: QuestionBundle) -> list[dict[str, Any]]
             label=f"Custom · {setting['label']}",
             color=_setting_color(index),
             linestyle="--",
+            diagnostics=diagnostics,
         )
         if item is not None:
             item["setting"] = setting
@@ -2103,10 +2719,15 @@ def _render_combined_curves(
     include_candidates: bool,
 ) -> None:
     st.markdown("#### Learning curves")
-    custom_series = _collect_custom_curve_series(bundle)
-    series = (
-        _collect_curve_series(bundle) if include_candidates else []
-    ) + custom_series
+    diagnostics: list[str] = []
+    custom_series = _collect_custom_curve_series(bundle, diagnostics)
+    series = (_collect_curve_series(bundle, diagnostics) if include_candidates else []) + custom_series
+    if diagnostics:
+        message = "Curve diagnostics: " + " | ".join(diagnostics)
+        if series:
+            st.caption(message)
+        else:
+            st.warning(message)
     if not series:
         st.info("No learning curve data available yet.")
         return
@@ -2126,14 +2747,28 @@ def _render_combined_curves(
         x_valid = x_valid[in_window]
         mean_valid = item["mean"][in_window]
         std_valid = item["std"][in_window]
-        lower = mean_valid - std_valid
-        upper = mean_valid + std_valid
-        line = mean_valid
         if use_log_y:
-            eps = np.finfo(float).tiny
-            lower = np.maximum(lower, eps)
-            upper = np.maximum(upper, eps)
-            line = np.maximum(line, eps)
+            lower = item["log_q10"][in_window]
+            upper = item["log_q90"][in_window]
+            line = item["log_median"][in_window]
+            positive = (
+                np.isfinite(lower)
+                & np.isfinite(upper)
+                & np.isfinite(line)
+                & (lower > 0)
+                & (upper > 0)
+                & (line > 0)
+            )
+            if not positive.any():
+                continue
+            x_valid = x_valid[positive]
+            lower = lower[positive]
+            upper = upper[positive]
+            line = line[positive]
+        else:
+            lower = mean_valid - std_valid
+            upper = mean_valid + std_valid
+            line = mean_valid
         ax.fill_between(
             x_valid,
             lower,
@@ -2164,9 +2799,14 @@ def _render_combined_curves(
         ax.set_xscale("log")
     if use_log_y:
         ax.set_yscale("log")
-    title = "Learning curves (mean ± std across seeds)"
+    uncertainty_label = (
+        "median with 10–90% quantile band"
+        if use_log_y
+        else "mean ± std across seeds"
+    )
+    title = f"Learning curves ({uncertainty_label})"
     if custom_series and not include_candidates:
-        title = "Custom setting curves (mean ± std across seeds)"
+        title = f"Custom setting curves ({uncertainty_label})"
     ax.set_title(title)
     ax.grid(True, alpha=0.25)
     ax.legend(loc="best", fontsize=9)
@@ -2236,7 +2876,18 @@ def _spec_block(label: str, lines: list[str]) -> str:
 def _render_candidate_spec_html(spec: dict[str, Any]) -> str:
     blocks = [
         _spec_block("Training", _format_training_lines(spec.get("budget", {}))),
-        _spec_block("Model", _format_model_lines(spec.get("model", {}))),
+        _spec_block(
+            "Model",
+            _format_model_lines(spec.get("model", {}))
+            + [
+                "Trainable parameters: "
+                + (
+                    f"{int(spec['trainable_parameter_count']):,}"
+                    if spec.get("trainable_parameter_count") is not None
+                    else "unavailable"
+                )
+            ],
+        ),
         _spec_block("Optimizer", _format_optimizer_lines(spec.get("optimizer", {}))),
         _spec_block("Loss", _format_loss_lines(spec.get("loss", {}))),
     ]
@@ -2420,6 +3071,140 @@ def _render_transformer_setting_fields(
         "d_ff": d_ff,
     }
 
+def _render_gru_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    st.markdown("**Architecture parameters**")
+    d_model_col, layers_col = st.columns(2)
+    with d_model_col:
+        d_model = int(
+            st.number_input(
+                "Model width",
+                min_value=1,
+                max_value=1024,
+                step=8,
+                key=_ensure_setting_value(
+                    q,
+                    "gru_d_model",
+                    int(profile.gru_lm["d_model"][0]),
+                ),
+            )
+        )
+    with layers_col:
+        num_layers = int(
+            st.number_input(
+                "Layers",
+                min_value=1,
+                max_value=12,
+                step=1,
+                key=_ensure_setting_value(
+                    q,
+                    "gru_layers",
+                    int(profile.gru_lm["num_layers"][0]),
+                ),
+            )
+        )
+    residual_default = bool(profile.gru_lm.get("layer_residual", False))
+    layer_residual = st.checkbox(
+        "Layer residual connections",
+        key=_ensure_setting_value(q, "gru_layer_residual", residual_default),
+        help=(
+            "When enabled, each GRU layer adds its output to its input: "
+            "h = h + GRU_layer(h)."
+        ),
+    )
+    if layer_residual:
+        st.caption("Enabled: after each GRU layer, h = h + GRU_layer(h).")
+    else:
+        st.caption("Disabled (legacy stacked GRU behavior).")
+    return {
+        "d_model": d_model,
+        "num_layers": num_layers,
+        "layer_residual": bool(layer_residual),
+    }
+
+
+def _kan_defaults(profile: Any) -> dict[str, Any]:
+    """Resolve editable KAN defaults from the active profile, not a fixed pool."""
+    config = profile.kan
+
+    def pick(name: str, fallback: Any) -> Any:
+        values = config.get(name)
+        if not isinstance(values, list) or not values:
+            return fallback
+        return values[min(1, len(values) - 1)]
+
+    grid_range = pick("grid_range", [-1.0, 1.0])
+    if not isinstance(grid_range, list) or len(grid_range) != 2:
+        grid_range = [-1.0, 1.0]
+    # ``base_activation`` describes the legacy sampled pool. v2.2's broader
+    # KAN pool is recorded as explicit, auditable archetypes, so include its
+    # activations as editable choices too. Otherwise a valid inherited KAN
+    # candidate such as ``relu`` could not be represented by the UI.
+    activations = [str(value) for value in config.get("base_activation") or []]
+    archetypes = config.get("archetypes", {})
+    if isinstance(archetypes, dict):
+        for family_archetypes in archetypes.values():
+            if not isinstance(family_archetypes, list):
+                continue
+            for archetype in family_archetypes:
+                if isinstance(archetype, dict) and archetype.get("base_activation"):
+                    activations.append(str(archetype["base_activation"]))
+    activations = list(dict.fromkeys(activations)) or ["silu"]
+    return {
+        "variant": str(config.get("variant", "efficient_spline_v1")),
+        "depth": int(pick("depth", 1)), "width": int(pick("width", 8)),
+        "grid_size": int(pick("grid_size", 5)), "spline_order": int(pick("spline_order", 3)),
+        "grid_low": float(grid_range[0]), "grid_high": float(grid_range[1]),
+        "base_activations": activations,
+    }
+
+
+def _kan_activation_options(options: list[str], current: str) -> list[str]:
+    """Keep a valid inherited activation editable under a narrower profile."""
+    result = list(options)
+    if current in BASE_ACTIVATIONS and current not in result:
+        result.append(current)
+    return result
+
+
+def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
+    """Render all KAN fields supported by ``build_model_spec``."""
+    defaults = _kan_defaults(profile)
+    st.markdown("**Architecture parameters**")
+    variant = st.text_input("KAN variant", key=_ensure_setting_value(q, "kan_variant", defaults["variant"]))
+    columns = st.columns(4)
+    values: dict[str, int] = {}
+    for column, label, name, maximum in zip(
+        columns, ("Depth", "Width", "Grid size", "Spline order"),
+        ("depth", "width", "grid_size", "spline_order"), (12, 2048, 64, 16), strict=True,
+    ):
+        with column:
+            values[name] = int(st.number_input(label, min_value=1, max_value=maximum, step=1,
+                key=_ensure_setting_value(q, f"kan_{name}", defaults[name])))
+    low_col, high_col, activation_col = st.columns(3)
+    with low_col:
+        grid_low = float(st.number_input("Grid lower bound", step=0.1, format="%.6g",
+            key=_ensure_setting_value(q, "kan_grid_low", defaults["grid_low"])))
+    with high_col:
+        grid_high = float(st.number_input("Grid upper bound", step=0.1, format="%.6g",
+            key=_ensure_setting_value(q, "kan_grid_high", defaults["grid_high"])))
+    with activation_col:
+        activation_key = _ensure_setting_value(
+            q, "kan_base_activation", defaults["base_activations"][0]
+        )
+        current_activation = str(st.session_state[activation_key])
+        activation_options = _kan_activation_options(
+            defaults["base_activations"], current_activation
+        )
+        if current_activation not in activation_options:
+            st.session_state[activation_key] = activation_options[0]
+        base_activation = st.selectbox(
+            "Base activation", activation_options, key=activation_key
+        )
+    return {"variant": variant, **values, "grid_range": [grid_low, grid_high], "base_activation": base_activation}
+
+
+
+
 
 def _render_optimizer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
     st.markdown("**Optimizer parameters**")
@@ -2540,6 +3325,90 @@ def _inherit_source_changed(bundle: QuestionBundle, q: dict[str, Any]) -> None:
     st.session_state.pop(_setting_key(q, "inherited_candidate_id"), None)
 
 
+def _format_elapsed(seconds: float) -> str:
+    whole_seconds = max(0, int(round(seconds)))
+    minutes, seconds = divmod(whole_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours:d}:{minutes:02d}:{seconds:02d}"
+
+
+def _custom_setting_progress_callback() -> Callable[[dict[str, Any]], None]:
+    """Create in-place Streamlit widgets for one synchronous custom-setting run."""
+    started_at = time.monotonic()
+    progress_bar = st.progress(0)
+    status = st.empty()
+    chart = st.empty()
+    histories: dict[int, tuple[list[int], list[float]]] = {}
+    completed_seeds: set[int] = set()
+
+    def render_chart(metric: str, n_seeds: int) -> None:
+        fig, ax = plt.subplots(figsize=(7.2, 2.9))
+        for seed_index, (samples, values) in sorted(histories.items()):
+            if seed_index in completed_seeds and samples:
+                ax.plot(samples, values, linewidth=1.5, label=f"seed {seed_index}")
+        ax.set_xlabel("Samples seen")
+        ax.set_ylabel(_metric_display_name(metric))
+        ax.set_title(
+            "Custom-setting learning curves "
+            f"(completed seeds: {len(completed_seeds)} / {n_seeds})"
+        )
+        ax.grid(True, alpha=0.25)
+        if len(completed_seeds) <= 8:
+            ax.legend(loc="best", fontsize="small")
+        fig.tight_layout()
+        chart.pyplot(fig, clear_figure=True)
+        plt.close(fig)
+
+    def callback(event: dict[str, Any]) -> None:
+        phase = str(event.get("phase", ""))
+        seed_index = int(event.get("seed_index", 1))
+        n_seeds = max(1, int(event.get("n_seeds", 1)))
+        training_steps = max(1, int(event.get("training_steps", 1)))
+        step = min(training_steps, max(0, int(event.get("step", 0))))
+        fraction = ((seed_index - 1) + step / training_steps) / n_seeds
+        if phase == "seed_finished":
+            fraction = seed_index / n_seeds
+        fraction = min(1.0, max(0.0, fraction))
+        progress_bar.progress(int(round(100 * fraction)))
+
+        elapsed = time.monotonic() - started_at
+        eta = elapsed * (1.0 - fraction) / fraction if fraction > 0 else None
+        eta_text = f" · ETA {_format_elapsed(eta)}" if eta is not None else ""
+        metric = str(event.get("selection_metric", "metric"))
+
+        if phase == "seed_started":
+            status.caption(
+                f"Training seed {seed_index} / {n_seeds} · "
+                f"{training_steps} optimizer steps · elapsed {_format_elapsed(elapsed)}"
+            )
+            return
+
+        if phase == "evaluation":
+            value = float(event["metric"])
+            if np.isfinite(value):
+                samples, values = histories.setdefault(seed_index, ([], []))
+                samples.append(int(event["samples_seen"]))
+                values.append(value)
+            status.caption(
+                f"Seed {seed_index} / {n_seeds} · step {step} / {training_steps} · "
+                f"samples {int(event.get('samples_seen', 0))} / "
+                f"{int(event.get('total_samples_seen', 0))} · "
+                f"latest {_metric_display_name(metric)} {value:.6g} · "
+                f"elapsed {_format_elapsed(elapsed)}{eta_text}"
+            )
+            return
+
+        if phase == "seed_finished":
+            completed_seeds.add(seed_index)
+            render_chart(metric, n_seeds)
+            status.caption(
+                f"Finished seed {seed_index} / {n_seeds} · "
+                f"updated completed-seed curves · "
+                f"elapsed {_format_elapsed(elapsed)}{eta_text}"
+            )
+
+    return callback
+
 def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) -> None:
     profile = load_profile(str(q.get("profile", "v1")))
     dataset_spec = read_json_file(bundle.dataset_dir / "dataset_spec.json")
@@ -2551,7 +3420,7 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
         st.success(notice)
         st.session_state.setting_notice = None
 
-    with st.expander("＋ Add custom setting", expanded=not runs):
+    with st.expander("＋ Add custom setting", expanded=False):
         st.caption(
             "Train a setting on this question's dataset. Its curve is added without "
             "changing the original choices or score."
@@ -2619,8 +3488,15 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
         )
         if model_type == "mlp":
             model_params = _render_mlp_setting_fields(profile, q)
-        else:
+        elif model_type == "kan":
+            model_params = _render_kan_setting_fields(profile, q)
+        elif model_type == "transformer_lm":
             model_params = _render_transformer_setting_fields(profile, q)
+        elif model_type == "gru_lm":
+            model_params = _render_gru_setting_fields(profile, q)
+        else:
+            st.error(f"Unsupported architecture in this profile: {model_type}")
+            return
 
         optimizer_params = _render_optimizer_setting_fields(profile, q)
 
@@ -2742,6 +3618,7 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                     },
                 )
                 _touch_browser_outbox()
+                progress_callback = _custom_setting_progress_callback()
                 with st.spinner(f"Training {label or 'custom setting'}…"):
                     result = run_custom_setting(
                         _custom_settings_storage_for(q),
@@ -2752,7 +3629,9 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
                         n_seeds=n_seeds,
                         base_seed=base_seed,
                         inherited_from=inherited_from,
+                        progress_callback=progress_callback,
                     )
+
             except Exception as exc:
                 if proposal_event is not None:
                     _feedback_trace().record_custom_run(
@@ -2835,22 +3714,48 @@ def _inspect_paths(candidate_dir: Path, *, show_summary: bool) -> dict[str, Path
     return candidate_file_paths(candidate_dir, include_summary=show_summary)
 
 
-def _render_metadata(q: dict[str, Any]) -> None:
-    st.markdown(
-        f'<div class="question-id">{q["question_id"]}</div>', unsafe_allow_html=True
-    )
+
+def _profile_provenance(bundle: QuestionBundle, q: dict[str, Any]) -> dict[str, str]:
+    """Resolve question/run profile provenance while preserving legacy artifacts."""
+    profile = str(q.get("profile") or "legacy/unknown")
+    profile_hash = q.get("profile_hash")
+    run_path = bundle.question_root.parent / "run.json"
+    if run_path.is_file():
+        try:
+            run = read_json_file(run_path)
+        except (OSError, ValueError, TypeError):
+            run = {}
+        if not q.get("profile") and run.get("profile"):
+            profile = str(run["profile"])
+        profile_hash = profile_hash or run.get("profile_hash")
+    return {
+        "profile": profile,
+        "profile_hash": str(profile_hash) if profile_hash else "legacy/unknown",
+    }
+
+
+def _render_metadata(
+    q: dict[str, Any],
+    provenance: dict[str, str] | None = None,
+) -> None:
+    provenance = provenance or {
+        "profile": str(q.get("profile") or "legacy/unknown"),
+        "profile_hash": str(q.get("profile_hash") or "legacy/unknown"),
+    }
+    st.markdown(f'<div class="question-id">{q["question_id"]}</div>', unsafe_allow_html=True)
     st.markdown(
         (
             f'<div class="question-meta">'
             f"Type: {q.get('type', '—')} · "
             f"Budget: {_question_budget(q)} samples · "
             f"Metric: {q.get('significance', {}).get('metric', 'test_mse')} · "
-            f"Choices: {q.get('num_choices', len(q['choices']))}"
+            f"Choices: {q.get('num_choices', len(q['choices']))} · "
+            f"Profile: {provenance['profile']} · "
+            f"Profile hash: {provenance['profile_hash']}"
             f"</div>"
         ),
         unsafe_allow_html=True,
     )
-
 
 def _card_border_style(
     letter: str,
@@ -2994,6 +3899,66 @@ def _render_ranked_metrics(bundle: QuestionBundle, q: dict[str, Any]) -> None:
             st.write(f"**{row['letter']}** `{row['candidate_id']}` — no metrics")
 
 
+def _signed_latex_sum(terms: list[tuple[float, str]]) -> str:
+    rendered: list[str] = []
+    for index, (weight, expression) in enumerate(terms):
+        sign = "-" if weight < 0 else "+"
+        magnitude = f"{abs(float(weight)):.4g}"
+        if index == 0:
+            rendered.append(f"{'-' if sign == '-' else ''}{magnitude}{expression}")
+        else:
+            rendered.append(f" {sign} {magnitude}{expression}")
+    return "".join(rendered)
+
+
+def _classification_score_latex(params: dict[str, Any]) -> str:
+    family = str(params.get("rule_family", ""))
+    features = [int(value) for value in params.get("active_features", [])]
+    weights = [float(value) for value in params.get("rule_weights", [])]
+    if family == "smooth_additive":
+        terms = [
+            (weight, rf"\left(\sin(x_{{{feature}}}) + 0.25x_{{{feature}}}^2\right)")
+            for feature, weight in zip(features, weights)
+        ]
+        return rf"s(\mathbf{{x}}) = {_signed_latex_sum(terms)}"
+    if family == "sparse_interaction":
+        pairs = params.get("interaction_pairs", [])
+        terms = [
+            (weight, rf"x_{{{int(pair[0])}}}x_{{{int(pair[1])}}}")
+            for pair, weight in zip(pairs, weights)
+            if isinstance(pair, list) and len(pair) == 2
+        ]
+        return rf"s(\mathbf{{x}}) = {_signed_latex_sum(terms)}"
+    if family == "xor" and len(features) >= 2:
+        left, right = features[:2]
+        return rf"s(\mathbf{{x}}) = -x_{{{left}}} \cdot x_{{{right}}}"
+    if family == "piecewise_boundary" and len(features) >= 2 and len(weights) >= 3:
+        primary, secondary = features[:2]
+        below_weight, above_weight, offset_weight = weights[:3]
+        above = _signed_latex_sum(
+            [(above_weight, rf"x_{{{secondary}}}"), (offset_weight, rf"x_{{{primary}}}")]
+        )
+        below = _signed_latex_sum(
+            [(below_weight, rf"x_{{{secondary}}}"), (offset_weight, rf"x_{{{primary}}}")]
+        )
+        breakpoint = float(params.get("piecewise_breakpoint", 0.0))
+        return (
+            rf"s(\mathbf{{x}}) = \begin{{cases}} "
+            rf"{above}, & x_{{{primary}}} > {breakpoint:.4g} \\ "
+            rf"{below}, & x_{{{primary}}} \le {breakpoint:.4g} "
+            rf"\end{{cases}}"
+        )
+    return r"s(\mathbf{x}) = \text{unavailable}"
+
+
+def _classification_label_latex(params: dict[str, Any]) -> str:
+    threshold = float(params.get("decision_threshold", 0.0))
+    noise_std = float(params.get("noise_std", 0.0))
+    return (
+        rf"y = \mathbf{{1}}\{{s(\mathbf{{x}}) + \varepsilon > {threshold:.4g}\}}, "
+        rf"\qquad \varepsilon \sim \mathcal{{N}}(0, {noise_std:.4g}^2)"
+    )
+
 def _render_dataset_info(spec: dict[str, Any], dataset_id: str) -> None:
     family = spec.get("family", "univariate_regression")
     params = spec.get("params", {})
@@ -3007,6 +3972,18 @@ def _render_dataset_info(spec: dict[str, Any], dataset_id: str) -> None:
             "Fixed bigram law **P(y|x)** shared by train and test; "
             "only sampled windows differ between splits."
         )
+        return
+
+    if family == "synthetic_tabular_classification":
+        st.markdown(f"**Input dimension:** {params.get('input_dim', '—')}")
+        st.markdown(f"**Classes:** {params.get('num_classes', '—')}")
+        st.markdown(f"**Decision rule:** {params.get('rule_family', '—')}")
+        active = ", ".join(f"x_{value}" for value in params.get("active_features", []))
+        st.markdown(f"**Active features:** {active or '—'}")
+        st.markdown(f"**Noise std:** {params.get('noise_std', '—')}")
+        st.markdown("**Latent classification rule:**")
+        st.latex(_classification_score_latex(params))
+        st.latex(_classification_label_latex(params))
         return
 
     expression = params.get("expression", "—")
@@ -3451,7 +4428,7 @@ def _render_question_page(
     focus_letter: str | None,
 ) -> None:
     metric = _selection_metric(bundle, q)
-    _render_metadata(q)
+    _render_metadata(q, _profile_provenance(bundle, q))
     _render_dataset_panel(bundle)
     st.markdown("#### Choices")
 
@@ -3506,16 +4483,39 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _ensure_demo_data(data_root: str) -> None:
+    """Copy bundled demo questions into data/ when deploying without a local snapshot."""
+    root = _repo_root()
+    resolved = _resolve_data_root(data_root)
+    if _discover_questions(str(resolved)):
+        return
+    bundled = root / "examples" / "quiz_demo" / "bundle"
+    if not bundled.is_dir():
+        return
+    shutil.copytree(bundled, resolved, dirs_exist_ok=True)
+    _cached_question_dirs.clear()
+
+
 def _render_app() -> None:
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     with st.sidebar:
         st.header("Questions")
+        packs = _question_pack_registry()
+        active_pack = _render_question_pack_selector(packs)
+        collection_path = (
+            active_pack["collection_path"] if active_pack is not None else None
+        )
+        if active_pack is None:
+            _ensure_demo_data(st.session_state.data_root)
         _render_score_panel()
         st.divider()
-        data_root = st.text_input("Data root", value=st.session_state.data_root)
-        st.session_state.data_root = data_root
-        _render_question_picker(data_root)
+        data_root = st.text_input(
+            "Data root",
+            key="data_root",
+            disabled=active_pack is not None,
+        )
+        _render_question_picker(data_root, collection_path)
         st.divider()
         _render_session_feedback_panel()
 

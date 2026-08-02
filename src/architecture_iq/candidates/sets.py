@@ -21,7 +21,7 @@ from architecture_iq.candidates.generator import (
 from architecture_iq.ground_truth.runner import run_ground_truth
 from architecture_iq.paths import candidate_in_set_dir, candidate_set_dir
 from architecture_iq.profile import Profile
-from architecture_iq.registry import get_model_type
+from architecture_iq.registry import get_dataset_family, get_model_type
 from architecture_iq.util import read_json, short_hash, write_json
 
 CandidateProgress = Callable[[int, int, str], None]
@@ -44,11 +44,43 @@ def parse_varying_axes(values: list[str]) -> frozenset[str]:
     return frozenset(axes)
 
 
-def make_set_name(budget: int, varying_axes: frozenset[str], *, salt: Any) -> str:
+def parse_model_type_counts(values: list[str]) -> dict[str, int]:
+    """Parse repeated ``model_type=count`` CLI values into exact quotas."""
+    counts: dict[str, int] = {}
+    for raw in values:
+        model_type, separator, raw_count = raw.partition("=")
+        model_type = model_type.strip()
+        if not separator or not model_type or not raw_count.strip():
+            raise ValueError(
+                f"Invalid model type quota {raw!r}; use model_type=count"
+            )
+        try:
+            count = int(raw_count)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid model type quota {raw!r}; count must be an integer"
+            ) from exc
+        if count <= 0:
+            raise ValueError(
+                f"Invalid model type quota {raw!r}; count must be positive"
+            )
+        if model_type in counts:
+            raise ValueError(f"Duplicate model type quota for {model_type!r}")
+        counts[model_type] = count
+    return counts
+
+
+def make_set_name(
+    budget: int,
+    varying_axes: frozenset[str],
+    *,
+    salt: Any,
+    execution_device: str = "cpu",
+) -> str:
     parts = []
     for axis in ("model", "optimizer", "loss"):
         parts.append("var" if axis in varying_axes else "fix")
-    suffix = short_hash({"budget": budget, "vary": sorted(varying_axes), "salt": salt})
+    suffix = short_hash({"budget": budget, "vary": sorted(varying_axes), "device": execution_device, "salt": salt})
     return f"set_{budget}_{parts[0]}_{parts[1]}_{parts[2]}_{suffix}"
 
 
@@ -62,14 +94,45 @@ def sample_candidate_set_pool(
     varying_axes: frozenset[str],
     rng: random.Random,
     fixed_shared: dict[str, Any] | None = None,
+    model_type_counts: dict[str, int] | None = None,
     dataset_params: dict[str, Any] | None = None,
+    execution_device: str | None = None,
 ) -> list[dict[str, Any]]:
     if not varying_axes <= VARYING_AXIS_CHOICES:
         raise ValueError(f"varying_axes must be subset of {sorted(VARYING_AXIS_CHOICES)}")
 
+    model_schedule: list[str] | None = None
+    if model_type_counts is not None:
+        if "model" not in varying_axes:
+            raise ValueError("model_type_counts requires model to be a varying axis")
+        if sum(model_type_counts.values()) != count:
+            raise ValueError(
+                f"model_type_counts sums to {sum(model_type_counts.values())}, expected {count}"
+            )
+        allowed_model_types = profile.model_types_for_family(
+            family,
+            get_dataset_family(family).compatible_model_types(),
+        )
+        unknown = sorted(set(model_type_counts) - set(allowed_model_types))
+        if unknown:
+            raise ValueError(
+                f"Model type quotas are not allowed for {family!r} under profile "
+                f"{profile.name!r}: {unknown}"
+            )
+        model_schedule = [
+            model_type
+            for model_type, requested_count in sorted(model_type_counts.items())
+            for _ in range(requested_count)
+        ]
+        rng.shuffle(model_schedule)
+
     shared = deepcopy(fixed_shared) if fixed_shared is not None else {}
     if "batch_size" not in shared:
-        shared["batch_size"] = _pick_batch_size(profile, budget, rng)
+        defaults = profile.family_training_defaults(family)
+        if defaults and budget == defaults["total_samples_seen"]:
+            shared["batch_size"] = defaults["batch_size"]
+        else:
+            shared["batch_size"] = _pick_batch_size(profile, budget, rng)
     if "model" not in varying_axes and "model" not in shared:
         shared["model"] = sample_model(
             profile, rng, family=family, dataset_params=dataset_params
@@ -87,7 +150,11 @@ def sample_candidate_set_pool(
         fixed = deepcopy(shared)
         if "model" in varying_axes:
             fixed["model"] = sample_model(
-                profile, rng, family=family, dataset_params=dataset_params
+                profile,
+                rng,
+                family=family,
+                dataset_params=dataset_params,
+                model_type=model_schedule[len(specs)] if model_schedule is not None else None,
             )
         if "optimizer" in varying_axes:
             fixed["optimizer"] = sample_optimizer(profile, rng)
@@ -101,6 +168,7 @@ def sample_candidate_set_pool(
             budget=budget,
             rng=rng,
             fixed=fixed,
+            execution_device=execution_device,
         )
         key = spec["candidate_id"]
         if key in seen:
@@ -123,6 +191,7 @@ def write_set_manifest(
     count: int,
     varying_axes: frozenset[str],
     fixed_shared: dict[str, Any],
+    model_type_counts: dict[str, int] | None,
     seed: int,
     profile: Profile,
     dataset_id: str,
@@ -139,8 +208,10 @@ def write_set_manifest(
         "varying_axes": sorted(varying_axes),
         "invariant_axes": invariant_axes,
         "fixed_shared": fixed_shared,
+        "model_type_counts": model_type_counts,
         "seed": seed,
         "profile": profile.name,
+        "profile_hash": profile.profile_hash,
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     write_json(set_path / SET_MANIFEST, manifest)
@@ -182,8 +253,10 @@ def generate_candidate_set(
     varying_axes: frozenset[str],
     rng: random.Random,
     fixed_shared: dict[str, Any] | None = None,
+    model_type_counts: dict[str, int] | None = None,
     seed: int,
     on_progress: CandidateProgress | None = None,
+    execution_device: str | None = None,
 ) -> Path:
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
     dataset_id = dataset_spec["dataset_id"]
@@ -200,10 +273,17 @@ def generate_candidate_set(
         varying_axes=varying_axes,
         rng=rng,
         fixed_shared=pinned,
+        model_type_counts=model_type_counts,
         dataset_params=dataset_params,
+        execution_device=execution_device,
     )
 
-    set_name = make_set_name(budget, varying_axes, salt=rng.randint(0, 2**31 - 1))
+    set_name = make_set_name(
+        budget,
+        varying_axes,
+        salt=rng.randint(0, 2**31 - 1),
+        execution_device=specs[0]["execution"]["device"],
+    )
     set_path = candidate_set_dir(dataset_path, set_name)
     set_path.mkdir(parents=True, exist_ok=False)
 
@@ -224,6 +304,7 @@ def generate_candidate_set(
         count=count,
         varying_axes=varying_axes,
         fixed_shared=shared_record,
+        model_type_counts=model_type_counts,
         seed=seed,
         profile=profile,
         dataset_id=dataset_id,

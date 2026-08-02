@@ -15,6 +15,7 @@ from architecture_iq.prompts.formatters import (
     SINGLE_AXIS_TYPES,
     format_dataset_protocol,
     format_loss_nl,
+    format_synthetic_tabular_classification_rule,
     format_model_nl,
     format_optimizer_nl,
     format_ranking_protocol,
@@ -46,12 +47,19 @@ def _evaluation_meta(q: dict) -> dict:
         "selection_metric": "test_mse",
         "n_seeds": profile.n_seeds,
         "base_seed": profile.base_seed,
+        "device": "cpu",
     }
 
 
-def render_prompt(question_path: Path) -> str:
+def render_prompt(
+    question_path: Path,
+    *,
+    dataset_path: Path | None = None,
+    artifact_root: Path | None = None,
+) -> str:
     q = read_json(question_path / "question.json")
-    dataset_path = dataset_dir(q["family"], q["dataset_id"])
+    dataset_path = (dataset_path or dataset_dir(q["family"], q["dataset_id"])).resolve()
+    artifact_root = (artifact_root or DATA_DIR).resolve()
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
     params = dataset_spec["params"]
     eval_meta = _evaluation_meta(q)
@@ -70,8 +78,7 @@ def render_prompt(question_path: Path) -> str:
             f"Train size: {params['train_size']}, test size: {params['test_size']}."
         )
 
-    synth_source = (dataset_path / "synthesize.py").read_text(encoding="utf-8")
-    synth_code = excerpt_synthesize_py(synth_source)
+    is_classification = q["family"] == "synthetic_tabular_classification"
     total_samples_seen = _question_total_samples_seen(q["budget"])
     single_axis = q["type"] in SINGLE_AXIS_TYPES and not (
         isinstance(q["budget"], dict) and q["budget"].get("mixed")
@@ -88,19 +95,30 @@ def render_prompt(question_path: Path) -> str:
         "## Dataset",
         dataset_nl.strip(),
         "",
-        "### Synthesis (PyTorch)",
-        "```python",
-        synth_code,
-        "```",
-        "",
-        "### Data splits and training protocol",
-        format_dataset_protocol(params, family=q["family"]),
-        "",
-        budget_heading,
     ]
+    if is_classification:
+        parts.extend(
+            [
+                "### Data-generating and classification rule",
+                format_synthetic_tabular_classification_rule(params),
+                "",
+            ]
+        )
+    else:
+        synth_source = (dataset_path / "synthesize.py").read_text(encoding="utf-8")
+        synth_code = excerpt_synthesize_py(synth_source)
+        parts.extend(["### Synthesis (PyTorch)", "```python", synth_code, "```", ""])
+    parts.extend(
+        [
+            "### Data splits and training protocol",
+            format_dataset_protocol(params, family=q["family"], device=str(eval_meta.get("device", "cpu"))),
+            "",
+            budget_heading,
+        ]
+    )
     if single_axis and q["choices"]:
         first_cand = read_json(
-            DATA_DIR / q["choices"][0]["candidate_path"] / "candidate_spec.json"
+            artifact_root / q["choices"][0]["candidate_path"] / "candidate_spec.json"
         )
         parts.append(format_training_schedule(first_cand["budget"]))
     elif total_samples_seen is not None:
@@ -128,6 +146,7 @@ def render_prompt(question_path: Path) -> str:
                 n_seeds=int(eval_meta["n_seeds"]),
                 base_seed=int(eval_meta["base_seed"]),
                 selection_metric=selection_metric,
+                device=str(eval_meta.get("device", "cpu")),
             ),
             "",
             "## Choices",
@@ -135,7 +154,7 @@ def render_prompt(question_path: Path) -> str:
     )
 
     for choice in q["choices"]:
-        cand_path = DATA_DIR / choice["candidate_path"]
+        cand_path = artifact_root / choice["candidate_path"]
         cand_spec = read_json(cand_path / "candidate_spec.json")
         _sync_candidate_files(cand_path, cand_spec)
         model_code = excerpt_model_py((cand_path / "model.py").read_text(encoding="utf-8"))
@@ -193,8 +212,17 @@ def render_prompt(question_path: Path) -> str:
     return "\n".join(parts)
 
 
-def write_prompt(question_path: Path) -> Path:
-    text = render_prompt(question_path)
+def write_prompt(
+    question_path: Path,
+    *,
+    dataset_path: Path | None = None,
+    artifact_root: Path | None = None,
+) -> Path:
+    text = render_prompt(
+        question_path,
+        dataset_path=dataset_path,
+        artifact_root=artifact_root,
+    )
     out = question_path / "prompt.txt"
     out.write_text(text, encoding="utf-8")
     return out

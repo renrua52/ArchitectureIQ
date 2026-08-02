@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from html import escape, unescape
 import re
 
 TWO_PI = "6.283185307179586"
@@ -50,3 +51,23 @@ def expression_to_latex(expression: str) -> str:
             .replace("}", r"\}")
         )
         return rf"\texttt{{{escaped}}}"
+
+
+def expression_to_mathml(expression: str) -> str:
+    """Render a dataset expression as self-contained presentation MathML.
+
+    MathML lets the static exporter show formulas offline without fetching a
+    JavaScript renderer such as MathJax or KaTeX.
+    """
+    if not expression or expression == "—":
+        return '<math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mtext>—</mtext></math>'
+
+    from sympy import mathml
+    from sympy.parsing.sympy_parser import parse_expr
+
+    try:
+        parsed = parse_expr(_prepare_for_sympy(expression), transformations=_transformations())
+        body = unescape(mathml(parsed, printer="presentation"))
+    except Exception:
+        body = f"<mtext>{escape(expression)}</mtext>"
+    return f'<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">{body}</math>'

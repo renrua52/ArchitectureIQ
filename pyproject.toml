@@ -16,10 +16,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "ruff>=0.4"]
+dev = ["pytest>=7.0", "ruff==0.15.20", "jsonschema>=4.0"]
 inspector = ["streamlit>=1.32", "matplotlib>=3.8", "sympy>=1.12"]
 postgres-acceptance = ["psycopg[binary]>=3.1"]
 meta-model = ["scikit-learn>=1.7,<2", "xgboost>=3.2,<4"]
+quiz-api = [
+    "fastapi>=0.110,<1.0",
+    "httpx>=0.26,<1.0",
+    "uvicorn[standard]>=0.27,<1.0",
+]
 
 [project.scripts]
 architecture-iq = "architecture_iq.cli:app"

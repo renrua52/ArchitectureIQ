@@ -8,7 +8,7 @@ from architecture_iq.prompts.code_excerpt import (
     excerpt_optimizer_py,
     excerpt_synthesize_py,
 )
-from architecture_iq.prompts.renderer import render_prompt, write_prompt
+from architecture_iq.prompts.renderer import render_prompt
 
 
 SAMPLE_MODEL = '''"""docstring"""
@@ -97,6 +97,7 @@ def test_excerpt_synthesize_py_bigram_lm() -> None:
     )
     out = excerpt_synthesize_py(source)
     assert "def target" in out
+    assert "def build_transition(" in out
     assert "def synthesize(" in out
     assert "seq[:, 1:]" in out
     assert "if __name__" not in out
