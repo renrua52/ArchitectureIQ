@@ -190,7 +190,9 @@ python tools/difficulty/score_questions.py --top 25
 
 ## 8. 2026-07-31 周会：题目实例/评测实例分离 + 评测落地
 
-> 来源：飞书 “ArchitectureIQ 0714” 文档 → 7月31日 Weekly（2026-07-31 已登记，lark-cli 以用户身份可读可写）。
+> 来源：飞书 “ArchitectureIQ 0714” 文档 → 7月31日 Weekly
+> （[wiki 链接](https://gcn73xn49fre.feishu.cn/wiki/Fj8sw4saiiWICFkbg3gcReLMn6e)；
+> 2026-07-31 与 2026-08-02 两轮均以 lark-cli 用户身份验证可读可写）。
 > 目标产物：一个 benchmark + 一篇 paper，两周 + 两个 section。
 > 对应架构文档：`plan-v2.md`；评测协议：`PROTOCOLS.md`。
 
