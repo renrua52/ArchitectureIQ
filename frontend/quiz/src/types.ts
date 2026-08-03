@@ -29,6 +29,19 @@ export type Choice = {
   files: Record<string, unknown>;
 };
 
+export type LlmCot =
+  | {
+      available: true;
+      model: string;
+      parsedLetter?: string | null;
+      source?: string;
+      text: string;
+    }
+  | {
+      available: false;
+      reason?: "no_correct" | "no_cot" | string;
+    };
+
 export type BakedQuestion = {
   id: string;
   title: string;
@@ -46,6 +59,10 @@ export type BakedQuestion = {
   invariantAxes?: string[];
   varyingAxes?: string[];
   numChoices?: number;
+  llmDifficulty?: string;
+  llmConsensusAcc?: number;
+  /** Present after answer reveal: CoT from an LLM that got the question right. */
+  llmCot?: LlmCot;
   detail: {
     prompt: string;
     shared: Field[];

@@ -499,6 +499,41 @@ a {
   margin-top: 1rem;
 }
 
+.llm-cot-panel {
+  margin-top: 1.15rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.llm-cot-model {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+.llm-cot-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.llm-cot-text {
+  margin: 0;
+  max-height: 22rem;
+  overflow: auto;
+  background: #121212;
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+  color: #d5d5d5;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .vote-copy {
   display: grid;
   gap: 0.15rem;

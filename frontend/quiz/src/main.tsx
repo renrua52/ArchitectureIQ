@@ -2,7 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { newSessionId, track } from "./telemetry";
-import type { BakeFile, BakedQuestion, Choice, Field, Point, ProblemVote, Stage } from "./types";
+import type {
+  BakeFile,
+  BakedQuestion,
+  Choice,
+  Field,
+  LlmCot,
+  Point,
+  ProblemVote,
+  Stage
+} from "./types";
 
 type Screen = "home" | "quiz" | "menu" | "contact";
 type InfoTarget =
@@ -801,7 +810,37 @@ function AnswerStage({
           );
         })}
       </div>
+      <LlmCotPanel cot={question.llmCot} />
     </div>
+  );
+}
+
+function LlmCotPanel({ cot }: { cot?: LlmCot }) {
+  if (!cot) {
+    return null;
+  }
+  if (!cot.available) {
+    const message =
+      cot.reason === "no_cot"
+        ? "An LLM got this right, but no chain-of-thought was captured."
+        : "Real hard problem, no LLM gets it right!";
+    return (
+      <section className="panel llm-cot-panel" aria-label="LLM chain of thought">
+        <div className="panel-head">
+          <p className="stage-kicker">LLM chain of thought</p>
+        </div>
+        <p className="llm-cot-empty">{message}</p>
+      </section>
+    );
+  }
+  return (
+    <section className="panel llm-cot-panel" aria-label="LLM chain of thought">
+      <div className="panel-head">
+        <p className="stage-kicker">LLM chain of thought</p>
+        <span className="llm-cot-model">{cot.model}</span>
+      </div>
+      <pre className="llm-cot-text">{cot.text}</pre>
+    </section>
   );
 }
 
