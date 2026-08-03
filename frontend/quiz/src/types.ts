@@ -105,6 +105,8 @@ export type BakeFile = {
   collection?: Record<string, unknown> | null;
   questions: QuestionSummary[];
   byId: Record<string, BakedQuestion>;
+  /** Present when deployed as index.json + by-id/*.json (Cloudflare 25 MiB limit). */
+  split?: boolean;
 };
 
 export type Stage = "observe" | "compare" | "reveal";

@@ -19,6 +19,28 @@ type FeedbackDraft = {
 
 const EMPTY_FEEDBACK: FeedbackDraft = { vote: null, submitted: false };
 
+async function loadBakeFile(): Promise<BakeFile> {
+  const indexResponse = await fetch("/data/index.json");
+  if (indexResponse.ok) {
+    const index = (await indexResponse.json()) as BakeFile;
+    return {
+      schema_version: index.schema_version,
+      ordered: index.ordered,
+      collection: index.collection ?? null,
+      questions: index.questions ?? [],
+      byId: {},
+      split: true
+    };
+  }
+
+  const response = await fetch("/data/questions.json");
+  if (!response.ok) {
+    throw new Error(
+      "Missing baked questions. Expected /data/index.json (deploy) or /data/questions.json (local)."
+    );
+  }
+  return response.json() as Promise<BakeFile>;
+}
 
 function App() {
   const [bake, setBake] = useState<BakeFile | null>(null);
@@ -29,30 +51,72 @@ function App() {
   const [answered, setAnswered] = useState(false);
   const [info, setInfo] = useState<InfoTarget>(null);
   const [error, setError] = useState<string | null>(null);
+  const [questionLoading, setQuestionLoading] = useState(false);
   const sessionId = useRef(newSessionId());
   const viewStartedAt = useRef(Date.now());
   const startedTracked = useRef(false);
   const screenWasQuiz = useRef(false);
   const results = useRef<Record<string, { correct: boolean; picked: string }>>({});
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
+  const questionLoads = useRef<Record<string, Promise<BakedQuestion>>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
   const [, bump] = useState(0);
 
   useEffect(() => {
-    fetch("/data/questions.json")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Missing baked questions. Run: python tools/export_quiz_static.py");
-        }
-        return response.json();
-      })
-      .then((data: BakeFile) => setBake(data))
+    loadBakeFile()
+      .then((data) => setBake(data))
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
   const summaries = bake?.questions ?? [];
   const currentId = summaries[index]?.id;
-  const question = currentId && bake ? bake.byId[currentId] : null;
+  const question = currentId && bake ? bake.byId[currentId] ?? null : null;
+
+  useEffect(() => {
+    if (!bake?.split || !currentId || bake.byId[currentId]) {
+      setQuestionLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setQuestionLoading(true);
+    const existing = questionLoads.current[currentId];
+    const load =
+      existing ??
+      fetch(`/data/by-id/${encodeURIComponent(currentId)}.json`).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Missing question payload for ${currentId}`);
+        }
+        return response.json() as Promise<BakedQuestion>;
+      });
+    questionLoads.current[currentId] = load;
+    load
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setBake((prev) =>
+          prev
+            ? {
+                ...prev,
+                byId: { ...prev.byId, [payload.id]: payload }
+              }
+            : prev
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setQuestionLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bake, currentId]);
 
   const score = useMemo(() => {
     const values = Object.values(results.current);
@@ -296,7 +360,9 @@ function App() {
   if (!question) {
     return (
       <main className="shell">
-        <p className="loading">No questions available.</p>
+        <p className="loading">
+          {questionLoading || summaries.length ? "Loading question…" : "No questions available."}
+        </p>
       </main>
     );
   }

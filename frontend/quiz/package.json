@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 4173"
+    "build": "tsc -b && vite build && node scripts/split-bake.mjs --dir dist/data",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "split-bake": "node scripts/split-bake.mjs --dir dist/data"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
