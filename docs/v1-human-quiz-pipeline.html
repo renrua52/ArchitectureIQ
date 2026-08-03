@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ArchitectureIQ · V1 LLM→人类题全流程总结</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #121212;
+      --panel: #1c1c1c;
+      --text: #ececec;
+      --muted: #8f8f8f;
+      --line: #333;
+      --accent: #5b8cff;
+      --ok: #3dcf9a;
+      --font: "DM Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(91,140,255,.14), transparent 55%),
+        var(--bg);
+      line-height: 1.55;
+    }
+    main { max-width: 880px; margin: 0 auto; padding: 2.8rem 1.35rem 4rem; }
+    header { margin-bottom: 2rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin: 0 0 .5rem; color: var(--accent); font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.4rem); letter-spacing: -.03em; line-height: 1.15; }
+    .lede { margin: .85rem 0 0; color: var(--muted); max-width: 42rem; }
+    .meta { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin-top: 1rem; color: var(--muted); font-family: var(--mono); font-size: .82rem; }
+    h2 { margin: 2.1rem 0 .7rem; font-size: 1.15rem; }
+    h3 { margin: 1.2rem 0 .4rem; font-size: 1rem; color: #d8d8d8; }
+    p, li { color: #d0d0d0; }
+    ul { padding-left: 1.15rem; }
+    li { margin: .3rem 0; }
+    a { color: #9db4ff; }
+    code, .mono { font-family: var(--mono); font-size: .86em; }
+    code { background: #262626; padding: .08rem .32rem; border-radius: 5px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1rem 1.1rem; margin: .8rem 0; }
+    .flow { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: .9rem 0 1.1rem; }
+    .flow .step { background: #262626; border-radius: 999px; padding: .4rem .75rem; font-size: .84rem; font-weight: 650; }
+    .flow .arrow { color: var(--muted); }
+    .grid { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: .9rem 1rem; }
+    .card strong { display: block; margin-bottom: .25rem; }
+    .card span { color: var(--muted); font-size: .88rem; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; margin: .6rem 0; }
+    th, td { text-align: left; vertical-align: top; padding: .5rem .4rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+    td:first-child { font-family: var(--mono); font-size: .78rem; color: #b7b7b7; white-space: nowrap; }
+    .tag { display: inline-block; padding: .12rem .45rem; border-radius: 999px; font-size: .74rem; font-weight: 650; margin-right: .2rem; }
+    .tag.ok { color: var(--ok); background: rgba(61,207,154,.14); }
+    .tag.muted { color: var(--muted); background: rgba(255,255,255,.06); }
+    pre.mono { margin: 0; white-space: pre-wrap; color: #cfcfcf; font-size: .8rem; }
+    footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">ArchitectureIQ · Team handoff</p>
+      <h1>从 LLM Benchmark 到人类在线题：整套流程总结</h1>
+      <p class="lede">
+        给同事对齐：后端如何造题与评测 LLM，如何筛出人类可玩子集并 bake；
+        前端如何考试式交付、部署上线，以及揭晓页展示 LLM 思维链。
+      </p>
+      <div class="meta">
+        <span>backend: quiz-backend</span>
+        <span>frontend: quiz-frontend</span>
+        <span>site: architecture-iq.com</span>
+        <span>bake: 250q · V1 human pre-review</span>
+        <span>updated: 2026-08-04</span>
+      </div>
+    </header>
+
+    <h2>一句话</h2>
+    <div class="panel">
+      我们先在 <strong>v1</strong> profile 上规模化生成「数据 + 候选设定 + GT」选择题，用多模型 LLM 盲测得到难度/对错矩阵；
+      再按人类可读 bucket（univariate / xor / spiral / bigram）分层抽约 <strong>250</strong> 道三选一题，导出 BakeFile；
+      前端静态站加载题包做人测，并在答完后展示「做对此题且成功提取 CoT」的 LLM 思维链。
+    </div>
+
+    <h2>端到端流水线</h2>
+    <div class="flow" aria-label="pipeline">
+      <span class="step">1 · 造题库</span><span class="arrow">→</span>
+      <span class="step">2 · LLM 评测</span><span class="arrow">→</span>
+      <span class="step">3 · 打难度标签</span><span class="arrow">→</span>
+      <span class="step">4 · 人类子集策展</span><span class="arrow">→</span>
+      <span class="step">5 · Bake 导出</span><span class="arrow">→</span>
+      <span class="step">6 · 前端上线</span>
+    </div>
+
+    <h2>1. 后端：造 LLM Benchmark 题库</h2>
+    <p><strong>分支：</strong><code>quiz-backend</code> · 主要工具 <code>tools/benchmark_v1_build.py</code> 等</p>
+    <ul>
+      <li>统一 <strong>v1</strong> 池：覆盖 univariate / 分类（含 XOR、spiral）/ bigram 等 family，以及兼容模型类型。</li>
+      <li>流水线仍遵守仓库不变量：<code>spec → 生成代码 → 执行 → GT</code>（不另写平行训练逻辑）。</li>
+      <li>生成三选一题，写入 <code>benchmarks/v1_llm/questions/q_*/</code>（含 <code>question.json</code>、prompt、候选路径等）。</li>
+      <li>题带 <code>benchmark</code> 元数据（bucket、budget tier、gap 约束等），便于后续分层。</li>
+    </ul>
+
+    <h2>2. 后端：LLM 评测</h2>
+    <p><strong>工具：</strong><code>tools/benchmark_v1_llm_eval.py</code> + <code>tools/llm_eval/</code></p>
+    <ul>
+      <li>对各模型跑盲测，结果落在：</li>
+    </ul>
+    <div class="panel">
+      <pre class="mono">benchmarks/v1_llm/llm_runs/{model}/results/{question_id}.json</pre>
+    </div>
+    <ul>
+      <li>关键字段：<code>correct</code>、<code>parsed_letter</code>、<code>chain_of_thought</code>、<code>message_parts.reasoning_content</code>、<code>model_response</code> 等。</li>
+      <li>参与共识的模型约十余个（如 DeepSeek / Qwen / Claude / GPT / Gemini / GLM…）；部分模型（如 Kimi-K3、grok-4.2）不进共识。</li>
+      <li>矩阵与报告：<code>llm_results_matrix.json</code>、<code>llm_report.html</code> 等。</li>
+    </ul>
+
+    <h2>3. 后端：难度标签</h2>
+    <p><strong>工具：</strong><code>tools/benchmark_v1_tag_difficulty.py</code></p>
+    <ul>
+      <li>按多模型对错做 <code>consensus_v1</code>，写出 <code>benchmarks/v1_llm/llm_difficulty.json</code>。</li>
+      <li>每题得到：<code>llm_difficulty</code>（easy/medium/hard/very_hard）、<code>llm_consensus_acc</code>、<code>llm_outcomes</code> 等。</li>
+    </ul>
+
+    <h2>4. 后端：人类题策展 + Bake</h2>
+    <p><strong>工具：</strong><code>tools/benchmark_v1_curate_human.py</code> → 调 <code>export_quiz_static.py</code> → <code>validate_quiz_bake.py</code></p>
+    <div class="grid">
+      <div class="card">
+        <strong>筛选原则</strong>
+        <span>只保留人类可读 bucket：univariate、xor、spiral、bigram；按 type / 难度 / budget 分层抽样，目标约 250 题。</span>
+      </div>
+      <div class="card">
+        <strong>产物</strong>
+        <span><code>benchmarks/v1_human/questions.json</code>（BakeFile）+ manifest；注入 <code>llmDifficulty</code>、<code>llmConsensusAcc</code>、<code>track=human_{bucket}_{diff}</code>、<code>llmCot</code>。</span>
+      </div>
+      <div class="card">
+        <strong>契约</strong>
+        <span>必须符合 <code>contracts/quiz_bake.schema.json</code>。前端只吃 BakeFile，不读原始 q_ 目录。</span>
+      </div>
+    </div>
+
+    <h3>当前上线题包快照</h3>
+    <table>
+      <thead><tr><th>项</th><th>值</th></tr></thead>
+      <tbody>
+        <tr><td>collection</td><td>ArchitectureIQ V1 · human pre-review（v1_human_prereview_20260804）</td></tr>
+        <tr><td>题量</td><td>250 · 全部 3 选 1 · ordered</td></tr>
+        <tr><td>family</td><td>classification 125 · univariate 63 · bigram 62</td></tr>
+        <tr><td>type</td><td>architecture_only 100 · optimizer_only 76 · mixed 74</td></tr>
+        <tr><td>llmCot</td><td>有 CoT 211 · 全错 28 · 做对无无 CoT 11</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. 前端：人类考试站</h2>
+    <p><strong>分支：</strong><code>quiz-frontend</code> · 目录 <code>frontend/quiz/</code> · 站点 <a href="https://architecture-iq.com/">architecture-iq.com</a></p>
+
+    <h3>产品行为</h3>
+    <ul>
+      <li><strong>Begin</strong> 开一场考试：清空作答，新 session；题目不可重答，可回看已答。</li>
+      <li><strong>Questions</strong> 列表显示 Unanswered / Correct / Wrong；Back → 第一道未答。</li>
+      <li>左上品牌回主页（不重置）；再次 Begin 才重置。</li>
+      <li>揭晓后 <strong>Good / Bad</strong>（好题投票）兼作继续；telemetry 上报 <code>audit_feedback</code> 等事件。</li>
+      <li>三阶段：Dataset → Choices → Reveal（曲线 + 投票 + LLM CoT）。</li>
+    </ul>
+
+    <h3>可视化与体验</h3>
+    <ul>
+      <li>学习曲线：可拖动 sample 区间，Y 轴按可见范围缩放；有 <code>std</code> 时画 multi-seed mean±std 色带。</li>
+      <li>揭晓页最下方：展示做对此题且成功提取 CoT 的模型思维链；若无人做对 → <em>Real hard problem, no LLM gets it right!</em></li>
+    </ul>
+
+    <h3>部署要点</h3>
+    <ul>
+      <li>Cloudflare Pages 单文件上限 <strong>25 MiB</strong>；整包 bake ~37–39 MiB。</li>
+      <li>build 后 <code>scripts/split-bake.mjs</code> 拆成 <code>index.json</code> + <code>by-id/*.json</code>，前端按题懒加载。</li>
+      <li>FE-only 分支 CI 只跑 frontend build，跳过 Python job，避免无关失败邮件。</li>
+    </ul>
+
+    <h2>6. 分工与关键路径</h2>
+    <table>
+      <thead><tr><th>角色</th><th>分支 / 目录</th><th>做什么</th></tr></thead>
+      <tbody>
+        <tr><td>后端</td><td><code>quiz-backend</code> · <code>tools/benchmark_v1_*</code> · <code>benchmarks/</code></td><td>造题、LLM eval、打标、策展、bake、校验</td></tr>
+        <tr><td>前端</td><td><code>quiz-frontend</code> · <code>frontend/quiz/</code></td><td>展示 bake、考试 UX、telemetry、部署拆包</td></tr>
+        <tr><td>契约</td><td><code>contracts/quiz_bake.schema.json</code></td><td>前后端共同遵守的题包格式</td></tr>
+        <tr><td>交接说明</td><td><code>docs/FRONTEND_BACKEND.md</code></td><td>谁改什么、如何本地跑</td></tr>
+      </tbody>
+    </table>
+
+    <h2>7. 给同事的「怎么继续」</h2>
+    <div class="panel">
+      <pre class="mono"># 后端：策展并 bake（需本机已有 llm_runs / questions）
+cd quiz-backend worktree
+python tools/benchmark_v1_curate_human.py   # 内含 export + validate + llmCot 注入
+
+# 前端：放入题包并上线
+cp benchmarks/v1_human/questions.json → frontend/quiz/public/data/questions.json
+# 或：python frontend/quiz/scripts/enrich-llm-cot.py --bake ... --runs ...
+cd frontend/quiz && npm run build   # 自动 split-bake
+# Cloudflare Pages 跟踪 quiz-frontend，push 后 redeploy</pre>
+    </div>
+
+    <h2>8. 状态标签</h2>
+    <p>
+      <span class="tag ok">已完成</span> V1 题库装配 · 多模型 LLM 评测 · 难度共识 · 250 人类 pre-review bake · 考试站 UX · 曲线缩放/色带 · llmCot 揭晓 · Pages 拆包部署<br />
+      <span class="tag muted">有意不做</span> 公开自定义训练 · Streamlit 新产品功能 · 把完整 llm_runs 打进前端仓库<br />
+      <span class="tag muted">可后续</span> 分享卡片 / 分轴诊断 / 对 LLM 分数对照 / 异步 propose 设定
+    </p>
+
+    <footer>
+      本文档面向协作对齐，不替代 <code>AGENTS.md</code> / schema / 各工具 README。
+      路径：<code>docs/v1-human-quiz-pipeline.html</code>（quiz-frontend）。
+    </footer>
+  </main>
+</body>
+</html>
