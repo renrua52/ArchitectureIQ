@@ -755,7 +755,6 @@ function AnswerStage({
             : `You picked ${selected}. Correct is ${correct}.`
           : `Correct choice: ${correct}.`}
       </p>
-      <CurvesPlot question={question} />
       <div className="stage-footer vote-footer">
         <div className="vote-copy">
           <p className="hint vote-prompt">Good problem?</p>
@@ -782,6 +781,7 @@ function AnswerStage({
           </button>
         </div>
       </div>
+      <CurvesPlot question={question} />
       <div className="choice-grid reveal-choices">
         {question.detail.choices.map((choice) => {
           const row = byLetter[choice.letter];

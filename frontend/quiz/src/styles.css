@@ -489,8 +489,8 @@ a {
 .vote-footer {
   justify-content: flex-end;
   gap: 0.85rem;
-  margin-top: 0.85rem;
-  margin-bottom: 0.25rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.15rem;
   padding-top: 0.65rem;
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
