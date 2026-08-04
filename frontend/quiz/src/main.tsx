@@ -1477,6 +1477,12 @@ function hexToRgba(color: string, alpha: number) {
 function CurvesPlot({ question }: { question: BakedQuestion }) {
   const curves = question.reveal.curves;
   const [span, setSpan] = useState<CurveSpan>([0, 1]);
+  const [hover, setHover] = useState<{
+    sample: number;
+    loss: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const dragRef = useRef<BrushDrag | null>(null);
   const spanRef = useRef(span);
   spanRef.current = span;
@@ -1485,6 +1491,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   useEffect(() => {
     setSpan([0, 1]);
     dragRef.current = null;
+    setHover(null);
   }, [question.id]);
 
   const width = 920;
@@ -1518,17 +1525,18 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   const yMin = Math.min(...ySource);
   const yMax = Math.max(...ySource);
   const yPad = Math.max((yMax - yMin) * 0.12, 1e-6);
-  const yLo = yMin - yPad;
-  const yHi = yMax + yPad;
+  // Always include y=0 so the axis shows where zero sits relative to the curves.
+  const yLo = Math.min(yMin - yPad, 0);
+  const yHi = Math.max(yMax + yPad, 0);
 
   const fullYMin = Math.min(...allY);
   const fullYMax = Math.max(...allY);
   const fullYPad = Math.max((fullYMax - fullYMin) * 0.08, 1e-6);
-  const brushYLo = fullYMin - fullYPad;
-  const brushYHi = fullYMax + fullYPad;
+  const brushYLo = Math.min(fullYMin - fullYPad, 0);
+  const brushYHi = Math.max(fullYMax + fullYPad, 0);
 
   const xTicks = makeTicks(viewX0, viewX1, 6);
-  const yTicks = makeTicks(yLo, yHi, 5);
+  const yTicks = makeTicksIncludingZero(yLo, yHi, 5);
   const colorFor = (letter: string) =>
     question.detail.choices.find((choice) => choice.letter === letter)?.color ?? "#ccc";
 
@@ -1544,14 +1552,37 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   const selX = mapBrushX(span[0]);
   const selW = Math.max(mapBrushX(span[1]) - selX, 1);
 
-  function fracFromClientX(clientX: number) {
+  function clientToSvg(clientX: number, clientY: number) {
     const svg = svgRef.current;
     if (!svg) {
-      return 0;
+      return { x: 0, y: 0 };
     }
     const rect = svg.getBoundingClientRect();
-    const x = ((clientX - rect.left) / (rect.width || 1)) * width;
+    return {
+      x: ((clientX - rect.left) / (rect.width || 1)) * width,
+      y: ((clientY - rect.top) / (rect.height || 1)) * height
+    };
+  }
+
+  function fracFromClientX(clientX: number) {
+    const { x } = clientToSvg(clientX, 0);
     return Math.max(0, Math.min(1, (x - brush.x) / (brush.width || 1)));
+  }
+
+  function onPlotPointerMove(event: React.PointerEvent<SVGRectElement>) {
+    const { x, y } = clientToSvg(event.clientX, event.clientY);
+    if (
+      x < plot.x ||
+      x > plot.x + plot.width ||
+      y < plot.y ||
+      y > plot.y + plot.height
+    ) {
+      setHover(null);
+      return;
+    }
+    const sample = viewX0 + ((x - plot.x) / (plot.width || 1)) * (viewX1 - viewX0);
+    const loss = yHi - ((y - plot.y) / (plot.height || 1)) * (yHi - yLo);
+    setHover({ sample, loss, x, y });
   }
 
   function onBrushPointerDown(
@@ -1560,6 +1591,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   ) {
     event.preventDefault();
     event.stopPropagation();
+    setHover(null);
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
     const current = spanRef.current;
     dragRef.current =
@@ -1600,13 +1632,19 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
     }
   }
 
+  const hoverLabel = hover
+    ? `samples ${formatTick(hover.sample)} · ${metric} ${formatTick(hover.loss)}`
+    : null;
+
   return (
     <div className="viz curves-viz">
       <div className="curves-toolbar">
         <span className="hint">
-          {showVariance
-            ? "Bands show multi-seed mean ± std. Drag the window below to focus a sample range."
-            : "Drag the window below to focus a sample range (y-scale follows)."}
+          {hoverLabel
+            ? hoverLabel
+            : showVariance
+              ? "Bands show multi-seed mean ± std. Hover for coordinates; drag the window to zoom."
+              : "Hover for coordinates; drag the window below to focus a sample range."}
         </span>
         {zoomed ? (
           <button type="button" className="curves-reset" onClick={() => setSpan([0, 1])}>
@@ -1639,10 +1677,25 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
         })}
         {yTicks.map((tick) => {
           const y = mapY(tick);
+          const isZero = Math.abs(tick) < 1e-12;
           return (
             <g key={`cy-${tick}`}>
-              <line x1={plot.x} x2={plot.x + plot.width} y1={y} y2={y} stroke="#2a2e38" />
-              <text x={plot.x - 10} y={y + 4} textAnchor="end" fill="#8b919f" fontSize="11">
+              <line
+                x1={plot.x}
+                x2={plot.x + plot.width}
+                y1={y}
+                y2={y}
+                stroke={isZero ? "#5a6270" : "#2a2e38"}
+                strokeWidth={isZero ? 1.4 : 1}
+              />
+              <text
+                x={plot.x - 10}
+                y={y + 4}
+                textAnchor="end"
+                fill={isZero ? "#c5c9d4" : "#8b919f"}
+                fontSize="11"
+                fontWeight={isZero ? 700 : 400}
+              >
                 {formatTick(tick)}
               </text>
             </g>
@@ -1696,7 +1749,39 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
               />
             );
           })}
+          {hover ? (
+            <g className="curve-hover" pointerEvents="none">
+              <line
+                x1={hover.x}
+                x2={hover.x}
+                y1={plot.y}
+                y2={plot.y + plot.height}
+                stroke="rgba(236,236,236,0.35)"
+                strokeDasharray="4 3"
+              />
+              <line
+                x1={plot.x}
+                x2={plot.x + plot.width}
+                y1={hover.y}
+                y2={hover.y}
+                stroke="rgba(236,236,236,0.35)"
+                strokeDasharray="4 3"
+              />
+              <circle cx={hover.x} cy={hover.y} r="3.5" fill="#ececec" />
+            </g>
+          ) : null}
         </g>
+        {/* Invisible hit target above curves for coordinate readout */}
+        <rect
+          className="curve-plot-hit"
+          x={plot.x}
+          y={plot.y}
+          width={plot.width}
+          height={plot.height}
+          fill="transparent"
+          onPointerMove={onPlotPointerMove}
+          onPointerLeave={() => setHover(null)}
+        />
         {question.detail.choices.map((choice, i) => (
           <g key={choice.letter} transform={`translate(${80 + i * 72} 24)`}>
             <circle cx="0" cy="0" r="5" fill={choice.color} />
@@ -1881,6 +1966,35 @@ function pointDomain(points: Point[]) {
 function makeTicks(min: number, max: number, count: number) {
   if (count <= 1) return [min];
   return Array.from({ length: count }, (_, i) => min + ((max - min) * i) / (count - 1));
+}
+
+/** Like makeTicks, but always includes 0 when it lies in [min, max]. */
+function makeTicksIncludingZero(min: number, max: number, count: number) {
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  const ticks = makeTicks(lo, hi, count);
+  if (lo > 0 || hi < 0) {
+    return ticks;
+  }
+  const hasZero = ticks.some((tick) => Math.abs(tick) < 1e-12);
+  if (hasZero) {
+    return ticks;
+  }
+  const merged = [...ticks, 0].sort((a, b) => a - b);
+  // Drop a neighboring non-zero tick if crowding is extreme near zero.
+  const deduped: number[] = [];
+  for (const tick of merged) {
+    const prev = deduped[deduped.length - 1];
+    if (prev != null && Math.abs(prev - tick) < (hi - lo) * 0.04) {
+      // Prefer keeping exact zero.
+      if (Math.abs(tick) < 1e-12) {
+        deduped[deduped.length - 1] = 0;
+      }
+      continue;
+    }
+    deduped.push(Math.abs(tick) < 1e-12 ? 0 : tick);
+  }
+  return deduped;
 }
 
 function formatTick(value: number) {
