@@ -379,6 +379,7 @@ function App() {
   const progress = summaries.length ? ((index + 1) / summaries.length) * 100 : 0;
   const accuracy =
     score.total > 0 ? `${Math.round((100 * score.correct) / score.total)}%` : "—";
+  const difficulty = resolveDifficulty(question.llmDifficulty, question.track);
 
   return (
     <main className="shell quiz">
@@ -415,6 +416,12 @@ function App() {
         <span>{humanFamily(question.family)}</span>
         <span className="dot">·</span>
         <span>{humanType(question.type)}</span>
+        {difficulty ? (
+          <>
+            <span className="dot">·</span>
+            <DifficultyBadge difficulty={difficulty} />
+          </>
+        ) : null}
       </h1>
 
       <section className="stage-screen" key={`${question.id}-${stage}`}>
@@ -544,12 +551,18 @@ function QuestionMenu({
       </header>
       <section className="panel">
         <h1 className="panel-title">Questions</h1>
+        <div className="difficulty-legend" aria-label="LLM difficulty levels">
+          {DIFFICULTY_ORDER.map((level) => (
+            <DifficultyBadge key={level} difficulty={level} />
+          ))}
+        </div>
         <ul className="question-list">
           {summaries.map((item, itemIndex) => {
             const result = results[item.id];
             const status = !result ? "unanswered" : result.correct ? "correct" : "wrong";
             const statusLabel =
               status === "unanswered" ? "Unanswered" : status === "correct" ? "Correct" : "Wrong";
+            const difficulty = resolveDifficulty(undefined, item.track);
             return (
               <li key={item.id}>
                 <button type="button" className="question-row" onClick={() => onPick(itemIndex)}>
@@ -557,6 +570,7 @@ function QuestionMenu({
                   <span className="question-row-copy">
                     {humanFamily(item.family)} · {humanType(item.type)}
                   </span>
+                  {difficulty ? <DifficultyBadge difficulty={difficulty} /> : null}
                   <span className={`q-status ${status}`}>{statusLabel}</span>
                 </button>
               </li>
@@ -1934,6 +1948,44 @@ function humanMetric(metric?: string) {
 function humanType(type?: string) {
   if (!type) return "mixed";
   return type.replace(/_/g, " ");
+}
+
+const DIFFICULTY_ORDER = ["easy", "medium", "hard", "very_hard"] as const;
+type DifficultyLevel = (typeof DIFFICULTY_ORDER)[number];
+
+function isDifficultyLevel(value: string): value is DifficultyLevel {
+  return (DIFFICULTY_ORDER as readonly string[]).includes(value);
+}
+
+/** Prefer explicit llmDifficulty; otherwise parse track like human_univariate_very_hard. */
+function resolveDifficulty(
+  llmDifficulty?: string,
+  track?: string
+): DifficultyLevel | null {
+  if (llmDifficulty && isDifficultyLevel(llmDifficulty)) {
+    return llmDifficulty;
+  }
+  const raw = (track ?? "").trim();
+  if (!raw) {
+    return null;
+  }
+  if (raw.endsWith("_very_hard")) return "very_hard";
+  if (raw.endsWith("_hard")) return "hard";
+  if (raw.endsWith("_medium")) return "medium";
+  if (raw.endsWith("_easy")) return "easy";
+  const tail = raw.split("_").pop();
+  return tail && isDifficultyLevel(tail) ? tail : null;
+}
+
+function humanDifficulty(level: DifficultyLevel) {
+  if (level === "very_hard") return "Very hard";
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+function DifficultyBadge({ difficulty }: { difficulty: DifficultyLevel }) {
+  return (
+    <span className={`diff-badge diff-${difficulty}`}>{humanDifficulty(difficulty)}</span>
+  );
 }
 
 function titleCase(text: string) {

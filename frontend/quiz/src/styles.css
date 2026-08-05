@@ -696,6 +696,48 @@ a {
   background: rgba(255, 107, 99, 0.14);
 }
 
+.difficulty-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+
+.diff-badge {
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 0.26rem 0.6rem;
+  line-height: 1.2;
+}
+
+.diff-easy {
+  color: #6ed6a2;
+  background: rgba(61, 207, 154, 0.14);
+}
+
+.diff-medium {
+  color: #7eb6ff;
+  background: rgba(91, 140, 255, 0.16);
+}
+
+.diff-hard {
+  color: #ffb86b;
+  background: rgba(255, 184, 107, 0.14);
+}
+
+.diff-very_hard {
+  color: #ff8f88;
+  background: rgba(255, 107, 99, 0.16);
+}
+
+.question-title .diff-badge {
+  font-size: 0.78rem;
+  align-self: center;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
