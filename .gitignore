@@ -234,6 +234,7 @@ artifacts/order_parameter_analysis/
 artifacts/q_b24cf4_extended_training/
 artifacts/quiz_attempt_60/
 artifacts/ranking_questions/
+artifacts/v1_llm_bundle/
 
 # Finder metadata from imported templates
 templates/**/__MACOSX/
