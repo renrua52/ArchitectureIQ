@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Inject multi-model llmCot into a BakeFile from benchmarks/v1_llm/llm_runs.
 
+Every eligible model with a result appears in entries (even without CoT text).
+Empty text means the quiz UI shows "No chain of thought extracted."
+
 Usage:
   python scripts/enrich-llm-cot.py \\
     --bake frontend/quiz/public/data/questions.json \\
@@ -33,6 +36,7 @@ MIN_CHARS = 80
 
 
 def pick_text(rec: dict) -> tuple[str | None, str | None]:
+    """Return CoT only when long enough; short answers are treated as missing."""
     parts = rec.get("message_parts") or {}
     candidates = [
         ("reasoning_content", (parts.get("reasoning_content") or parts.get("reasoning") or "").strip()),
@@ -42,9 +46,6 @@ def pick_text(rec: dict) -> tuple[str | None, str | None]:
     ]
     for source, text in candidates:
         if len(text) >= MIN_CHARS:
-            return text, source
-    for source, text in candidates:
-        if text:
             return text, source
     return None, None
 
@@ -69,10 +70,13 @@ def enrich(bake: dict, runs: Path) -> dict:
     )
     stats = {
         "questions": 0,
-        "with_any_cot": 0,
-        "with_correct_cot": 0,
+        "with_entries": 0,
+        "with_correct": 0,
+        "with_any_cot_text": 0,
         "no_correct": 0,
         "entries": 0,
+        "entries_with_cot": 0,
+        "entries_without_cot": 0,
     }
     for qid, item in bake["byId"].items():
         stats["questions"] += 1
@@ -90,23 +94,36 @@ def enrich(bake: dict, runs: Path) -> dict:
             if correct:
                 saw_correct = True
             text, source = pick_text(rec)
-            if not text or len(text) < MIN_CHARS:
-                continue
             entries.append(
                 {
                     "model": model,
                     "correct": correct,
                     "parsedLetter": parsed,
                     "source": source,
-                    "text": truncate(text),
+                    "text": truncate(text) if text else "",
                 }
             )
-        # Prefer a correct model as default; else first entry.
+            if text:
+                stats["entries_with_cot"] += 1
+            else:
+                stats["entries_without_cot"] += 1
+
+        # Prefer correct+CoT, then any correct, then any with CoT, else first.
         default_model = None
         for entry in entries:
-            if entry["correct"]:
+            if entry["correct"] and entry["text"]:
                 default_model = entry["model"]
                 break
+        if default_model is None:
+            for entry in entries:
+                if entry["correct"]:
+                    default_model = entry["model"]
+                    break
+        if default_model is None:
+            for entry in entries:
+                if entry["text"]:
+                    default_model = entry["model"]
+                    break
         if default_model is None and entries:
             default_model = entries[0]["model"]
 
@@ -116,12 +133,14 @@ def enrich(bake: dict, runs: Path) -> dict:
                 "defaultModel": default_model,
                 "entries": entries,
             }
-            stats["with_any_cot"] += 1
+            stats["with_entries"] += 1
             stats["entries"] += len(entries)
             if any(e["correct"] for e in entries):
-                stats["with_correct_cot"] += 1
-            elif not saw_correct:
+                stats["with_correct"] += 1
+            else:
                 stats["no_correct"] += 1
+            if any(e["text"] for e in entries):
+                stats["with_any_cot_text"] += 1
         else:
             item["llmCot"] = {
                 "available": False,

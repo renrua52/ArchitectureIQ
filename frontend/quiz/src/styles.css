@@ -575,6 +575,11 @@ a {
   word-break: break-word;
 }
 
+.llm-cot-text.empty {
+  color: #8a8a8a;
+  font-style: italic;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

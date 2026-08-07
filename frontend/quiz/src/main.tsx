@@ -894,7 +894,9 @@ function LlmCotPanel({ cot }: { cot?: LlmCot }) {
           : `${selected.model} answered incorrectly`}
         {selected.parsedLetter ? ` (picked ${selected.parsedLetter})` : ""}.
       </p>
-      <pre className="llm-cot-text">{selected.text}</pre>
+      <pre className={`llm-cot-text${selected.text?.trim() ? "" : " empty"}`}>
+        {selected.text?.trim() ? selected.text : "No chain of thought extracted."}
+      </pre>
     </section>
   );
 }
