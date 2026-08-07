@@ -66,6 +66,7 @@ def _cot_model_rank(name: str) -> tuple[int, str]:
 
 
 def _cot_pick_text(rec: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return CoT only when long enough; short answers are treated as missing."""
     parts = rec.get("message_parts") or {}
     candidates = [
         ("reasoning_content", (parts.get("reasoning_content") or parts.get("reasoning") or "").strip()),
@@ -75,9 +76,6 @@ def _cot_pick_text(rec: dict[str, Any]) -> tuple[str | None, str | None]:
     ]
     for source, text in candidates:
         if len(text) >= COT_MIN_CHARS:
-            return text, source
-    for source, text in candidates:
-        if text:
             return text, source
     return None, None
 
@@ -89,13 +87,14 @@ def _cot_truncate(text: str) -> str:
 
 
 def inject_llm_cot(bake: dict[str, Any], runs_root: Path) -> dict[str, int]:
-    """Attach multi-model llmCot entries (correct + wrong) for quiz dropdown."""
+    """Attach multi-model llmCot entries for quiz dropdown (incl. empty CoT)."""
     stats = {
-        "with_any_cot": 0,
-        "with_correct_cot": 0,
+        "with_entries": 0,
+        "with_correct": 0,
+        "with_any_cot_text": 0,
         "no_correct": 0,
-        "no_cot": 0,
         "entries": 0,
+        "entries_without_cot": 0,
     }
     if not runs_root.is_dir():
         print(f"warn: llm_runs missing at {runs_root}; skipping llmCot")
@@ -123,19 +122,23 @@ def inject_llm_cot(bake: dict[str, Any], runs_root: Path) -> dict[str, int]:
             if correct:
                 saw_correct = True
             text, source = _cot_pick_text(rec)
-            if not text or len(text) < COT_MIN_CHARS:
-                continue
             entries.append(
                 {
                     "model": model,
                     "correct": correct,
                     "parsedLetter": parsed,
                     "source": source,
-                    "text": _cot_truncate(text),
+                    "text": _cot_truncate(text) if text else "",
                 }
             )
+            if not text:
+                stats["entries_without_cot"] += 1
 
-        default_model = next((e["model"] for e in entries if e["correct"]), None)
+        default_model = next((e["model"] for e in entries if e["correct"] and e["text"]), None)
+        if default_model is None:
+            default_model = next((e["model"] for e in entries if e["correct"]), None)
+        if default_model is None:
+            default_model = next((e["model"] for e in entries if e["text"]), None)
         if default_model is None and entries:
             default_model = entries[0]["model"]
 
@@ -145,20 +148,22 @@ def inject_llm_cot(bake: dict[str, Any], runs_root: Path) -> dict[str, int]:
                 "defaultModel": default_model,
                 "entries": entries,
             }
-            stats["with_any_cot"] += 1
+            stats["with_entries"] += 1
             stats["entries"] += len(entries)
             if any(e["correct"] for e in entries):
-                stats["with_correct_cot"] += 1
-            elif not saw_correct:
+                stats["with_correct"] += 1
+            else:
                 stats["no_correct"] += 1
+            if any(e["text"] for e in entries):
+                stats["with_any_cot_text"] += 1
         elif saw_correct:
             item["llmCot"] = {"available": False, "reason": "no_cot"}
-            stats["no_cot"] += 1
         else:
             item["llmCot"] = {"available": False, "reason": "no_correct"}
             stats["no_correct"] += 1
     print("llmCot inject:", stats)
     return stats
+
 
 
 def load_pool(tags: dict[str, Any]) -> list[dict[str, Any]]:
