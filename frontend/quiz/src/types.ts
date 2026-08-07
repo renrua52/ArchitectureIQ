@@ -29,18 +29,21 @@ export type Choice = {
   files: Record<string, unknown>;
 };
 
-export type LlmCot =
-  | {
-      available: true;
-      model: string;
-      parsedLetter?: string | null;
-      source?: string;
-      text: string;
-    }
-  | {
-      available: false;
-      reason?: "no_correct" | "no_cot" | string;
-    };
+export type LlmCotEntry = {
+  model: string;
+  correct: boolean;
+  parsedLetter?: string | null;
+  source?: string;
+  text: string;
+};
+
+export type LlmCot = {
+  /** True when at least one model has extractable CoT text. */
+  available: boolean;
+  reason?: "no_correct" | "no_cot" | string;
+  defaultModel?: string | null;
+  entries?: LlmCotEntry[];
+};
 
 export type BakedQuestion = {
   id: string;
@@ -61,7 +64,7 @@ export type BakedQuestion = {
   numChoices?: number;
   llmDifficulty?: string;
   llmConsensusAcc?: number;
-  /** Present after answer reveal: CoT from an LLM that got the question right. */
+  /** Present after answer reveal: per-model CoT traces for the dropdown. */
   llmCot?: LlmCot;
   detail: {
     prompt: string;

@@ -510,11 +510,47 @@ a {
   gap: 0.65rem;
 }
 
+.llm-cot-head {
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.llm-cot-select-wrap {
+  margin-left: auto;
+  min-width: min(100%, 18rem);
+}
+
+.llm-cot-select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.4rem 0.65rem;
+}
+
 .llm-cot-model {
   color: var(--muted);
   font-size: 0.8rem;
   font-family: var(--mono);
   font-weight: 500;
+}
+
+.llm-cot-verdict {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.llm-cot-verdict.ok {
+  color: var(--ok);
+}
+
+.llm-cot-verdict.bad {
+  color: #ff8f88;
 }
 
 .llm-cot-empty {
@@ -537,6 +573,18 @@ a {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .vote-copy {

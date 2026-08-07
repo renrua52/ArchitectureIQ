@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inject llmCot into a BakeFile from benchmarks/v1_llm/llm_runs.
+"""Inject multi-model llmCot into a BakeFile from benchmarks/v1_llm/llm_runs.
 
 Usage:
   python scripts/enrich-llm-cot.py \\
@@ -56,48 +56,81 @@ def model_rank(name: str) -> tuple[int, str]:
         return len(PREFERRED), name
 
 
+def truncate(text: str) -> str:
+    if len(text) <= MAX_CHARS:
+        return text
+    return text[:MAX_CHARS].rstrip() + "\n\n…[truncated for quiz display]"
+
+
 def enrich(bake: dict, runs: Path) -> dict:
     models = sorted(
         [p.name for p in runs.iterdir() if p.is_dir() and p.name not in EXCLUDE],
         key=model_rank,
     )
-    stats = {"with_cot": 0, "no_correct": 0, "correct_no_cot": 0}
+    stats = {
+        "questions": 0,
+        "with_any_cot": 0,
+        "with_correct_cot": 0,
+        "no_correct": 0,
+        "entries": 0,
+    }
     for qid, item in bake["byId"].items():
-        candidates = []
+        stats["questions"] += 1
+        entries: list[dict] = []
         saw_correct = False
         for model in models:
             path = runs / model / "results" / f"{qid}.json"
             if not path.is_file():
                 continue
             rec = json.loads(path.read_text(encoding="utf-8"))
-            if rec.get("error") or rec.get("parsed_letter") is None:
+            if rec.get("error"):
                 continue
-            if not rec.get("correct"):
-                continue
-            saw_correct = True
+            parsed = rec.get("parsed_letter")
+            correct = bool(rec.get("correct")) and parsed is not None
+            if correct:
+                saw_correct = True
             text, source = pick_text(rec)
             if not text or len(text) < MIN_CHARS:
                 continue
-            candidates.append((model_rank(model), len(text), model, text, source, rec.get("parsed_letter")))
-        if candidates:
-            candidates.sort(key=lambda row: (row[0][0], row[1]))
-            _, _, model, text, source, letter = candidates[0]
-            if len(text) > MAX_CHARS:
-                text = text[:MAX_CHARS].rstrip() + "\n\n…[truncated for quiz display]"
+            entries.append(
+                {
+                    "model": model,
+                    "correct": correct,
+                    "parsedLetter": parsed,
+                    "source": source,
+                    "text": truncate(text),
+                }
+            )
+        # Prefer a correct model as default; else first entry.
+        default_model = None
+        for entry in entries:
+            if entry["correct"]:
+                default_model = entry["model"]
+                break
+        if default_model is None and entries:
+            default_model = entries[0]["model"]
+
+        if entries:
             item["llmCot"] = {
                 "available": True,
-                "model": model,
-                "parsedLetter": letter,
-                "source": source,
-                "text": text,
+                "defaultModel": default_model,
+                "entries": entries,
             }
-            stats["with_cot"] += 1
-        elif saw_correct:
-            item["llmCot"] = {"available": False, "reason": "no_cot"}
-            stats["correct_no_cot"] += 1
+            stats["with_any_cot"] += 1
+            stats["entries"] += len(entries)
+            if any(e["correct"] for e in entries):
+                stats["with_correct_cot"] += 1
+            elif not saw_correct:
+                stats["no_correct"] += 1
         else:
-            item["llmCot"] = {"available": False, "reason": "no_correct"}
-            stats["no_correct"] += 1
+            item["llmCot"] = {
+                "available": False,
+                "reason": "no_correct" if not saw_correct else "no_cot",
+                "defaultModel": None,
+                "entries": [],
+            }
+            if not saw_correct:
+                stats["no_correct"] += 1
     return stats
 
 
@@ -110,6 +143,7 @@ def main() -> None:
     stats = enrich(bake, args.runs)
     args.bake.write_text(json.dumps(bake, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(stats))
+    print(f"size_mb={args.bake.stat().st_size / 1e6:.2f}")
 
 
 if __name__ == "__main__":

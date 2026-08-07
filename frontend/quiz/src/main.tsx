@@ -830,10 +830,23 @@ function AnswerStage({
 }
 
 function LlmCotPanel({ cot }: { cot?: LlmCot }) {
+  const entries = cot?.entries ?? [];
+  const hasCorrect = entries.some((entry) => entry.correct);
+  const initialModel =
+    cot?.defaultModel && entries.some((entry) => entry.model === cot.defaultModel)
+      ? cot.defaultModel
+      : entries.find((entry) => entry.correct)?.model ?? entries[0]?.model ?? "";
+  const [selectedModel, setSelectedModel] = useState(initialModel);
+
+  useEffect(() => {
+    setSelectedModel(initialModel);
+  }, [initialModel, cot]);
+
   if (!cot) {
     return null;
   }
-  if (!cot.available) {
+
+  if (!entries.length) {
     const message =
       cot.reason === "no_cot"
         ? "An LLM got this right, but no chain-of-thought was captured."
@@ -847,13 +860,41 @@ function LlmCotPanel({ cot }: { cot?: LlmCot }) {
       </section>
     );
   }
+
+  const selected =
+    entries.find((entry) => entry.model === selectedModel) ?? entries[0];
+
   return (
     <section className="panel llm-cot-panel" aria-label="LLM chain of thought">
-      <div className="panel-head">
+      <div className="panel-head llm-cot-head">
         <p className="stage-kicker">LLM chain of thought</p>
-        <span className="llm-cot-model">{cot.model}</span>
+        <label className="llm-cot-select-wrap">
+          <span className="sr-only">Select model</span>
+          <select
+            className="llm-cot-select"
+            value={selected.model}
+            onChange={(event) => setSelectedModel(event.target.value)}
+            aria-label="Select model chain of thought"
+          >
+            {entries.map((entry) => (
+              <option key={entry.model} value={entry.model}>
+                {entry.model} · {entry.correct ? "Correct" : "Wrong"}
+                {entry.parsedLetter ? ` (${entry.parsedLetter})` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-      <pre className="llm-cot-text">{cot.text}</pre>
+      {!hasCorrect ? (
+        <p className="llm-cot-empty">Real hard problem, no LLM gets it right!</p>
+      ) : null}
+      <p className={`llm-cot-verdict ${selected.correct ? "ok" : "bad"}`}>
+        {selected.correct
+          ? `${selected.model} answered correctly`
+          : `${selected.model} answered incorrectly`}
+        {selected.parsedLetter ? ` (picked ${selected.parsedLetter})` : ""}.
+      </p>
+      <pre className="llm-cot-text">{selected.text}</pre>
     </section>
   );
 }
