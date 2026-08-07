@@ -82,9 +82,21 @@ def _cot_pick_text(rec: dict[str, Any]) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _cot_truncate(text: str) -> str:
+    if len(text) <= COT_MAX_CHARS:
+        return text
+    return text[:COT_MAX_CHARS].rstrip() + "\n\n…[truncated for quiz display]"
+
+
 def inject_llm_cot(bake: dict[str, Any], runs_root: Path) -> dict[str, int]:
-    """Attach llmCot from per-model eval results (correct + extractable CoT)."""
-    stats = {"with_cot": 0, "no_correct": 0, "correct_no_cot": 0}
+    """Attach multi-model llmCot entries (correct + wrong) for quiz dropdown."""
+    stats = {
+        "with_any_cot": 0,
+        "with_correct_cot": 0,
+        "no_correct": 0,
+        "no_cot": 0,
+        "entries": 0,
+    }
     if not runs_root.is_dir():
         print(f"warn: llm_runs missing at {runs_root}; skipping llmCot")
         for item in bake.get("byId", {}).values():
@@ -97,38 +109,51 @@ def inject_llm_cot(bake: dict[str, Any], runs_root: Path) -> dict[str, int]:
         key=_cot_model_rank,
     )
     for qid, item in bake.get("byId", {}).items():
-        candidates: list[tuple[Any, ...]] = []
+        entries: list[dict[str, Any]] = []
         saw_correct = False
         for model in models:
             path = runs_root / model / "results" / f"{qid}.json"
             if not path.is_file():
                 continue
             rec = json.loads(path.read_text(encoding="utf-8"))
-            if rec.get("error") or rec.get("parsed_letter") is None:
+            if rec.get("error"):
                 continue
-            if not rec.get("correct"):
-                continue
-            saw_correct = True
+            parsed = rec.get("parsed_letter")
+            correct = bool(rec.get("correct")) and parsed is not None
+            if correct:
+                saw_correct = True
             text, source = _cot_pick_text(rec)
             if not text or len(text) < COT_MIN_CHARS:
                 continue
-            candidates.append((_cot_model_rank(model), len(text), model, text, source, rec.get("parsed_letter")))
-        if candidates:
-            candidates.sort(key=lambda row: (row[0][0], row[1]))
-            _, _, model, text, source, letter = candidates[0]
-            if len(text) > COT_MAX_CHARS:
-                text = text[:COT_MAX_CHARS].rstrip() + "\n\n…[truncated for quiz display]"
+            entries.append(
+                {
+                    "model": model,
+                    "correct": correct,
+                    "parsedLetter": parsed,
+                    "source": source,
+                    "text": _cot_truncate(text),
+                }
+            )
+
+        default_model = next((e["model"] for e in entries if e["correct"]), None)
+        if default_model is None and entries:
+            default_model = entries[0]["model"]
+
+        if entries:
             item["llmCot"] = {
                 "available": True,
-                "model": model,
-                "parsedLetter": letter,
-                "source": source,
-                "text": text,
+                "defaultModel": default_model,
+                "entries": entries,
             }
-            stats["with_cot"] += 1
+            stats["with_any_cot"] += 1
+            stats["entries"] += len(entries)
+            if any(e["correct"] for e in entries):
+                stats["with_correct_cot"] += 1
+            elif not saw_correct:
+                stats["no_correct"] += 1
         elif saw_correct:
             item["llmCot"] = {"available": False, "reason": "no_cot"}
-            stats["correct_no_cot"] += 1
+            stats["no_cot"] += 1
         else:
             item["llmCot"] = {"available": False, "reason": "no_correct"}
             stats["no_correct"] += 1
