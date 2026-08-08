@@ -341,11 +341,12 @@ def _curve_series(choice: dict[str, Any]) -> dict[str, Any] | None:
     )
     if "error" in loaded:
         return None
-    curves = loaded["curves"]
+    curves = np.asarray(loaded["curves"], dtype=float)
     samples = loaded["eval_samples"]
-    mean = _json_number(curves.mean(axis=0).tolist())
+    # Failed seeds are all-NaN rows in curves.npz; drop them per-point.
+    mean = _json_number(np.nanmean(curves, axis=0).tolist())
     std = (
-        _json_number(curves.std(axis=0).tolist())
+        _json_number(np.nanstd(curves, axis=0).tolist())
         if curves.shape[0] > 1
         else [0.0] * len(mean)
     )
