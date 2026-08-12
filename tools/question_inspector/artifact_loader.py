@@ -146,6 +146,14 @@ def _iter_question_json_paths(root: Path) -> list[Path]:
         for qfile in datasets_dir.rglob("questions/*/*/question.json"):
             found.append(qfile)
 
+    # Shared benchmark questions (may be a symlink; rglob skips those)
+    bench = root / "benchmarks" / "v1_llm" / "questions"
+    if bench.is_dir():
+        for qfile in bench.iterdir():
+            f = qfile / "question.json"
+            if f.is_file():
+                found.append(f)
+
     return found
 
 
