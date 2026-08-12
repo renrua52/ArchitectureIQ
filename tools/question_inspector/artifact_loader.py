@@ -138,10 +138,8 @@ def _iter_question_json_paths(root: Path) -> list[Path]:
     found: list[Path] = []
     legacy = root / "questions"
     if legacy.is_dir():
-        for path in legacy.iterdir():
-            qfile = path / "question.json"
-            if path.is_dir() and qfile.is_file():
-                found.append(qfile)
+        for qfile in legacy.rglob("question.json"):
+            found.append(qfile)
 
     datasets_dir = root / "datasets"
     if datasets_dir.is_dir():
