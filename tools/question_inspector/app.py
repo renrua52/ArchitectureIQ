@@ -19,6 +19,7 @@ from typing import Any, Callable, Mapping
 
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
 import torch
@@ -2684,38 +2685,14 @@ def _collect_custom_curve_series(
 def _render_curve_controls(
     series: list[dict[str, Any]],
     q: dict[str, Any],
-) -> tuple[int, int, bool, bool]:
-    all_x = np.concatenate([item["x"] for item in series])
-    min_x = int(np.nanmin(all_x))
-    max_x = int(np.nanmax(all_x))
-    window_key = _curve_window_key(q)
-
-    col_range, col_log_x, col_log_y = st.columns([5, 1, 1])
-    with col_range:
-        if min_x == max_x:
-            x_min, x_max = min_x, max_x
-            st.caption(f"Samples shown: {min_x}")
-        else:
-            unique_x = np.unique(all_x)
-            step = (
-                max(1, int(np.gcd.reduce(np.diff(unique_x))))
-                if len(unique_x) > 1
-                else 1
-            )
-            x_min, x_max = st.slider(
-                "Samples shown",
-                min_value=min_x,
-                max_value=max_x,
-                value=(min_x, max_x),
-                step=step,
-                key=window_key,
-            )
+) -> tuple[bool, bool]:
+    """Log-scale toggles only; Plotly provides native zoom/pan/brush."""
+    col_log_x, col_log_y = st.columns([1, 1])
     with col_log_x:
         use_log_x = st.checkbox("Log X", value=False, key=f"log_x_{q['question_id']}")
     with col_log_y:
         use_log_y = st.checkbox("Log Y", value=False, key=f"log_y_{q['question_id']}")
-
-    return int(x_min), int(x_max), use_log_x, use_log_y
+    return use_log_x, use_log_y
 
 
 def _render_combined_curves(
@@ -2739,25 +2716,26 @@ def _render_combined_curves(
         st.info("No learning curve data available yet.")
         return
 
-    x_min, x_max, use_log_x, use_log_y = _render_curve_controls(series, q)
-    fig, ax = plt.subplots(figsize=(8, 4))
+    use_log_x, use_log_y = _render_curve_controls(series, q)
+    fig = go.Figure()
     any_plotted = False
 
     for item in series:
         x_valid = item["x"]
-        in_window = (x_valid >= x_min) & (x_valid <= x_max)
         if use_log_x:
-            in_window &= x_valid > 0
-        if not in_window.any():
+            mask = x_valid > 0
+        else:
+            mask = np.ones_like(x_valid, dtype=bool)
+        if not mask.any():
             continue
 
-        x_valid = x_valid[in_window]
-        mean_valid = item["mean"][in_window]
-        std_valid = item["std"][in_window]
+        x_valid = x_valid[mask]
+        mean_valid = item["mean"][mask]
+        std_valid = item["std"][mask]
         if use_log_y:
-            lower = item["log_q10"][in_window]
-            upper = item["log_q90"][in_window]
-            line = item["log_median"][in_window]
+            lower = item["log_q10"][mask]
+            upper = item["log_q90"][mask]
+            line = item["log_median"][mask]
             positive = (
                 np.isfinite(lower)
                 & np.isfinite(upper)
@@ -2776,36 +2754,37 @@ def _render_combined_curves(
             lower = mean_valid - std_valid
             upper = mean_valid + std_valid
             line = mean_valid
-        ax.fill_between(
-            x_valid,
-            lower,
-            upper,
-            color=item["color"],
-            alpha=0.22,
-            linewidth=0,
+
+        dash = {"-": "solid", "--": "dash", ":": "dot", "-.": "dashdot"}.get(
+            item.get("linestyle", "-"), "solid"
         )
-        ax.plot(
-            x_valid,
-            line,
-            color=item["color"],
-            linewidth=2.2,
-            linestyle=item.get("linestyle", "-"),
-            label=item["label"],
+        fig.add_trace(
+            go.Scatter(
+                x=x_valid,
+                y=line,
+                mode="lines",
+                name=item["label"],
+                line=dict(color=item["color"], width=2.2, dash=dash),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=np.concatenate([x_valid, x_valid[::-1]]),
+                y=np.concatenate([upper, lower[::-1]]),
+                fill="toself",
+                fillcolor=item["color"],
+                opacity=0.18,
+                line=dict(width=0),
+                hoverinfo="skip",
+                showlegend=False,
+            )
         )
         any_plotted = True
 
     if not any_plotted:
-        plt.close(fig)
-        st.info("No learning curve points in the selected range.")
+        st.info("No learning curve points available.")
         return
 
-    ax.set_xlabel("Samples seen")
-    ax.set_ylabel(_metric_display_name(metric))
-    ax.set_xlim(x_min, x_max)
-    if use_log_x:
-        ax.set_xscale("log")
-    if use_log_y:
-        ax.set_yscale("log")
     uncertainty_label = (
         "median with 10–90% quantile band"
         if use_log_y
@@ -2814,12 +2793,111 @@ def _render_combined_curves(
     title = f"Learning curves ({uncertainty_label})"
     if custom_series and not include_candidates:
         title = f"Custom setting curves ({uncertainty_label})"
-    ax.set_title(title)
-    ax.grid(True, alpha=0.25)
-    ax.legend(loc="best", fontsize=9)
-    fig.tight_layout()
-    st.pyplot(fig, clear_figure=True)
-    plt.close(fig)
+
+    fig.update_layout(
+        title=dict(text=title, x=0.5),
+        xaxis=dict(
+            title="Samples seen",
+            type="log" if use_log_x else "linear",
+            gridcolor="rgba(0,0,0,0.1)",
+        ),
+        yaxis=dict(
+            title=_metric_display_name(metric),
+            type="log" if use_log_y else "linear",
+            gridcolor="rgba(0,0,0,0.1)",
+        ),
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=60, r=30, t=60, b=50),
+        height=460,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# LLM 思维链展示
+# ---------------------------------------------------------------------------
+
+_LLM_RUNS_ROOT = Path("/root/autodl-tmp/share/benchmarks/v1_llm/llm_runs")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _load_llm_results(question_id: str) -> list[dict[str, Any]]:
+    """Load all model responses for a given question_id from the shared benchmark."""
+    results: list[dict[str, Any]] = []
+    if not _LLM_RUNS_ROOT.is_dir():
+        return results
+    for model_dir in sorted(_LLM_RUNS_ROOT.iterdir()):
+        if not model_dir.is_dir():
+            continue
+        result_path = model_dir / "results" / f"{question_id}.json"
+        if not result_path.is_file():
+            continue
+        try:
+            data = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        results.append({
+            "model": model_dir.name,
+            "parsed_letter": data.get("parsed_letter"),
+            "ground_truth_letter": data.get("ground_truth_letter"),
+            "correct": data.get("correct"),
+            "chain_of_thought": data.get("chain_of_thought")
+            or data.get("model_response", ""),
+            "finish_reason": data.get("finish_reason", ""),
+            "usage": data.get("usage", {}),
+        })
+    return results
+
+
+def _render_llm_thinking(q: dict[str, Any]) -> None:
+    """Display LLM model responses (chain-of-thought) for the current question."""
+    question_id = q.get("question_id")
+    if not isinstance(question_id, str):
+        return
+
+    results = _load_llm_results(question_id)
+    if not results:
+        return
+
+    st.markdown("#### LLM responses")
+    st.caption(f"{len(results)} model responses from the v1_llm benchmark")
+
+    n_correct = sum(1 for r in results if r["correct"])
+    acc = n_correct / len(results) if results else 0
+    col_acc, col_gt = st.columns([1, 1])
+    with col_acc:
+        st.metric("Model accuracy", f"{acc:.0%}", f"{n_correct}/{len(results)}")
+    with col_gt:
+        gt = results[0]["ground_truth_letter"] if results else "?"
+        st.metric("Ground truth", gt)
+
+    model_names = [r["model"] for r in results]
+    default_idx = next(
+        (i for i, r in enumerate(results) if not r["correct"]),
+        0,
+    )
+    selected_model = st.selectbox(
+        "Model",
+        model_names,
+        index=default_idx,
+        key=f"llm_model_{question_id}",
+    )
+    result = next((r for r in results if r["model"] == selected_model), results[0])
+    if not result:
+        return
+
+    letter = result["parsed_letter"] or "—"
+    verdict = "✅ correct" if result["correct"] else "❌ wrong"
+    st.markdown(
+        f"**Answer: {letter}** (ground truth: {result['ground_truth_letter']}) — {verdict}"
+    )
+
+    cot = result["chain_of_thought"]
+    if cot:
+        st.markdown(cot)
+    else:
+        st.info("No chain-of-thought text recorded for this model.")
 
 
 def _render_file_panel(
@@ -4465,6 +4543,7 @@ def _render_question_page(
         )
     if committed:
         _render_ranked_metrics(bundle, q)
+        _render_llm_thinking(q)
         _render_question_reaction(q)
 
     _render_question_comment(q)
