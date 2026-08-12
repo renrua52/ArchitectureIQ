@@ -27,7 +27,7 @@ from pathlib import Path
 import httpx
 
 from backend.eval import score_proposal
-from backend.eval.batch_eval import call_llm, parse_answer, resolve_api_key, DEFAULT_MODEL  # reuse plumbing
+from backend.eval.batch_eval import call_llm, default_model, parse_answer, resolve_api_key  # reuse plumbing
 
 SETS_ROOT = Path("backend/eval/sets")
 OUT_ROOT = Path("artifacts/eval_runs")
@@ -60,14 +60,15 @@ async def run_proposals(items: list[dict], model: str, concurrency: int,
     sem = asyncio.Semaphore(concurrency)
     async with httpx.AsyncClient(base_url=base_url, headers=headers) as client:
         tasks = [call_llm(client, sem, it["prompt"], model) for it in items]
-        texts = await asyncio.gather(*tasks)
+        responses = await asyncio.gather(*tasks)
 
     out = []
-    for it, text in zip(items, texts):
+    for it, (text, reasoning) in zip(items, responses):
         prop = extract_json(text)
         if prop is None:
             out.append({"ok": False, "question_id": it["question_id"],
                         "problem_id": it["problem_id"], "raw": text,
+                        "reasoning": reasoning,
                         "errors": ["json parse failed"]})
             continue
         prop, disp_notes = score_proposal.normalize_proposal_display(prop)
@@ -77,11 +78,12 @@ async def run_proposals(items: list[dict], model: str, concurrency: int,
         if errors:
             out.append({"ok": False, "question_id": it["question_id"],
                         "problem_id": it["problem_id"], "errors": errors,
-                        "notes": notes, "raw": text})
+                        "notes": notes, "raw": text, "reasoning": reasoning})
             continue
         out.append({"ok": True, "question_id": it["question_id"],
                     "problem_id": it["problem_id"], "proposal": prop,
-                    "snapped": spec, "notes": notes, "raw": text})
+                    "snapped": spec, "notes": notes, "raw": text,
+                    "reasoning": reasoning})
     return out
 
 
@@ -162,7 +164,7 @@ def main() -> int:
     ap.add_argument("--set", default="propose_improvement_v1.1")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--concurrency", type=int, default=50)
-    ap.add_argument("--model", default=DEFAULT_MODEL)
+    ap.add_argument("--model", default=default_model())
     ap.add_argument("--base-url", default=os.environ.get("OPENAI_BASE_URL", DEFAULT_BASE_URL))
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--propose-only", action="store_true")

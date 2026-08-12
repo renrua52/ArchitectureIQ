@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArchitectureIQ 题集总览 · 设计与结果</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --panel: #fff; --text: #1a2233; --dim: #5a6478;
+    --border: #dfe4ec; --accent: #2563eb; --warn: #b45309; --bad: #b91c1c;
+    --good: #15803d; --code-bg: #f1f4f9; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.6; font-size: 15px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 28px 80px; }
+
+  .hero { background: linear-gradient(135deg,#0f172a,#1e3a8a); color: #fff; border-radius: 16px; padding: 40px 46px; margin-bottom: 24px; }
+  .hero h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.25; }
+  .hero .sub { font-size: 16px; opacity: .92; margin: 0 0 14px; }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hero .badge { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; }
+
+  nav.toc { position: sticky; top: 12px; z-index: 10; background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 18px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(15,23,42,.05); }
+  nav.toc .toc-title { font-weight: 700; font-size: 13px; color: var(--dim); margin-bottom: 6px; }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 34px; }
+  nav.toc li { font-size: 13.5px; margin: 2px 0; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  @media (max-width: 900px) { nav.toc ol { columns: 1; } .grid2,.grid3 { grid-template-columns: 1fr; } }
+
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 20px; }
+  h2 { font-size: 21px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+  h3 { font-size: 16px; margin: 18px 0 8px; }
+  h4 { font-size: 14.5px; margin: 14px 0 6px; color: #1e3a8a; }
+  p { margin: 7px 0; }
+  ul, ol { margin: 7px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; font-size: 12.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre { background: #0f172a; color: #dbe4f5; border-radius: var(--radius); padding: 14px 16px; overflow-x: auto;
+    font-size: 12.5px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre code { background: none; border: none; color: inherit; padding: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #eef2f9; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfd; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .good { color: var(--good); font-weight: 700; }
+  .bad { color: var(--bad); font-weight: 700; }
+  .warn { color: var(--warn); font-weight: 700; }
+
+  .tag { display: inline-block; border-radius: 5px; padding: 1px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .tag.blue { background: #e0eaff; color: #1d4ed8; }
+  .tag.teal { background: #d7f3f2; color: #0f766e; }
+  .tag.amber { background: #fdf0d3; color: #b45309; }
+  .tag.red { background: #fde3e1; color: #b91c1c; }
+  .tag.green { background: #d9f3e0; color: #15803d; }
+
+  .callout { border-left: 4px solid var(--accent); background: #f0f5ff; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 10px 0; font-size: 14px; }
+  .callout.warn { border-color: var(--warn); background: #fff8ec; }
+  .callout.bad { border-color: var(--bad); background: #fff1f0; }
+  .callout.good { border-color: var(--good); background: #f0faf2; }
+
+  .preview { background: #fbfcfe; border: 1px dashed #c9d3e2; border-radius: 8px; padding: 12px 14px; margin: 10px 0; font-size: 13px; }
+  .preview .pv-title { font-size: 12px; color: var(--dim); font-weight: 700; margin-bottom: 6px; }
+  .preview table { margin: 6px 0; font-size: 12.5px; }
+  .preview th, .preview td { padding: 4px 8px; }
+
+  .proto { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .proto .item { background: #eef2f9; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: 12.5px; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+  .bar-label { width: 240px; font-size: 13px; flex: none; text-align: right; }
+  .bar-track { flex: 1; background: #eef1f6; border-radius: 999px; height: 18px; }
+  .bar-fill { height: 100%; border-radius: 999px; min-width: 2px; background: linear-gradient(90deg,#60a5fa,#2563eb);
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 7px; font-size: 11px; color: #fff; font-weight: 700; }
+  .bar-fill.bad-fill { background: linear-gradient(90deg,#fca5a5,#dc2626); }
+  .bar-fill.mid-fill { background: linear-gradient(90deg,#fcd34d,#d97706); }
+  .bar-fill.good-fill { background: linear-gradient(90deg,#4ade80,#16a34a); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  .card { background: #fbfcfe; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .card .k { font-size: 12px; color: var(--dim); letter-spacing: .4px; }
+  .card .v { font-size: 20px; font-weight: 700; margin-top: 3px; }
+  .card .d { font-size: 12.5px; color: var(--dim); margin-top: 3px; }
+
+  .src { font-size: 12px; color: var(--dim); margin-top: 8px; }
+  footer { color: var(--dim); font-size: 12.5px; text-align: center; margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <h1>ArchitectureIQ · 题集总览</h1>
+  <p class="sub">每个题集：题目构成 → 题目长什么样 → 怎么测 → 模型考了几分（n/m = %）。数据全部来自真实运行记录。</p>
+  <div class="badges">
+    <span class="badge">更新：2026-08-03</span>
+    <span class="badge">分支 shaoyang/local-agent-dev</span>
+    <span class="badge">1403 tests passed</span>
+    <span class="badge">GT 全部来自真实训练</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <div class="toc-title">目录</div>
+  <ol>
+    <li><a href="#overview">题集总览（一张表）</a></li>
+    <li><a href="#basics">名词解释与核心规则</a></li>
+    <li><a href="#role">我的职能</a></li>
+    <li><a href="#legacy">A 组：旧 60 题</a></li>
+    <li><a href="#choice">B 组：新题选择题</a></li>
+    <li><a href="#generative">C 组：生成式任务</a></li>
+    <li><a href="#batch3">D 组：三批对比（demo / XOR / GRU）</a></li>
+    <li><a href="#metamodel">E 组：meta-model</a></li>
+    <li><a href="#conclusion">结论与建议</a></li>
+    <li><a href="#sources">数据来源</a></li>
+  </ol>
+</nav>
+
+<!-- ============ 1. 总览 ============ -->
+<section id="overview">
+  <h2>1 · 题集总览</h2>
+  <table>
+    <tr><th>题集</th><th>题数</th><th>几选一</th><th>题面有没有参考/提示</th><th>任务</th><th>测过的模型</th><th>状态</th></tr>
+    <tr><td>旧 60 · 盲答</td><td class="num">60</td><td class="num">3 选 1</td><td>无</td><td>直接判断哪个配置最好</td><td>7 个</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>旧 60 · 顺序反馈</td><td class="num">60</td><td class="num">3 选 1</td><td>无（答完揭晓对错）</td><td>同上，可迭代作答</td><td>3 个</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>旧 60 · hints 版</td><td class="num">48</td><td class="num">3 选 1</td><td>5 个参考（带实测 loss）</td><td>参考校准后选最优</td><td>luna</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>select_best_v2</td><td class="num">50（池 59）</td><td class="num">6 选 1</td><td>5 个参考（带 loss）+ 含 base</td><td>选最优（含"不改"）</td><td>claude / terra / luna</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>two_choice</td><td class="num">50 / 批</td><td class="num">2 选 1</td><td>3 个参考（带 loss）</td><td>比两个配置的 loss 大小</td><td>deepseek / terra / claude / luna</td><td><span class="tag amber">诊断用</span></td></tr>
+    <tr><td>high_budget 13/15</td><td class="num">13 或 15</td><td class="num">4 选 1</td><td>无（盲答）</td><td>直接判断哪个配置最好</td><td>terra / deepseek / claude-sonnet-5 / gpt-5.4</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>propose_improvement</td><td class="num">50 / 批</td><td>开放（写 JSON 配置）</td><td>base + 5 个改进例子（带 loss）</td><td>提出一个比 base 更好的配置</td><td>deepseek</td><td><span class="tag green">主任务</span></td></tr>
+    <tr><td>plan_light（L1）</td><td class="num">95</td><td class="num">5 选 1</td><td>3 个已做过的实验（带 loss）</td><td>先做哪个实验最划算</td><td>luna</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>propose_loop（L2）</td><td class="num">31 棵树 × 5 轮</td><td>开放（闭环）</td><td>工作树 + 每轮结果</td><td>K 轮实验逼近最优配置</td><td>luna</td><td><span class="tag green">pilot</span></td></tr>
+    <tr><td>demo 46</td><td class="num">46</td><td class="num">2 选 1</td><td>无</td><td>盲答选最优</td><td>gpt-5.5（全量）</td><td><span class="tag green">有效</span></td></tr>
+    <tr><td>XOR 100（任梓睿）</td><td class="num">100</td><td class="num">2 选 1</td><td>无</td><td>盲答选最优</td><td>gpt-5.5（全量）</td><td><span class="tag amber">prior 冲突</span></td></tr>
+    <tr><td>GRU 100（唐晨成）</td><td class="num">100</td><td class="num">2 选 1</td><td>无</td><td>盲答选最优</td><td>gpt-5.5（全量）</td><td><span class="tag red">噪声题</span></td></tr>
+    <tr><td>meta-model（Full-30）</td><td class="num">—</td><td>3 选 1（模型预测）</td><td>dataset 特征</td><td>预测哪个配置赢</td><td>ExtraTrees / XGBoost</td><td><span class="tag green">有效</span></td></tr>
+  </table>
+</section>
+
+<!-- ============ 2. 名词解释 ============ -->
+<section id="basics">
+  <h2>2 · 名词解释与核心规则</h2>
+  <table>
+    <tr><th>词</th><th>大白话</th></tr>
+    <tr><td><b>题集</b></td><td>一批题目，共用一个出题方式和评测协议。</td></tr>
+    <tr><td><b>题目</b></td><td>一个数据集 + 几个候选配置，问"哪个配置训练效果最好"。</td></tr>
+    <tr><td><b>选项 / 候选</b></td><td>一个完整的训练配置 = 用什么模型 + 什么优化器 + 训练多少数据。</td></tr>
+    <tr><td><b>参考（hints）</b></td><td>题面里附带的"配置 + 它实测的 loss"，相当于带答案的小例子，用来校准判断。</td></tr>
+    <tr><td><b>base</b></td><td>一个基础配置。有些题目选项里包含"不改，就用 base"。</td></tr>
+    <tr><td><b>loss</b></td><td>训练完的误差值，<b>越低越好</b>。</td></tr>
+    <tr><td><b>随机基线</b></td><td>完全瞎猜能蒙对的概率（如 3 选 1 = 33.3%）。分数要高于它才有意义。</td></tr>
+    <tr><td><b>预算</b></td><td>训练步数 × 每步样本数（一个配置一共看多少数据）。</td></tr>
+    <tr><td><b>GT（标准答案）</b></td><td>真实跑训练代码得到的 loss，不是模型猜的。题目答案以 GT 为准。</td></tr>
+    <tr><td><b>gap</b></td><td>第一名和第二名的差距（比值）。差距太小 = 谁赢基本靠运气。</td></tr>
+  </table>
+  <div class="callout">
+    <b>核心规则：</b>① 同一道题的所有选项用同一个数据集、同一份数据切分；② GT 必须真实执行训练代码得到，
+    题目里展示的配置 = 实际运行的配置；③ 模型参数量 / 算力 ≤ 参考里最大配置的 <b>1.1 倍</b>
+    （此规则已写入评测评分，题库选项尚未完全对齐，见 §9）。
+  </div>
+</section>
+
+<!-- ============ 3. 我的职能 ============ -->
+<section id="role">
+  <h2>3 · 我的职能</h2>
+  <table>
+    <tr><th>职能</th><th>具体做了什么</th></tr>
+    <tr><td><b>评测落地</b></td><td>批量并发评测脚本（50 题并发、多题集并行）；统一读 relay <code>eval</code> key；不设 token 上限、默认高推理强度；每次评测独立文件夹，<b>完整保存模型思考过程</b>。</td></tr>
+    <tr><td><b>控制实验</b></td><td>字母交换实验（检测"只看位置不看内容"）、强制推理对照、参考有效性（kNN oracle）分析、gap 分层检验。</td></tr>
+    <tr><td><b>根因修复</b></td><td>定位并修复 select_best 答案键 bug（旧分数作废重建 v2）；修复加粗答案解析、被覆盖的 base 存储、candidate_id 哈希不一致。</td></tr>
+    <tr><td><b>代码库维护</b></td><td>合并 <code>origin/main</code> 保持分支同步；修复基线正确性 bug；<b>1403 个测试全部通过</b>（2026-08-03 实测）。</td></tr>
+    <tr><td><b>存储重构</b></td><td>设计并实现列式存储（<code>backend/data/</code>：problems / trainers / candidates / results）+ 迁移工具，存量数据已迁移。</td></tr>
+    <tr><td><b>文档</b></td><td>维护 AGENTS.md / eval-sets.md / STATUS_AND_PLAN.md；登记 7-31 Weekly 飞书文档；生成本总览。</td></tr>
+  </table>
+</section>
+
+<!-- ============ 4. A 组：旧 60 ============ -->
+<section id="legacy">
+  <h2>4 · A 组：旧 60 题</h2>
+  <p>构成：3 个数据集 × 20 题 = 60 题。</p>
+  <table>
+    <tr><th>数据集</th><th>是什么</th><th>题数</th></tr>
+    <tr><td><code>sym_62678b</code>（一元回归）</td><td>x 是 1 个数，y 是一个带符号的表达式</td><td class="num">20</td></tr>
+    <tr><td><code>mvar_c59a30</code>（多元回归）</td><td>x 是 5 维向量，y 是固定符号表达式</td><td class="num">20</td></tr>
+    <tr><td><code>bg_0021c1</code>（玩具语言模型）</td><td>词表 32、序列长 16，预测下一个词</td><td class="num">20</td></tr>
+  </table>
+
+  <h3>题集 A1 · 盲答（3 选 1，无参考）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（压缩自真实 prompt）</div>
+    <p>给你一个数据集 + 3 个配置（A/B/C），三个配置用同一份数据训练。不看训练结果，用架构和优化器知识判断：<b>哪个配置的测试误差最低？</b></p>
+    <table>
+      <tr><th>选项</th><th>模型</th><th>优化器</th><th>预算</th></tr>
+      <tr><td>A</td><td>MLP 2 层 / 256 宽</td><td>Adam lr=1e-3</td><td>5120 样本</td></tr>
+      <tr><td>B</td><td>MLP 4 层 / 32 宽</td><td>SGD lr=1e-2</td><td>5120 样本</td></tr>
+      <tr><td>C</td><td>MLP 1 层 / 128 宽</td><td>AdamW lr=3e-4</td><td>5120 样本</td></tr>
+    </table>
+  </div>
+  <div class="proto"><span class="item">协议：3 选 1</span><span class="item">无参考 / 无 hints</span><span class="item">盲答（外部评分）</span><span class="item">随机基线 33.3%</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">正确率</th><th>备注</th></tr>
+    <tr><td>gemini-3.5-flash-thinking</td><td class="num">48.3%</td><td>最高</td></tr>
+    <tr><td>gpt-5</td><td class="num">46.7%</td><td></td></tr>
+    <tr><td>gpt-5.5</td><td class="num">46.7%</td><td></td></tr>
+    <tr><td>claude-opus-4-8</td><td class="num">40.0%</td><td></td></tr>
+    <tr><td>claude-sonnet-5</td><td class="num">40.0%</td><td></td></tr>
+    <tr><td>o3</td><td class="num">35.0%</td><td></td></tr>
+    <tr><td>gemini-2.5-pro</td><td class="num">23.3%</td><td>最低</td></tr>
+    <tr><td>人类（唐晨成）</td><td class="num good">70.0%</td><td>上界参考</td></tr>
+    <tr><td>只按"参数量最大"猜</td><td class="num good">66.7%</td><td>启发式上界</td></tr>
+  </table>
+  <p><b>结论：</b>模型间跨度 25pp，能区分模型；但"选参数量最大的"就能拿 66.7%，说明题面有捷径。</p>
+
+  <h3>题集 A2 · 顺序反馈（3 选 1，答完揭晓）</h3>
+  <div class="proto"><span class="item">协议：3 选 1</span><span class="item">先答 → 揭晓对错 → 可继续</span><span class="item">6 轮取均值</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">正确率</th><th>备注</th></tr>
+    <tr><td>GPT-5.5</td><td class="num">79.7%</td><td rowspan="3">三个模型打平，无区分度</td></tr>
+    <tr><td>GPT-5.4</td><td class="num">78.3%</td></tr>
+    <tr><td>GPT-5.6-SOL</td><td class="num">78.3%</td></tr>
+  </table>
+  <p><b>结论：</b>有反馈后所有人都能到 ~78-80%，失去区分度。</p>
+
+  <h3>题集 A3 · hints 版（3 选 1 + 5 个带 loss 的参考）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（压缩自真实 prompt，bg_0021c1）</div>
+    <p>数据集 + 5 个参考配置（每个附实测 loss），3 个选项。例如参考里有：</p>
+    <table>
+      <tr><th>参考</th><th>配置</th><th class="num">实测 loss</th></tr>
+      <tr><td>1</td><td>transformer 1 层 / 64 宽，RMSprop</td><td class="num">3.448</td></tr>
+      <tr><td>2</td><td>transformer 1 层 / 128 宽，RMSprop</td><td class="num">3.188</td></tr>
+      <tr><td>3</td><td>transformer 3 层 / 128 宽，RMSprop</td><td class="num">3.386</td></tr>
+      <tr><td>4</td><td>transformer 2 层 / 64 宽，SGD lr=1e-2</td><td class="num">3.569</td></tr>
+      <tr><td>5</td><td>transformer 1 层 / 32 宽，RMSprop</td><td class="num">3.479</td></tr>
+    </table>
+    <p>问：选项 A/B/C 里哪个 loss 最低？选项 loss 不展示。</p>
+  </div>
+  <div class="proto"><span class="item">协议：3 选 1</span><span class="item">5 个参考（带 loss）</span><span class="item">随机基线 33.3%</span><span class="item">48 题（uni 18 / multi 17 / bg 13）</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">正确率</th><th class="num">排名分（0–2）</th><th class="num">前二命中</th></tr>
+    <tr><td>gpt-5.6-luna</td><td class="num good">33/48 = 68.8%</td><td class="num">1.56 / 2（78.1%）</td><td class="num">87.5%</td></tr>
+  </table>
+  <table>
+    <tr><th>分层</th><th class="num">正确率</th><th>分数据集</th><th class="num">正确率</th></tr>
+    <tr><td>差距大（ratio ≥ 2）</td><td class="num good">16/18 = 88.9%</td><td>一元回归</td><td class="num good">15/18 = 83.3%</td></tr>
+    <tr><td>差距中等（1.15–2）</td><td class="num">10/17 = 58.8%</td><td>多元回归</td><td class="num">11/17 = 64.7%</td></tr>
+    <tr><td>差距小（&lt; 1.15）</td><td class="num">7/13 = 53.8%</td><td>玩具语言模型</td><td class="num">7/13 = 53.8%</td></tr>
+  </table>
+  <p><b>结论：</b>给参考后，最便宜的模型（luna）达到人类盲答水平（68.8% vs 70%）；差距越大的题越好做。</p>
+</section>
+
+<!-- ============ 5. B 组：选择题 ============ -->
+<section id="choice">
+  <h2>5 · B 组：新题选择题</h2>
+
+
+  <h3>4.4 训练曲线长什么样（示例）</h3>
+  <p>同一道题里所有选项都在同一份数据上训练；下图是真实 GT 曲线（10 次重复训练的均值 ± 波动，绿线 = 正确答案）。</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="k">旧 60 · hints 版第 1 题（bg_0021c1，3 选 1，正确答案 C）</div>
+      <img src="assets/20260803/old60_q1_curves.png" alt="old60 q1 curves" style="width:100%;border-radius:8px;border:1px solid var(--border);margin-top:8px;">
+    </div>
+  </div>
+  <p class="src">来源：<code>backend/data/results/bg_0021c1/*/curves.npz</code> + <code>summary.json</code>（10 seeds）</p>
+  <h3>题集 B1 · select_best_v2（6 选 1，含 base，5 参考）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（真实第 1 题，bg_0021c1，正确答案 D）</div>
+    <p>数据集 + 5 个参考配置（带实测 loss）+ 6 个选项 A–F，其中一个是"不改"（base）。</p>
+    <table>
+      <tr><th>参考</th><th>配置</th><th class="num">实测 loss</th></tr>
+      <tr><td>1</td><td>transformer 1 层 / 128 宽，SGD lr=3e-4</td><td class="num">3.627</td></tr>
+      <tr><td>2</td><td>transformer 1 层 / 128 宽，RMSprop lr=3e-4</td><td class="num">3.188</td></tr>
+      <tr><td>…</td><td>共 5 个，loss 在 3.19–3.63</td><td class="num">…</td></tr>
+    </table>
+    <table>
+      <tr><th>选项</th><th>模型</th><th>优化器</th><th>是 base？</th></tr>
+      <tr><td>A</td><td>transformer 2 层 / 128 宽 / 2 头</td><td>SGD lr=1e-4, wd=0, mom=0.9</td><td>否</td></tr>
+      <tr><td>D（正确答案）</td><td>transformer 2 层 / 128 宽 / 2 头</td><td>Adagrad lr=3e-3, wd=1e-3</td><td>否</td></tr>
+      <tr><td>E</td><td>transformer 2 层 / 128 宽 / 4 头</td><td>SGD lr=3e-3, mom=0.9</td><td><b>是</b></td></tr>
+      <tr><td>F</td><td>transformer 3 层 / 32 宽</td><td>SGD lr=3e-3</td><td>否</td></tr>
+    </table>
+    <p>所有选项预算相同（80 步 × 64 = 5120 样本）。问：哪个 loss 最低？答一个字母。</p>
+  </div>
+  <div class="proto"><span class="item">协议：6 选 1</span><span class="item">含 base（可答"不改"）</span><span class="item">5 参考带 loss</span><span class="item">随机基线 16.7%</span><span class="item">50 题评测</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">正确率</th><th class="num">排名分（0–5）</th><th>备注</th></tr>
+    <tr><td>claude-opus-5</td><td class="num">34/50 = 68%</td><td class="num">4.40（88%）</td><td>top2 80% / top3 94%</td></tr>
+    <tr><td>gpt-5.6-terra</td><td class="num">35/50 = 70%</td><td class="num">4.44（88.8%）</td><td></td></tr>
+    <tr><td>gpt-5.6-luna</td><td class="num good">37/50 = 74%</td><td class="num">4.60（92%）</td><td>最便宜的反而最高</td></tr>
+  </table>
+
+  <table>
+    <tr><th>luna 分层（50 题）</th><th class="num">差距小 (&lt;1.15)</th><th class="num">差距中 (1.15–2)</th><th class="num">差距大 (≥2)</th></tr>
+    <tr><td>正确率</td><td class="num">2/5 = 40%</td><td class="num good">22/27 = 81.5%</td><td class="num">13/18 = 72.2%</td></tr>
+  </table>
+
+  <div class="callout warn"><b>注意：</b>分数远超随机（+51~57pp），题可解；但最便宜模型打平最贵 → 选择题区分度有天花板。
+  另外 66% 的题 winner=参数量最大选项，1.1× 对齐未落实（§9）。</div>
+
+
+  <h4>B1 训练曲线：同一道题的两个极端</h4>
+  <div class="grid2">
+    <div class="card">
+      <div class="k">第 1 题（bg_0021c1，6 选 1，正确答案 D）—— 差距只有 1.07×，曲线几乎缠在一起</div>
+      <img src="assets/20260803/sb_v2_q1_curves.png" alt="sb_v2 q1 curves" style="width:100%;border-radius:8px;border:1px solid var(--border);margin-top:8px;">
+      <div class="d">这种题靠 5 个随机参考很难推出答案（差距 ≈ seed 噪声）。</div>
+    </div>
+    <div class="card">
+      <div class="k">差距大的题（sb_ac1d4a，正确答案按绿线）—— 差距 2.83×，答案一目了然</div>
+      <img src="assets/20260803/sb_v2_loose_curves.png" alt="sb_v2 loose curves" style="width:100%;border-radius:8px;border:1px solid var(--border);margin-top:8px;">
+      <div class="d">差距大的题（ratio ≥ 2）模型几乎全对（§7.4）。</div>
+    </div>
+  </div>
+  <p class="src">来源：<code>backend/data/results/bg_0021c1/*/curves.npz</code>（10 seeds）</p>
+  <h3>题集 B2 · select_best v1.x（已作废）</h3>
+  <table>
+    <tr><th>模型</th><th class="num">v1.2 坏键分数</th><th>原因</th></tr>
+    <tr><td>claude-opus-5</td><td class="num bad">9/50 = 18%</td><td rowspan="2">出题代码 shuffle 后仍用旧下标取 winner，答案键 ≈ 随机标注（47/59 错）。修复重建 v2。</td></tr>
+    <tr><td>gpt-5.6-terra</td><td class="num bad">10/50 = 20%</td></tr>
+  </table>
+
+  <h3>题集 B3 · two_choice（2 选 1，3 参考）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（真实第 1 题，mvar_befdab，问"哪个 loss 更低"）</div>
+    <p>3 个参考（带 loss）：MLP 5 层/128 宽 Adam → 0.086；MLP 4 层/16 宽 Adam → 0.651；MLP 1 层/16 宽 Adam → 0.784。</p>
+    <table>
+      <tr><th>选项</th><th>配置</th></tr>
+      <tr><td>A（正确答案）</td><td>MLP 2 层 / 128 宽，LayerNorm，relu+gelu，Adam lr=1e-3</td></tr>
+      <tr><td>B</td><td>MLP 5 层 / 128 宽，无 LayerNorm，silu+gelu 交替，Adam lr=1e-3</td></tr>
+    </table>
+    <p>问：A 和 B 谁的 loss 更低？答一个字母。</p>
+  </div>
+  <div class="proto"><span class="item">协议：2 选 1</span><span class="item">3 参考带 loss</span><span class="item">随机基线 50%</span><span class="item">差距要求 ratio ∈ [1.2, 5]</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">range 参考</th><th class="num">config_near 参考</th><th class="num">local 参考（新）</th></tr>
+    <tr><td>gpt-5.6-terra</td><td class="num good">38/50 = 76%</td><td class="num">31/50 = 62%</td><td class="num">35/50 = 70%</td></tr>
+    <tr><td>claude-opus-5</td><td class="num">—</td><td class="num">—</td><td class="num">36/50 = 72%</td></tr>
+    <tr><td>gpt-5.6-luna</td><td class="num">—</td><td class="num">—</td><td class="num">37/50 = 74%</td></tr>
+    <tr><td>deepseek-v4-flash</td><td class="num">27/50 = 54%（seed1）<br>26/50 = 52%（seed2）</td><td class="num bad">21/50 = 42%</td><td class="num">—</td></tr>
+  </table>
+  <div class="callout bad">
+    <b>deepseek 的 54%/52% 是假分数：</b>逐条查回答发现它 50 题里 49–50 题<b>永远答 A</b>（交换 A/B 后 20/20 仍答 A，
+    完全没看题目）。强制它先推理再作答后，恢复到 ~74%。→ 评测端必须要求先推理，或交换顺序做一致性检查。
+  </div>
+  <p><b>结论：</b>二选一能区分模型（terra 76% vs deepseek 伪随机 52–54%），但题目本身有天花板（各模型挤在 70–76%）。</p>
+
+  <h3>题集 B4 · high_budget 13/15（4 选 1，盲答）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（真实第 1 题，mvar 多元回归，optimizer_only，正确答案 A）</div>
+    <p>数据集 + 4 个配置，全部是 MLP 2 层 / 256 宽，只差优化器。盲答，无参考。</p>
+    <table>
+      <tr><th>选项</th><th>变化轴</th></tr>
+      <tr><td>A（正确答案）</td><td>优化器不同（lr / weight decay / momentum 组合不同）</td></tr>
+      <tr><td>B–D</td><td>同上，4 选 1</td></tr>
+    </table>
+    <p>预算为大预算（40960–81920 样本，是旧主集的 2–20 倍）。</p>
+  </div>
+  <div class="proto"><span class="item">协议：4 选 1</span><span class="item">盲答（无参考）</span><span class="item">随机基线 25%</span><span class="item">大预算</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">正确率</th><th>备注</th></tr>
+    <tr><td>gpt-5.6-terra</td><td class="num good">7/13 = 53.8%</td><td></td></tr>
+    <tr><td>deepseek-v4-pro</td><td class="num">3/13 = 23.1%</td><td>≈ 随机</td></tr>
+    <tr><td>claude-sonnet-5</td><td class="num bad">1/13 = 7.7%</td><td>低于随机 —— 触发字母交换检查</td></tr>
+    <tr><td>deepseek-v4-pro（预算 15 题）</td><td class="num">5/15 = 33.3%</td><td>同题 GPT-5.4 盲答 20% / 顺序 46.7%</td></tr>
+  </table>
+  <table>
+    <tr><th>字母交换控制</th><th class="num">原顺序</th><th class="num">交换 A/B 后</th><th>按内容选同一候选的比例</th></tr>
+    <tr><td>claude-sonnet-5</td><td class="num">2/13 = 15.4%</td><td class="num">2/13 = 15.4%</td><td class="num">46%（一半时候跟内容走）</td></tr>
+    <tr><td>gpt-5.6-terra</td><td class="num">5/13 = 38.5%</td><td class="num">3/13 = 23.1%</td><td class="num">38.5%（更多时候跟位置走）</td></tr>
+  </table>
+  <p><b>结论：</b>这组题分数受"位置 vs 内容"混合策略影响，先审计答案键和位置偏置，再谈模型能力。</p>
+</section>
+
+<!-- ============ 6. C 组：生成式 ============ -->
+<section id="generative">
+  <h2>6 · C 组：生成式任务</h2>
+
+  <h3>题集 C1 · propose_improvement（改配置，输出 JSON）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（真实，bg_0021c1）</div>
+    <p>给：1 个数据集 + base 配置（带 loss）+ 5 个改进例子（带 loss）。</p>
+    <p>要求：<b>输出一个新的 JSON 配置</b>，期望训练后 loss 比 base 低。参数量 ≤ 例子中最大配置 × 1.1，预算 = base 的预算。</p>
+    <p>评分：真实训练你给的配置，和 base 逐次对比涨 / 跌 / 平（GT 全新运行，不猜）。</p>
+  </div>
+  <div class="proto"><span class="item">协议：开放式生成</span><span class="item">base + 5 改进例子带 loss</span><span class="item">评分 = 新跑 GT 与 base 对比</span><span class="item">闭集 JSON</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">击败 base 的比例</th><th>备注</th></tr>
+    <tr><td>deepseek-v4-flash（v1.1）</td><td class="num good">48/50 = 96%</td><td>中位改善 1.33×，45/50 题跨 10 次训练稳定</td></tr>
+    <tr><td>deepseek-v4-flash（v1）</td><td class="num good">43/49 = 88%</td><td>中位改善 1.32×，39/49 稳定</td></tr>
+  </table>
+  <p><b>结论：</b>目前信号最强的任务 —— 即使只会"抄参考里最优配置"也能赢，说明任务对 LLM 友好、可度量。</p>
+
+  <h3>题集 C2 · plan_light（L1：先做哪个实验）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（真实，bg_0021c1，正确答案 A）</div>
+    <p>给一棵"实验树"：1 个 base + 几个候选配置，其中 3 个已做过实验（loss 已知），5 个没做过。</p>
+    <table>
+      <tr><th>选项</th><th class="num">真实 loss（评测时不给）</th></tr>
+      <tr><td>A（正确答案）</td><td class="num">3.268</td></tr>
+      <tr><td>B</td><td class="num">3.315</td></tr>
+      <tr><td>C</td><td class="num">3.345</td></tr>
+      <tr><td>D</td><td class="num">3.409</td></tr>
+      <tr><td>E</td><td class="num">3.277</td></tr>
+    </table>
+    <p>问：5 个没做过的实验，<b>先做哪个最可能找到最低 loss？</b></p>
+  </div>
+  <div class="proto"><span class="item">协议：5 选 1</span><span class="item">3 个已测节点带 loss</span><span class="item">95 棵树</span></div>
+  <table>
+    <tr><th>模型</th><th class="num">选中最优实验</th><th class="num">随机基线</th><th>完整排序</th></tr>
+    <tr><td>gpt-5.6-luna</td><td class="num good">48/95 = 50.5%</td><td class="num">~18%</td><td>Spearman ≈ 0（只挑得出最优，排不出中间序）</td></tr>
+  </table>
+  <p><b>结论：</b>模型能可靠挑出"最值得先做"的实验，支持"选项少、只问最优"的题型。</p>
+
+  <h3>题集 C3 · propose_loop（L2：K 轮闭环）</h3>
+  <div class="preview">
+    <div class="pv-title">题目预览（工作树）</div>
+    <p>一棵树 = base + 若干候选（全部来自存量配置，有真实 GT）。每轮：</p>
+    <ol>
+      <li>模型 propose 一个新配置（JSON）</li>
+      <li>若是已知配置 → 直接点亮（零算力）；否则真实训练，存为新节点</li>
+      <li>模型看到结果，进入下一轮（共 5 轮）</li>
+    </ol>
+    <p>评分：最终找到的 loss 相对 base 提升多少；是否击败树内已知最优。</p>
+  </div>
+  <div class="proto"><span class="item">协议：5 轮 propose → GT → 观察</span><span class="item">params ≤ 1.1× base</span><span class="item">31 棵树</span><span class="item">gpt-5.6-luna</span></div>
+  <table>
+    <tr><th>指标</th><th class="num">值</th></tr>
+    <tr><td>相对 base 的 loss 提升（mean / median / max）</td><td class="num">25.7% / 24.4% / 86.8%</td></tr>
+    <tr><td>击败树内初始最优（oracle）</td><td class="num good">16/31 = 51.6%</td></tr>
+    <tr><td>新跑的真实实验</td><td class="num">92 次（0 失败）</td></tr>
+    <tr><td>浪费轮次（重复提已做过的配置）</td><td class="num warn">56/204</td></tr>
+  </table>
+  <p><b>结论：</b>闭环跑通，模型半数能发现比已知最优更好的配置；主要浪费在重复 propose。</p>
+</section>
+
+<!-- ============ 7. D 组：三批对比 ============ -->
+<section id="batch3">
+  <h2>7 · D 组：三批对比（demo / XOR / GRU）</h2>
+  <p>同一协议对比三批题：gpt-5.5，<b>全量 246 题</b>（demo 46 + XOR 100 + GRU 100），2 选 1 盲答，随机基线 50%。
+  2026-08-03 全量跑（50 并发，<code>llm_runs/batch3_full_20260803_gpt-5.5</code>）。</p>
+  <table>
+    <tr><th>批次</th><th>作者</th><th>题包</th><th class="num">gpt-5.5 全量正确率</th><th class="num">15 题样本（旧）</th><th>题面特点</th></tr>
+    <tr><td>demo 46</td><td>郭绍阳</td><td>前端 demo（46 题）</td><td class="num good">35/46 = <b>76.1%</b></td><td class="num">11/15 = 73.3%</td><td>全部 2 选 1（24 架构 / 10 优化器 / 12 混合）</td></tr>
+    <tr><td>GRU 100</td><td>唐晨成</td><td>bigram_lm（50 transformer / 50 GRU）</td><td class="num">72/100 = <b>72.0%</b></td><td class="num">9/15 = 60.0%</td><td>2 选 1，architecture_only</td></tr>
+    <tr><td>XOR 100</td><td>任梓睿</td><td>合成表格分类（30 MLP / 70 KAN）</td><td class="num bad">35/100 = <b>35.0%</b></td><td class="num">7/15 = 46.7%</td><td>2 选 1，architecture_only</td></tr>
+  </table>
+  <div class="callout warn">
+    <b>全量 vs 样本：</b>样本结论方向不变（demo &gt; GRU &gt; XOR），但幅度更极端 —— <b>XOR 全量只有 35%，低于随机 50%</b>：
+    XOR 包里 KAN 赢了 70% 的题，而 gpt-5.5 的模型先验是"MLP 更稳"，于是系统性地选错边（答 A 占 59% vs GT_A 43%）。
+  </div>
+
+  <h3>7.1 预览：demo 46 的一题（q_6b7b54，正确答案 B）</h3>
+  <div class="preview">
+    <p>数据集：合成表格二分类（xor 规则，8 维输入，标签有噪声）。两个选项用同一份数据训练，预算相同。</p>
+    <table>
+      <tr><th>选项</th><th>配置</th><th class="num">参数量</th></tr>
+      <tr><td>A</td><td>MLP 1 层 / 宽 16，relu，无残差，AdamW lr=3e-4</td><td class="num">450</td></tr>
+      <tr><td>B（正确答案）</td><td>MLP 6 层 / 宽 64，有残差，AdamW lr=3e-4</td><td class="num">26050</td></tr>
+    </table>
+    <p>问：哪个测试指标更好？</p>
+  </div>
+
+  <h3>7.2 预览：XOR 100 的一题（q_a7914f，正确答案 A）</h3>
+  <div class="preview">
+    <p>数据集：合成表格二分类，规则 <code>s(x) = −x₀·x₁</code>（xor），标签噪声 ε~N(0, 0.05²)。</p>
+    <table>
+      <tr><th>选项</th><th>配置</th></tr>
+      <tr><td>A（正确答案）</td><td>spline KAN，2 层 / 宽 8，grid 7</td></tr>
+      <tr><td>B</td><td>MLP，6 层</td></tr>
+    </table>
+    <p>问：哪个测试误差（CE）更低？</p>
+  </div>
+
+  <h3>7.3 预览：GRU 100 的一题（q_b14b98，正确答案 A）</h3>
+  <div class="preview">
+    <p>数据集：玩具语言模型（词表 32，序列长 16）。</p>
+    <table>
+      <tr><th>选项</th><th>配置</th></tr>
+      <tr><td>A（正确答案）</td><td>GRU 2 层 / d=36，残差，Adam</td></tr>
+      <tr><td>B</td><td>transformer，d_model=32</td></tr>
+    </table>
+    <p>问：哪个测试误差（CE）更低？</p>
+  </div>
+
+  <h3>7.4 关键发现：gap 分层（XOR + GRU 共 198 题，demo 无 gap 字段）</h3>
+  <table>
+    <tr><th>第一名 vs 第二名差距</th><th class="num">gpt-5.5 正确率</th><th>解读</th></tr>
+    <tr><td>gap &lt; 0.05</td><td class="num">39/100 = 39.0%</td><td>差距在噪声内，接近瞎猜</td></tr>
+    <tr><td>gap 0.05 – 0.075</td><td class="num">12/22 = 54.5%</td><td>略高于随机</td></tr>
+    <tr><td>gap 0.075 – 0.10</td><td class="num">13/20 = 65.0%</td><td>开始有信号</td></tr>
+    <tr><td>gap ≥ 0.10</td><td class="num good">43/56 = 76.8%</td><td>信号最强</td></tr>
+  </table>
+  <table>
+    <tr><th>阈值切分</th><th class="num">gap 以下</th><th class="num">gap 以上</th></tr>
+    <tr><td>0.075</td><td class="num">51/122 = 41.8%</td><td class="num good">56/76 = 73.7%</td></tr>
+    <tr><td>0.10</td><td class="num">64/142 = 45.1%</td><td class="num good">43/56 = 76.8%</td></tr>
+  </table>
+  <div class="callout good">
+    <b>出题门槛（全量修正）：</b>gap 与正确率<b>单调相关</b>（39% → 54.5% → 65% → 76.8%），
+    不是绝对分界线 —— 阈值取 0.075 时上下差 32pp，取 0.10 时差 31pp。
+    GRU 包 95% 的题 ratio &lt; 1.05（gap 中位 0.07），所以它 72% 主要来自"差距中等"那批；demo 包整体分层更好所以 76.1%。
+  </div>
+
+  <h3>7.5 两批新题包的程序化审计</h3>
+  <table>
+    <tr><th>包</th><th class="num">答案键 = GT</th><th class="num">差距中位数</th><th class="num">差距过小(&lt;1.05)</th><th>参数量跨度中位</th><th>winner=参数量最大</th></tr>
+    <tr><td>XOR 100</td><td class="num good">100/100</td><td class="num">1.19</td><td class="num">0%</td><td class="num">2.12×</td><td class="num warn">52%</td></tr>
+    <tr><td>GRU 100</td><td class="num good">100/100</td><td class="num bad">1.017</td><td class="num bad">95%</td><td class="num">3.61×</td><td class="num warn">78%</td></tr>
+  </table>
+  <ul>
+    <li><b>XOR 包问题</b>：KAN 赢了 70% 的题（= 题包本身就是 30 MLP / 70 KAN）→ 答案是"模型类型先验"直接泄露。</li>
+    <li><b>GRU 包问题</b>：winner-runner 差距中位数 1.7%，在 seed 噪声内 → 本质不可判。</li>
+  </ul>
+  <p><b>GT 打乱验证（排除顺序泄露）：</b>GT 正确答案落在 A 的比例 —— GRU 48/100、XOR 43/100、demo 20/46，
+  二项检验均不显著（≈50%），字母确实打乱了；gpt-5.5 的答 A 比例 41–59%，没有 deepseek 那种"永远选第一个"的塌缩。
+  另外 31/32（GRU）、37/41（XOR）个候选在不同题里既当过 A 也当过 B。</p>
+</section>
+
+
+  <h3>7.6 真实思考过程示例（gpt-5.5，GRU 题，答对）</h3>
+  <details>
+    <summary style="cursor:pointer;font-weight:600;color:var(--accent);">展开 gpt-5.5 的完整思考与回答</summary>
+    <pre style="margin-top:8px;"><code>The task is strictly first-order Markov: the optimal prediction depends only on the current token, not position or longer history.
+
+Choice A has a stronger inductive bias for this setting: it has no positional embeddings and retains a direct token-embedding-to-head path through the residual GRU stack, making it easier to learn a shared token-to-next-token distribution. Choice B's transformer adds positional embeddings and attention machinery that are unnecessary here and can reduce sample efficiency or encourage position/history-specific fitting.
+
+&lt;answer&gt;A&lt;/answer&gt;</code></pre>
+    <p class="footnote">题目是 GRU 100 包里的 q_781f46；模型不只给了字母，还给了可读的推理链。评测时完整思考过程一律落盘
+    （<code>llm_runs/batch3_20260802T143340Z_gpt-5.5/results/gru_q_781f46.json</code>）。</p>
+  </details>
+  <div class="callout">
+    <b>曲线数据说明：</b>demo / XOR / GRU 三批的候选曲线（<code>curves.npz</code>）需要对应数据集在本机物化后才有；
+    当前文档示例用 select_best_v2 / 旧 60 的候选曲线展示（同一套 GT 存储）。
+  </div>
+
+<!-- ============ 8. E 组：meta-model ============ -->
+<section id="metamodel">
+  <h2>8 · E 组：meta-model（TabPFN 方向）</h2>
+  <p>目标（论文第三 section，暂缓实现）：用元模型预测"哪个配置赢"，与 LLM 评测互为对照。
+  已完成的 Full-30 实验：<b>宏平均显著三选一正确率</b>，随机基线 33.33%。</p>
+  <table>
+    <tr><th>模型</th><th class="num">正确率</th><th>设置</th></tr>
+    <tr><td><b>共享回归 ExtraTrees（最优）</b></td><td class="num good"><b>82.11%</b></td><td>1 个模型 / 9000 行 / 122 维特征 / 300 棵深度 16 树，预测 log(mean_loss)</td></tr>
+    <tr><td>per-dataset XGBoost（baseline）</td><td class="num">78.33%</td><td>15 个数据集各训 1 个模型 / 600 行</td></tr>
+    <tr><td>per-dataset GB 分类</td><td class="num">74.85%</td><td>两两比较 + 投票</td></tr>
+    <tr><td>旧报告（作废）</td><td class="num">63.50%</td><td>旧指标含 42% 不显著噪声三元组，低估约 9pp</td></tr>
+  </table>
+  <p><b>结论：</b>共享样本 + 回归到 log(mean_loss) 是当前最优配方；元模型比 LLM 更直接地编码"跨数据集的配置先验"。</p>
+</section>
+
+<!-- ============ 9. 结论 ============ -->
+<section id="conclusion">
+  <h2>9 · 结论与建议</h2>
+  <table>
+    <tr><th>结论</th><th>证据</th><th>建议行动</th></tr>
+    <tr><td>gap 与正确率单调相关（出题门槛）</td><td>全量 198 题分层：39% → 54.5% → 65% → 76.8%；阈值 0.075 上下差 32pp</td><td>出题端按 gap 分层过滤，优先保留 gap ≥ 0.075–0.10 的题</td></tr>
+    <tr><td>好 base + 邻近扰动 + hints 的题最合理</td><td>opus 事后评审 old60 全部 4 分（最高）；hints 版 luna 68.8% ≈ 人类盲答 70%</td><td>以"旧 60 风格"为出题模板</td></tr>
+    <tr><td>选择题有天花板，生成式任务区分度好</td><td>6 选 1 / 2 选 1 各模型挤在 66–76%（最便宜的 luna 最高）；propose 96% / 88% 击败 base</td><td>选择题作诊断，propose / 工作树作主指标</td></tr>
+    <tr><td>1.1× 对齐未落库</td><td>select_best_v2 66% 的题 winner=参数量最大（中位跨度 163×）</td><td>按预算规则重新出题；propose 评分已实现该约束</td></tr>
+    <tr><td>答案键 / 位置偏置必须先审计</td><td>select_best v1.x 47/59 答案键错；deepseek 50/50 答 A 是伪分</td><td>答案键与 summary 一致性检查 + 交换顺序一致性检查进 CI</td></tr>
+    <tr><td>同事题包需要修</td><td>GRU 95% tight 噪声；XOR 被 KAN/参数量 prior 泄露</td><td>按 gap + 1.1× + 轴均衡重出</td></tr>
+    <tr><td>模型能"挑最优"但"排不出中间序"</td><td>plan_light 选最优 50.5% vs 随机 18%，Spearman ≈ 0</td><td>题型只问最优 / 二选一，不问排序</td></tr>
+  </table>
+</section>
+
+<!-- ============ 10. 来源 ============ -->
+<section id="sources">
+  
+  <h3>9.1 模型横评（同一模型在不同题集的表现）</h3>
+  <table>
+    <tr><th>题集</th><th>几选一</th><th class="num">gpt-5.6-luna</th><th class="num">gpt-5.6-terra</th><th class="num">claude-opus-5</th><th class="num">deepseek-v4-flash/pro</th><th>备注</th></tr>
+    <tr><td>旧 60 盲答</td><td class="num">3</td><td class="num">—</td><td class="num">—</td><td class="num">40%（sonnet-5）</td><td class="num">—</td><td>opus-4-8 也 40%，人类 70%</td></tr>
+    <tr><td>旧 60 · hints 版</td><td class="num">3</td><td class="num good">33/48 = 68.8%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>随机 33.3%</td></tr>
+    <tr><td>select_best_v2</td><td class="num">6</td><td class="num good">37/50 = 74%</td><td class="num">35/50 = 70%</td><td class="num">34/50 = 68%</td><td class="num">—</td><td>随机 16.7%；rank 分 88–92%</td></tr>
+    <tr><td>two_choice（local）</td><td class="num">2</td><td class="num">37/50 = 74%</td><td class="num">35/50 = 70%</td><td class="num">36/50 = 72%</td><td class="num bad">54%/52%（伪分，永远答 A）</td><td>随机 50%</td></tr>
+    <tr><td>high_budget 13</td><td class="num">4</td><td class="num">—</td><td class="num good">7/13 = 53.8%</td><td class="num bad">1/13 = 7.7%（sonnet-5）</td><td class="num">3/13 = 23.1%</td><td>随机 25%</td></tr>
+    <tr><td>propose_improvement</td><td>开放</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num good">48/50 = 96%（v1.1）</td><td>击败 base 的比例，GT 新跑</td></tr>
+    <tr><td>plan_light（L1）</td><td class="num">5</td><td class="num good">48/95 = 50.5%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td>随机 ~18%</td></tr>
+  </table>
+  <p class="footnote">claude-opus-5 与 claude-sonnet-5 是不同的模型，表中已标注。横评结论：<b>选择题各模型挤在 66–76%（天花板），生成式任务区分度更好</b>。</p>
+
+<h2>10 · 数据来源</h2>
+  <table>
+    <tr><th>数据</th><th>文件</th></tr>
+    <tr><td>旧 60 盲答 / 顺序</td><td><code>docs/0710_gpteval.html</code>、<code>artifacts/quiz_attempt_60/fair_sequential_v2/aggregate.json</code></td></tr>
+    <tr><td>旧 60 hints 版（luna 33/48）</td><td><code>artifacts/eval_runs/run_luna_old60_20260801/results/gpt-5.6-luna/summary_select_best_old60.json</code></td></tr>
+    <tr><td>select_best_v2 / 坏键</td><td><code>backend/eval/sets/select_best_v2/questions.jsonl</code>、<code>artifacts/eval_runs/run_luna_20260801/</code>、<code>docs/eval-sets.md §8–10</code></td></tr>
+    <tr><td>two_choice（含 deepseek 塌缩）</td><td><code>artifacts/eval_probe_local/items/</code>、<code>docs/eval-sets.md §5.1–5.3</code></td></tr>
+    <tr><td>high_budget 13/15 + 字母交换</td><td><code>llm_runs/vapi_*_high_budget13_zero_shot/</code>、<code>llm_runs/control_letterswap_20260802/</code></td></tr>
+    <tr><td>propose_improvement</td><td><code>backend/eval/sets/propose_improvement_v1.1/questions.jsonl</code>、<code>docs/eval-sets.md §5.1</code></td></tr>
+    <tr><td>plan_light / propose_loop</td><td><code>backend/eval/sets/plan_light_v1/</code>、<code>docs/reports/AUTORESEARCH_PILOT_2026-08-02.md</code></td></tr>
+    <tr><td>三批对比 + gap 分层</td><td><code>llm_runs/batch3_full_20260803_gpt-5.5/</code>（全量 246 题）、<code>llm_runs/batch3_20260802T143340Z_gpt-5.5/</code>（15 题样本）、<code>tools/llm_eval/run_batch_compare.py</code></td></tr>
+    <tr><td>demo 46 / XOR / GRU 题包</td><td><code>/tmp/aiq_demo_bake_backup.json</code>、<code>benchmark_releases/question_packs/</code></td></tr>
+    <tr><td>meta-model</td><td><code>docs/0718_meta_model_final_report.html</code></td></tr>
+    <tr><td>存储 / 架构 / 协议</td><td><code>docs/backend-storage.md</code>、<code>AGENTS.md</code>、<code>~/.agents/relay.json</code>（凭证不入库）</td></tr>
+  </table>
+  <p class="src">所有数字均来自上述真实落盘文件；本页为 2026-08-03 快照。测试：<code>pytest -q</code> → 1403 passed。</p>
+
+  <h3>10.1 如何复现这些评测</h3>
+  <pre><code># 0. 凭证：~/.agents/relay.json 的 eval 段（base_url + api_key），评测一律用 eval key
+# 1. 生成题集（选择题 / config 修改题）
+.venv/bin/python -m backend.eval.questions --type select_best --items-per-problem 5 --set-name select_best_v2 --seed 20260804
+.venv/bin/python -m backend.eval.questions --type propose_improvement --items-per-problem 5 --set-name propose_improvement_v1
+# 2. 批量并发评测（50 并发；不设 token 上限；默认 reasoning_effort=high）
+.venv/bin/python -m backend.eval.batch_eval --set select_best_v2 --model gpt-5.6-luna --run-dir artifacts/eval_runs/run_luna_20260801
+.venv/bin/python -m backend.eval.batch_propose --set propose_improvement_v1.1 --model deepseek-chat
+# 3. 三批对比（demo / XOR / GRU 全量）
+.venv/bin/python tools/llm_eval/run_batch_compare.py --model gpt-5.5 --per-batch 1000 --seed 20260802 --workers 50
+# 4. 打分 / 报告（含思考过程 HTML）
+.venv/bin/python -m backend.eval.ranking --responses &lt;responses.jsonl&gt; --set &lt;set&gt;    # 离线重打分（rank 计分）
+.venv/bin/python -m backend.eval.report_html --run-dir &lt;run_dir&gt;                     # 生成报告 html
+# 5. 测试
+.venv/bin/python -m pytest -q    # 1403 passed</code></pre>
+
+</section>
+
+<footer>ArchitectureIQ · 题集总览 · 2026-08-03 · shaoyang/local-agent-dev</footer>
+</div>
+</body>
+</html>

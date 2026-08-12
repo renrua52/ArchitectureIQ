@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "family": "synthetic_tabular_classification",
+  "dataset_id": "stabcls_5e386c",
+  "budget": {
+    "total_samples_seen": 2048
+  },
+  "type": "architecture_only",
+  "invariant_axes": [
+    "optimizer",
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_7384b5",
+      "candidate_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/candidates/set_v1_human_prereview/c_7384b5",
+      "candidate_set_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/candidates/set_v1_human_prereview"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_197540",
+      "candidate_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/candidates/set_v1_human_prereview/c_197540",
+      "candidate_set_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/candidates/set_v1_human_prereview"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_bb85d6",
+      "candidate_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/candidates/set_v1_human_prereview/c_bb85d6",
+      "candidate_set_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/candidates/set_v1_human_prereview"
+    }
+  ],
+  "correct_letter": "B",
+  "evaluation": {
+    "selection_metric": "test_ce",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cuda"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_55ce7b",
+  "profile": "v1_human",
+  "profile_hash": "90421abe32ec88c7",
+  "track": "human_xor_easy",
+  "llm_difficulty": "easy",
+  "dataset_bucket": "xor",
+  "question_run_id": "run_v1_human_prereview",
+  "question_run_path": "datasets/synthetic_tabular_classification/stabcls_5e386c/questions/run_v1_human_prereview"
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "family": "bigram_lm",
+  "dataset_id": "bg_fba2cb",
+  "budget": {
+    "total_samples_seen": 16384
+  },
+  "type": "optimizer_only",
+  "invariant_axes": [
+    "model",
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "optimizer"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_5278f6",
+      "candidate_path": "datasets/bigram_lm/bg_fba2cb/candidates/set_v1_human_prereview/c_5278f6",
+      "candidate_set_path": "datasets/bigram_lm/bg_fba2cb/candidates/set_v1_human_prereview"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_775de7",
+      "candidate_path": "datasets/bigram_lm/bg_fba2cb/candidates/set_v1_human_prereview/c_775de7",
+      "candidate_set_path": "datasets/bigram_lm/bg_fba2cb/candidates/set_v1_human_prereview"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_e8c75e",
+      "candidate_path": "datasets/bigram_lm/bg_fba2cb/candidates/set_v1_human_prereview/c_e8c75e",
+      "candidate_set_path": "datasets/bigram_lm/bg_fba2cb/candidates/set_v1_human_prereview"
+    }
+  ],
+  "correct_letter": "A",
+  "evaluation": {
+    "selection_metric": "test_ce",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cuda"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_de393c",
+  "profile": "v1_human",
+  "profile_hash": "90421abe32ec88c7",
+  "track": "human_bigram_medium",
+  "llm_difficulty": "medium",
+  "dataset_bucket": "bigram",
+  "question_run_id": "run_v1_human_prereview",
+  "question_run_path": "datasets/bigram_lm/bg_fba2cb/questions/run_v1_human_prereview"
+}

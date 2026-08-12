@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "family": "synthetic_tabular_classification",
+  "params": {
+    "instance_seed": 1034,
+    "input_dim": 2,
+    "num_classes": 2,
+    "rule_family": "spiral",
+    "active_features": [
+      0,
+      1
+    ],
+    "interaction_order": 2,
+    "interaction_pairs": [],
+    "rule_weights": [
+      1
+    ],
+    "piecewise_breakpoint": 0,
+    "spiral_turns": 2,
+    "noise_std": 0.05,
+    "decision_threshold": 0,
+    "train_size": 1024,
+    "test_size": 2048,
+    "point_sampling": {
+      "distribution": "two_spirals",
+      "seed": 2034,
+      "turns": 2
+    },
+    "calibration": {
+      "distribution": "none",
+      "seed": 3034,
+      "size": 0,
+      "target_positive_rate": 0.5,
+      "note": "Labels are assigned by generative spiral arm (balanced)."
+    }
+  },
+  "selection_metric": "test_ce",
+  "significance": {
+    "gap_min": 0.05,
+    "fail_threshold": 2
+  },
+  "files": {
+    "synthesize": "synthesize.py",
+    "train": "train.pt",
+    "test": "test.pt"
+  },
+  "dataset_id": "stabcls_f5a953"
+}

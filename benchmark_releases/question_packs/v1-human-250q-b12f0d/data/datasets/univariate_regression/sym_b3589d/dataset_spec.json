@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "family": "univariate_regression",
+  "params": {
+    "instance_seed": 1006,
+    "sampler": {
+      "id": "symbolic_expr",
+      "seed": 1006,
+      "max_depth": 3,
+      "retry": 1
+    },
+    "expression": "-1.6667 * (0.3333 / x) + 1 / 1.6667 / tanh(2*x)",
+    "domain": [
+      0,
+      1
+    ],
+    "train_size": 256,
+    "test_size": 256,
+    "noise": {
+      "enabled": false
+    },
+    "point_sampling": {
+      "distribution": "uniform",
+      "seed": 2006
+    }
+  },
+  "selection_metric": "test_mse",
+  "significance": {
+    "gap_min": 0.05,
+    "fail_threshold": 2
+  },
+  "files": {
+    "synthesize": "synthesize.py",
+    "train": "train.pt",
+    "test": "test.pt"
+  },
+  "dataset_id": "sym_b3589d"
+}

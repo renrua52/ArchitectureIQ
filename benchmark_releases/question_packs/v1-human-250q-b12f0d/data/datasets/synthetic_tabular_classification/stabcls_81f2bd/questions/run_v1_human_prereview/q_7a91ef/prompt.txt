@@ -1,0 +1,283 @@
+You are taking the ArchitectureIQ benchmark.
+
+Each question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt — either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget — using architecture and learning-mechanics reasoning only (no training results are provided).
+
+## Dataset
+Synthetic tabular binary classification. The dataset card below states the exact feature distribution, decision rule (`rule_family`), label-noise model, and (when applicable) decision threshold. Rules include score-threshold tasks (e.g. `xor`) and generative 2D tasks (e.g. classic interleaved `spiral` arms). Every candidate trains on the same materialized train/test splits.
+
+### Data-generating and classification rule
+- Rule family: `spiral`; active coordinates: `x_0`, `x_1` (input is 2-dimensional).
+- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, 13.0664]` (2 full turns), radius `r = t`, coordinates `(r·cos(t + phase), r·sin(t + phase))` with `phase ∈ {0, π}`; independent Gaussian noise `ε ~ Normal(0, 0.1²)` is then added to each coordinate.
+- Label rule: `y = 0` for points drawn from the `phase = 0` arm and `y = 1` for points from the `phase = π` arm; both arms are equally likely, so classes are balanced.
+- Nominal soft score (intuition only): `s(x) = sin(atan2(x_1, x_0) − ‖x‖₂)`; its zero level sets trace the two arms, but labels come from the generative arm, not from thresholding `s(x)`.
+- Bayes decision boundary: assign each point to the nearer of the two noiseless arms (up to label-flip symmetry); with `2` turns the arms interleave, so the boundary is highly non-linear.
+- Reproducibility: point/noise seed `2033`, spiral turns `2`.
+
+### Data splits and training protocol
+- Task: binary classification on one fixed synthetic tabular train/test split.
+- Input shape: float32 `[N, 2]`; labels: int64 `[N]` in `{0, 1}`.
+- Train rows: 1024; held-out test rows: 2048.
+- Every choice receives the same materialized split; minibatches sample train indices uniformly with replacement.
+- Evaluation: **test cross-entropy** is primary; test accuracy is auxiliary only.
+- Reference device: cuda
+
+## Sample budget (same for all choices)
+- training_steps: 64
+- batch_size: 32
+- total_samples_seen: 2048 (= training_steps × batch_size)
+
+## Evaluation metric
+- Ground-truth ranking uses **test_ce** on the held-out test split.
+- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.
+- Execution device: cuda.
+- The correct choice has the lowest **mean** test_ce across seeds.
+
+## Choices
+
+### Choice A
+
+**Model (natural language)**
+- Type: MLP
+- Input dimension: 2
+- Output logits: 2
+- Depth: 3 hidden layers
+- Width: 128 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [False, False, True]
+- Activations: [silu, silu, silu]
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.01),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2, 128),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=128, activation='silu', use_layer_norm=True, use_residual=True),
+            nn.Linear(128, 2),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: SGD
+- Learning rate: 0.0003
+- Weight decay: 0.001
+- Momentum: 0
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.SGD(params, lr=0.0003, momentum=0, weight_decay=0.001)
+```
+
+**Loss**
+- Loss: cross-entropy on minibatch target labels
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    if pred.ndim == 3:
+        vocab = pred.shape[-1]
+        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))
+    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))
+```
+
+### Choice B
+
+**Model (natural language)**
+- Type: MLP
+- Input dimension: 2
+- Output logits: 2
+- Depth: 3 hidden layers
+- Width: 128 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [False, False, True]
+- Activations: [silu, silu, silu]
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.01),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2, 128),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=128, activation='silu', use_layer_norm=True, use_residual=True),
+            nn.Linear(128, 2),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: SGD
+- Learning rate: 0.01
+- Weight decay: 1e-05
+- Momentum: 0.9
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.SGD(params, lr=0.01, momentum=0.9, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: cross-entropy on minibatch target labels
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    if pred.ndim == 3:
+        vocab = pred.shape[-1]
+        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))
+    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))
+```
+
+### Choice C
+
+**Model (natural language)**
+- Type: MLP
+- Input dimension: 2
+- Output logits: 2
+- Depth: 3 hidden layers
+- Width: 128 (all hidden layers)
+- Residual connections: True
+- Layer norm per layer: [False, False, True]
+- Activations: [silu, silu, silu]
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.01),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2, 128),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=True),
+        MLPBlock(width=128, activation='silu', use_layer_norm=True, use_residual=True),
+            nn.Linear(128, 2),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: Adagrad
+- Learning rate: 0.001
+- Weight decay: 1e-05
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.Adagrad(params, lr=0.001, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: cross-entropy on minibatch target labels
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    if pred.ndim == 3:
+        vocab = pred.shape[-1]
+        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))
+    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))
+```
+
+## Your answer
+Reply with a single letter (A, B, C).

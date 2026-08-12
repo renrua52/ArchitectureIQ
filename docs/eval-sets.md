@@ -595,3 +595,57 @@ relay eval key，temp=0，记录保留在 gitignored `llm_runs/control_letterswa
   old60 48/48（中位数 47×）、propose_v1.1 的 demos 55/66（中位数 65×）；
   select_best_v2 里 **66% 的题 winner=参数量最大选项**（old60 62%）→ 分数主要来自"选最大模型"prior，不是推理。
 - 训练预算 total_samples_seen：select_best_v2 / old60 全部对齐（0 mixed）；propose_v1.1 有 4/66 demo 预算混合。
+
+---
+
+## 13. AutoResearch 转移评测（2026-08-02 新增，见 plan-autoresearch-eval.md）
+
+论文定位：把 AutoResearch 拆成 **config 状态转移**，benchmark 落脚点是**单次转移**的质量；
+toy 算力（MLP/小型 transformer，10-seed GT ~10–30s），核心看**架构直觉**。
+
+### 13.1 工作树（work tree）
+
+- `backend/eval/trees/{problem_id}/{tree_id}.json`（生成物，gitignored）：base + children（1–2 salient 编辑），
+  所有节点都来自存量 candidates + 已执行 GT（点亮零算力）。
+- **预算规则硬编码进建树**：child 必须同 `total_samples_seen` 且 params ≤ 1.1× base —— 树内每个节点都是合法 move。
+- `oracle` = 树内初始最优 loss；`oracle_gap_rel < 0` = 模型发现比树内已知最优更好的 config。
+
+### 13.2 任务层次与实现
+
+| 任务 | 模块 | 状态 |
+|------|------|------|
+| L0 `select_best`（含 base 的 6 选 1） | `backend/eval/questions.py` | 已有（v2） |
+| L1 `plan_light`（先点亮谁 + 排序） | `backend/eval/plan_light.py` | 已实现，95 题 |
+| L2 `propose_loop`（K 轮 propose→GT→观察） | `backend/eval/autoresearch.py` | 已实现 |
+| HTML 报告（含每轮思考过程） | `backend/eval/report_autoresearch.py` | 已实现 |
+
+L2 闭环：propose（JSON，闭集）→ normalize/吸附 → 与存量 config **深度相等匹配**（忽略派生键）→
+命中则点亮（零算力），否则 `write_candidate` + `run_ground_truth` 存为新节点；每轮记录
+prompt/raw/reasoning/loss/best/regret。
+
+### 13.3 首轮 pilot（gpt-5.6-luna，11 棵树）
+
+- improve_base：mean 26.0% / median 30.9% / max 79.8%；5/11 击败树内初始 oracle。
+- 行为观察：重复 propose 已知 config 的 wasted 轮次较多（prompt 已加警告）；第 3–5 轮开始真正探索新架构。
+- L1（95 题）：light-first 命中 50.5%（随机 ~18–20%），完整排序 Spearman≈0 —— 模型能挑最优，但排不出中间序。
+
+### 13.3b 五模型同树对比（2026-08-03 扩样）
+
+同一批 6 棵共享树（luna/terra 已跑），补跑 claude-opus-5 / Kimi-K3（eval key，
+`reasoning_effort=high`、无 token 上限、并发 3）：
+
+| 模型 | run 数 | mean / median / max improve | 击败树内 oracle | 新增真实 GT |
+|------|--------|-----------------------------|-----------------|-------------|
+| gpt-5.6-luna | 31 | +25.7% / +24.4% / +86.8% | 16/31 | 92 |
+| gpt-5.6-terra | 6 | +38.7% / +32.9% / +82.5% | 5/6 | 24 |
+| claude-opus-5 | 6 | +36.8% / +29.1% / +85.3% | 3/6 | 17 |
+| Kimi-K3 | 6 | +37.2% / +26.0% / +85.3% | 3/6 | 23 |
+| deepseek-v4-flash | 3 | +40.8% / +40.4% / +64.9% | 3/3 | 11 |
+
+逐树对比见 `docs/reports/AUTORESEARCH_PILOT_2026-08-02.md §7.3`；结论：五个模型在同一批树上
+全部大幅超越随机基线、多数树能击败树内已知最优，L2 转移评测可区分模型研究能力。
+
+### 13.4 两个已修复 bug（均有回归测试）
+
+1. `run_new_gt` 曾继承 base 的 candidate_id 覆盖 base 存储 → 剥离派生键后重新哈希；被污染 base 已从 `data/datasets/` 恢复。
+2. 存量 candidate_id 哈希来源与 `short_hash(spec)` 不一致 → 改用规范后 config 深度相等匹配（`find_stored_candidate`）。

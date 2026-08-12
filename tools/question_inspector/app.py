@@ -8,6 +8,7 @@ import os
 import random
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1415,6 +1416,8 @@ def _argument_data_root(argv: list[str] | tuple[str, ...]) -> Path | None:
             return ancestor.parent.resolve()
         if (ancestor / "datasets").is_dir():
             return ancestor.resolve()
+        if (ancestor / "data" / "datasets").is_dir():
+            return (ancestor / "data").resolve()
     return None
 
 
@@ -1637,7 +1640,11 @@ def _render_question_pack_selector(
 
     _reset_for_question_pack(selected)
     if selected == LOCAL_QUESTION_PACK:
-        if st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve())):
+        explicit_root = _argument_data_root(sys.argv)
+        if (
+            explicit_root is None
+            and st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve()))
+        ):
             st.session_state.data_root = "data"
         return None
 
@@ -4513,6 +4520,7 @@ def _render_app() -> None:
         data_root = st.text_input(
             "Data root",
             key="data_root",
+            value=str(st.session_state.get("data_root") or _initial_data_root()),
             disabled=active_pack is not None,
         )
         _render_question_picker(data_root, collection_path)

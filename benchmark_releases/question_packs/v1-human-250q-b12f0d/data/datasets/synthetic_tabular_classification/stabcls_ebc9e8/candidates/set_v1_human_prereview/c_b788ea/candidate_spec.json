@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1",
+  "profile_hash": "90421abe32ec88c7",
+  "dataset_id": "stabcls_ebc9e8",
+  "family": "synthetic_tabular_classification",
+  "budget": {
+    "training_steps": 512,
+    "batch_size": 32,
+    "total_samples_seen": 16384
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 5,
+    "width": 16,
+    "residual": false,
+    "layer_norm": [
+      true,
+      false,
+      false,
+      true,
+      false
+    ],
+    "activations": [
+      "gelu",
+      "leaky_relu",
+      "relu",
+      "gelu",
+      "silu"
+    ],
+    "leaky_relu_slope": 0.01,
+    "input_dim": 2,
+    "output_dim": 2
+  },
+  "trainable_parameter_count": 1506,
+  "optimizer": {
+    "type": "AdamW",
+    "lr": 0.0001,
+    "weight_decay": 0.001,
+    "betas": [
+      0.9,
+      0.999
+    ]
+  },
+  "loss": {
+    "loss_id": "cross_entropy"
+  },
+  "execution": {
+    "device": "cuda"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_b788ea"
+}

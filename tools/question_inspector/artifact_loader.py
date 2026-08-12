@@ -75,7 +75,9 @@ def load_question_bundle(question_path: Path | str, data_root: Path | str | None
 
     choices: list[dict[str, Any]] = []
     for choice in question["choices"]:
-        candidate_dir = root / choice["candidate_path"]
+        # Normalize Windows-style separators so packs generated on Windows
+        # resolve on POSIX hosts (and vice versa).
+        candidate_dir = root / choice["candidate_path"].replace("\\", "/")
         if not candidate_dir.is_dir():
             raise FileNotFoundError(f"Candidate directory not found: {candidate_dir}")
         choices.append({**choice, "candidate_dir": candidate_dir})

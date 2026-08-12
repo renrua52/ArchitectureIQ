@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1",
+  "profile_hash": "90421abe32ec88c7",
+  "dataset_id": "stabcls_f5a953",
+  "family": "synthetic_tabular_classification",
+  "budget": {
+    "training_steps": 128,
+    "batch_size": 32,
+    "total_samples_seen": 4096
+  },
+  "model": {
+    "type": "kan",
+    "variant": "efficient_spline_v1",
+    "input_dim": 2,
+    "output_dim": 2,
+    "depth": 2,
+    "width": 8,
+    "grid_size": 5,
+    "spline_order": 3,
+    "grid_range": [
+      -1,
+      1
+    ],
+    "base_activation": "silu"
+  },
+  "trainable_parameter_count": 1440,
+  "optimizer": {
+    "type": "Adagrad",
+    "lr": 0.0003,
+    "weight_decay": 1e-05
+  },
+  "loss": {
+    "loss_id": "cross_entropy"
+  },
+  "execution": {
+    "device": "cuda"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_f077b6"
+}

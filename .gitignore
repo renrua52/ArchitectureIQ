@@ -265,3 +265,8 @@ outputs/*
 outputs/demo_release_integration/*
 !outputs/demo_release_integration/DEMO_RELEASE_INTEGRATION_FINAL_REPORT.md
 !outputs/demo_release_integration/RELEASE_FREEZE_MANIFEST.json
+
+# AutoResearch eval generated artifacts
+backend/eval/trees/
+artifacts/autoresearch_runs/
+backend/eval/sets/*/answers_*.jsonl

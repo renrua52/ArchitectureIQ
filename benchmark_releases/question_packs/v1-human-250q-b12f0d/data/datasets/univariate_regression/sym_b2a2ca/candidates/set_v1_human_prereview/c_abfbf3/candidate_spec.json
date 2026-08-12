@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1",
+  "profile_hash": "90421abe32ec88c7",
+  "dataset_id": "sym_b2a2ca",
+  "family": "univariate_regression",
+  "budget": {
+    "training_steps": 256,
+    "batch_size": 64,
+    "total_samples_seen": 16384
+  },
+  "model": {
+    "type": "kan",
+    "variant": "efficient_spline_v1",
+    "input_dim": 1,
+    "output_dim": 1,
+    "depth": 2,
+    "width": 8,
+    "grid_size": 5,
+    "spline_order": 3,
+    "grid_range": [
+      -1,
+      1
+    ],
+    "base_activation": "silu"
+  },
+  "trainable_parameter_count": 1296,
+  "optimizer": {
+    "type": "Adagrad",
+    "lr": 0.0003,
+    "weight_decay": 0
+  },
+  "loss": {
+    "loss_id": "mse"
+  },
+  "execution": {
+    "device": "cuda"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_abfbf3"
+}

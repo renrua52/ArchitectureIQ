@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1",
+  "profile_hash": "90421abe32ec88c7",
+  "dataset_id": "sym_b3589d",
+  "family": "univariate_regression",
+  "budget": {
+    "training_steps": 256,
+    "batch_size": 64,
+    "total_samples_seen": 16384
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 6,
+    "width": 128,
+    "residual": true,
+    "layer_norm": [
+      true,
+      true,
+      false,
+      true,
+      true,
+      false
+    ],
+    "activations": [
+      "leaky_relu",
+      "relu",
+      "silu",
+      "silu",
+      "silu",
+      "leaky_relu"
+    ],
+    "leaky_relu_slope": 0.01,
+    "input_dim": 1,
+    "output_dim": 1
+  },
+  "trainable_parameter_count": 100481,
+  "optimizer": {
+    "type": "Adagrad",
+    "lr": 0.003,
+    "weight_decay": 0
+  },
+  "loss": {
+    "loss_id": "mse_l1",
+    "lambda": 0.01
+  },
+  "execution": {
+    "device": "cuda"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_d0d18a"
+}

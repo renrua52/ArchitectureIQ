@@ -2,7 +2,8 @@
 
 > 本文档登记出题工作的**当前状态、已完成事项、验证结果、以及后续计划**。它是运营视角的总账；出题的**操作逻辑与旋钮**见 [question_generation.md](./question_generation.md)，稳定架构与不变量见 [../AGENTS.md](../AGENTS.md)。
 >
-> 最近更新：2026-07（大预算批次 + label-noise 难度工程 + 惊讶反馈/推荐核心）。题目生产阶段告一段落；惊讶 reaction 已完成本地闭环，但权威统计、在线推荐与 hosted 部署尚未完成。
+> 最近更新：2026-08-02（AutoResearch 转移评测启动：work-tree + propose-loop + plan_light 已实现并跑通首轮 pilot）。
+> 历史：2026-07（大预算批次 + label-noise 难度工程 + 惊讶反馈/推荐核心）。
 
 ---
 
@@ -161,6 +162,11 @@ judge 逐题确认被证伪的专家捷径：**"选最小抗噪"、"选最大/�
 | v2 profile | `profiles/v2.yaml` |
 | label-noise 实现 | `families/{univariate,multivariate}_regression/family.py`, `cli.py`, `datasets.py`, `prompts/formatters.py` |
 | 回归测试 | `tests/test_new_families.py::test_label_noise_train_only_and_reproducible` |
+| AutoResearch 评测计划 | `docs/plan-autoresearch-eval.md`（工作树/L1/L2 设计） |
+| 评测协议与题集 | `docs/eval-sets.md`（select_best / two_choice / propose / L1 / L2） |
+| L2 pilot 报告（5 模型同树对比） | `docs/reports/AUTORESEARCH_PILOT_2026-08-02.md` |
+| 题集总览 HTML（题目预览/Protocol/成绩） | `docs/reports/QUESTIONS_OVERVIEW_2026-08-03.html`（`tools/report_questions.py` 可复现生成） |
+| L2 逐 run 报告 | `artifacts/autoresearch_report.html` + `artifacts/autoresearch_runs/`（summary + history.jsonl） |
 
 ### 本阶段改动的源文件（15 个，+221/−44）
 `candidates/generator.py`, `questions/generator.py`, `ground_truth/runner.py`, `cli.py`, `datasets.py`, `families/{univariate,multivariate,bigram}*/family.py`, `interactive.py`, `prompts/formatters.py`, `prompts/templates/dataset/univariate_regression.md`, `tools/question_inspector/prompt_format.py`, 及对应测试。

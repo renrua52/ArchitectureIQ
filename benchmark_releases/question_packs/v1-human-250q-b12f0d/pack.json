@@ -1,0 +1,14 @@
+{
+  "schema_version": "question_pack_v1",
+  "pack_id": "v1-human-250q-b12f0d",
+  "display_name": "V1 human pre-review \u00b7 250-question pack",
+  "question_count": 250,
+  "collection_path": "collection.json",
+  "data_root": "data",
+  "profile": "v1_human",
+  "provenance": {
+    "collection_id": "v1_human_prereview_250q_b12f0d",
+    "remote_index": "https://architecture-iq.com/data/index.json",
+    "note": "Synced by tools/sync_remote_question_bank.py; profiles/v1_human.yaml mirrors the remote generation pool."
+  }
+}

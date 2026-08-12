@@ -288,6 +288,8 @@ function App() {
     return (
       <QuestionMenu
         summaries={summaries}
+        questions={bake.byId}
+        results={results.current}
         onBack={goHome}
         onPick={(itemIndex) => beginQuiz(itemIndex)}
       />
@@ -463,29 +465,97 @@ function SimpleScreen({
   );
 }
 
+function DifficultyBadge({ difficulty }: { difficulty: DifficultyLevel }) {
+  return (
+    <span className={`diff-badge diff-${difficulty}`}>
+      {difficulty.replace("_", " ")}
+    </span>
+  );
+}
+
 function QuestionMenu({
   summaries,
+  questions,
+  results,
   onBack,
   onPick
 }: {
   summaries: BakeFile["questions"];
+  questions: BakeFile["byId"];
+  results: Record<string, { correct: boolean; picked: string }>;
   onBack: () => void;
   onPick: (index: number) => void;
 }) {
+  const [lossFilter, setLossFilter] = useState<string>("all");
+  const filtered = useMemo(() => {
+    if (lossFilter === "all") {
+      return summaries.map((item, index) => ({ item, index }));
+    }
+    return summaries
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => lossIdsOf(questions[item.id]).has(lossFilter));
+  }, [summaries, questions, lossFilter]);
+
   return (
     <SimpleScreen title="Question menu" onBack={onBack}>
-      <ul className="question-list">
-        {summaries.map((item, itemIndex) => (
-          <li key={item.id}>
-            <button type="button" className="question-row" onClick={() => onPick(itemIndex)}>
-              <span className="qnum">{itemIndex + 1}</span>
-              <span>
-                {humanFamily(item.family)} · {humanMetricByFamily(item.family, item.metric)} ·{" "}
-                {humanType(item.type)} · {item.track ?? "default"} · {item.choices ?? "?"} choices
-              </span>
-            </button>
-          </li>
+      <div className="difficulty-legend" aria-label="LLM difficulty levels">
+        {DIFFICULTY_LEVELS.map((level) => (
+          <DifficultyBadge key={level} difficulty={level} />
         ))}
+      </div>
+      <div className="filter-row" role="group" aria-label="Filter by loss category">
+        <button
+          type="button"
+          className={lossFilter === "all" ? "chip active" : "chip"}
+          onClick={() => setLossFilter("all")}
+        >
+          All
+        </button>
+        {LOSS_CATEGORIES.map((category) => (
+          <button
+            type="button"
+            key={category.id}
+            className={lossFilter === category.id ? "chip active" : "chip"}
+            onClick={() => setLossFilter(category.id)}
+          >
+            {category.label}
+          </button>
+        ))}
+      </div>
+      <p className="filter-count">
+        {filtered.length} of {summaries.length} questions
+      </p>
+      <ul className="question-list">
+        {filtered.map(({ item, index }) => {
+          const result = results[item.id];
+          const status = result
+            ? result.correct
+              ? "correct"
+              : "wrong"
+            : "unanswered";
+          const statusLabel = result
+            ? result.correct
+              ? "Correct"
+              : "Wrong"
+            : "Unanswered";
+          const difficulty = difficultyFromTrack(item.track);
+          return (
+            <li key={item.id}>
+              <button
+                type="button"
+                className="question-row"
+                onClick={() => onPick(index)}
+              >
+                <span className="qnum">{index + 1}</span>
+                <span className="question-row-copy">
+                  {humanFamily(item.family)} · {humanType(item.type)}
+                </span>
+                {difficulty ? <DifficultyBadge difficulty={difficulty} /> : null}
+                <span className={`q-status ${status}`}>{statusLabel}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </SimpleScreen>
   );
@@ -1457,6 +1527,41 @@ function formatFieldValue(label: string, value: string): string {
   return formatNumber(numeric);
 }
 
+const DIFFICULTY_LEVELS = ["very_hard", "hard", "medium", "easy"] as const;
+type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
+
+const LOSS_CATEGORIES: Array<{ id: string; label: string }> = [
+  { id: "mse", label: "MSE" },
+  { id: "mse_l1", label: "MSE + L1" },
+  { id: "mse_l2", label: "MSE + L2" },
+  { id: "cross_entropy", label: "Cross-entropy" },
+  { id: "cross_entropy_l1", label: "CE + L1" },
+  { id: "cross_entropy_l2", label: "CE + L2" }
+];
+
+function difficultyFromTrack(track?: string): DifficultyLevel | null {
+  if (!track) return null;
+  const trimmed = track.trim();
+  if (!trimmed) return null;
+  for (const level of DIFFICULTY_LEVELS) {
+    if (trimmed === level || trimmed.endsWith(`_${level}`)) return level;
+  }
+  return null;
+}
+
+function lossIdsOf(question: BakedQuestion | undefined): Set<string> {
+  const ids = new Set<string>();
+  if (!question) return ids;
+  for (const choice of question.detail?.choices ?? []) {
+    const spec = choice.files?.["candidate_spec.json"] as
+      | { loss?: { loss_id?: string } }
+      | undefined;
+    const id = spec?.loss?.loss_id;
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
 function humanFamily(family?: string) {
   if (!family) return "Dataset";
   return family.replace(/_/g, " ");
@@ -1467,12 +1572,6 @@ function humanMetric(metric?: string) {
   if (metric === "test_mse") return "test MSE";
   if (metric === "test_ce") return "test cross-entropy";
   return metric.replace(/_/g, " ");
-}
-
-function humanMetricByFamily(family?: string, metric?: string) {
-  if (metric) return humanMetric(metric);
-  if (family === "bigram_lm") return "test CE";
-  return "test MSE";
 }
 
 function humanType(type?: string) {

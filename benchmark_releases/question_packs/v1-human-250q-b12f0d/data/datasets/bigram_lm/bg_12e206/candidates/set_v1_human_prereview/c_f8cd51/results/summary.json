@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_f8cd51",
+  "selection_metric": "test_ce",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_ce": 3.29057719707489,
+  "std_test_ce": 0.012371333081765636,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_ce": 3.2994132041931152
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_ce": 3.297114372253418
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_ce": 3.3068857192993164
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_ce": 3.2929089069366455
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_ce": 3.274548292160034
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_ce": 3.2816977500915527
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_ce": 3.3055853843688965
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_ce": 3.2984588146209717
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_ce": 3.275866746902466
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_ce": 3.2732927799224854
+    }
+  ],
+  "environment": {
+    "python": "3.12.11 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:09:17) [GCC 11.2.0]",
+    "platform": "Linux-5.4.0-144-generic-x86_64-with-glibc2.35",
+    "torch": "2.8.0+cu126",
+    "requested_device": "cuda",
+    "device": "cuda",
+    "cuda_available": true,
+    "cuda_runtime": "12.6",
+    "cuda_device_name": "NVIDIA A100 80GB PCIe",
+    "cuda_device_capability": [
+      8,
+      0
+    ],
+    "deterministic_algorithms": false,
+    "seed_workers": 1,
+    "torch_threads_per_seed": 64,
+    "git_commit": null
+  }
+}

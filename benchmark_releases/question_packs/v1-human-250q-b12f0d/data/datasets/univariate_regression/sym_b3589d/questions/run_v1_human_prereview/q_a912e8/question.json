@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "family": "univariate_regression",
+  "dataset_id": "sym_b3589d",
+  "budget": {
+    "total_samples_seen": 1024
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer",
+    "loss"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_ef9ce4",
+      "candidate_path": "datasets/univariate_regression/sym_b3589d/candidates/set_v1_human_prereview/c_ef9ce4",
+      "candidate_set_path": "datasets/univariate_regression/sym_b3589d/candidates/set_v1_human_prereview"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_778544",
+      "candidate_path": "datasets/univariate_regression/sym_b3589d/candidates/set_v1_human_prereview/c_778544",
+      "candidate_set_path": "datasets/univariate_regression/sym_b3589d/candidates/set_v1_human_prereview"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_5993c7",
+      "candidate_path": "datasets/univariate_regression/sym_b3589d/candidates/set_v1_human_prereview/c_5993c7",
+      "candidate_set_path": "datasets/univariate_regression/sym_b3589d/candidates/set_v1_human_prereview"
+    }
+  ],
+  "correct_letter": "A",
+  "evaluation": {
+    "selection_metric": "test_mse",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cuda"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_a912e8",
+  "profile": "v1_human",
+  "profile_hash": "90421abe32ec88c7",
+  "track": "human_univariate_very_hard",
+  "llm_difficulty": "very_hard",
+  "dataset_bucket": "univariate",
+  "question_run_id": "run_v1_human_prereview",
+  "question_run_path": "datasets/univariate_regression/sym_b3589d/questions/run_v1_human_prereview"
+}

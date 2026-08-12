@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_75d689",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_mse": 0.07154158987104893,
+  "std_test_mse": 0.03664805451223082,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_mse": 0.04855399578809738,
+      "mean_test_mse": 0.04855399578809738
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_mse": 0.11733949184417725,
+      "mean_test_mse": 0.11733949184417725
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_mse": 0.09356729686260223,
+      "mean_test_mse": 0.09356729686260223
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.021714303642511368,
+      "mean_test_mse": 0.021714303642511368
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_mse": 0.057014599442481995,
+      "mean_test_mse": 0.057014599442481995
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_mse": 0.02999812550842762,
+      "mean_test_mse": 0.02999812550842762
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_mse": 0.10365863889455795,
+      "mean_test_mse": 0.10365863889455795
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_mse": 0.1267377734184265,
+      "mean_test_mse": 0.1267377734184265
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.0855952799320221,
+      "mean_test_mse": 0.0855952799320221
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 0.031236393377184868,
+      "mean_test_mse": 0.031236393377184868
+    }
+  ],
+  "environment": {
+    "python": "3.12.11 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:09:17) [GCC 11.2.0]",
+    "platform": "Linux-5.4.0-144-generic-x86_64-with-glibc2.35",
+    "torch": "2.8.0+cu126",
+    "requested_device": "cuda",
+    "device": "cuda",
+    "cuda_available": true,
+    "cuda_runtime": "12.6",
+    "cuda_device_name": "NVIDIA A100 80GB PCIe",
+    "cuda_device_capability": [
+      8,
+      0
+    ],
+    "deterministic_algorithms": false,
+    "seed_workers": 1,
+    "torch_threads_per_seed": 64,
+    "git_commit": null
+  }
+}

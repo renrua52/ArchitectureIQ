@@ -1,0 +1,323 @@
+You are taking the ArchitectureIQ benchmark.
+
+Each question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt — either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget — using architecture and learning-mechanics reasoning only (no training results are provided).
+
+## Dataset
+**Family:** univariate regression on `[0, 1]`.
+
+- Input and target are 1-D scalars.
+- Training and test points are sampled uniformly on the domain.
+- Labels are noiseless; the target is a symbolic expression of `x`.
+
+### Synthesis (PyTorch)
+```python
+def target(x: torch.Tensor) -> torch.Tensor:
+    return (((x / torch.clamp(torch.abs(torch.tensor(-1.6667, dtype=x.dtype, device=x.device)), min=0.1) * torch.sign(torch.tensor(-1.6667, dtype=x.dtype, device=x.device) + 1e-12)) / torch.clamp(torch.abs(torch.abs(x)), min=0.1) * torch.sign(torch.abs(x) + 1e-12)) * torch.tensor(1, dtype=x.dtype, device=x.device))
+
+
+def synthesize(
+    *,
+    train_size: int = 256,
+    test_size: int = 256,
+    point_seed: int = 2003,
+    domain_low: float = 0.0,
+    domain_high: float = 1.0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    gen = torch.Generator().manual_seed(point_seed)
+    train_x = torch.rand(train_size, generator=gen) * (domain_high - domain_low) + domain_low
+    test_x = torch.rand(test_size, generator=gen) * (domain_high - domain_low) + domain_low
+    train_y = target(train_x)
+    test_y = target(test_x)
+    return train_x.unsqueeze(-1), train_y.unsqueeze(-1), test_x.unsqueeze(-1), test_y.unsqueeze(-1)
+```
+
+### Data splits and training protocol
+- Target expression (canonical): `x / -1.6667 / abs(x) * 1`
+- Train split size: 256 fixed `(x, y)` pairs
+- Test split size: 256 fixed `(x, y)` pairs (held out)
+- Input domain: [0.0, 1.0], uniform sampling
+- Point-sampling seed: 2003 (materializes the fixed train/test splits)
+- Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**
+- Evaluation: **test MSE** is mean squared error on the entire fixed test split
+- Randomness: `torch.manual_seed(seed)` once before model init and the training loop
+- Reference device: cuda
+
+## Sample budget (same for all choices)
+- training_steps: 256
+- batch_size: 16
+- total_samples_seen: 4096 (= training_steps × batch_size)
+
+## Evaluation metric
+- Ground-truth ranking uses **test_mse** on the held-out test split.
+- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.
+- Execution device: cuda.
+- The correct choice has the lowest **mean** test_mse across seeds.
+
+## Choices
+
+### Choice A
+
+**Model (natural language)**
+- Type: spline KAN (efficient_spline_v1)
+- Depth: 1 hidden layers
+- Width: 8 (all hidden layers)
+- Grid size: 5
+- Spline order: 3
+- Fixed grid range: [-1.0, 1.0]
+- Base activation: silu
+- Grid updates: fixed; no train/test-data adaptation
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "silu": nn.SiLU(),
+        "relu": nn.ReLU(),
+        "gelu": nn.GELU(),
+        "tanh": nn.Tanh(),
+    }
+    return mapping[name]
+
+
+def _make_grid(in_features: int) -> torch.Tensor:
+    low, high = -1.0, 1.0
+    grid_size, spline_order = 5, 3
+    step = (high - low) / grid_size
+    core = torch.linspace(low, high, grid_size + 1)
+    left = core[0] - step * torch.arange(spline_order, 0, -1, dtype=core.dtype)
+    right = core[-1] + step * torch.arange(1, spline_order + 1, dtype=core.dtype)
+    return torch.cat((left, core, right)).unsqueeze(0).repeat(in_features, 1)
+
+
+def _bspline_bases(x: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+    bases = ((x.unsqueeze(-1) >= grid[:, :-1]) & (x.unsqueeze(-1) < grid[:, 1:])).to(x.dtype)
+    bases[..., -1] = ((x >= grid[:, -2]) & (x <= grid[:, -1])).to(x.dtype)
+    for order in range(1, 3 + 1):
+        left_num = x.unsqueeze(-1) - grid[:, :-(order + 1)]
+        left_den = grid[:, order:-1] - grid[:, :-(order + 1)]
+        right_num = grid[:, order + 1:] - x.unsqueeze(-1)
+        right_den = grid[:, order + 1:] - grid[:, 1:-order]
+        bases = left_num / left_den * bases[..., :-1] + right_num / right_den * bases[..., 1:]
+    return bases
+
+
+class KANLinear(nn.Module):
+    def __init__(self, in_features: int, out_features: int) -> None:
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.base_activation = _activation('silu')
+        self.register_buffer("grid", _make_grid(in_features))
+        basis_count = 5 + 3
+        self.base_weight = nn.Parameter(torch.empty(out_features, in_features))
+        self.spline_weight = nn.Parameter(torch.empty(out_features, in_features, basis_count))
+        nn.init.kaiming_uniform_(self.base_weight, a=5**0.5)
+        nn.init.normal_(self.spline_weight, mean=0.0, std=0.01)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        base = F.linear(self.base_activation(x), self.base_weight)
+        bases = _bspline_bases(x, self.grid)
+        spline = torch.einsum("...ib,oib->...o", bases, self.spline_weight)
+        return base + spline
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        dims = [1] + [8] * (1 + 1) + [1]
+        self.layers = nn.ModuleList([KANLinear(dims[i], dims[i + 1]) for i in range(len(dims) - 1)])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for layer in self.layers:
+            x = layer(x)
+        return x
+```
+
+**Optimizer**
+- Optimizer: SGD
+- Learning rate: 0.0003
+- Weight decay: 1e-05
+- Momentum: 0
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.SGD(params, lr=0.0003, momentum=0, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: MSE on the minibatch + L1 weight penalty (lambda=0.001, mean absolute parameter magnitude)
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    base = torch.mean((pred - target) ** 2)
+    l1 = torch.mean(torch.stack([torch.mean(torch.abs(p)) for p in model.parameters()]))
+    return base + 0.001 * l1
+```
+
+### Choice B
+
+**Model (natural language)**
+- Type: MLP
+- Depth: 5 hidden layers
+- Width: 128 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [False, True, True, False, False]
+- Activations: [gelu, leaky_relu, relu, silu, leaky_relu]
+- LeakyReLU negative slope: 0.01
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.01),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(1, 128),
+        MLPBlock(width=128, activation='gelu', use_layer_norm=False, use_residual=False),
+        MLPBlock(width=128, activation='leaky_relu', use_layer_norm=True, use_residual=False),
+        MLPBlock(width=128, activation='relu', use_layer_norm=True, use_residual=False),
+        MLPBlock(width=128, activation='silu', use_layer_norm=False, use_residual=False),
+        MLPBlock(width=128, activation='leaky_relu', use_layer_norm=False, use_residual=False),
+            nn.Linear(128, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: SGD
+- Learning rate: 0.0003
+- Weight decay: 1e-05
+- Momentum: 0
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.SGD(params, lr=0.0003, momentum=0, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: MSE on the minibatch + L1 weight penalty (lambda=0.001, mean absolute parameter magnitude)
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    base = torch.mean((pred - target) ** 2)
+    l1 = torch.mean(torch.stack([torch.mean(torch.abs(p)) for p in model.parameters()]))
+    return base + 0.001 * l1
+```
+
+### Choice C
+
+**Model (natural language)**
+- Type: MLP
+- Depth: 5 hidden layers
+- Width: 64 (all hidden layers)
+- Residual connections: False
+- Layer norm per layer: [False, True, True, False, True]
+- Activations: [gelu, silu, gelu, relu, leaky_relu]
+- LeakyReLU negative slope: 0.01
+- Initialization: PyTorch Linear defaults
+
+**Model code**
+```python
+def _activation(name: str) -> nn.Module:
+    mapping = {
+        "relu": nn.ReLU(),
+        "leaky_relu": nn.LeakyReLU(0.01),
+        "gelu": nn.GELU(),
+        "silu": nn.SiLU(),
+    }
+    return mapping[name]
+
+
+class MLPBlock(nn.Module):
+    def __init__(self, width: int, activation: str, use_layer_norm: bool, use_residual: bool) -> None:
+        super().__init__()
+        self.use_residual = use_residual
+        self.norm = nn.LayerNorm(width) if use_layer_norm else None
+        self.linear = nn.Linear(width, width)
+        self.act = _activation(activation)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = x
+        if self.norm is not None:
+            h = self.norm(h)
+        h = self.linear(h)
+        h = self.act(h)
+        if self.use_residual:
+            h = h + x
+        return h
+
+
+class Model(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(1, 64),
+        MLPBlock(width=64, activation='gelu', use_layer_norm=False, use_residual=False),
+        MLPBlock(width=64, activation='silu', use_layer_norm=True, use_residual=False),
+        MLPBlock(width=64, activation='gelu', use_layer_norm=True, use_residual=False),
+        MLPBlock(width=64, activation='relu', use_layer_norm=False, use_residual=False),
+        MLPBlock(width=64, activation='leaky_relu', use_layer_norm=True, use_residual=False),
+            nn.Linear(64, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+```
+
+**Optimizer**
+- Optimizer: SGD
+- Learning rate: 0.0003
+- Weight decay: 1e-05
+- Momentum: 0
+
+```python
+def build_optimizer(model: nn.Module) -> torch.optim.Optimizer:
+    params = model.parameters()
+    return torch.optim.SGD(params, lr=0.0003, momentum=0, weight_decay=1e-05)
+```
+
+**Loss**
+- Loss: MSE on the minibatch + L1 weight penalty (lambda=0.001, mean absolute parameter magnitude)
+
+```python
+def loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    base = torch.mean((pred - target) ** 2)
+    l1 = torch.mean(torch.stack([torch.mean(torch.abs(p)) for p in model.parameters()]))
+    return base + 0.001 * l1
+```
+
+## Your answer
+Reply with a single letter (A, B, C).
