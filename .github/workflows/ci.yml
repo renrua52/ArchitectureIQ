@@ -30,6 +30,12 @@ jobs:
         run: npm run build
 
   checks:
+    # Dedicated FE branches only need frontend-build (skip Ruff / pytest / API smoke).
+    if: >-
+      ${{
+        (github.head_ref || github.ref_name) != 'quiz-frontend'
+        && !startsWith(github.head_ref || github.ref_name, 'frontend/')
+      }}
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:

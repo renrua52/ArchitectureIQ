@@ -311,6 +311,53 @@ a {
   display: block;
 }
 
+.curves-viz {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.curves-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.15rem 0.35rem 0;
+}
+
+.curves-toolbar .hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.curves-reset {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.curves-reset:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text) 35%, var(--line));
+}
+
+.curve-brush-window {
+  cursor: grab;
+  touch-action: none;
+}
+
+.curve-brush-window:active {
+  cursor: grabbing;
+}
+
+.curve-brush-handle {
+  cursor: ew-resize;
+  touch-action: none;
+}
+
 .choice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -435,6 +482,79 @@ a {
   padding-top: 0.25rem;
 }
 
+.stage-footer-end {
+  justify-content: flex-end;
+}
+
+.vote-footer {
+  justify-content: flex-end;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+  margin-bottom: 0.25rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.reveal-choices {
+  margin-top: 1rem;
+}
+
+.vote-copy {
+  display: grid;
+  gap: 0.15rem;
+  margin-right: auto;
+}
+
+.vote-prompt {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.vote-continue {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.vote-options {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.vote-btn {
+  min-width: 4.25rem;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.88rem;
+  border-radius: 10px;
+}
+
+.vote-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text) 35%, var(--line));
+}
+
+.vote-btn.vote-yes.selected,
+.vote-btn.vote-yes:hover:not(:disabled) {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--line));
+}
+
+.vote-btn.vote-no.selected,
+.vote-btn.vote-no:hover:not(:disabled) {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 55%, var(--line));
+}
+
+.vote-btn:disabled {
+  opacity: 0.55;
+}
+
 .task-description {
   display: grid;
   gap: 0.65rem;
@@ -469,89 +589,6 @@ a {
   font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
-.audit-feedback {
-  display: grid;
-  gap: 0.85rem;
-  margin-top: 0.25rem;
-}
-
-.feedback-saved {
-  color: var(--ok);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.feedback-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.7rem;
-}
-
-.feedback-label {
-  min-width: 8.5rem;
-  color: var(--muted);
-  font-size: 0.84rem;
-  font-weight: 650;
-}
-
-.feedback-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.feedback-options button {
-  min-width: 2.25rem;
-  padding: 0.45rem 0.75rem;
-  background: var(--bg-soft);
-  border: 1px solid transparent;
-}
-
-.feedback-options button.selected {
-  border-color: var(--begin);
-  background: color-mix(in srgb, var(--begin) 28%, var(--bg-soft));
-}
-
-.disposition-options button.keep.selected {
-  border-color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 24%, var(--bg-soft));
-}
-
-.disposition-options button.revise.selected {
-  border-color: #f0b35b;
-  background: color-mix(in srgb, #f0b35b 24%, var(--bg-soft));
-}
-
-.disposition-options button.reject.selected {
-  border-color: var(--bad);
-  background: color-mix(in srgb, var(--bad) 24%, var(--bg-soft));
-}
-
-.feedback-comment {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.feedback-comment textarea {
-  width: 100%;
-  resize: vertical;
-  min-height: 4.5rem;
-  padding: 0.65rem 0.75rem;
-  color: var(--text);
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  font: inherit;
-}
-
-.feedback-save {
-  justify-self: start;
-  background: var(--begin);
-  color: #fff;
-  font-weight: 700;
-}
-
 .cta {
   background: var(--begin);
   color: #fff;
@@ -583,10 +620,40 @@ a {
   background: var(--bg-soft);
 }
 
+.question-row-copy {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
 .qnum {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   min-width: 1.6rem;
+}
+
+.q-status {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+}
+
+.q-status.unanswered {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.q-status.correct {
+  color: var(--ok);
+  background: rgba(61, 207, 154, 0.14);
+}
+
+.q-status.wrong {
+  color: var(--bad);
+  background: rgba(255, 107, 99, 0.14);
 }
 
 .modal-backdrop {

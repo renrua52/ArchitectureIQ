@@ -2,16 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { newSessionId, track } from "./telemetry";
-import type {
-  AuditDecision,
-  BakeFile,
-  BakedQuestion,
-  Choice,
-  ConfidenceRating,
-  Field,
-  Point,
-  Stage
-} from "./types";
+import type { BakeFile, BakedQuestion, Choice, Field, Point, ProblemVote, Stage } from "./types";
 
 type Screen = "home" | "quiz" | "menu" | "contact";
 type InfoTarget =
@@ -22,13 +13,11 @@ type InfoTarget =
 type CardField = Field & { varying: boolean };
 
 type FeedbackDraft = {
-  confidence: ConfidenceRating | null;
-  decision: AuditDecision | null;
-  comment: string;
+  vote: ProblemVote | null;
   submitted: boolean;
 };
 
-const EMPTY_FEEDBACK: FeedbackDraft = { confidence: null, decision: null, comment: "", submitted: false };
+const EMPTY_FEEDBACK: FeedbackDraft = { vote: null, submitted: false };
 
 
 function App() {
@@ -43,6 +32,7 @@ function App() {
   const sessionId = useRef(newSessionId());
   const viewStartedAt = useRef(Date.now());
   const startedTracked = useRef(false);
+  const screenWasQuiz = useRef(false);
   const results = useRef<Record<string, { correct: boolean; picked: string }>>({});
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
@@ -102,32 +92,65 @@ function App() {
     });
   }
 
-  function exportSession() {
-    const payload = {
-      schema_version: 1,
-      exported_at: new Date().toISOString(),
-      session_id: sessionId.current,
-      collection: bake?.collection ?? null,
-      results: results.current,
-      audit_feedback: feedbackByQuestion.current
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `architectureiq-session-${sessionId.current}.json`;
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  function firstUnansweredIndex(): number | null {
+    for (let i = 0; i < summaries.length; i += 1) {
+      if (results.current[summaries[i].id] === undefined) {
+        return i;
+      }
+    }
+    return null;
   }
 
-  function beginQuiz(atIndex = 0) {
+  function resetExamState() {
+    results.current = {};
+    feedbackByQuestion.current = {};
+    sessionId.current = newSessionId();
+    startedTracked.current = false;
+    setFeedback(EMPTY_FEEDBACK);
+    setSelected(null);
+    setAnswered(false);
+    setStage("observe");
+    setInfo(null);
+    bump((n) => n + 1);
+  }
+
+  /** Home → Begin: start a fresh exam from question 1. */
+  function beginQuiz() {
+    resetExamState();
+    ensureSessionStart();
+    setIndex(0);
+    setScreen("quiz");
+  }
+
+  /** Jump to a question without clearing answers (review or continue). */
+  function openQuestion(atIndex: number) {
     ensureSessionStart();
     setIndex(atIndex);
     setScreen("quiz");
+    setInfo(null);
   }
 
   function goHome() {
     setScreen("home");
+    setInfo(null);
+  }
+
+  function backFromMenu() {
+    const firstOpen = firstUnansweredIndex();
+    if (firstOpen !== null || screenWasQuiz.current) {
+      setIndex(
+        firstOpen !== null ? firstOpen : Math.min(index, Math.max(summaries.length - 1, 0))
+      );
+      setScreen("quiz");
+      setInfo(null);
+      return;
+    }
+    goHome();
+  }
+
+  function openMenu() {
+    screenWasQuiz.current = screen === "quiz";
+    setScreen("menu");
     setInfo(null);
   }
 
@@ -152,42 +175,15 @@ function App() {
     leaveAndSwitch(next);
   }
 
-  function randomQuestion() {
-    if (summaries.length <= 1) {
-      return;
-    }
-    let next = index;
-    while (next === index) {
-      next = Math.floor(Math.random() * summaries.length);
-    }
-    leaveAndSwitch(next);
-  }
-
-  function updateFeedback(
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) {
+  function submitProblemVote(vote: ProblemVote) {
     if (!question || feedback.submitted) {
-      return;
-    }
-    const next = { ...feedback, ...patch };
-    feedbackByQuestion.current[question.id] = next;
-    setFeedback(next);
-  }
-
-  function submitAuditFeedback() {
-    if (
-      !question ||
-      feedback.submitted ||
-      feedback.confidence === null ||
-      feedback.decision === null
-    ) {
       return;
     }
     const answer = results.current[question.id];
     const pickedLetter = answer?.picked ?? selected;
-    const correct = answer?.correct ??
-      (pickedLetter ? pickedLetter === question.reveal.correctLetter : null);
-    const next = { ...feedback, submitted: true };
+    const correct =
+      answer?.correct ?? (pickedLetter ? pickedLetter === question.reveal.correctLetter : null);
+    const next: FeedbackDraft = { vote, submitted: true };
     feedbackByQuestion.current[question.id] = next;
     setFeedback(next);
     track({
@@ -196,9 +192,9 @@ function App() {
       question_id: question.id,
       duration_ms: Date.now() - viewStartedAt.current,
       payload: {
-        confidence: feedback.confidence,
-        decision: feedback.decision,
-        comment: feedback.comment.trim() || null,
+        // StackExchange-style yes/no for "Is this a good problem?"
+        is_good_problem: vote === "yes",
+        vote,
         picked_letter: pickedLetter,
         correct,
         stage: "reveal",
@@ -207,6 +203,7 @@ function App() {
         profile_hash: question.profileHash ?? "legacy/unknown"
       }
     });
+    nextQuestion();
   }
   function pickChoice(letter: string) {
     if (!question || answered || results.current[question.id] !== undefined) {
@@ -265,8 +262,8 @@ function App() {
     return (
       <HomeScreen
         ready={Boolean(bake)}
-        onBegin={() => beginQuiz(0)}
-        onMenu={() => setScreen("menu")}
+        onBegin={beginQuiz}
+        onMenu={openMenu}
         onContact={() => setScreen("contact")}
       />
     );
@@ -288,10 +285,10 @@ function App() {
     return (
       <QuestionMenu
         summaries={summaries}
-        questions={bake.byId}
         results={results.current}
-        onBack={goHome}
-        onPick={(itemIndex) => beginQuiz(itemIndex)}
+        onBrandHome={goHome}
+        onBack={backFromMenu}
+        onPick={openQuestion}
       />
     );
   }
@@ -333,14 +330,8 @@ function App() {
           >
             {bake.ordered && index >= summaries.length - 1 ? "End" : "Next"}
           </button>
-          <button type="button" onClick={randomQuestion}>
-            Random
-          </button>
-          <button type="button" onClick={() => setScreen("menu")}>
+          <button type="button" onClick={openMenu}>
             Questions
-          </button>
-          <button type="button" onClick={exportSession}>
-            Export
           </button>
         </div>
       </header>
@@ -348,21 +339,10 @@ function App() {
       <h1 className="question-title">
         <span>{humanFamily(question.family)}</span>
         <span className="dot">·</span>
-        <span>{humanMetric(question.metric)}</span>
-        <span className="dot">·</span>
-        <span className="tag">{humanType(question.type)}</span>
-        <span className="dot">·</span>
-        <span className="tag">{question.track ?? "default"}</span>
-        <span className="dot">·</span>
-        <span>{question.detail.choices.length} choices</span>
+        <span>{humanType(question.type)}</span>
       </h1>
 
       <section className="stage-screen" key={`${question.id}-${stage}`}>
-        <div className="provenance" aria-label="Question provenance">
-          <span>Track: {question.track ?? "default"}</span>
-          <span>Profile: {question.profile ?? "legacy/unknown"}</span>
-          <span>Hash: {question.profileHash ?? "legacy/unknown"}</span>
-        </div>
         {stage === "observe" ? (
           <DatasetStage
             question={question}
@@ -382,9 +362,7 @@ function App() {
             question={question}
             selected={selected}
             feedback={feedback}
-            onFeedbackChange={updateFeedback}
-            onSubmitFeedback={submitAuditFeedback}
-            onNext={nextQuestion}
+            onVote={submitProblemVote}
             onInfo={(letter) => setInfo({ kind: "choice", letter })}
             onDatasetInfo={() => setInfo({ kind: "dataset" })}
           />
@@ -465,99 +443,53 @@ function SimpleScreen({
   );
 }
 
-function DifficultyBadge({ difficulty }: { difficulty: DifficultyLevel }) {
-  return (
-    <span className={`diff-badge diff-${difficulty}`}>
-      {difficulty.replace("_", " ")}
-    </span>
-  );
-}
-
 function QuestionMenu({
   summaries,
-  questions,
   results,
+  onBrandHome,
   onBack,
   onPick
 }: {
   summaries: BakeFile["questions"];
-  questions: BakeFile["byId"];
   results: Record<string, { correct: boolean; picked: string }>;
+  onBrandHome: () => void;
   onBack: () => void;
   onPick: (index: number) => void;
 }) {
-  const [lossFilter, setLossFilter] = useState<string>("all");
-  const filtered = useMemo(() => {
-    if (lossFilter === "all") {
-      return summaries.map((item, index) => ({ item, index }));
-    }
-    return summaries
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => lossIdsOf(questions[item.id]).has(lossFilter));
-  }, [summaries, questions, lossFilter]);
-
   return (
-    <SimpleScreen title="Question menu" onBack={onBack}>
-      <div className="difficulty-legend" aria-label="LLM difficulty levels">
-        {DIFFICULTY_LEVELS.map((level) => (
-          <DifficultyBadge key={level} difficulty={level} />
-        ))}
-      </div>
-      <div className="filter-row" role="group" aria-label="Filter by loss category">
-        <button
-          type="button"
-          className={lossFilter === "all" ? "chip active" : "chip"}
-          onClick={() => setLossFilter("all")}
-        >
-          All
+    <main className="shell">
+      <header className="topnav">
+        <button type="button" className="brand-btn" onClick={onBrandHome}>
+          ArchitectureIQ
         </button>
-        {LOSS_CATEGORIES.map((category) => (
-          <button
-            type="button"
-            key={category.id}
-            className={lossFilter === category.id ? "chip active" : "chip"}
-            onClick={() => setLossFilter(category.id)}
-          >
-            {category.label}
-          </button>
-        ))}
-      </div>
-      <p className="filter-count">
-        {filtered.length} of {summaries.length} questions
-      </p>
-      <ul className="question-list">
-        {filtered.map(({ item, index }) => {
-          const result = results[item.id];
-          const status = result
-            ? result.correct
-              ? "correct"
-              : "wrong"
-            : "unanswered";
-          const statusLabel = result
-            ? result.correct
-              ? "Correct"
-              : "Wrong"
-            : "Unanswered";
-          const difficulty = difficultyFromTrack(item.track);
-          return (
-            <li key={item.id}>
-              <button
-                type="button"
-                className="question-row"
-                onClick={() => onPick(index)}
-              >
-                <span className="qnum">{index + 1}</span>
-                <span className="question-row-copy">
-                  {humanFamily(item.family)} · {humanType(item.type)}
-                </span>
-                {difficulty ? <DifficultyBadge difficulty={difficulty} /> : null}
-                <span className={`q-status ${status}`}>{statusLabel}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </SimpleScreen>
+        <div />
+        <button type="button" onClick={onBack}>
+          Back
+        </button>
+      </header>
+      <section className="panel">
+        <h1 className="panel-title">Questions</h1>
+        <ul className="question-list">
+          {summaries.map((item, itemIndex) => {
+            const result = results[item.id];
+            const status = !result ? "unanswered" : result.correct ? "correct" : "wrong";
+            const statusLabel =
+              status === "unanswered" ? "Unanswered" : status === "correct" ? "Correct" : "Wrong";
+            return (
+              <li key={item.id}>
+                <button type="button" className="question-row" onClick={() => onPick(itemIndex)}>
+                  <span className="qnum">{itemIndex + 1}</span>
+                  <span className="question-row-copy">
+                    {humanFamily(item.family)} · {humanType(item.type)}
+                  </span>
+                  <span className={`q-status ${status}`}>{statusLabel}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </main>
   );
 }
 
@@ -617,6 +549,10 @@ function DatasetStage({
             <div>
               <dt>Family</dt>
               <dd>{humanFamily(question.family)}</dd>
+            </div>
+            <div>
+              <dt>Target metric</dt>
+              <dd>{humanMetric(question.metric)}</dd>
             </div>
             {params.expression != null ? (
               <div>
@@ -681,7 +617,7 @@ function DatasetStage({
           <DatasetVisual question={question} />
         </div>
       </div>
-      <div className="stage-footer">
+      <div className="stage-footer stage-footer-end">
         <button type="button" className="cta" onClick={onSeeChoices}>
           See choices →
         </button>
@@ -702,7 +638,7 @@ function ChoicesStage({
   return (
     <div className="stage-inner">
       <p className="stage-kicker">Choices</p>
-      <p className="hint">Tap a card to lock that answer. Emphasized rows differ across choices.</p>
+      <p className="hint">Choose the better model.</p>
       <div className="choice-grid">
         {question.detail.choices.map((choice) => (
           <ChoiceCard
@@ -723,20 +659,14 @@ function AnswerStage({
   question,
   selected,
   feedback,
-  onFeedbackChange,
-  onSubmitFeedback,
-  onNext,
+  onVote,
   onInfo,
   onDatasetInfo
 }: {
   question: BakedQuestion;
   selected: string | null;
   feedback: FeedbackDraft;
-  onFeedbackChange: (
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) => void;
-  onSubmitFeedback: () => void;
-  onNext: () => void;
+  onVote: (vote: ProblemVote) => void;
   onInfo: (letter: string) => void;
   onDatasetInfo: () => void;
 }) {
@@ -759,7 +689,34 @@ function AnswerStage({
             : `You picked ${selected}. Correct is ${correct}.`
           : `Correct choice: ${correct}.`}
       </p>
-      <div className="choice-grid">
+      <CurvesPlot question={question} />
+      <div className="stage-footer vote-footer">
+        <div className="vote-copy">
+          <p className="hint vote-prompt">Good problem?</p>
+          <p className="vote-continue">Rate the problem to continue.</p>
+        </div>
+        <div className="vote-options" role="group" aria-label="Is this a good problem?">
+          <button
+            type="button"
+            className={`vote-btn vote-yes${feedback.vote === "yes" ? " selected" : ""}`}
+            aria-pressed={feedback.vote === "yes"}
+            disabled={feedback.submitted}
+            onClick={() => onVote("yes")}
+          >
+            Good
+          </button>
+          <button
+            type="button"
+            className={`vote-btn vote-no${feedback.vote === "no" ? " selected" : ""}`}
+            aria-pressed={feedback.vote === "no"}
+            disabled={feedback.submitted}
+            onClick={() => onVote("no")}
+          >
+            Bad
+          </button>
+        </div>
+      </div>
+      <div className="choice-grid reveal-choices">
         {question.detail.choices.map((choice) => {
           const row = byLetter[choice.letter];
           return (
@@ -778,92 +735,7 @@ function AnswerStage({
           );
         })}
       </div>
-      <CurvesPlot question={question} />
-      <AuditFeedbackPanel feedback={feedback} onChange={onFeedbackChange} onSubmit={onSubmitFeedback} />
-      <div className="stage-footer">
-        <p className="hint">Continue when you are ready.</p>
-        <button type="button" className="cta" onClick={onNext}>
-          Next question →
-        </button>
-      </div>
     </div>
-  );
-}
-
-function AuditFeedbackPanel({
-  feedback,
-  onChange,
-  onSubmit
-}: {
-  feedback: FeedbackDraft;
-  onChange: (
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <section className="audit-feedback panel" aria-label="Question audit feedback">
-      <div className="panel-head">
-        <div>
-          <p className="stage-kicker">Audit feedback</p>
-          <p className="hint">How confident are you, and should this question stay in the collection?</p>
-        </div>
-        {feedback.submitted ? <span className="feedback-saved">Saved</span> : null}
-      </div>
-      <div className="feedback-group">
-        <span className="feedback-label">Confidence</span>
-        <div className="feedback-options" role="group" aria-label="Confidence from 1 to 5">
-          {([1, 2, 3, 4, 5] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={feedback.confidence === value ? "selected" : ""}
-              aria-pressed={feedback.confidence === value}
-              disabled={feedback.submitted}
-              onClick={() => onChange({ confidence: value })}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="feedback-group">
-        <span className="feedback-label">Quality decision</span>
-        <div className="feedback-options disposition-options" role="group" aria-label="Question quality">
-          {(["keep", "revise", "reject"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={`${value}${feedback.decision === value ? " selected" : ""}`}
-              aria-pressed={feedback.decision === value}
-              disabled={feedback.submitted}
-              onClick={() => onChange({ decision: value })}
-            >
-              {value[0].toUpperCase() + value.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <label className="feedback-comment">
-        <span className="feedback-label">Comment</span>
-        <textarea
-          value={feedback.comment}
-          disabled={feedback.submitted}
-          maxLength={2000}
-          rows={3}
-          placeholder="What should be clarified or changed?"
-          onChange={(event) => onChange({ comment: event.target.value })}
-        />
-      </label>
-      <button
-        type="button"
-        className="feedback-save"
-        disabled={feedback.submitted || feedback.confidence === null || feedback.decision === null}
-        onClick={onSubmit}
-      >
-        Save feedback
-      </button>
-    </section>
   );
 }
 
@@ -1394,36 +1266,260 @@ function Heatmap({
   );
 }
 
+type CurveSpan = [number, number];
+
+type BrushDrag =
+  | { mode: "left" | "right"; pointerId: number }
+  | { mode: "move"; pointerId: number; grab: number; width: number };
+
+const MIN_CURVE_SPAN = 0.02;
+
+function clampCurveSpan(start: number, end: number): CurveSpan {
+  let a = Math.min(start, end);
+  let b = Math.max(start, end);
+  a = Math.max(0, Math.min(1, a));
+  b = Math.max(0, Math.min(1, b));
+  if (b - a < MIN_CURVE_SPAN) {
+    if (a <= 0) {
+      return [0, MIN_CURVE_SPAN];
+    }
+    if (b >= 1) {
+      return [1 - MIN_CURVE_SPAN, 1];
+    }
+    const mid = (a + b) / 2;
+    return [mid - MIN_CURVE_SPAN / 2, mid + MIN_CURVE_SPAN / 2];
+  }
+  return [a, b];
+}
+
+function seriesPoints(series: BakedQuestion["reveal"]["curves"][number]) {
+  return series.samples
+    .map((sample, i) => {
+      const mean = series.mean[i];
+      const rawStd = series.std?.[i];
+      if (!Number.isFinite(mean)) {
+        return null;
+      }
+      const std = Number.isFinite(rawStd) ? Math.abs(rawStd as number) : 0;
+      return {
+        sample,
+        value: mean as number,
+        lo: (mean as number) - std,
+        hi: (mean as number) + std,
+        std
+      };
+    })
+    .filter(
+      (point): point is { sample: number; value: number; lo: number; hi: number; std: number } =>
+        point != null
+    );
+}
+
+function seriesHasVariance(series: BakedQuestion["reveal"]["curves"][number]) {
+  return (series.std ?? []).some((value) => Number.isFinite(value) && Math.abs(value) > 0);
+}
+
+function pathFromPoints(
+  points: Array<{ sample: number; value: number }>,
+  mapX: (x: number) => number,
+  mapY: (y: number) => number
+) {
+  if (!points.length) {
+    return "";
+  }
+  return points
+    .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.value)}`)
+    .join(" ");
+}
+
+function bandPathFromPoints(
+  points: Array<{ sample: number; lo: number; hi: number; std: number }>,
+  mapX: (x: number) => number,
+  mapY: (y: number) => number
+) {
+  if (points.length < 2 || !points.some((point) => point.std > 0)) {
+    return "";
+  }
+  const upper = points
+    .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.hi)}`)
+    .join(" ");
+  const lower = [...points]
+    .reverse()
+    .map((point) => `L ${mapX(point.sample)} ${mapY(point.lo)}`)
+    .join(" ");
+  return `${upper} ${lower} Z`;
+}
+
+function hexToRgba(color: string, alpha: number) {
+  const raw = color.trim();
+  const short = /^#([0-9a-fA-F]{3})$/.exec(raw);
+  const long = /^#([0-9a-fA-F]{6})$/.exec(raw);
+  let r = 200;
+  let g = 200;
+  let b = 200;
+  if (long) {
+    r = Number.parseInt(long[1].slice(0, 2), 16);
+    g = Number.parseInt(long[1].slice(2, 4), 16);
+    b = Number.parseInt(long[1].slice(4, 6), 16);
+  } else if (short) {
+    r = Number.parseInt(short[1][0] + short[1][0], 16);
+    g = Number.parseInt(short[1][1] + short[1][1], 16);
+    b = Number.parseInt(short[1][2] + short[1][2], 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function CurvesPlot({ question }: { question: BakedQuestion }) {
   const curves = question.reveal.curves;
+  const [span, setSpan] = useState<CurveSpan>([0, 1]);
+  const dragRef = useRef<BrushDrag | null>(null);
+  const spanRef = useRef(span);
+  spanRef.current = span;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    setSpan([0, 1]);
+    dragRef.current = null;
+  }, [question.id]);
+
   const width = 920;
-  const height = 380;
-  const plot = { x: 72, y: 40, width: 780, height: 280 };
+  const height = 460;
+  const plot = { x: 72, y: 40, width: 780, height: 260 };
+  const brush = { x: 72, y: 360, width: 780, height: 44 };
+  const clipId = `curve-clip-${question.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+
   const allY = curves.flatMap((series) =>
-    series.mean.filter((value): value is number => Number.isFinite(value))
+    seriesPoints(series).flatMap((point) =>
+      point.std > 0 ? [point.lo, point.hi, point.value] : [point.value]
+    )
   );
   const allX = curves.flatMap((series) => series.samples);
   if (!curves.length || !allY.length || !allX.length) {
     return <p className="hint">Learning curves unavailable for this question.</p>;
   }
+
   const xMin = Math.min(...allX);
   const xMax = Math.max(...allX);
-  const yMin = Math.min(...allY);
-  const yMax = Math.max(...allY);
+  const xSpan = xMax - xMin || 1;
+  const viewX0 = xMin + span[0] * xSpan;
+  const viewX1 = xMin + span[1] * xSpan;
+
+  const visibleY = curves.flatMap((series) =>
+    seriesPoints(series)
+      .filter((point) => point.sample >= viewX0 && point.sample <= viewX1)
+      .flatMap((point) => (point.std > 0 ? [point.lo, point.hi, point.value] : [point.value]))
+  );
+  const ySource = visibleY.length ? visibleY : allY;
+  const yMin = Math.min(...ySource);
+  const yMax = Math.max(...ySource);
   const yPad = Math.max((yMax - yMin) * 0.12, 1e-6);
   const yLo = yMin - yPad;
   const yHi = yMax + yPad;
-  const xTicks = makeTicks(xMin, xMax, 6);
+
+  const fullYMin = Math.min(...allY);
+  const fullYMax = Math.max(...allY);
+  const fullYPad = Math.max((fullYMax - fullYMin) * 0.08, 1e-6);
+  const brushYLo = fullYMin - fullYPad;
+  const brushYHi = fullYMax + fullYPad;
+
+  const xTicks = makeTicks(viewX0, viewX1, 6);
   const yTicks = makeTicks(yLo, yHi, 5);
   const colorFor = (letter: string) =>
     question.detail.choices.find((choice) => choice.letter === letter)?.color ?? "#ccc";
-  const mapX = (x: number) => plot.x + ((x - xMin) / (xMax - xMin || 1)) * plot.width;
+
+  const mapX = (x: number) => plot.x + ((x - viewX0) / (viewX1 - viewX0 || 1)) * plot.width;
   const mapY = (y: number) => plot.y + plot.height - ((y - yLo) / (yHi - yLo || 1)) * plot.height;
+  const mapBrushX = (frac: number) => brush.x + frac * brush.width;
+  const mapBrushSample = (x: number) => brush.x + ((x - xMin) / xSpan) * brush.width;
+  const mapBrushY = (y: number) =>
+    brush.y + brush.height - ((y - brushYLo) / (brushYHi - brushYLo || 1)) * brush.height;
   const metric = humanMetric(question.metric);
+  const zoomed = span[0] > 0.001 || span[1] < 0.999;
+  const showVariance = curves.some(seriesHasVariance);
+  const selX = mapBrushX(span[0]);
+  const selW = Math.max(mapBrushX(span[1]) - selX, 1);
+
+  function fracFromClientX(clientX: number) {
+    const svg = svgRef.current;
+    if (!svg) {
+      return 0;
+    }
+    const rect = svg.getBoundingClientRect();
+    const x = ((clientX - rect.left) / (rect.width || 1)) * width;
+    return Math.max(0, Math.min(1, (x - brush.x) / (brush.width || 1)));
+  }
+
+  function onBrushPointerDown(
+    event: React.PointerEvent<SVGElement>,
+    mode: "left" | "right" | "move"
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    const current = spanRef.current;
+    dragRef.current =
+      mode === "move"
+        ? {
+            mode: "move",
+            pointerId: event.pointerId,
+            grab: fracFromClientX(event.clientX) - current[0],
+            width: current[1] - current[0]
+          }
+        : { mode, pointerId: event.pointerId };
+  }
+
+  function onBrushPointerMove(event: React.PointerEvent<SVGElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const frac = fracFromClientX(event.clientX);
+    const current = spanRef.current;
+    if (drag.mode === "left") {
+      setSpan(clampCurveSpan(Math.min(frac, current[1] - MIN_CURVE_SPAN), current[1]));
+      return;
+    }
+    if (drag.mode === "right") {
+      setSpan(clampCurveSpan(current[0], Math.max(frac, current[0] + MIN_CURVE_SPAN)));
+      return;
+    }
+    if (drag.mode === "move") {
+      const nextStart = Math.max(0, Math.min(1 - drag.width, frac - drag.grab));
+      setSpan(clampCurveSpan(nextStart, nextStart + drag.width));
+    }
+  }
+
+  function onBrushPointerUp(event: React.PointerEvent<SVGElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  }
 
   return (
-    <div className="viz">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Ground-truth learning curves">
+    <div className="viz curves-viz">
+      <div className="curves-toolbar">
+        <span className="hint">
+          {showVariance
+            ? "Bands show multi-seed mean ± std. Drag the window below to focus a sample range."
+            : "Drag the window below to focus a sample range (y-scale follows)."}
+        </span>
+        {zoomed ? (
+          <button type="button" className="curves-reset" onClick={() => setSpan([0, 1])}>
+            Reset range
+          </button>
+        ) : null}
+      </div>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Ground-truth learning curves"
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} />
+          </clipPath>
+        </defs>
         <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="#1a1d24" />
         {xTicks.map((tick) => {
           const x = mapX(tick);
@@ -1447,7 +1543,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
             </g>
           );
         })}
-        <text x={plot.x + plot.width / 2} y={height - 8} textAnchor="middle" fill="#8b919f" fontSize="12">
+        <text x={plot.x + plot.width / 2} y={plot.y + plot.height + 40} textAnchor="middle" fill="#8b919f" fontSize="12">
           samples seen
         </text>
         <text
@@ -1459,26 +1555,43 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
         >
           {metric}
         </text>
-        {curves.map((series) => {
-          const coords = series.samples
-            .map((sample, i) => ({ sample, value: series.mean[i] }))
-            .filter((point) => Number.isFinite(point.value));
-          if (!coords.length) {
-            return null;
-          }
-          const path = coords
-            .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.value)}`)
-            .join(" ");
-          return (
-            <path
-              key={series.letter}
-              d={path}
-              fill="none"
-              stroke={colorFor(series.letter)}
-              strokeWidth="2.75"
-            />
-          );
-        })}
+        <g clipPath={`url(#${clipId})`}>
+          {curves.map((series) => {
+            const coords = seriesPoints(series).filter(
+              (point) => point.sample >= viewX0 && point.sample <= viewX1
+            );
+            const band = bandPathFromPoints(coords, mapX, mapY);
+            if (!band) {
+              return null;
+            }
+            return (
+              <path
+                key={`band-${series.letter}`}
+                d={band}
+                fill={hexToRgba(colorFor(series.letter), 0.22)}
+                stroke="none"
+              />
+            );
+          })}
+          {curves.map((series) => {
+            const coords = seriesPoints(series).filter(
+              (point) => point.sample >= viewX0 && point.sample <= viewX1
+            );
+            const path = pathFromPoints(coords, mapX, mapY);
+            if (!path) {
+              return null;
+            }
+            return (
+              <path
+                key={series.letter}
+                d={path}
+                fill="none"
+                stroke={colorFor(series.letter)}
+                strokeWidth="2.75"
+              />
+            );
+          })}
+        </g>
         {question.detail.choices.map((choice, i) => (
           <g key={choice.letter} transform={`translate(${80 + i * 72} 24)`}>
             <circle cx="0" cy="0" r="5" fill={choice.color} />
@@ -1487,6 +1600,95 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
             </text>
           </g>
         ))}
+
+        <rect
+          x={brush.x}
+          y={brush.y}
+          width={brush.width}
+          height={brush.height}
+          fill="#1a1d24"
+          rx="6"
+        />
+        {curves.map((series) => {
+          const points = seriesPoints(series);
+          const band = bandPathFromPoints(points, mapBrushSample, mapBrushY);
+          const path = pathFromPoints(points, mapBrushSample, mapBrushY);
+          return (
+            <g key={`brush-${series.letter}`}>
+              {band ? (
+                <path d={band} fill={hexToRgba(colorFor(series.letter), 0.16)} stroke="none" />
+              ) : null}
+              {path ? (
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={colorFor(series.letter)}
+                  strokeWidth="1.25"
+                  opacity="0.75"
+                />
+              ) : null}
+            </g>
+          );
+        })}
+        <rect
+          x={brush.x}
+          y={brush.y}
+          width={Math.max(selX - brush.x, 0)}
+          height={brush.height}
+          fill="rgba(0,0,0,0.45)"
+          pointerEvents="none"
+        />
+        <rect
+          x={selX + selW}
+          y={brush.y}
+          width={Math.max(brush.x + brush.width - (selX + selW), 0)}
+          height={brush.height}
+          fill="rgba(0,0,0,0.45)"
+          pointerEvents="none"
+        />
+        <rect
+          className="curve-brush-window"
+          x={selX}
+          y={brush.y}
+          width={selW}
+          height={brush.height}
+          fill="rgba(91, 140, 255, 0.12)"
+          stroke="rgba(91, 140, 255, 0.65)"
+          strokeWidth="1.5"
+          onPointerDown={(event) => onBrushPointerDown(event, "move")}
+          onPointerMove={onBrushPointerMove}
+          onPointerUp={onBrushPointerUp}
+          onPointerCancel={onBrushPointerUp}
+        />
+        <rect
+          className="curve-brush-handle"
+          x={selX - 5}
+          y={brush.y}
+          width="10"
+          height={brush.height}
+          fill="rgba(91, 140, 255, 0.85)"
+          rx="3"
+          onPointerDown={(event) => onBrushPointerDown(event, "left")}
+          onPointerMove={onBrushPointerMove}
+          onPointerUp={onBrushPointerUp}
+          onPointerCancel={onBrushPointerUp}
+        />
+        <rect
+          className="curve-brush-handle"
+          x={selX + selW - 5}
+          y={brush.y}
+          width="10"
+          height={brush.height}
+          fill="rgba(91, 140, 255, 0.85)"
+          rx="3"
+          onPointerDown={(event) => onBrushPointerDown(event, "right")}
+          onPointerMove={onBrushPointerMove}
+          onPointerUp={onBrushPointerUp}
+          onPointerCancel={onBrushPointerUp}
+        />
+        <text x={brush.x} y={brush.y - 8} fill="#8b919f" fontSize="11">
+          Range: {formatTick(viewX0)} – {formatTick(viewX1)} samples
+        </text>
       </svg>
     </div>
   );
@@ -1525,41 +1727,6 @@ function formatFieldValue(label: string, value: string): string {
     return Number.isInteger(numeric) ? numeric.toLocaleString() : formatNumber(numeric);
   }
   return formatNumber(numeric);
-}
-
-const DIFFICULTY_LEVELS = ["very_hard", "hard", "medium", "easy"] as const;
-type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
-
-const LOSS_CATEGORIES: Array<{ id: string; label: string }> = [
-  { id: "mse", label: "MSE" },
-  { id: "mse_l1", label: "MSE + L1" },
-  { id: "mse_l2", label: "MSE + L2" },
-  { id: "cross_entropy", label: "Cross-entropy" },
-  { id: "cross_entropy_l1", label: "CE + L1" },
-  { id: "cross_entropy_l2", label: "CE + L2" }
-];
-
-function difficultyFromTrack(track?: string): DifficultyLevel | null {
-  if (!track) return null;
-  const trimmed = track.trim();
-  if (!trimmed) return null;
-  for (const level of DIFFICULTY_LEVELS) {
-    if (trimmed === level || trimmed.endsWith(`_${level}`)) return level;
-  }
-  return null;
-}
-
-function lossIdsOf(question: BakedQuestion | undefined): Set<string> {
-  const ids = new Set<string>();
-  if (!question) return ids;
-  for (const choice of question.detail?.choices ?? []) {
-    const spec = choice.files?.["candidate_spec.json"] as
-      | { loss?: { loss_id?: string } }
-      | undefined;
-    const id = spec?.loss?.loss_id;
-    if (id) ids.add(id);
-  }
-  return ids;
 }
 
 function humanFamily(family?: string) {
