@@ -117,138 +117,20 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
-## Publish new quiz questions
-
-Generating a question under `data/` does not put it on the deployed quiz. A
-maintainer must publish the question's complete canonical artifact graph into
-the version-controlled bundle at `examples/quiz_demo/bundle/`.
-
-First inspect the generated question or run locally. Then validate the proposed
-bundle update without writing it. Source paths are relative to the default
-`--data-root data`, so they start with `datasets/`, not `data/datasets/`:
-
-```bash
-.venv/bin/python tools/start_quiz.py --question-run \
-  data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_3c_XXXXXX
-
-.venv/bin/python tools/publish_quiz_bundle.py --dry-run \
-  datasets/univariate_regression/sym_XXXXXX/questions/run_5q_3c_XXXXXX
-```
-
-Publish after reviewing the projected manifest:
-
-```bash
-.venv/bin/python tools/publish_quiz_bundle.py \
-  datasets/univariate_regression/sym_XXXXXX/questions/run_5q_3c_XXXXXX
-
-.venv/bin/python tools/export_feedback_registry.py \
-  --bundle examples/quiz_demo/bundle \
-  --json-output supabase/registries/release_<64hex>.json \
-  --sql-output supabase/migrations/<timestamp>_feedback_question_registry_release_<prefix>.sql
-
-.venv/bin/pytest -q tests/test_quiz_bundle_publish.py tests/test_feedback_registry.py
-git diff --stat -- examples/quiz_demo/bundle
-```
-
-Passing a question directory such as `.../run_.../q_XXXXXX` publishes only
-that question and records a partial source run in the manifest. Passing a run
-publishes every question declared by its `run.json`. Use `--target` for a
-non-default bundle and `--data-root` when sources live outside `data/`.
-
-The publisher copies canonical files byte-for-byte; it does not regenerate GT,
-upload to Streamlit, register answers in Postgres, or trigger deployment. The
-registry exporter must read the complete attested bundle, writes outside that
-bundle, and emits a reviewable JSON plus insert-only data migration. It rejects
-any mismatch between runtime artifact attestation and publisher GT validation.
-For the first feedback-report rollout, the repository-local migration contract
-is `14000` registry schema → `14500` reviewed current-release data → `15000`
-authoritative aggregate reports → `16000` authoritative answer/proposal
-details → `17000` atomic six-view business snapshot → `18000` forward-only
-session/attempt identity filters → `19000` strict question presentations and
-post-result surprise reactions → `20000` authoritative surprise reports.
-Later quiz releases add a new reviewed data
-migration without replaying those schema/report migrations.
-This sequence has not been applied or accepted on a real hosted project yet.
-The publisher rejects missing or unsafe
-references, excluded or partially failed choices, non-standard JSON numbers,
-duplicate JSON object keys, stale MSE wording on non-MSE prompts, duplicate
-question IDs, and conflicting
-artifact content. It copies only canonical files, so runtime caches and local
-`custom_settings` cannot become release artifacts. Published bundles are
-append-only, so changing a released question requires generating and publishing
-a new question ID. For a whole release replacement, assemble all intended runs
-in a fresh target rather than appending the replacement run to the old bundle.
-Commit the updated bundle and `quiz_manifest.json`, then push the branch actually
-connected to Streamlit Cloud.
-
-### Manifest and release identity
-
-`quiz_manifest.json` indexes the current bundle: source runs, question IDs and
-stable question versions, family/dataset paths, aggregate counts, and every
-artifact's path, size, and SHA-256. `release_id` is a SHA-256 content identity
-for that complete snapshot, not a directory, Git tag, or deployment. Any
-question/reference/artifact change creates a new release ID; Git history retains
-older releases. Optional `generated_at` metadata does not affect the release ID.
-
-Question versions use the same canonical hash as feedback events, so collected
-answers remain tied to the exact released question. See
-[tools/quiz_bundle/README.md](./tools/quiz_bundle/README.md) for publisher
-behavior and [docs/product-development.md](./docs/product-development.md) for
-the release policy and deployment checklist.
-
-### Deployment audit ledger
-
-`tools/deployment_ledger.py` records a deployment only after its provider ID,
-database acceptance, hosted feedback roundtrip, and source mapping evidence
-exist. It is a retrospective, append-only audit chain: `ledger.jsonl` and its
-post-deploy evidence are deliberately excluded from the deployment input
-fingerprint, so writing the deploy ID does not create a self-referential new
-source commit. A missing ledger means no deployment has been recorded; the tool
-does not create a placeholder.
-
-```bash
-PYTHONPATH=. .venv/bin/python tools/deployment_ledger.py verify \
-  --repo . --ledger deployments/ledger.jsonl
-PYTHONPATH=. .venv/bin/python tools/deployment_ledger.py list \
-  --repo . --ledger deployments/ledger.jsonl
-```
-
-Appending requires an explicit `--confirm-append`, complete hash-bound evidence,
-and the reviewed state transition. The resulting `ACTIVATED_REVIEWED` status is
-an operator-reviewed audit result, not cryptographic proof issued by Streamlit
-or Supabase. Preserve the last record hash in Git history or another audit
-system because a local hash chain alone cannot detect truncation of its suffix.
-No real staging or provider evidence has been recorded for the current working
-tree. See [deployments/README.md](./deployments/README.md) for the event schemas
-and operational sequence.
-
-## Dataset families (V1)
+## Dataset families (default profile `v1`)
 
 | Family | Task | Models | Losses | Metric |
 |--------|------|--------|--------|--------|
-| `univariate_regression` | R → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
-| `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
-| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+| `univariate_regression` | R → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
+| `multivariate_regression` | R^n → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm`, `gru_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+| `synthetic_tabular_classification` | Synthetic tabular binary classification (`xor`, `spiral`, and other rule families) | `mlp`, `kan` | cross-entropy | `test_ce` |
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
 
-Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
+Each family declares compatible model types; candidate sampling only draws from the intersection with `pools.model_types`. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
 
-V1 is frozen and keeps the original MLP-only regression benchmark. New task/model-pool changes use a named profile instead of silently changing V1.
-
-## Experimental V2 profile: KAN regression
-
-V2 adds the synthetic tabular classification family and a self-contained spline KAN model. KAN is currently enabled for `univariate_regression` and `multivariate_regression`; its first implementation is pure PyTorch with a fixed grid and no train/test-data grid adaptation.
-
-The V2 KAN parameter pool is not yet frozen while phase-3 calibration continues.
-
-Use V2 explicitly when generating KAN candidates:
-
-```bash
-architecture-iq --profile v2 create-dataset --family univariate_regression --seed 42
-architecture-iq --profile v2 generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
-  --budget 1024 --count 32 --vary model
-```
+Default `v1` equally enables every registered dataset family and each family's compatible models. Older `v2*` pilot profiles remain for historical experiments; new question generation should use `v1` (or an explicit `--profile`).
 
 ## CLI reference
 

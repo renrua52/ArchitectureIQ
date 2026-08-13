@@ -177,4 +177,4 @@ class BigramLmFamily(DatasetFamily):
         return {}
 
     def compatible_model_types(self) -> list[str]:
-        return ["transformer_lm"]
+        return ["transformer_lm", "gru_lm"]

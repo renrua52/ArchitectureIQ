@@ -782,6 +782,38 @@ def prompt_multivariate_input_dim(
     )
 
 
+def prompt_classification_options(
+    profile: Profile,
+    *,
+    input_fn: InputFn = _default_input,
+    write: WriteFn = _default_write,
+) -> dict[str, Any]:
+    """Optional input_dim / rule_family for synthetic_tabular_classification."""
+    cfg = profile.family_config("synthetic_tabular_classification")
+    options: dict[str, Any] = {}
+    write("Input dimension for tabular classification:")
+    picked_dim = prompt_grid_value(
+        "input_dim",
+        [int(value) for value in cfg["input_dims"]],
+        input_fn=input_fn,
+        write=write,
+        allow_random=True,
+    )
+    if picked_dim is not None:
+        options["input_dim"] = picked_dim
+    write("Decision rule family:")
+    picked_rule = prompt_grid_value(
+        "rule_family",
+        [str(value) for value in cfg["rule_families"]],
+        input_fn=input_fn,
+        write=write,
+        allow_random=True,
+    )
+    if picked_rule is not None:
+        options["rule_family"] = picked_rule
+    return options
+
+
 def _prompt_and_create_dataset(
     profile: Profile,
     family: str,
@@ -808,6 +840,10 @@ def _prompt_and_create_dataset(
         )
         if picked is not None:
             family_options["input_dim"] = picked
+    elif family == "synthetic_tabular_classification":
+        family_options.update(
+            prompt_classification_options(profile, input_fn=input_fn, write=write)
+        )
 
     spec, path = create_dataset(
         profile,

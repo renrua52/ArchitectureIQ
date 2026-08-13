@@ -92,19 +92,25 @@ def test_causality() -> None:
     torch.testing.assert_close(original_logits[:, :3], changed_logits[:, :3])
 
 
-def test_old_profiles_and_default_compatibility_are_unchanged() -> None:
+def test_default_profile_includes_gru_for_bigram() -> None:
     ensure_registries()
     family = get_dataset_family("bigram_lm")
-    assert family.compatible_model_types() == ["transformer_lm"]
-    for name in ("v1", "v2", "v2.1", "v2.2"):
+    assert family.compatible_model_types() == ["transformer_lm", "gru_lm"]
+    # Legacy v2-series profiles keep transformer-only bigram pools unless gated.
+    for name in ("v2", "v2.1", "v2.2"):
         assert "gru_lm" not in load_profile(name).pools["model_types"]
+    v1 = load_profile("v1")
+    assert set(v1.model_types_for_family("bigram_lm", family.compatible_model_types())) == {
+        "transformer_lm",
+        "gru_lm",
+    }
     pilot = load_profile("v2.3-gru-pilot")
     assert set(pilot.model_types_for_family("bigram_lm", family.compatible_model_types())) == {
         "transformer_lm",
         "gru_lm",
     }
     sampled = sample_model(
-        pilot,
+        v1,
         random.Random(2),
         family="bigram_lm",
         dataset_params={"vocab_size": 7, "context_length": 4},

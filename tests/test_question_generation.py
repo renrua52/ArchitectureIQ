@@ -305,7 +305,9 @@ def test_build_question_record_persists_profile_hash(tmp_path: Path, monkeypatch
     monkeypatch.setattr(
         question_generator,
         "validate_significance",
-        lambda summaries, profile, metric: SignificanceResult(True, 0.2, 1.0, metric, 0),
+        lambda summaries, profile, metric, **kwargs: SignificanceResult(
+            True, 0.2, 1.0, metric, 0
+        ),
     )
 
     record = build_question_record(
