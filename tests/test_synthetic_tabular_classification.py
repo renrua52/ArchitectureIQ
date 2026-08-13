@@ -35,9 +35,9 @@ def _materialize(profile, tmp_path: Path, *, seed: int, rule_family: str):
 
 
 def test_rule_family_schedule_is_balanced() -> None:
-    schedule = balanced_rule_family_schedule(12, seed=7)
+    schedule = balanced_rule_family_schedule(len(RULE_FAMILIES) * 3, seed=7)
     assert set(schedule) == set(RULE_FAMILIES)
-    assert Counter(schedule) == {name: 4 for name in RULE_FAMILIES}
+    assert Counter(schedule) == {name: 3 for name in RULE_FAMILIES}
     counts = Counter(balanced_rule_family_schedule(14, seed=7)).values()
     assert max(counts) - min(counts) <= 1
 

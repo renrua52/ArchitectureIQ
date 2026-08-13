@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
-PROFILES_DIR = ROOT / "profiles"
+PROFILES_DIR = Path(__file__).resolve().parent / "profiles"
 PROMPTS_DIR = ROOT / "prompts" / "templates"
 
 
