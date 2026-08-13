@@ -298,17 +298,27 @@ def train_and_eval(
     if run_device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
     model = Model().to(run_device)
-    optimizer = build_optimizer(model)
     train_x = train_x.to(run_device)
     train_y = train_y.to(run_device)
     test_x = test_x.to(run_device)
     test_y = test_y.to(run_device)
+    # Data-aware grid init for KAN models (no-op for MLPs/transformers)
+    _update_grid = getattr(model, "update_grid", None)
+    if _update_grid is not None:
+        _update_grid(train_x)
+    optimizer = build_optimizer(model)
     n = train_x.shape[0]
     step_metrics: list[float] = []
     eval_samples: list[int] = []
     failed = False
     progress_interval = max(1, steps // 100)
     final_accuracy = float("nan")
+    # Warm-up grid updates: re-adapt grid at these steps, then freeze.
+    # Uses a calibration subset for stable quantile estimates.
+    _warmup_steps = set()
+    if _update_grid is not None:
+        _calib_size = min(n, 512)
+        _warmup_steps = {s for s in [1, 32, 64, 128] if s < steps}
 
     for step in range(1, steps + 1):
         model.train()
@@ -321,6 +331,10 @@ def train_and_eval(
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
+
+        # Warm-up: periodically re-adapt KAN grids to current activations
+        if _warmup_steps and step in _warmup_steps:
+            _update_grid(train_x[:_calib_size])
 
         ce, accuracy = _test_metrics(model, test_x, test_y)
         if not math.isfinite(ce) or not math.isfinite(accuracy):
@@ -357,12 +371,23 @@ def train_and_eval(
 '''
 
 
-def _train_py_for_family(family: str) -> str:
+def _train_py_for_family(family: str, spec: dict[str, Any] | None = None) -> str:
     if family == "bigram_lm":
         return LM_TRAIN_PY
 
     if family == "synthetic_tabular_classification":
-        return CLASSIFICATION_TRAIN_PY
+        code = CLASSIFICATION_TRAIN_PY
+        # Inject grid_policy update_steps from spec if present
+        if spec is not None:
+            grid_policy = spec.get("model", {}).get("grid_policy")
+            if isinstance(grid_policy, dict) and "update_steps" in grid_policy:
+                steps_list = grid_policy["update_steps"]
+                steps_literal = ", ".join(str(s) for s in steps_list)
+                code = code.replace(
+                    "[1, 32, 64, 128]",
+                    f"[{steps_literal}]",
+                )
+        return code
     return REGRESSION_TRAIN_PY
 
 def _spec_json(spec: dict[str, Any], key: str) -> str:
@@ -527,7 +552,7 @@ def write_candidate(
     (out_dir / "optimizer.py").write_text(
         render_optimizer_py(spec["optimizer"]), encoding="utf-8"
     )
-    (out_dir / "train.py").write_text(_train_py_for_family(spec["family"]), encoding="utf-8")
+    (out_dir / "train.py").write_text(_train_py_for_family(spec["family"], spec), encoding="utf-8")
     return out_dir
 
 

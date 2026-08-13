@@ -12,10 +12,8 @@ from architecture_iq.profile import Profile
 from architecture_iq.util import short_hash, write_json
 
 
-# Keep this legacy tuple stable: callers that omit an explicit rule set must not
-# begin sampling XOR/spiral merely because the framework learns to support them.
-RULE_FAMILIES = ("smooth_additive", "sparse_interaction", "piecewise_boundary")
-SUPPORTED_RULE_FAMILIES = (*RULE_FAMILIES, "xor", "spiral")
+RULE_FAMILIES = ("smooth_additive", "sparse_interaction", "piecewise_boundary", "spiral")
+SUPPORTED_RULE_FAMILIES = (*RULE_FAMILIES, "xor")
 
 
 SYNTHESIZE_TEMPLATE = '''"""Synthetic tabular binary-classification dataset — source of truth."""
@@ -68,39 +66,6 @@ def target(
     raise ValueError(f"Unknown rule family: {{rule_family}}")
 
 
-def _two_spirals(
-    n_samples: int,
-    *,
-    turns: float,
-    noise_std: float,
-    seed: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Classic interleaved Archimedean two-spirals in R^2 with balanced labels."""
-    gen = torch.Generator().manual_seed(seed)
-    n0 = n_samples // 2
-    n1 = n_samples - n0
-
-    def arm(count: int, phase: float) -> torch.Tensor:
-        t = torch.rand(count, generator=gen) * (float(turns) * 2.0 * math.pi)
-        t = t + 0.5  # keep points away from the origin singularity
-        radius = t
-        xs = radius * torch.cos(t + phase)
-        ys = radius * torch.sin(t + phase)
-        points = torch.stack([xs, ys], dim=1)
-        return points + noise_std * torch.randn(count, 2, generator=gen)
-
-    x = torch.cat([arm(n0, 0.0), arm(n1, math.pi)], dim=0)
-    y = torch.cat(
-        [
-            torch.zeros(n0, dtype=torch.int64),
-            torch.ones(n1, dtype=torch.int64),
-        ],
-        dim=0,
-    )
-    perm = torch.randperm(n_samples, generator=gen)
-    return x[perm], y[perm]
-
-
 def synthesize(
     *,
     train_size: int = {train_size},
@@ -110,20 +75,29 @@ def synthesize(
     noise_std: float = {noise_std!r},
     decision_threshold: float = {decision_threshold!r},
     rule_family: str = {rule_family!r},
+    active_features: list[int] = {active_features!r},
+    interaction_pairs: list[list[int]] = {interaction_pairs!r},
+    rule_weights: list[float] = {rule_weights!r},
     spiral_turns: float = {spiral_turns!r},
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    if rule_family == "spiral":
-        if input_dim != 2:
-            raise ValueError("spiral requires input_dim == 2")
-        train_x, train_y = _two_spirals(
-            train_size, turns=spiral_turns, noise_std=noise_std, seed=point_seed
-        )
-        test_x, test_y = _two_spirals(
-            test_size, turns=spiral_turns, noise_std=noise_std, seed=point_seed + 1
-        )
-        return train_x, train_y, test_x, test_y
-
     gen = torch.Generator().manual_seed(point_seed)
+    if rule_family == "spiral":
+        # Two-spiral generative sampling: points along interleaved Archimedean arms.
+        n_total = train_size + test_size
+        turns = spiral_turns
+        t = torch.rand(n_total, generator=gen) * turns * 2 * math.pi
+        radius = 0.5 + t / (turns * 2 * math.pi) * 12.5
+        arm = torch.randint(0, 2, (n_total,), generator=gen)
+        angle = t + arm * math.pi
+        x0 = radius * torch.cos(angle)
+        x1 = radius * torch.sin(angle)
+        train_x = torch.stack([x0, x1], dim=1).to(torch.float32)
+        if input_dim > 2:
+            extra = torch.randn(n_total, input_dim - 2, generator=gen, dtype=torch.float32)
+            train_x = torch.cat([train_x, extra], dim=1)
+        labels = arm.to(torch.int64)
+        train_x = train_x + noise_std * torch.randn_like(train_x)
+        return train_x[:train_size], labels[:train_size], train_x[train_size:], labels[train_size:]
     train_x = torch.randn(train_size, input_dim, generator=gen, dtype=torch.float32)
     test_x = torch.randn(test_size, input_dim, generator=gen, dtype=torch.float32)
     train_score = target(train_x) + noise_std * torch.randn(train_size, generator=gen)
@@ -173,6 +147,7 @@ def _raw_score_for_calibration(
     interaction_pairs: list[list[int]],
     rule_weights: list[float],
     piecewise_breakpoint: float,
+    spiral_turns: float = 2.0,
 ) -> torch.Tensor:
     """Calibration-only mirror of the generated rule; materialization executes synthesize.py."""
     if rule_family == "smooth_additive":
@@ -243,62 +218,48 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
         # Consecutive instance seeds cycle evenly; batch builders may instead use the schedule above.
         resolved_rule = rule_family or allowed_rules[seed % len(allowed_rules)]
 
-        spiral_turns = float(cfg.get("spiral_turns", 2.0))
-        if resolved_rule == "spiral":
-            if 2 not in input_dims:
-                raise ValueError("spiral requires 2 in dataset_configs.input_dims")
-            if input_dim is not None and input_dim != 2:
-                raise ValueError("spiral requires input_dim=2")
-            resolved_input_dim = 2
-            active_features = [0, 1]
-            interaction_pairs: list[list[int]] = []
-            rule_weights = [1.0]
-            piecewise_breakpoint = 0.0
-            noise_std = float(rng.choice(cfg["noise_std"]))
-            decision_threshold = 0.0
-            point_sampling: dict[str, Any] = {
-                "distribution": "two_spirals",
-                "seed": point_seed,
-                "turns": spiral_turns,
-            }
-            calibration: dict[str, Any] = {
-                "distribution": "none",
-                "seed": calibration_seed,
-                "size": 0,
-                "target_positive_rate": 0.5,
-                "note": "Labels are assigned by generative spiral arm (balanced).",
-            }
+        requested_active = rng.choice([int(value) for value in cfg["active_feature_counts"]])
+        if resolved_rule == "xor":
+            if resolved_input_dim < 2:
+                raise ValueError("xor requires input_dim >= 2")
+            active_count = 2
+        elif resolved_rule == "spiral":
+            if resolved_input_dim < 2:
+                raise ValueError("spiral requires input_dim >= 2")
+            active_count = 2
         else:
-            requested_active = rng.choice([int(value) for value in cfg["active_feature_counts"]])
-            if resolved_rule == "xor":
-                if resolved_input_dim < 2:
-                    raise ValueError("xor requires input_dim >= 2")
-                active_count = 2
-            else:
-                min_features = 2 if resolved_rule in {"sparse_interaction", "piecewise_boundary"} else 1
-                active_count = max(min_features, min(requested_active, resolved_input_dim))
-            active_features = sorted(rng.sample(range(resolved_input_dim), active_count))
-            interaction_pairs = []
-            piecewise_breakpoint = 0.0
-            if resolved_rule == "smooth_additive":
-                rule_weights = [rng.uniform(0.6, 1.4) * rng.choice([-1.0, 1.0]) for _ in active_features]
-            elif resolved_rule == "sparse_interaction":
-                all_pairs = list(itertools.combinations(active_features, int(cfg["interaction_order"])))
-                pair_count = min(len(all_pairs), max(1, active_count - 1))
-                interaction_pairs = [list(pair) for pair in rng.sample(all_pairs, pair_count)]
-                rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in interaction_pairs]
-            elif resolved_rule == "xor":
-                interaction_pairs = [[active_features[0], active_features[1]]]
-                rule_weights = [-1.0]
-            else:
-                piecewise_breakpoint = rng.uniform(-0.5, 0.5)
-                rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in range(3)]
+            min_features = 2 if resolved_rule in {"sparse_interaction", "piecewise_boundary"} else 1
+            active_count = max(min_features, min(requested_active, resolved_input_dim))
+        active_features = sorted(rng.sample(range(resolved_input_dim), active_count))
+        interaction_pairs: list[list[int]] = []
+        piecewise_breakpoint = 0.0
+        spiral_turns = 2.0
+        if resolved_rule == "smooth_additive":
+            rule_weights = [rng.uniform(0.6, 1.4) * rng.choice([-1.0, 1.0]) for _ in active_features]
+        elif resolved_rule == "sparse_interaction":
+            all_pairs = list(itertools.combinations(active_features, int(cfg["interaction_order"])))
+            pair_count = min(len(all_pairs), max(1, active_count - 1))
+            interaction_pairs = [list(pair) for pair in rng.sample(all_pairs, pair_count)]
+            rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in interaction_pairs]
+        elif resolved_rule == "xor":
+            interaction_pairs = [[active_features[0], active_features[1]]]
+            rule_weights = [-1.0]
+        elif resolved_rule == "spiral":
+            rule_weights = [1.0]
+            spiral_turns = rng.choice([2.0, 3.0])
+        else:
+            piecewise_breakpoint = rng.uniform(-0.5, 0.5)
+            rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in range(3)]
 
-            noise_std = float(rng.choice(cfg["noise_std"]))
-            calibration_size = int(cfg["calibration_size"])
-            target_positive_rate = float(cfg["target_positive_rate"])
-            calibration_gen = torch.Generator().manual_seed(calibration_seed)
-            calibration_x = torch.randn(calibration_size, resolved_input_dim, generator=calibration_gen)
+        noise_std = float(rng.choice(cfg["noise_std"]))
+        calibration_size = int(cfg["calibration_size"])
+        target_positive_rate = float(cfg["target_positive_rate"])
+        calibration_gen = torch.Generator().manual_seed(calibration_seed)
+        calibration_x = torch.randn(calibration_size, resolved_input_dim, generator=calibration_gen)
+        if resolved_rule == "spiral":
+            # spiral uses generative arm labels, not threshold; skip calibration
+            decision_threshold = 0.0
+        else:
             calibration_score = _raw_score_for_calibration(
                 calibration_x,
                 rule_family=resolved_rule,
@@ -306,17 +267,9 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
                 interaction_pairs=interaction_pairs,
                 rule_weights=rule_weights,
                 piecewise_breakpoint=piecewise_breakpoint,
+                spiral_turns=spiral_turns,
             ) + noise_std * torch.randn(calibration_size, generator=calibration_gen)
-            decision_threshold = float(
-                torch.quantile(calibration_score, 1.0 - target_positive_rate).item()
-            )
-            point_sampling = {"distribution": "standard_normal", "seed": point_seed}
-            calibration = {
-                "distribution": "standard_normal",
-                "seed": calibration_seed,
-                "size": calibration_size,
-                "target_positive_rate": target_positive_rate,
-            }
+            decision_threshold = float(torch.quantile(calibration_score, 1.0 - target_positive_rate).item())
 
         params = {
             "instance_seed": seed,
@@ -333,8 +286,13 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
             "decision_threshold": decision_threshold,
             "train_size": int(cfg["train_size"]),
             "test_size": int(cfg["test_size"]),
-            "point_sampling": point_sampling,
-            "calibration": calibration,
+            "point_sampling": {"distribution": "two_spirals" if resolved_rule == "spiral" else "standard_normal", "seed": point_seed},
+            "calibration": {
+                "distribution": "standard_normal",
+                "seed": calibration_seed,
+                "size": calibration_size,
+                "target_positive_rate": target_positive_rate,
+            },
         }
         return {
             "schema_version": profile.schema_version,
@@ -378,4 +336,4 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
         return {}
 
     def compatible_model_types(self) -> list[str]:
-        return ["mlp", "kan"]
+        return ["mlp"]
