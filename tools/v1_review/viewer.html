@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>ArchitectureIQ 二分类题审核台</title>
+<style>
+  :root{--bg:#0f1115;--panel:#161a22;--panel2:#1c212b;--border:#262c38;--text:#e0e6f0;--muted:#8b919f;--accent:#4d8dff;--good:#4caf50;--bad:#f44336;--warn:#ff9800;--gold:#ffd54f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}
+  .app{display:flex;flex-direction:column;min-height:100vh}
+  .topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:100}
+  .topbar h1{font-size:16px;font-weight:600;white-space:nowrap}
+  .topbar .stats{color:var(--muted);font-size:12px}
+  .filters{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px}
+  .filters select,.filters input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 8px;font-size:12px}
+  .filters label{color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead{position:sticky;top:0;background:var(--panel);z-index:10}
+  th{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer}
+  th:hover{color:var(--accent)}
+  td{padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+  tr.qrow{cursor:pointer}
+  tr.qrow:hover{background:var(--panel2)}
+  tr.qrow:focus{outline:2px solid var(--accent);outline-offset:-2px}
+  .badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600}
+  .badge.ok{background:#1b3a2a;color:var(--good)}
+  .badge.bad{background:#3a1b1b;color:var(--bad)}
+  .badge.warn{background:#3a2e1b;color:var(--warn)}
+  .badge.muted{background:var(--panel2);color:var(--muted)}
+  .detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;overflow-y:auto}
+  .detail-overlay.open{display:block}
+  .detail{max-width:1000px;margin:20px auto;background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:calc(100vh - 40px)}
+  .detail-head{background:var(--panel);padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  .detail-head h2{font-size:18px}
+  .detail-body{padding:20px;display:flex;flex-direction:column;gap:20px}
+  .detail-nav{display:flex;gap:8px;align-items:center}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px}
+  .btn:hover{border-color:var(--accent)}
+  .review-section{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .review-section h3{font-size:15px;margin-bottom:8px}
+  .section-kicker{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .hint{font-size:11px;color:var(--muted);margin-top:2px}
+  .tag{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--muted)}
+  .choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+  .choice-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px}
+  .choice-card.winner{border-color:var(--good);background:#13201a}
+  .choice-card .letter{font-size:20px;font-weight:700;margin-bottom:4px}
+  .choice-card .field{display:flex;justify-content:space-between;padding:1px 0}
+  .choice-card .field .k{color:var(--muted)}
+  .prompt-box{background:#0a0c10;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'SF Mono',Monaco,monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:400px;overflow-y:auto;line-height:1.4}
+  .curve-chart{width:100%;height:320px}
+  .curve-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin-top:6px}
+  .curve-legend span{display:flex;align-items:center;gap:4px}
+  .curve-legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .model-answer{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;font-size:12px}
+  .model-answer .ma-head{display:flex;justify-content:space-between;margin-bottom:4px}
+  .lab-controls{display:grid;gap:10px}
+  .lab-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+  .lab-field{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px;align-items:center}
+  .lab-field span{color:var(--muted);font-size:11.5px}
+  .lab-field input{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px}
+  .lab-field input:focus{outline:none;border-color:var(--accent)}
+  .lab-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .lab-row label{color:var(--muted);font-size:11.5px}
+  .lab-row select,.lab-row input[type=number]{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px}
+  .lab-actions{display:flex;align-items:center;gap:12px}
+  .lab-train-btn{background:#2d4a8a;color:#fff;border:none;padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+  .lab-train-btn:hover:not(:disabled){background:var(--accent)}
+  .lab-train-btn:disabled{opacity:.5;cursor:wait}
+  .lab-status{font-size:12px}
+  .ok{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+  details summary{cursor:pointer;color:var(--muted);font-size:12px;padding:4px 0}
+  details[open] summary{margin-bottom:6px}
+  .loading-inline{color:var(--muted);font-size:12px;padding:20px;text-align:center}
+  .pagination{display:flex;justify-content:center;gap:8px;padding:12px}
+  .pagination .btn{min-width:40px;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <h1>🧭 ArchitectureIQ · 二分类题审核台</h1>
+    <span class="stats" id="headCount">加载中…</span>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div style="flex:1;overflow:auto">
+    <table id="qtable"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+<div class="detail-overlay" id="detailHost" tabindex="-1"></div>
+<script>
+let DATA={questions:[]};
+let activeQuestionId=null;
+let labExtraCurves=[];
+const PAGE_SIZE=200;
+let currentPage=0;
+let filtered=[];
+let sortKey='gap';
+let sortDir=-1;
+let reviewed=new Set();
+
+const RULE_COLORS={'spiral':'#e91e63','xor':'#9c27b0','general_tabular':'#2196f3','sparse_interaction':'#ff9800','smooth_additive':'#4caf50','piecewise_boundary':'#795548'};
+const CURVE_COLORS=['#4d8dff','#f44336','#4caf50','#ff9800','#9c27b0','#00bcd4'];
+
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmt(n){return n==null?'—':(typeof n==='number'?n.toFixed(4):n)}
+function fmt2(n){return n==null?'—':(typeof n==='number'?n.toFixed(2):n)}
+
+// --- filters ---
+function renderFilters(){
+  const f=document.getElementById('filters');
+  f.innerHTML=`
+    <label>规则</label><select id="fRule"><option value="">全部</option>${[...new Set(DATA.questions.map(q=>q.rule_family))].sort().map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
+    <label>题型</label><select id="fType"><option value="">全部</option><option>architecture_only</option><option>optimizer_only</option><option>mixed</option></select>
+    <label>难度</label><select id="fDiff"><option value="">全部</option><option>easy</option><option>medium</option><option>hard</option><option>very_hard</option></select>
+    <label>预算</label><select id="fBudget"><option value="">全部</option><option>1024</option><option>2048</option><option>4096</option><option>8192</option><option>16384</option></select>
+    <label>欠拟合</label><select id="fUnder"><option value="">全部</option><option value="yes">ce>0.3</option><option value="no">ce≤0.3</option></select>
+    <label>关键词</label><input id="fKw" type="text" placeholder="question_id" style="width:100px">
+    <button class="btn" id="fReset">重置</button>
+  `;
+  ['fRule','fType','fDiff','fBudget','fUnder','fKw'].forEach(id=>document.getElementById(id).addEventListener('input',applyFilters));
+  document.getElementById('fReset').addEventListener('click',()=>{['fRule','fType','fDiff','fBudget','fUnder','fKw'].forEach(id=>document.getElementById(id).value='');applyFilters();});
+}
+
+function applyFilters(){
+  const rule=document.getElementById('fRule').value;
+  const type=document.getElementById('fType').value;
+  const diff=document.getElementById('fDiff').value;
+  const budget=document.getElementById('fBudget').value;
+  const under=document.getElementById('fUnder').value;
+  const kw=document.getElementById('fKw').value.toLowerCase().trim();
+  filtered=DATA.questions.filter(q=>{
+    if(rule&&q.rule_family!==rule)return false;
+    if(type&&q.type!==type)return false;
+    if(diff&&q.llm_difficulty!==diff)return false;
+    if(budget&&String(q.budget_tier)!==budget)return false;
+    const wc=q.choices?.find(c=>c.letter===q.correct_letter)?.mean_test_ce;
+    if(under==='yes'&&(!wc||wc<=0.3))return false;
+    if(under==='no'&&wc&&wc>0.3)return false;
+    if(kw&&!q.question_id.toLowerCase().includes(kw))return false;
+    return true;
+  });
+  filtered.sort((a,b)=>{
+    let va,vb;
+    if(sortKey==='qid'){va=a.question_id;vb=b.question_id}
+    else if(sortKey==='gap'){va=a.gap??0;vb=b.gap??0}
+    else if(sortKey==='ce'){va=a.choices?.find(c=>c.letter===a.correct_letter)?.mean_test_ce??9;vb=b.choices?.find(c=>c.letter===b.correct_letter)?.mean_test_ce??9}
+    else if(sortKey==='cons'){va=a.llm_consensus_acc??0;vb=b.llm_consensus_acc??0}
+    else if(sortKey==='budget'){va=a.budget_tier??0;vb=b.budget_tier??0}
+    else if(sortKey==='param'){va=a.param_ratio??1;vb=b.param_ratio??1}
+    else{va=0;vb=0}
+    if(typeof va==='string')return sortDir*va.localeCompare(vb);
+    return sortDir*(va-vb);
+  });
+  currentPage=0;
+  renderTable();
+}
+
+function renderTable(){
+  const start=currentPage*PAGE_SIZE;
+  const page=filtered.slice(start,start+PAGE_SIZE);
+  const tb=document.getElementById('tbody');
+  tb.innerHTML=page.map(q=>{
+    const wc=q.choices?.find(c=>c.letter===q.correct_letter);
+    const ce=wc?.mean_test_ce;
+    const under=ce&&ce>0.3;
+    const ruleColor=RULE_COLORS[q.rule_family]||'#888';
+    return `<tr class="qrow" data-id="${esc(q.question_id)}" tabindex="0">
+      <td><b>${esc(q.question_id)}</b></td>
+      <td><span style="color:${ruleColor}">●</span> ${esc(q.rule_family)}</td>
+      <td>${esc(q.type||'')}</td>
+      <td>${esc(q.budget_tier||'')}</td>
+      <td>${esc(q.llm_difficulty||'')}</td>
+      <td>${fmt2(q.llm_consensus_acc*100)}%</td>
+      <td>${fmt(q.gap)}</td>
+      <td>${fmt(q.param_ratio)}</td>
+      <td>${ce?fmt(ce):'—'}</td>
+      <td>${under?'<span class="badge bad">欠拟合</span>':'<span class="badge ok">OK</span>'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('headCount').textContent=`${filtered.length} / ${DATA.questions.length} 题`;
+  renderPagination();
+}
+
+function renderPagination(){
+  const pages=Math.ceil(filtered.length/PAGE_SIZE);
+  const p=document.getElementById('pagination');
+  if(pages<=1){p.innerHTML='';return}
+  let html='';
+  for(let i=0;i<pages;i++){
+    html+=`<button class="btn" onclick="goPage(${i})" style="${i===currentPage?'border-color:var(--accent);color:var(--accent)':''}">${i+1}</button>`;
+  }
+  p.innerHTML=html;
+}
+function goPage(i){currentPage=i;renderTable();window.scrollTo(0,0)}
+
+// --- detail ---
+function renderDetail(q,{syncHistory=true}={}){
+  activeQuestionId=q.question_id;
+  labExtraCurves=[];
+  if(syncHistory)history.replaceState(null,'',`#q=${encodeURIComponent(q.question_id)}`);
+  const host=document.getElementById('detailHost');
+  host.classList.add('open');
+  try{host.innerHTML=detailHtml(q)}catch(e){host.innerHTML=`<div class="detail"><div class="detail-body"><p class="bad">renderDetail error: ${esc(e.message)}</p><pre>${esc(e.stack||'')}</pre></div></div>`;return}
+  loadCurves(q);
+  loadAnswers(q);
+}
+function closeDetail(){
+  document.getElementById('detailHost').classList.remove('open');
+  document.getElementById('detailHost').innerHTML='';
+  activeQuestionId=null;
+  history.replaceState(null,'',location.pathname);
+}
+function navigateDetail(delta){
+  const idx=filtered.findIndex(q=>q.question_id===activeQuestionId);
+  if(idx<0)return;
+  const ni=idx+delta;
+  if(ni<0||ni>=filtered.length)return;
+  renderDetail(filtered[ni]);
+}
+
+function detailHtml(q){
+  const choices=q.choices||[];
+  const wc=choices.find(c=>c.letter===q.correct_letter);
+  const ce=wc?.mean_test_ce;
+  const under=ce&&ce>0.3;
+  return `<div class="detail">
+    <div class="detail-head">
+      <div><h2>${esc(q.question_id)}</h2>
+        <div style="font-size:12px;color:var(--muted)">
+          <span style="color:${RULE_COLORS[q.rule_family]||'#888'}">● ${esc(q.rule_family)}</span> ·
+          ${esc(q.type||'')} · budget=${esc(q.budget_tier||'')} ·
+          gap=${fmt(q.gap)} · cons=${fmt2((q.llm_consensus_acc||0)*100)}% ·
+          ${under?'<span class="bad">欠拟合 ce='+fmt(ce)+'</span>':'ce='+fmt(ce)}
+        </div>
+      </div>
+      <div class="detail-nav">
+        <button class="btn" data-detail-action="prev">← 上一题</button>
+        <button class="btn" data-detail-action="next">下一题 →</button>
+        <button class="btn" data-detail-action="close">✕ 关闭</button>
+      </div>
+    </div>
+    <div class="detail-body">
+      <section class="review-section">
+        <div class="section-kicker">Candidate settings</div>
+        <h3>选项对比</h3>
+        <div class="choice-grid">${choices.map(c=>choiceCardHtml(q,c)).join('')}</div>
+      </section>
+      <section class="review-section">
+        <div class="section-kicker">Ground truth</div>
+        <h3>Learning curves</h3>
+        <p class="hint">实线=均值 阴影=±1σ (10 seeds)。lower is better.</p>
+        <div id="curveMount"><p class="loading-inline">加载曲线…</p></div>
+      </section>
+      <section class="review-section">
+        <div class="section-kicker">Experiment lab</div>
+        <h3>自定义训练</h3>
+        <p class="hint">选 base choice，改字段后训练。新曲线(★橙色)叠加到上图。验证 causal 因素。</p>
+        ${labHtml(q)}
+      </section>
+      <section class="review-section">
+        <div class="section-kicker">LLM answers</div>
+        <h3>模型作答 (${q.llm_n_models||0})</h3>
+        <div id="answersMount"><p class="loading-inline">加载…</p></div>
+      </section>
+      <section class="review-section">
+        <div class="section-kicker">Prompt</div>
+        <h3>完整题面</h3>
+        <details><summary>展开 prompt.txt</summary><div class="prompt-box">${esc(q.prompt||'')}</div></details>
+      </section>
+    </div>
+  </div>`;
+}
+
+function choiceCardHtml(q,c){
+  const isWin=c.letter===q.correct_letter;
+  const fields=[
+    ['model',c.model_type],['depth',c.depth],['width',c.width],
+    ['grid_size',c.grid_size],['spline_order',c.spline_order],['base_act',c.base_activation],
+    ['activations',JSON.stringify(c.activations)],['layer_norm',JSON.stringify(c.layer_norm)],['residual',c.residual],
+    ['optimizer',c.optimizer],['lr',c.lr],['momentum',c.momentum],['wd',c.weight_decay],
+    ['loss',c.loss],['batch',c.batch_size],['steps',c.training_steps],['budget',c.total_samples_seen],
+    ['params',c.params],['mean_ce',fmt(c.mean_test_ce)],['std_ce',fmt(c.std_test_ce)],
+  ].filter(([k,v])=>v!=null&&v!=='--'&&v!=='null');
+  return `<div class="choice-card ${isWin?'winner':''}">
+    <div class="letter" style="color:${isWin?'var(--good)':'var(--text)'}">${esc(c.letter)}${isWin?' ✓':''}</div>
+    ${fields.map(([k,v])=>`<div class="field"><span class="k">${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+  </div>`;
+}
+
+function labHtml(q){
+  const choices=q.choices||[];
+  const fields=[
+    {key:'optimizer.lr',label:'lr'},{key:'optimizer.momentum',label:'momentum'},
+    {key:'optimizer.weight_decay',label:'weight_decay'},{key:'optimizer.type',label:'optimizer'},
+    {key:'model.depth',label:'depth'},{key:'model.width',label:'width'},
+    {key:'model.grid_size',label:'grid_size'},{key:'model.spline_order',label:'spline_order'},
+    {key:'model.base_activation',label:'base_activation'},
+    {key:'budget.training_steps',label:'training_steps'},{key:'budget.batch_size',label:'batch_size'},
+  ];
+  return `<div class="lab-controls">
+    <div class="lab-row"><label>Base choice</label><select id="labBase">${choices.map(c=>`<option value="${esc(c.letter)}">${esc(c.letter)} · ${esc(c.model_type||'')}</option>`).join('')}</select>
+      <label>Seeds</label><input type="number" id="labSeeds" value="3" min="1" max="10" style="width:60px">
+      <button class="lab-train-btn" data-detail-action="train">训练并叠加曲线</button>
+      <span class="lab-status" id="labStatus"></span>
+    </div>
+    <div class="lab-fields">${fields.map(f=>`<div class="lab-field"><span>${esc(f.label)}</span><input type="text" data-lab-key="${esc(f.key)}" placeholder="不改"></div>`).join('')}</div>
+    <details><summary>字段路径说明</summary><p class="hint">dotted path: <code>optimizer.lr</code> <code>model.depth</code> <code>model.grid_size</code> <code>budget.training_steps</code> 等。数组用 JSON 如 <code>[true,false]</code></p></details>
+  </div>`;
+}
+
+function runLabTraining(q){
+  const base=document.getElementById('labBase').value;
+  const nSeeds=parseInt(document.getElementById('labSeeds').value)||3;
+  const delta={};
+  document.querySelectorAll('.lab-field input[data-lab-key]').forEach(inp=>{const v=inp.value.trim();if(v)delta[inp.dataset.labKey]=v});
+  const status=document.getElementById('labStatus');
+  const btn=document.querySelector('.lab-train-btn');
+  btn.disabled=true;status.innerHTML='<span class="warn">训练中…</span>';
+  fetch('/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question_id:q.question_id,base_choice:base,delta,n_seeds:nSeeds})})
+  .then(r=>r.json()).then(res=>{
+    if(res.error)throw new Error(res.error);
+    const s=res.summary||{};
+    status.innerHTML=`<span class="ok">完成 · mean ce=${fmt(s.mean_test_ce)} ± ${fmt(s.std_test_ce)} (${s.n_seeds} seeds)</span>`;
+    if(res.curve){labExtraCurves.push(res.curve);redrawCurves(q)}
+  }).catch(err=>{status.innerHTML=`<span class="bad">失败: ${esc(err.message||err).slice(0,200)}</span>`})
+  .finally(()=>{btn.disabled=false});
+}
+
+function renderCurveChart(asset,q){
+  const series=(asset.curves||[]).filter(s=>Array.isArray(s.mean)&&s.mean.length);
+  if(!series.length)return '<p class="loading-inline">无曲线数据</p>';
+  // Build per-series point arrays (each series has its own samples array)
+  const allPoints=series.map(s=>{
+    const sm=s.samples||[];
+    return sm.map((sample,i)=>{
+      const mean=s.mean[i];
+      if(!Number.isFinite(mean))return null;
+      const std=Number.isFinite(s.std?.[i])?Math.abs(s.std[i]):0;
+      return {sample,value:mean,lo:mean-std,hi:mean+std,std};
+    }).filter(p=>p!=null);
+  });
+  const allY=allPoints.flat().flatMap(p=>p.std>0?[p.lo,p.hi,p.value]:[p.value]);
+  const allX=allPoints.flat().map(p=>p.sample);
+  if(!allY.length||!allX.length)return '<p class="loading-inline">无有效数据</p>';
+
+  const xMin=Math.min(...allX), xMax=Math.max(...allX), xSpan=xMax-xMin||1;
+  const fullYMin=Math.min(...allY), fullYMax=Math.max(...allY);
+  const fullYPad=Math.max((fullYMax-fullYMin)*0.08,1e-6);
+
+  // State stored on the container element
+  const mountId='curveMount';
+  const el=document.getElementById(mountId);
+  const state=el._curveState||(el._curveState={span:[0,1],logX:false,logY:false,drag:null});
+  // reset span when question changes
+  if(el._curveQid!==q.question_id){state.span=[0,1];state.drag=null;el._curveQid=q.question_id}
+  const {span,logX,logY}=state;
+
+  const viewX0=xMin+span[0]*xSpan, viewX1=xMin+span[1]*xSpan;
+  const visY=allPoints.flat().filter(p=>p.sample>=viewX0&&p.sample<=viewX1).flatMap(p=>p.std>0?[p.lo,p.hi,p.value]:[p.value]);
+  const ySrc=visY.length?visY:allY;
+  const yMin=Math.min(...ySrc), yMax=Math.max(...ySrc);
+  const yPad=Math.max((yMax-yMin)*0.12,1e-6);
+  const yLo=Math.max(0,yMin-yPad), yHi=yMax+yPad;
+
+  const W=760,H=400;
+  const plot={x:60,y:30,w:660,h:250};
+  const brush={x:60,y:320,w:660,h:44};
+  const clipId='curveClip';
+
+  // scale functions
+  const xToPx=(x)=>{
+    if(logX){const lo=Math.log10(Math.max(1e-9,viewX0)),hi=Math.log10(Math.max(1e-9,viewX1));return plot.x+((Math.log10(Math.max(1e-9,x))-lo)/((hi-lo)||1))*plot.w}
+    return plot.x+((x-viewX0)/((viewX1-viewX0)||1))*plot.w;
+  };
+  const yToPx=(y)=>{
+    if(logY){const lo=Math.log10(Math.max(1e-9,yLo)),hi=Math.log10(Math.max(1e-9,yHi));return plot.y+plot.h-((Math.log10(Math.max(1e-9,y))-lo)/((hi-lo)||1))*plot.h}
+    return plot.y+plot.h-((y-yLo)/((yHi-yLo)||1))*plot.h;
+  };
+  const brushXFrac=(frac)=>brush.x+frac*brush.w;
+  const brushXSamp=(x)=>brush.x+((x-xMin)/xSpan)*brush.w;
+  const brushYLo=fullYMin-fullYPad, brushYHi=fullYMax+fullYPad;
+  const brushYPx=(y)=>brush.y+brush.h-((y-brushYLo)/((brushYHi-brushYLo)||1))*brush.h;
+
+  const xTicks=makeTicks(viewX0,viewX1,6);
+  const yTicks=makeTicks(yLo,yHi,5);
+  const zoomed=span[0]>0.001||span[1]<0.999;
+
+  let svg=`<svg class="curve-chart" viewBox="0 0 ${W} ${H}" id="curveSvg">`;
+  svg+=`<defs><clipPath id="${clipId}"><rect x="${plot.x}" y="${plot.y}" width="${plot.w}" height="${plot.h}"/></clipPath></defs>`;
+  // plot bg
+  svg+=`<rect x="${plot.x}" y="${plot.y}" width="${plot.w}" height="${plot.h}" fill="#1a1d24"/>`;
+  // x ticks + labels
+  xTicks.forEach(t=>{
+    const x=xToPx(t);
+    if(x<plot.x-1||x>plot.x+plot.w+1)return;
+    svg+=`<line x1="${x}" x2="${x}" y1="${plot.y}" y2="${plot.y+plot.h}" stroke="#2a2e38" stroke-width="0.5"/>`;
+    svg+=`<text x="${x}" y="${plot.y+plot.h+18}" text-anchor="middle" fill="#8b919f" font-size="10">${formatTick(t)}</text>`;
+  });
+  // y ticks + labels
+  yTicks.forEach(t=>{
+    const y=yToPx(t);
+    if(y<plot.y-1||y>plot.y+plot.h+1)return;
+    svg+=`<line x1="${plot.x}" x2="${plot.x+plot.w}" y1="${y}" y2="${y}" stroke="#2a2e38" stroke-width="0.5"/>`;
+    svg+=`<text x="${plot.x-8}" y="${y+3}" text-anchor="end" fill="#8b919f" font-size="10">${formatTick(t)}</text>`;
+  });
+  // axis labels
+  svg+=`<text x="${plot.x+plot.w/2}" y="${plot.y+plot.h+38}" text-anchor="middle" fill="#8b919f" font-size="11">samples seen</text>`;
+  const metricLabel=q.metric||'test_ce';
+  svg+=`<text x="16" y="${plot.y+plot.h/2}" fill="#8b919f" font-size="11" transform="rotate(-90 16 ${plot.y+plot.h/2})">${esc(metricLabel)}</text>`;
+
+  // series (clipped)
+  svg+=`<g clip-path="url(#${clipId})">`;
+  series.forEach((s,i)=>{
+    const pts=allPoints[i];
+    const vis=pts.filter(p=>p.sample>=viewX0&&p.sample<=viewX1);
+    const isExtra=s.letter.includes('★');
+    const color=isExtra?'#ff9d4d':(i<CURVE_COLORS.length?CURVE_COLORS[i]:'#888');
+    // variance band
+    if(vis.length>=2&&vis.some(p=>p.std>0)){
+      let band='M';vis.forEach((p,j)=>{band+=(j===0?'':'L')+xToPx(p.sample).toFixed(1)+' '+yToPx(p.hi).toFixed(1)+' '});
+      for(let j=vis.length-1;j>=0;j--)band+='L'+xToPx(vis[j].sample).toFixed(1)+' '+yToPx(Math.max(0,vis[j].lo)).toFixed(1)+' ';
+      svg+=`<path d="${band}Z" fill="${color}" opacity="0.15"/>`;
+    }
+    // mean line
+    let path='';vis.forEach((p,j)=>{path+=(j===0?'M':'L')+xToPx(p.sample).toFixed(1)+' '+yToPx(p.value).toFixed(1)+' '});
+    svg+=`<path d="${path}" fill="none" stroke="${color}" stroke-width="${isExtra?2.5:2}" stroke-dasharray="${isExtra?'6 3':'none'}"/>`;
+  });
+  svg+=`</g>`;
+
+  // choice legend (top)
+  series.forEach((s,i)=>{
+    const isExtra=s.letter.includes('★');
+    const color=isExtra?'#ff9d4d':(i<CURVE_COLORS.length?CURVE_COLORS[i]:'#888');
+    const final=s.mean[s.mean.length-1];
+    svg+=`<g transform="translate(${plot.x+10+i*80} 14)"><circle cx="0" cy="0" r="4" fill="${color}"/><text x="8" y="4" fill="#c5c9d4" font-size="11" font-weight="700">${esc(s.letter)}</text><text x="24" y="4" fill="#8b919f" font-size="10">${formatTick(final)}</text></g>`;
+  });
+
+  // brush overview
+  svg+=`<rect x="${brush.x}" y="${brush.y}" width="${brush.w}" height="${brush.h}" fill="#1a1d24" rx="4"/>`;
+  // brush lines
+  series.forEach((s,i)=>{
+    const pts=allPoints[i];
+    const isExtra=s.letter.includes('★');
+    const color=isExtra?'#ff9d4d':(i<CURVE_COLORS.length?CURVE_COLORS[i]:'#888');
+    let path='';pts.forEach((p,j)=>{path+=(j===0?'M':'L')+brushXSamp(p.sample).toFixed(1)+' '+brushYPx(p.value).toFixed(1)+' '});
+    svg+=`<path d="${path}" fill="none" stroke="${color}" stroke-width="1" opacity="0.6"/>`;
+  });
+  // selection window (matches frontend quiz pattern)
+  const selX=brushXFrac(span[0]), selW=Math.max(brushXFrac(span[1])-selX,1);
+  // dim outside selection
+  svg+=`<rect x="${brush.x}" y="${brush.y}" width="${Math.max(selX-brush.x,0)}" height="${brush.h}" fill="rgba(0,0,0,0.45)" pointer-events="none"/>`;
+  svg+=`<rect x="${selX+selW}" y="${brush.y}" width="${Math.max(brush.x+brush.w-(selX+selW),0)}" height="${brush.h}" fill="rgba(0,0,0,0.45)" pointer-events="none"/>`;
+  // selection window
+  svg+=`<rect x="${selX}" y="${brush.y}" width="${selW}" height="${brush.h}" fill="rgba(77,141,255,0.12)" stroke="rgba(77,141,255,0.65)" stroke-width="1.5" cursor="grab" data-brush="move" pointer-events="all"/>`;
+  // left handle (10px wide, centered on edge)
+  svg+=`<rect x="${selX-5}" y="${brush.y}" width="10" height="${brush.h}" fill="rgba(77,141,255,0.85)" rx="3" cursor="ew-resize" data-brush="left" pointer-events="all"/>`;
+  // right handle
+  svg+=`<rect x="${selX+selW-5}" y="${brush.y}" width="10" height="${brush.h}" fill="rgba(77,141,255,0.85)" rx="3" cursor="ew-resize" data-brush="right" pointer-events="all"/>`;
+  // range label
+  svg+=`<text x="${brush.x}" y="${brush.y-8}" fill="#8b919f" font-size="11">Range: ${formatTick(viewX0)} – ${formatTick(viewX1)} samples</text>`;
+
+  svg+=`</svg>`;
+
+  // toolbar
+  let toolbar=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px">`;
+  toolbar+=`<span class="hint">拖拽下方窗口缩放 x 轴，y 轴自动跟随</span>`;
+  toolbar+=`<label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="cbLogX" ${logX?'checked':''}> log X</label>`;
+  toolbar+=`<label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="cbLogY" ${logY?'checked':''}> log Y</label>`;
+  if(zoomed)toolbar+=`<button class="btn" id="btnResetZoom" style="padding:2px 10px;font-size:11px">重置范围</button>`;
+  toolbar+=`</div>`;
+
+  el.innerHTML=toolbar+svg;
+
+  // wire up brush
+  const svgEl=document.getElementById('curveSvg');
+  function fracFromX(clientX){
+    const r=svgEl.getBoundingClientRect();
+    const x=((clientX-r.left)/r.width)*W;
+    return Math.max(0,Math.min(1,(x-brush.x)/(brush.w||1)));
+  }
+  svgEl.querySelectorAll('[data-brush]').forEach(handle=>{
+    const startDrag=(clientX)=>{
+      const mode=handle.dataset.brush;
+      const cur=state.span;
+      const f=fracFromX(clientX);
+      state.drag={mode,grab:mode==='move'?f-cur[0]:0,width:cur[1]-cur[0],dirty:false};
+    };
+    const onMove=(clientX)=>{
+      const d=state.drag;if(!d)return;
+      const f=fracFromX(clientX);
+      if(d.mode==='left'){state.span=clampSpan(Math.min(f,state.span[1]-0.02),state.span[1])}
+      else if(d.mode==='right'){state.span=clampSpan(state.span[0],Math.max(f,state.span[0]+0.02))}
+      else if(d.mode==='move'){const ns=Math.max(0,Math.min(1-d.width,f-d.grab));state.span=clampSpan(ns,ns+d.width)}
+      const selX2=brushXFrac(state.span[0]), selW2=Math.max(brushXFrac(state.span[1])-selX2,1);
+      svgEl.querySelectorAll('rect[data-brush="left"]').forEach(r=>r.setAttribute('x',selX2-5));
+      svgEl.querySelectorAll('rect[data-brush="right"]').forEach(r=>r.setAttribute('x',selX2+selW2-5));
+      svgEl.querySelectorAll('rect[data-brush="move"]').forEach(r=>{r.setAttribute('x',selX2);r.setAttribute('width',selW2)});
+      // update dim rects
+      const dimRects=svgEl.querySelectorAll('rect[fill="rgba(0,0,0,0.45)"]');
+      if(dimRects.length>=2){dimRects[0].setAttribute('width',Math.max(selX2-brush.x,0));dimRects[1].setAttribute('x',selX2+selW2);dimRects[1].setAttribute('width',Math.max(brush.x+brush.w-(selX2+selW2),0))}
+      // update range label
+      const lbl=svgEl.querySelector('text[fill="#8b919f"][font-size="11"]');
+      // range label is the last text before </svg>; update its content
+      const labels=svgEl.querySelectorAll('text');
+      const rangeLbl=labels[labels.length-1];
+      if(rangeLbl){const vx0=xMin+state.span[0]*xSpan,vx1=xMin+state.span[1]*xSpan;rangeLbl.textContent='Range: '+formatTick(vx0)+' – '+formatTick(vx1)+' samples'}
+      d.dirty=true;
+    };
+    const endDrag=()=>{const d=state.drag;state.drag=null;if(d&&d.dirty)redrawCurves(q)};
+    // pointer events
+    handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();handle.setPointerCapture?.(e.pointerId);startDrag(e.clientX)});
+    handle.addEventListener('pointermove',e=>{if(state.drag)onMove(e.clientX)});
+    handle.addEventListener('pointerup',e=>{endDrag()});
+    // mouse events (fallback for browsers where pointer events on SVG rects don't work)
+    handle.addEventListener('mousedown',e=>{if(state.drag)return;e.preventDefault();e.stopPropagation();startDrag(e.clientX);
+      const onMm=ev=>onMove(ev.clientX);
+      const onMu=()=>{document.removeEventListener('mousemove',onMm);document.removeEventListener('mouseup',onMu);endDrag()};
+      document.addEventListener('mousemove',onMm);
+      document.addEventListener('mouseup',onMu);
+    });
+  });
+  // log toggles
+  document.getElementById('cbLogX')?.addEventListener('change',e=>{state.logX=e.target.checked;redrawCurves(q)});
+  document.getElementById('cbLogY')?.addEventListener('change',e=>{state.logY=e.target.checked;redrawCurves(q)});
+  document.getElementById('btnResetZoom')?.addEventListener('click',()=>{state.span=[0,1];redrawCurves(q)});
+
+  return el.innerHTML;
+}
+function makeTicks(min,max,count){
+  if(count<=1)return[min];
+  return Array.from({length:count},(_,i)=>min+((max-min)*i)/(count-1));
+}
+function clampSpan(start,end){
+  let a=Math.max(0,Math.min(1,Math.min(start,end)));
+  let b=Math.max(0,Math.min(1,Math.max(start,end)));
+  if(b-a<0.02){if(a<=0)return[0,0.02];if(b>=1)return[0.98,1];const m=(a+b)/2;return[m-0.01,m+0.01]}
+  return[a,b];
+}
+function formatTick(v){
+  const a=Math.abs(v);
+  if(a>=100||a===0)return v.toFixed(0);
+  if(a>=10)return v.toFixed(1);
+  return v.toFixed(2).replace(/\.?0+$/,'');
+}
+
+let _cachedCurveAsset=null;
+function loadCurves(q){
+  fetch(`curves/${encodeURIComponent(q.question_id)}.json`).then(r=>r.ok?r.json():{curves:[]}).then(asset=>{
+    _cachedCurveAsset=asset;
+    renderCurveChart(asset,q);
+  }).catch(()=>{document.getElementById('curveMount').innerHTML='<p class="loading-inline">加载失败</p>'});
+}
+function redrawCurves(q){
+  if(!_cachedCurveAsset){return}
+  const all=(_cachedCurveAsset.curves||[]).concat(labExtraCurves);
+  renderCurveChart({curves:all},q);
+}
+function loadAnswers(q){
+  const mount=document.getElementById('answersMount');
+  fetch(`answers/${encodeURIComponent(q.question_id)}.json`).then(r=>{
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(asset=>{
+    const ans=(asset.answers||[]).sort((a,b)=>(b.correct-a.correct)||a.model.localeCompare(b.model));
+    const correct=ans.filter(a=>a.correct).length;
+    mount.innerHTML=`<p class="hint">${correct}/${ans.length} 正确 (${fmt2(correct/ans.length*100)}%)</p>`+
+      ans.map(a=>`<div class="model-answer"><div class="ma-head"><b>${esc(a.model)}</b> <span class="badge ${a.correct?'ok':'bad'}">${a.letter} ${a.correct?'✓':'✗'}</span></div></div>`).join('');
+  }).catch(err=>{
+    mount.innerHTML=`<p class="loading-inline bad">加载失败: ${esc(err.message)}</p>`;
+  });
+}
+
+// --- events ---
+document.getElementById('tbody').addEventListener('click',e=>{
+  const tr=e.target.closest('tr.qrow');if(!tr)return;
+  const qid=tr.dataset.id;const url=`viewer.html#q=${encodeURIComponent(qid)}`;
+  if(e.ctrlKey||e.metaKey||e.button===1)return;
+  const w=window.open(url,'_blank');if(!w)location.href=url;
+});
+document.getElementById('tbody').addEventListener('keydown',e=>{
+  const tr=e.target.closest('tr.qrow');
+  if(tr&&(e.key==='Enter'||e.key===' ')){e.preventDefault();const w=window.open(`viewer.html#q=${encodeURIComponent(tr.dataset.id)}`,'_blank');if(!w)location.href=`viewer.html#q=${encodeURIComponent(tr.dataset.id)}`}
+});
+document.getElementById('detailHost').addEventListener('click',e=>{
+  if(e.target.classList.contains('detail-overlay'))return closeDetail();
+  const action=e.target.closest('[data-detail-action]')?.dataset.detailAction;
+  if(action==='close')closeDetail();
+  else if(action==='prev')navigateDetail(-1);
+  else if(action==='next')navigateDetail(1);
+  else if(action==='train'){const q=DATA.questions.find(i=>i.question_id===activeQuestionId);if(q)runLabTraining(q)}
+});
+document.addEventListener('keydown',e=>{
+  if(!activeQuestionId)return;
+  if(e.key==='Escape')closeDetail();
+  if(e.key==='ArrowLeft')navigateDetail(-1);
+  if(e.key==='ArrowRight')navigateDetail(1);
+});
+// sort
+document.getElementById('thead').addEventListener('click',e=>{
+  const th=e.target.closest('th[data-sort]');if(!th)return;
+  const k=th.dataset.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1}
+  applyFilters();
+});
+
+// --- init ---
+fetch('binary_questions.json').then(r=>r.json()).then(d=>{
+  DATA=d;
+  document.getElementById('thead').innerHTML=`<tr>
+    <th data-sort="qid">ID</th><th>规则</th><th>题型</th>
+    <th data-sort="budget">预算</th><th>难度</th>
+    <th data-sort="cons">共识</th><th data-sort="gap">gap</th>
+    <th data-sort="param">参数比</th><th data-sort="ce">winner ce</th><th>状态</th>
+  </tr>`;
+  renderFilters();applyFilters();
+  const hq=location.hash.match(/q=([^&]+)/);
+  if(hq){const q=DATA.questions.find(x=>x.question_id===hq[1]);if(q)renderDetail(q,{syncHistory:false})}
+}).catch(err=>{document.getElementById('headCount').textContent='加载失败: '+err});
+</script>
+</body>
+</html>
