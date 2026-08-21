@@ -7,10 +7,11 @@ import json, os, sys
 from pathlib import Path
 import numpy as np
 
-BUNDLE = Path(os.environ.get("BUNDLE", os.environ.get("V1_BUNDLE", "/tmp/v1bundle")))
+BUNDLE = Path(os.environ.get("BUNDLE", "/tmp/v1bundle"))
 HERE = Path(__file__).resolve().parent
 WORKTREE = HERE.parents[1]
-OUT = WORKTREE / "data" / "v1_review" / "curves"
+DATA_DIR = Path(os.environ.get("DATA_DIR", str(WORKTREE / "data" / "v1_review")))
+OUT = DATA_DIR / "curves"
 QDIR = BUNDLE / "benchmarks" / "v1_llm" / "questions"
 
 

@@ -9,13 +9,13 @@ import json, os, sys, hashlib
 from pathlib import Path
 from collections import defaultdict
 
-BUNDLE = Path(os.environ.get("BUNDLE", os.environ.get("V1_BUNDLE", "/tmp/v1bundle")))
+BUNDLE = Path(os.environ.get("BUNDLE", "/tmp/v1bundle"))
 HERE = Path(__file__).resolve().parent
 WORKTREE = HERE.parents[1]
-OUT_DIR = WORKTREE / "data" / "v1_review"   # gitignored runtime data
-OUT = OUT_DIR / "binary_questions.json"
-ANSWERS_DIR = OUT_DIR / "answers"
-CURVES_DIR = OUT_DIR / "curves"
+DATA_DIR = Path(os.environ.get("DATA_DIR", str(WORKTREE / "data" / "v1_review")))
+OUT = DATA_DIR / "binary_questions.json"
+ANSWERS_DIR = DATA_DIR / "answers"
+CURVES_DIR = DATA_DIR / "curves"
 
 
 def read_json(p):

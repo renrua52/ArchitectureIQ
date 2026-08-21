@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 """Training API server for the v1_review viewer.
 
-Serves static files (viewer.html, *.json, curves/, answers/) from the
-data/v1_review/ directory AND exposes POST /api/train to run a modified
-candidate through run_ground_truth.
+Serves static files (viewer.html, *.json, curves/, answers/) AND exposes
+POST /api/train to run a modified candidate through run_ground_truth.
 
 Usage:
-  python tools/v1_review/train_server.py [--port 8502] [--bundle /tmp/v1bundle]
-
-The static assets (binary_questions.json, curves/, answers/, viewer.html) are
-served from {worktree}/data/v1_review/ — a gitignored runtime directory.
-The bundle (question.json, candidate_spec.json, train.pt/test.pt) is read
-from --bundle (default: /tmp/v1bundle or {worktree}/data/v1bundle).
+  .venv/bin/python data/v1_review/train_server.py [--port 8502] [--bundle /tmp/v1bundle]
 """
 from __future__ import annotations
 import argparse, copy, json, os, sys, tempfile, traceback, shutil
@@ -19,10 +13,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-HERE = Path(__file__).resolve().parent          # tools/v1_review/
-WORKTREE = HERE.parents[1]                        # worktree root
-DATA_DIR = WORKTREE / "data" / "v1_review"        # gitignored runtime data
-BUNDLE_DEFAULT = Path(os.environ.get("V1_BUNDLE", "/tmp/v1bundle"))
+HERE = Path(__file__).resolve().parent
+WORKTREE = HERE.parents[1]
+BUNDLE_DEFAULT = Path("/tmp/v1bundle")
+DATA_DIR_DEFAULT = WORKTREE / "data" / "v1_review"
 SRC = WORKTREE / "src"
 if SRC.is_dir() and str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
@@ -92,13 +86,7 @@ def run_training(payload, bundle):
     cand_dir = bundle / "data" / base["candidate_path"]
     spec = read_json(cand_dir / "candidate_spec.json")
     spec = copy.deepcopy(spec)
-    # auto-detect GPU (don't force CPU on GPU machines)
-    try:
-        import torch
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    except ImportError:
-        device = "cpu"
-    spec.setdefault("execution", {})["device"] = device
+    spec.setdefault("execution", {})["device"] = "cpu"  # force CPU on mac
     for k, v in delta.items():
         _set_nested(spec, k, _coerce(v))
 
@@ -135,6 +123,7 @@ def run_training(payload, bundle):
 
 class Handler(BaseHTTPRequestHandler):
     bundle = BUNDLE_DEFAULT
+    data_dir = DATA_DIR_DEFAULT
 
     def log_message(self, fmt, *args):
         sys.stderr.write(f"{self.address_string()} {fmt % args}\n")
@@ -172,12 +161,14 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         rel = parsed.path.lstrip("/")
         if rel == "": rel = "viewer.html"
-        # serve from DATA_DIR (gitignored runtime: viewer.html, *.json, curves/, answers/)
-        path = DATA_DIR / rel
-        if path.is_file():
-            ct = MIME.get(path.suffix, "application/octet-stream")
-            self._send_file(path, ct)
-            return
+        # Look in DATA_DIR first (binary_questions.json, curves/, answers/),
+        # then HERE (viewer.html, scripts)
+        for base in (self.data_dir, HERE):
+            path = base / rel
+            if path.is_file():
+                ct = MIME.get(path.suffix, "application/octet-stream")
+                self._send_file(path, ct)
+                return
         self.send_error(404, "Not found")
 
     def do_POST(self):
@@ -204,13 +195,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8502)
     ap.add_argument("--bundle", default=str(BUNDLE_DEFAULT))
+    ap.add_argument("--data-dir", default=str(DATA_DIR_DEFAULT))
     ap.add_argument("--host", default="127.0.0.1")
     cfg = ap.parse_args()
     Handler.bundle = Path(cfg.bundle)
+    Handler.data_dir = Path(cfg.data_dir)
     if not Handler.bundle.is_dir():
         sys.exit(f"bundle dir not found: {cfg.bundle}")
     srv = ThreadingHTTPServer((cfg.host, cfg.port), Handler)
-    print(f"train server on http://{cfg.host}:{cfg.port}/viewer.html (bundle={cfg.bundle})", flush=True)
+    print(f"train server on http://{cfg.host}:{cfg.port}/viewer.html", flush=True)
+    print(f"  bundle={Handler.bundle}", flush=True)
+    print(f"  data_dir={Handler.data_dir}", flush=True)
     print(f"  POST /api/train {{question_id, base_choice, delta, n_seeds}}", flush=True)
     try:
         srv.serve_forever()
