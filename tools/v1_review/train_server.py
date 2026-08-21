@@ -13,9 +13,37 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-# Disable torch dynamo before any torch import (torch 2.13 has a registration bug)
-os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
-os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+# Workaround for torch 2.13 "mega-cache" registration bug.
+# torch._dynamo.package.PrecompileCacheArtifact triggers a double-registration
+# AssertionError during import. Since training doesn't need dynamo, we
+# pre-register a stub module in sys.modules to skip the broken import.
+os.environ["TORCHDYNAMO_DISABLE"] = "1"
+import types as _types
+
+class _DynamoStub(_types.ModuleType):
+    """Minimal stub to prevent torch._dynamo.package import from crashing."""
+    def __getattr__(self, name):
+        return _DynamoStub()
+
+# Register stubs for the problematic submodules BEFORE torch imports them.
+# torch checks sys.modules first, so these will be used instead of the real
+# (broken) modules.
+for _mod_name in ["torch._dynamo", "torch._dynamo.package", "torch._dynamo.aot_compile"]:
+    if _mod_name not in sys.modules:
+        sys.modules[_mod_name] = _DynamoStub(_mod_name)
+
+# Also stub torch.compiler._cache to prevent the registration call
+class _CacheFactoryStub:
+    _instance = None
+    def register(self, artifact):
+        pass
+    def __getattr__(self, name):
+        return _CacheFactoryStub()
+
+_cache_mod = _types.ModuleType("torch.compiler._cache")
+_cache_mod.CacheArtifactFactory = _CacheFactoryStub
+_cache_mod.CacheArtifact = _CacheFactoryStub
+sys.modules["torch.compiler._cache"] = _cache_mod
 
 HERE = Path(__file__).resolve().parent
 WORKTREE = HERE.parents[1]
