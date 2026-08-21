@@ -13,6 +13,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+# Disable torch dynamo before any torch import (torch 2.13 has a registration bug)
+os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
+os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+
 HERE = Path(__file__).resolve().parent
 WORKTREE = HERE.parents[1]
 BUNDLE_DEFAULT = Path("/tmp/v1bundle")
