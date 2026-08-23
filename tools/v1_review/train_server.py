@@ -13,37 +13,43 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-# Workaround for torch 2.13 "mega-cache" registration bug.
+# Workaround for the torch 2.13 "mega-cache" registration bug:
 # torch._dynamo.package.PrecompileCacheArtifact triggers a double-registration
-# AssertionError during import. Since training doesn't need dynamo, we
-# pre-register a stub module in sys.modules to skip the broken import.
+# AssertionError during import. torch 2.6 (the GPU server env) does NOT have this
+# bug, and the stub actively BREAKS it: inspect.getmodule() calls __getattr__
+# ("__file__"), which used to return a nameless ModuleType -> TypeError.
+# So only install the stub on the affected version.
 os.environ["TORCHDYNAMO_DISABLE"] = "1"
-import types as _types
+import torch as _torch
+_NEEDS_DYNAMO_STUB = _torch.__version__.startswith("2.13")
 
-class _DynamoStub(_types.ModuleType):
-    """Minimal stub to prevent torch._dynamo.package import from crashing."""
-    def __getattr__(self, name):
-        return _DynamoStub()
+if _NEEDS_DYNAMO_STUB:
+    import types as _types
 
-# Register stubs for the problematic submodules BEFORE torch imports them.
-# torch checks sys.modules first, so these will be used instead of the real
-# (broken) modules.
-for _mod_name in ["torch._dynamo", "torch._dynamo.package", "torch._dynamo.aot_compile"]:
-    if _mod_name not in sys.modules:
-        sys.modules[_mod_name] = _DynamoStub(_mod_name)
+    class _DynamoStub(_types.ModuleType):
+        """Minimal stub to prevent torch._dynamo.package import from crashing."""
+        def __getattr__(self, name):
+            return _DynamoStub(f"{self.__name__}.{name}")
 
-# Also stub torch.compiler._cache to prevent the registration call
-class _CacheFactoryStub:
-    _instance = None
-    def register(self, artifact):
-        pass
-    def __getattr__(self, name):
-        return _CacheFactoryStub()
+    # Register stubs for the problematic submodules BEFORE torch imports them.
+    # torch checks sys.modules first, so these will be used instead of the real
+    # (broken) modules.
+    for _mod_name in ["torch._dynamo", "torch._dynamo.package", "torch._dynamo.aot_compile"]:
+        if _mod_name not in sys.modules:
+            sys.modules[_mod_name] = _DynamoStub(_mod_name)
 
-_cache_mod = _types.ModuleType("torch.compiler._cache")
-_cache_mod.CacheArtifactFactory = _CacheFactoryStub
-_cache_mod.CacheArtifact = _CacheFactoryStub
-sys.modules["torch.compiler._cache"] = _cache_mod
+    # Also stub torch.compiler._cache to prevent the registration call
+    class _CacheFactoryStub:
+        _instance = None
+        def register(self, artifact):
+            pass
+        def __getattr__(self, name):
+            return _CacheFactoryStub()
+
+    _cache_mod = _types.ModuleType("torch.compiler._cache")
+    _cache_mod.CacheArtifactFactory = _CacheFactoryStub
+    _cache_mod.CacheArtifact = _CacheFactoryStub
+    sys.modules["torch.compiler._cache"] = _cache_mod
 
 HERE = Path(__file__).resolve().parent
 WORKTREE = HERE.parents[1]
@@ -99,7 +105,7 @@ def _jsonable(obj):
     except: return str(obj)
 
 
-def run_training(payload, bundle):
+def run_training(payload, bundle, device="cpu"):
     from architecture_iq.candidates.generator import write_candidate
     from architecture_iq.ground_truth.runner import run_ground_truth
     from architecture_iq.profile import load_profile
@@ -118,7 +124,7 @@ def run_training(payload, bundle):
     cand_dir = bundle / "data" / base["candidate_path"]
     spec = read_json(cand_dir / "candidate_spec.json")
     spec = copy.deepcopy(spec)
-    spec.setdefault("execution", {})["device"] = "cpu"  # force CPU on mac
+    spec.setdefault("execution", {})["device"] = device  # "cpu" (mac) or "cuda" (GPU server)
     for k, v in delta.items():
         _set_nested(spec, k, _coerce(v))
 
@@ -156,6 +162,7 @@ def run_training(payload, bundle):
 class Handler(BaseHTTPRequestHandler):
     bundle = BUNDLE_DEFAULT
     data_dir = DATA_DIR_DEFAULT
+    device = "cpu"
 
     def log_message(self, fmt, *args):
         sys.stderr.write(f"{self.address_string()} {fmt % args}\n")
@@ -215,7 +222,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": f"bad payload: {e}"})
             return
         try:
-            result = run_training(payload, self.bundle)
+            result = run_training(payload, self.bundle, device=self.device)
             self._send_json(200, result)
         except Exception as e:
             tb = traceback.format_exc()
@@ -229,15 +236,18 @@ def main():
     ap.add_argument("--bundle", default=str(BUNDLE_DEFAULT))
     ap.add_argument("--data-dir", default=str(DATA_DIR_DEFAULT))
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--device", default=os.environ.get("ARCHIQ_DEVICE", "cpu"))
     cfg = ap.parse_args()
     Handler.bundle = Path(cfg.bundle)
     Handler.data_dir = Path(cfg.data_dir)
+    Handler.device = cfg.device
     if not Handler.bundle.is_dir():
         sys.exit(f"bundle dir not found: {cfg.bundle}")
     srv = ThreadingHTTPServer((cfg.host, cfg.port), Handler)
     print(f"train server on http://{cfg.host}:{cfg.port}/viewer.html", flush=True)
     print(f"  bundle={Handler.bundle}", flush=True)
     print(f"  data_dir={Handler.data_dir}", flush=True)
+    print(f"  device={Handler.device}", flush=True)
     print(f"  POST /api/train {{question_id, base_choice, delta, n_seeds}}", flush=True)
     try:
         srv.serve_forever()
