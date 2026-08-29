@@ -82,28 +82,6 @@ def build_model_spec(
             "input_dim": int(dataset_params.get("input_dim", 1)),
             "output_dim": int(dataset_params.get("num_classes", 1)),
         }
-    elif model_type == "kan":
-        depth = int(params["depth"])
-        width = int(params["width"])
-        grid_size = int(params["grid_size"])
-        spline_order = int(params["spline_order"])
-        if min(depth, width, grid_size, spline_order) <= 0:
-            raise ValueError("KAN depth, width, grid size, and spline order must be positive.")
-        grid_range = [float(value) for value in params["grid_range"]]
-        if len(grid_range) != 2 or grid_range[0] >= grid_range[1]:
-            raise ValueError("KAN grid range must be [low, high] with low < high.")
-        spec = {
-            "type": "kan",
-            "variant": str(params.get("variant", "efficient_spline_v1")),
-            "input_dim": int(dataset_params.get("input_dim", 1)),
-            "output_dim": int(dataset_params.get("num_classes", 1)),
-            "depth": depth,
-            "width": width,
-            "grid_size": grid_size,
-            "spline_order": spline_order,
-            "grid_range": grid_range,
-            "base_activation": str(params["base_activation"]),
-        }
     elif model_type == "transformer_lm":
         d_model = int(params["d_model"])
         num_layers = int(params["num_layers"])
@@ -249,20 +227,6 @@ def form_values_from_candidate_spec(
                 "gru_d_model": int(model["d_model"]),
                 "gru_layers": int(model["num_layers"]),
                 "gru_layer_residual": bool(model.get("layer_residual", False)),
-            }
-        )
-    elif model["type"] == "kan":
-        values.update(
-            {
-                "kan_variant": str(model.get("variant", "efficient_spline_v1")),
-                "kan_depth": int(model["depth"]),
-                "kan_width": int(model["width"]),
-                "kan_grid_size": int(model["grid_size"]),
-                "kan_spline_order": int(model["spline_order"]),
-                "kan_grid_range": list(model["grid_range"]),
-                "kan_grid_low": float(model["grid_range"][0]),
-                "kan_grid_high": float(model["grid_range"][1]),
-                "kan_base_activation": str(model["base_activation"]),
             }
         )
     if optimizer["type"] == "SGD":

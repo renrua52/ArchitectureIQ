@@ -1,15 +1,13 @@
 You are taking the ArchitectureIQ benchmark.
 
-Each question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt — either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget — using architecture and learning-mechanics reasoning only (no training results are provided).
+Each question describes a synthetic dataset and several candidate training setups (model, optimizer, loss). All choices train on the same data with the same sample budget. Your task is to identify which setup will achieve the **best test MSE** on the held-out test set after the fixed training budget — using architecture and learning-mechanics reasoning only (no training results are provided).
 
 ## Dataset
 **Family:** univariate regression on `[0, 1]`.
 
 - Input and target are 1-D scalars.
 - Training and test points are sampled uniformly on the domain.
-- The target is a symbolic expression of `x`. Whether training labels carry
-  noise is stated in the synthesis code and the protocol below; the test split
-  always uses the exact target function.
+- Labels are noiseless; the target is a symbolic expression of `x`.
 
 ### Synthesis (PyTorch)
 ```python
@@ -39,7 +37,6 @@ def synthesize(
 - Test split size: 256 fixed `(x, y)` pairs (held out)
 - Input domain: [0.0, 1.0], uniform sampling
 - Point-sampling seed: 1042 (materializes the fixed train/test splits)
-- Labels are noiseless (train and test use the exact target function)
 - Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**
 - Evaluation: **test MSE** is mean squared error on the entire fixed test split
 - Randomness: `torch.manual_seed(seed)` once before model init and the training loop

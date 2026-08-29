@@ -104,7 +104,6 @@ def test_load_dataset_tensors(question_path: Path) -> None:
     assert vy.shape[1:] == ty.shape[1:]
 
 
-
 def test_format_metrics() -> None:
     text = format_metrics({"selection_metric": "test_mse", "mean_test_mse": 0.1, "std_test_mse": 0.02})
     assert "0.100000" in text
@@ -859,27 +858,6 @@ def test_select_observed_classification_pair_finds_high_contrast_pair() -> None:
     assert {first, second} == {0, 1}
     assert 0.0 <= score <= 1.0
     assert score > 0.2
-
-
-def test_kan_custom_setting_defaults_include_profile_archetype_activations() -> None:
-    """The KAN editor must expose all activations valid in a v2.2 pool."""
-    defaults = inspector_app._kan_defaults(load_profile("v2.2"))
-
-    assert {"silu", "relu", "gelu", "tanh"}.issubset(
-        set(defaults["base_activations"])
-    )
-
-
-def test_kan_activation_options_include_valid_inherited_value() -> None:
-    """A valid inherited candidate remains selectable under a narrow profile."""
-    options = inspector_app._kan_activation_options(["silu"], "tanh")
-
-    assert options == ["silu", "tanh"]
-
-
-def test_kan_activation_options_do_not_duplicate_or_admit_unknown_values() -> None:
-    assert inspector_app._kan_activation_options(["silu"], "silu") == ["silu"]
-    assert inspector_app._kan_activation_options(["silu"], "unknown") == ["silu"]
 
 
 def test_inspector_prefers_local_profile_source_over_stale_editable_install() -> None:

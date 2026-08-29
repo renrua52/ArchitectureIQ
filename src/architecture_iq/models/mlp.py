@@ -128,7 +128,7 @@ class MlpModelFamily(ModelFamily):
         blocks = []
         for i in range(depth):
             blocks.append(
-                f"        MLPBlock(width={width}, activation={acts[i]!r}, "
+                f"            MLPBlock(width={width}, activation={acts[i]!r}, "
                 f"use_layer_norm={norms[i]}, use_residual={residual}),"
             )
         blocks_str = "\n".join(blocks)
@@ -186,13 +186,22 @@ class Model(nn.Module):
         profile: Any,
         rng: random.Random,
         dataset_params: dict[str, Any] | None = None,
+        shared: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         cfg = profile.mlp
         depth = rng.choice(cfg["depth"])
         width = rng.choice(cfg["width"])
         residual = rng.choice(cfg["residual"])
-        activations = [rng.choice(cfg["activations"]) for _ in range(depth)]
-        layer_norm = [rng.choice([True, False]) for _ in range(depth)]
+        # Activations are fixed to ReLU (v1.1 simplification); the per-layer
+        # list shape is kept for spec backward compatibility.
+        activations = ["relu"] * depth
+        # layer_norm is a single global boolean. Candidate-set generation
+        # samples it once per set (shared["layer_norm"]) so choices inside a
+        # question never differ on it; standalone sampling falls back to rng.
+        layer_norm_on = (shared or {}).get("layer_norm")
+        if layer_norm_on is None:
+            layer_norm_on = bool(rng.choice([True, False]))
+        layer_norm = [bool(layer_norm_on)] * depth
         spec: dict[str, Any] = {
             "type": "mlp",
             "depth": depth,

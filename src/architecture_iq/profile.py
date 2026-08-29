@@ -102,10 +102,6 @@ class Profile:
         return self.raw["gru_lm"]
 
     @property
-    def kan(self) -> dict[str, Any]:
-        return self.raw.get("kan", {})
-
-    @property
     def model_gates(self) -> dict[str, Any]:
         """Profile-scoped overrides for family/model compatibility."""
         gates = self.raw.get("model_gates", {})

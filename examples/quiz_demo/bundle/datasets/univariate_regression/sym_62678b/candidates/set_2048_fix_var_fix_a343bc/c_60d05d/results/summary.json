@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_60d05d",
+  "selection_metric": "test_mse",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_mse": 0.33219935894012453,
+  "std_test_mse": 0.0775678239925085,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_mse": 0.25419652462005615,
+      "mean_test_mse": 0.25419652462005615
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_mse": 0.4135393798351288,
+      "mean_test_mse": 0.4135393798351288
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_mse": 0.43847861886024475,
+      "mean_test_mse": 0.43847861886024475
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_mse": 0.3039287030696869,
+      "mean_test_mse": 0.3039287030696869
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_mse": 0.20095384120941162,
+      "mean_test_mse": 0.20095384120941162
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_mse": 0.3759772777557373,
+      "mean_test_mse": 0.3759772777557373
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_mse": 0.342753529548645,
+      "mean_test_mse": 0.342753529548645
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_mse": 0.25025221705436707,
+      "mean_test_mse": 0.25025221705436707
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_mse": 0.31438982486724854,
+      "mean_test_mse": 0.31438982486724854
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_mse": 0.427523672580719,
+      "mean_test_mse": 0.427523672580719
+    }
+  ],
+  "environment": {
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
+    "device": "cpu",
+    "git_commit": "eb5451cca6657b08cfc713602bdc5b164a5252d8"
+  }
+}

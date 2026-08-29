@@ -427,8 +427,7 @@ def sample_optimizer(profile: Profile, rng: random.Random) -> dict[str, Any]:
 def sample_loss(profile: Profile, family: str, rng: random.Random) -> dict[str, Any]:
     loss_id = rng.choice(profile.pools["losses"][family])
     spec: dict[str, Any] = {"loss_id": loss_id}
-    if loss_id.endswith(("_l1", "_l2")):
-
+    if loss_id in {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"}:
         spec["lambda"] = rng.choice(profile.loss_grids["lambda"])
     return spec
 
@@ -440,6 +439,7 @@ def sample_model(
     family: str,
     dataset_params: dict[str, Any] | None = None,
     model_type: str | None = None,
+    shared: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from architecture_iq.registry import get_dataset_family
 
@@ -457,7 +457,9 @@ def sample_model(
             f"Model type {model_type!r} is not compatible with family {family!r} "
             f"under profile {profile.name!r}"
         )
-    return get_model_type(model_type).sample_spec(profile, rng, dataset_params=dataset_params)
+    return get_model_type(model_type).sample_spec(
+        profile, rng, dataset_params=dataset_params, shared=shared
+    )
 
 
 def trainable_parameter_count(model_spec: dict[str, Any]) -> int:

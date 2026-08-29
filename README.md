@@ -2,7 +2,7 @@
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given a dataset instance and several **candidates** (model + optimizer + loss + budget), pick which **choice** achieves the best selection metric after its stated training budget.
 
-Design: [plan-v2.md](./docs/architecture/plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology) · Product development: [docs/product-development.md](./docs/product-development.md)
+Design: [plan-v2.md](./docs/architecture/plan-v2.md) · Terminology: [AGENTS.md](./AGENTS.md#terminology)
 
 Interactive experiment report: [README.html](./README.html) (Chinese).
 
@@ -117,138 +117,20 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
-## Publish new quiz questions
-
-Generating a question under `data/` does not put it on the deployed quiz. A
-maintainer must publish the question's complete canonical artifact graph into
-the version-controlled bundle at `examples/quiz_demo/bundle/`.
-
-First inspect the generated question or run locally. Then validate the proposed
-bundle update without writing it. Source paths are relative to the default
-`--data-root data`, so they start with `datasets/`, not `data/datasets/`:
-
-```bash
-.venv/bin/python tools/start_quiz.py --question-run \
-  data/datasets/univariate_regression/sym_XXXXXX/questions/run_5q_3c_XXXXXX
-
-.venv/bin/python tools/publish_quiz_bundle.py --dry-run \
-  datasets/univariate_regression/sym_XXXXXX/questions/run_5q_3c_XXXXXX
-```
-
-Publish after reviewing the projected manifest:
-
-```bash
-.venv/bin/python tools/publish_quiz_bundle.py \
-  datasets/univariate_regression/sym_XXXXXX/questions/run_5q_3c_XXXXXX
-
-.venv/bin/python tools/export_feedback_registry.py \
-  --bundle examples/quiz_demo/bundle \
-  --json-output supabase/registries/release_<64hex>.json \
-  --sql-output supabase/migrations/<timestamp>_feedback_question_registry_release_<prefix>.sql
-
-.venv/bin/pytest -q tests/test_quiz_bundle_publish.py tests/test_feedback_registry.py
-git diff --stat -- examples/quiz_demo/bundle
-```
-
-Passing a question directory such as `.../run_.../q_XXXXXX` publishes only
-that question and records a partial source run in the manifest. Passing a run
-publishes every question declared by its `run.json`. Use `--target` for a
-non-default bundle and `--data-root` when sources live outside `data/`.
-
-The publisher copies canonical files byte-for-byte; it does not regenerate GT,
-upload to Streamlit, register answers in Postgres, or trigger deployment. The
-registry exporter must read the complete attested bundle, writes outside that
-bundle, and emits a reviewable JSON plus insert-only data migration. It rejects
-any mismatch between runtime artifact attestation and publisher GT validation.
-For the first feedback-report rollout, the repository-local migration contract
-is `14000` registry schema → `14500` reviewed current-release data → `15000`
-authoritative aggregate reports → `16000` authoritative answer/proposal
-details → `17000` atomic six-view business snapshot → `18000` forward-only
-session/attempt identity filters → `19000` strict question presentations and
-post-result surprise reactions → `20000` authoritative surprise reports.
-Later quiz releases add a new reviewed data
-migration without replaying those schema/report migrations.
-This sequence has not been applied or accepted on a real hosted project yet.
-The publisher rejects missing or unsafe
-references, excluded or partially failed choices, non-standard JSON numbers,
-duplicate JSON object keys, stale MSE wording on non-MSE prompts, duplicate
-question IDs, and conflicting
-artifact content. It copies only canonical files, so runtime caches and local
-`custom_settings` cannot become release artifacts. Published bundles are
-append-only, so changing a released question requires generating and publishing
-a new question ID. For a whole release replacement, assemble all intended runs
-in a fresh target rather than appending the replacement run to the old bundle.
-Commit the updated bundle and `quiz_manifest.json`, then push the branch actually
-connected to Streamlit Cloud.
-
-### Manifest and release identity
-
-`quiz_manifest.json` indexes the current bundle: source runs, question IDs and
-stable question versions, family/dataset paths, aggregate counts, and every
-artifact's path, size, and SHA-256. `release_id` is a SHA-256 content identity
-for that complete snapshot, not a directory, Git tag, or deployment. Any
-question/reference/artifact change creates a new release ID; Git history retains
-older releases. Optional `generated_at` metadata does not affect the release ID.
-
-Question versions use the same canonical hash as feedback events, so collected
-answers remain tied to the exact released question. See
-[tools/quiz_bundle/README.md](./tools/quiz_bundle/README.md) for publisher
-behavior and [docs/product-development.md](./docs/product-development.md) for
-the release policy and deployment checklist.
-
-### Deployment audit ledger
-
-`tools/deployment_ledger.py` records a deployment only after its provider ID,
-database acceptance, hosted feedback roundtrip, and source mapping evidence
-exist. It is a retrospective, append-only audit chain: `ledger.jsonl` and its
-post-deploy evidence are deliberately excluded from the deployment input
-fingerprint, so writing the deploy ID does not create a self-referential new
-source commit. A missing ledger means no deployment has been recorded; the tool
-does not create a placeholder.
-
-```bash
-PYTHONPATH=. .venv/bin/python tools/deployment_ledger.py verify \
-  --repo . --ledger deployments/ledger.jsonl
-PYTHONPATH=. .venv/bin/python tools/deployment_ledger.py list \
-  --repo . --ledger deployments/ledger.jsonl
-```
-
-Appending requires an explicit `--confirm-append`, complete hash-bound evidence,
-and the reviewed state transition. The resulting `ACTIVATED_REVIEWED` status is
-an operator-reviewed audit result, not cryptographic proof issued by Streamlit
-or Supabase. Preserve the last record hash in Git history or another audit
-system because a local hash chain alone cannot detect truncation of its suffix.
-No real staging or provider evidence has been recorded for the current working
-tree. See [deployments/README.md](./deployments/README.md) for the event schemas
-and operational sequence.
-
-## Dataset families (V1)
+## Dataset families (default profile `v1`)
 
 | Family | Task | Models | Losses | Metric |
 |--------|------|--------|--------|--------|
-| `univariate_regression` | R → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
-| `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE (+ L1/L2 reg) | `test_mse` |
-| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+| `univariate_regression` | R → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
+| `multivariate_regression` | R^n → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm`, `gru_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
+| `synthetic_tabular_classification` | Synthetic tabular binary classification (`xor`, `spiral`, and other rule families) | `mlp`, `kan` | cross-entropy | `test_ce` |
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
 
-Each family declares compatible model types; candidate sampling only draws from that intersection. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
+Each family declares compatible model types; candidate sampling only draws from the intersection with `pools.model_types`. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
 
-V1 is frozen and keeps the original MLP-only regression benchmark. New task/model-pool changes use a named profile instead of silently changing V1.
-
-## Experimental V2 profile: KAN regression
-
-V2 adds the synthetic tabular classification family and a self-contained spline KAN model. KAN is currently enabled for `univariate_regression` and `multivariate_regression`; its first implementation is pure PyTorch with a fixed grid and no train/test-data grid adaptation.
-
-The V2 KAN parameter pool is not yet frozen while phase-3 calibration continues.
-
-Use V2 explicitly when generating KAN candidates:
-
-```bash
-architecture-iq --profile v2 create-dataset --family univariate_regression --seed 42
-architecture-iq --profile v2 generate-candidates data/datasets/univariate_regression/sym_XXXXXX \
-  --budget 1024 --count 32 --vary model
-```
+Default `v1` equally enables every registered dataset family and each family's compatible models. Older `v2*` pilot profiles remain for historical experiments; new question generation should use `v1` (or an explicit `--profile`).
 
 ## CLI reference
 
@@ -397,12 +279,10 @@ docs/                     # Architecture, plans, reports, and release records
 prompts/templates/        # NL prompt templates
 src/architecture_iq/      # Pipeline: datasets, candidates, ground truth, questions
 tools/llm_eval/           # Standalone LLM evaluation runner
-tools/quiz_bundle/        # Canonical quiz bundle validation and publishing
 tools/ranking_questions/  # Calibration-plus-ranking generation and scoring
 tools/*analysis*.py       # Offline curve/order-parameter analysis
 templates/                # Reusable HTML report template
 data/                     # Generated datasets, candidates, questions (runtime)
-examples/quiz_demo/bundle/ # Version-controlled deployed question bundle + manifest
 llm_runs/                 # LLM evaluation runs (runtime)
 ```
 
@@ -422,76 +302,14 @@ See `src/architecture_iq/runtime/loader.py`.
 > [`docs/FRONTEND_BACKEND.md`](./docs/FRONTEND_BACKEND.md).
 
 Streamlit UI for browsing and taking questions. Original benchmark artifacts remain
-read-only; user-created training settings live in a per-browser-session temporary
-directory and are cleared when the user switches questions.
+read-only; user-created training settings are stored separately under the current
+question's `custom_settings/` directory.
 
 While solving, expand **Add custom setting** to choose the architecture, optimizer,
 loss, training budget, and seed count. Confirming the form trains that setting on the
 current dataset and adds its learning curve to the page. A custom setting can inherit
 all editable values from Choice A/B/C. The inspector retains at most two custom runs:
 the newest run and the historical run with the lowest final loss.
-
-Answers, proposed settings, completed custom runs, post-result surprise
-reactions, question-presentation decisions, and per-question comments can be
-collected in a session trace. The sidebar can download the full trace as JSON
-and upload its pending events when both the feedback endpoint and Bearer token
-are configured; comments and surprise reactions use the same endpoint as
-one-event uploads. Uploads are
-receiver-sized and a conflicting ID is quarantined so it cannot block later
-events. See the inspector README for the endpoint contract and configuration,
-and [supabase/README.md](./supabase/README.md) for the deployable receiver and
-report views. The Supabase receiver acknowledges an unchanged event-ID replay as
-an idempotent duplicate, but rejects reuse of that ID for different logical
-content with HTTP 409; a conflicting batch is not partially inserted.
-Feedback JSON is fail-closed to the Python/JavaScript/PostgreSQL lossless subset:
-integer-valued numbers must stay within ±(2^53−1), strings cannot contain
-unpaired Unicode surrogates, and identifier/comment limits count Unicode code
-points so emoji are handled consistently on both client and receiver.
-
-With no explicit local question path, the inspector reads the version-controlled
-quiz bundle directly and attests its release hash plus every artifact path,
-size, and SHA-256 before serving questions. A missing, stale, forged, or tampered
-bundled release fails closed rather than being mislabeled as the deployed quiz.
-
-For the current default bundle, that attested pool contains exactly 60 published
-questions. **Next** now builds a private cold-start catalog from only those 60
-manifest entries and their stored question/spec/summary artifacts; it never
-scans additional local questions or reruns training. Validity is a hard gate.
-Tie-aware model-size/depth/width and optimizer shortcuts seed a Beta posterior,
-then the local policy uses 80% exploitation and 20% minimum-exposure exploration,
-excludes already completed/current questions, and avoids repeating a family when
-another family is available. A catalog/policy error falls back to sequential
-Next. The selected question, policy version, random decision ID, mode, exact
-mixture propensity, source, and session position are recorded locally as a
-`question_presented` event. The catalog and its scores remain private and never
-modify or leak the answer key, GT, prompt, or release artifacts.
-
-This first policy uses the offline cold-start prior and presentation counts from
-the current local attempt. It does not yet fetch hosted reaction aggregates or
-claim cross-session personalization or an A/B improvement.
-
-Restoring upload from a previously downloaded session JSON is implemented in the
-local inspector. It strictly validates the complete file before any network
-request and places its events into an outbox separate from the live trace. The
-file cannot import browser-local acknowledged or quarantined state from an
-earlier session; within the current browser session, a canonical full-content
-recovery ID preserves progress so retrying the same file sends only pending
-events.
-
-Deployment status (2026-07-12): the upload/outbox, downloaded-trace recovery,
-runtime attestation, surprise reaction/catalog/recommended-Next behavior,
-registry, and authoritative Reports behavior above is
-implemented and tested only in the current local working tree. It has not
-completed a real hosted receiver acceptance run. A fresh anonymous browser check
-of <https://architecture-iq.streamlit.app/> loads the 60-question inspector and
-its custom-setting UI, but shows neither the session-upload control nor the
-single-question comment control. Its Streamlit creator link and this repository's
-Git remote both identify `renrua52`; the exact deployed source commit still needs
-Streamlit Cloud console or runtime-SHA evidence. The new local inspector can
-read the actual Git checkout commit and cross-check it against allowlisted
-platform declarations, but that capability is not present on the currently
-hosted old revision. The remote `main` commit lacks these uncommitted local
-feedback features.
 
 The startup command at the top opens the default question. To open a specific
 question or question run first, pass its path to the launcher:
@@ -502,108 +320,6 @@ question or question run first, pass its path to the launcher:
 ```
 
 See [tools/question_inspector/README.md](./tools/question_inspector/README.md).
-
-## Internal feedback reports
-
-Uploaded feedback has a separate, read-only internal Streamlit entrypoint:
-
-```bash
-.venv/bin/python -m streamlit run tools/feedback_reports/app.py
-```
-
-It provides six business tabs—Summary, Sessions, Questions, Answers, Proposals,
-and Comments—plus Ingestion observability, Registry quality, Surprise, and
-derived Data quality, for ten tabs total. The protected endpoint allowlists
-thirteen RPCs; the
-authority-status and exact-event-resolution RPCs are verifier/operator surfaces,
-not dashboard tabs. The app does not read the quiz browser session directly.
-Ingestion metrics
-separate verified idempotent retries, legacy unclassified duplicates, and real
-event-ID content conflicts. Rates cover only persisted,
-authenticated POST outcomes and are explicitly not an end-to-end network
-success rate.
-The local STATS-003 implementation registers immutable release/question/choice
-facts from the attested bundle. Business dimensions and answer correctness are
-derived only from exact release + question ID + question-version membership;
-missing or mismatched raw events remain auditable in Registry quality and never
-fall back to client-reported `is_correct`, family, dataset, or question type.
-The local REPORT-002 implementation adds paginated, registry-matched answer and
-proposed/rejected-setting rows with the same authoritative filters, strict
-response schemas, safe JSON display, and complete-page-only CSV export. Forward
-migration `18000` appends global `session_id` and `attempt_id` filters to the
-historical positional signatures of all six business RPCs and the snapshot,
-preserving callers that omit them.
-Forward migration `19000` keeps the event wire schema at `1.0` while adding
-strict `question_presented` and `question_reaction_submitted` enum/payload
-contracts to both the table and the atomic ingest RPC. The Inspector only offers
-**Surprised / As expected** after answer reveal; the first response for an
-attempt has a deterministic event ID and remains separate from correctness,
-comments, and future likes. Presentation events carry the release/attempt,
-decision and policy IDs, mode, propensity, source, and position used to evaluate
-navigation rather than infer exposure from answers.
-Forward migration `20000` locally adds two service-role-only SURPRISE-002 RPCs.
-The per-question RPC counts the first valid post-answer rating for each exact
-session/attempt/release/question/version, reports yes/no counts, rating coverage,
-observed surprise, and a Beta(1,1) posterior mean. Its quality companion keeps
-raw/valid/orphan/duplicate counts and a conserved orphan breakdown. The local
-Reports UI exposes both on the Surprise tab with the same eight identity/time
-filters. These two calls are independent of the six-page business MVCC snapshot
-and of each other, and their values are not yet fed back into Inspector Next.
-The local STATS-004 implementation replaces the six-request browser fanout
-with one business-snapshot GET. The Edge Function makes one PostgREST call to
-the `18000` recreation of the `17000` SQL function, which forwards both identity
-filters and assembles all six pages in one PostgreSQL
-statement and therefore one MVCC snapshot. Its `business_snapshot_v1` row
-includes server `snapshot_at`, the embedded `registry_v1`/`detail_v1` authority
-facts and registry counts, plus the six page envelopes as strict `pages_json`
-text. Exact totals still scan all matches, but only the requested stable row
-prefix reaches JSON serialization and per-page UTF-8 byte budgeting; rows are
-never field-truncated, and the final `pages_json` is capped at 4 MiB. The Edge
-validates then forwards the raw PostgREST snapshot array so PostgreSQL bigint
-authority counts do not round-trip through JavaScript `Number`. A byte- or
-row-truncated page retains its exact total and cannot be exported as a complete
-CSV. The app atomically replaces its saved business result only after the whole
-response validates; a failed refresh keeps the previous complete snapshot.
-Ingestion observability and Registry quality remain independent, non-atomic
-requests and are unavailable while any release/family/type/question/session/
-attempt filter is active. Authority status accepts no filters, while exact-event
-resolution accepts only `event_id`; neither auxiliary verifier surface accepts
-identity filters.
-The implementation is available locally but is not a hosted deployment. The
-entrypoint has no built-in user login, so any hosted instance must be a
-separate Streamlit app with platform-level access restricted to maintainers.
-See
-[tools/feedback_reports/README.md](./tools/feedback_reports/README.md) for the
-UI/filter/CSV contract and [supabase/README.md](./supabase/README.md) for the
-separate report token, migration, Edge Function deployment, and opt-in hosted
-write/read roundtrip verifier. The same guide includes an environment-only,
-rollback-only PostgreSQL staging verifier that checks the real migration
-catalog, ACL/RLS/trigger/constraint posture and recomputes the exact current
-registry hash before endpoint smoke. Neither verifier has been run against a
-real hosted revision yet. The endpoint verifier proves the normal single-event
-fresh/resume path, a three-event answer/proposal/comment batch followed by its
-unchanged idempotent replay, and, by default, a real same-ID/different-content
-409. Its CLI attests a published bundle, chooses a real registered membership,
-deliberately
-sends wrong client dimensions and inverse answer correctness, then requires the
-exact-event report to return registry-derived identity/correctness and mismatch
-flags. A dedicated exact seven-column authority-status row requires both the
-`registry_v1` aggregate cutover and `detail_v1` answer/proposal cutover. Before
-the first write, the verifier also requires both detail RPCs to pass protected
-empty-page negative controls and requires one fully empty, authority-attested
-six-view snapshot for a random nonexistent question. A successful run reports
-`business_snapshot_verified=true`, then validates the uploaded answer and
-proposal as exact authoritative detail rows. The verifier does not rely on
-shared aggregate counts, so historical answers for the selected question are
-safe. It then requires the real session/attempt pair to produce the exact six
-business pages and separately requires an incorrect session and incorrect
-attempt to produce empty snapshots. Only that complete positive/negative proof
-sets `session_attempt_filters_verified=true`. The Reports UI does not make a
-separate authority-status request: its
-strict snapshot parser requires the embedded revisions, booleans, counts, and
-six complete page contracts before rendering. Explicit skip flags are reserved
-for compatibility, minimal-footprint, or interrupted recovery and leave their
-verification fields false.
 
 ## Ranking questions and analysis tools
 

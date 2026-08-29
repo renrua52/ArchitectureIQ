@@ -133,9 +133,15 @@ def sample_candidate_set_pool(
             shared["batch_size"] = defaults["batch_size"]
         else:
             shared["batch_size"] = _pick_batch_size(profile, budget, rng)
+    # layer_norm is sampled once per set and shared by every candidate, so
+    # choices inside a question never differ on it (v1.1 decision D7).
+    model_shared: dict[str, Any] | None = None
+    if "model" in varying_axes or "model" not in shared:
+        model_shared = {"layer_norm": bool(rng.choice([True, False]))}
     if "model" not in varying_axes and "model" not in shared:
         shared["model"] = sample_model(
-            profile, rng, family=family, dataset_params=dataset_params
+            profile, rng, family=family, dataset_params=dataset_params,
+            shared=model_shared,
         )
     if "optimizer" not in varying_axes and "optimizer" not in shared:
         shared["optimizer"] = sample_optimizer(profile, rng)
@@ -155,6 +161,7 @@ def sample_candidate_set_pool(
                 family=family,
                 dataset_params=dataset_params,
                 model_type=model_schedule[len(specs)] if model_schedule is not None else None,
+                shared=model_shared,
             )
         if "optimizer" in varying_axes:
             fixed["optimizer"] = sample_optimizer(profile, rng)

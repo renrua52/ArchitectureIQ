@@ -20,7 +20,6 @@ import prompt_format as insp  # noqa: E402
     "name",
     [
         "format_mlp_nl",
-        "format_kan_nl",
         "format_gru_lm_nl",
         "format_optimizer_nl",
         "format_loss_nl",
@@ -45,20 +44,6 @@ def test_mlp_nl_parity_output() -> None:
     }
     assert pkg.format_mlp_nl(model) == insp.format_mlp_nl(model)
 
-
-def test_kan_nl_parity_output() -> None:
-    model = {
-        "type": "kan",
-        "input_dim": 2,
-        "output_dim": 1,
-        "depth": 2,
-        "width": 8,
-        "grid_size": 5,
-        "spline_order": 3,
-        "grid_range": [-1.0, 1.0],
-        "base_activation": "silu",
-    }
-    assert pkg.format_kan_nl(model) == insp.format_kan_nl(model)
 
 def test_gru_lm_nl_parity_output() -> None:
     model = {
@@ -124,6 +109,29 @@ def test_classification_rule_card_parity(
         assert "s(x) = -x_0·x_2" in text
         assert "nominal only" in text
         assert "need not follow" in text
+
+
+def test_spiral_rule_card_parity() -> None:
+    params = {
+        "input_dim": 2,
+        "rule_family": "spiral",
+        "active_features": [0, 1],
+        "interaction_pairs": [],
+        "rule_weights": [1.0],
+        "piecewise_breakpoint": 0.0,
+        "spiral_turns": 2.0,
+        "noise_std": 0.05,
+        "decision_threshold": 0.0,
+        "point_sampling": {"distribution": "two_spirals", "seed": 11, "turns": 2.0},
+        "calibration": {"seed": 22, "size": 0, "target_positive_rate": 0.5},
+    }
+    text = pkg.format_synthetic_tabular_classification_rule(params)
+    assert text == insp.format_synthetic_tabular_classification_rule(params)
+    assert "two-spirals" in text
+    assert "Label rule" in text
+    assert "Bayes decision boundary" in text
+    assert "phase = π" in text
+    assert "def " not in text
 
 
 def test_classification_dataset_protocol_uses_family_dispatch_without_rule_family() -> None:

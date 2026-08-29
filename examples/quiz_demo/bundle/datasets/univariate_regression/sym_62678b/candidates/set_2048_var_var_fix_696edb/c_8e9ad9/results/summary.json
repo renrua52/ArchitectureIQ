@@ -7,44 +7,44 @@
   "base_seed": 0,
   "failed_seeds": 10,
   "excluded": true,
-  "mean_test_mse": null,
-  "std_test_mse": null,
+  "mean_test_mse": Infinity,
+  "std_test_mse": Infinity,
   "seed_results": [
     {
       "seed": 0,
       "failed": true,
-      "final_test_mse": 133619007881216.0,
-      "mean_test_mse": 133619007881216.0
+      "final_test_mse": 133618949160960.0,
+      "mean_test_mse": 133618949160960.0
     },
     {
       "seed": 1,
       "failed": true,
-      "final_test_mse": 887049997516800.0,
-      "mean_test_mse": 887049997516800.0
+      "final_test_mse": 887049527754752.0,
+      "mean_test_mse": 887049527754752.0
     },
     {
       "seed": 2,
       "failed": true,
-      "final_test_mse": 2899853.25,
-      "mean_test_mse": 2899853.25
+      "final_test_mse": 2899853.5,
+      "mean_test_mse": 2899853.5
     },
     {
       "seed": 3,
       "failed": true,
-      "final_test_mse": 35501768704.0,
-      "mean_test_mse": 35501768704.0
+      "final_test_mse": 35501723648.0,
+      "mean_test_mse": 35501723648.0
     },
     {
       "seed": 4,
       "failed": true,
-      "final_test_mse": 464356000.0,
-      "mean_test_mse": 464356000.0
+      "final_test_mse": 464356096.0,
+      "mean_test_mse": 464356096.0
     },
     {
       "seed": 5,
       "failed": true,
-      "final_test_mse": 2327465057845248.0,
-      "mean_test_mse": 2327465057845248.0
+      "final_test_mse": 2327466400022528.0,
+      "mean_test_mse": 2327466400022528.0
     },
     {
       "seed": 6,
@@ -55,14 +55,14 @@
     {
       "seed": 7,
       "failed": true,
-      "final_test_mse": 378270912.0,
-      "mean_test_mse": 378270912.0
+      "final_test_mse": 378270976.0,
+      "mean_test_mse": 378270976.0
     },
     {
       "seed": 8,
       "failed": true,
-      "final_test_mse": 4942546862080.0,
-      "mean_test_mse": 4942546862080.0
+      "final_test_mse": 4942561542144.0,
+      "mean_test_mse": 4942561542144.0
     },
     {
       "seed": 9,
@@ -72,10 +72,10 @@
     }
   ],
   "environment": {
-    "python": "3.10.11 (v3.10.11:7d4cc5aa85, Apr  4 2023, 19:05:19) [Clang 13.0.0 (clang-1300.0.29.30)]",
-    "platform": "macOS-26.5.1-arm64-arm-64bit",
-    "torch": "2.13.0",
+    "python": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 08:22:19) [Clang 14.0.6 ]",
+    "platform": "macOS-15.3.1-arm64-arm-64bit",
+    "torch": "2.12.1",
     "device": "cpu",
-    "git_commit": "034aaad7bde1cfb6dd0dd73dcaea22f5c15be0d0"
+    "git_commit": "20f0b6c5c240dd9bf99334e1cda8714e3ddf32df"
   }
 }

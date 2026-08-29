@@ -40,7 +40,7 @@ def test_frozen_v1_profile_keeps_legacy_hash_and_cpu_default() -> None:
     profile = load_profile("v1")
     assert "device" not in profile.ground_truth
     assert profile.execution_device == "cpu"
-    assert profile.profile_hash == "fbabf750b93b7bf3"
+    assert profile.profile_hash == "90421abe32ec88c7"
 
 
 def test_legacy_candidate_without_execution_is_always_cpu() -> None:

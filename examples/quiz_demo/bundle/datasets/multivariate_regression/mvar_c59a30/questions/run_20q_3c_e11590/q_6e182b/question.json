@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "family": "multivariate_regression",
+  "dataset_id": "mvar_c59a30",
+  "budget": {
+    "total_samples_seen": 5120
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "candidate_sets": [
+    "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_1ba9d8",
+      "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_1ba9d8",
+      "candidate_set_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_3462a9",
+      "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_3462a9",
+      "candidate_set_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_cfa531",
+      "candidate_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677/c_cfa531",
+      "candidate_set_path": "datasets/multivariate_regression/mvar_c59a30/candidates/set_5120_var_var_fix_dad677"
+    }
+  ],
+  "correct_letter": "B",
+  "significance": {
+    "passed": true,
+    "gap": 0.12014351917637717,
+    "win_rate": 0.8,
+    "metric": "test_mse"
+  },
+  "evaluation": {
+    "selection_metric": "test_mse",
+    "n_seeds": 10,
+    "base_seed": 0
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_6e182b",
+  "profile": "v1",
+  "question_run_id": "run_20q_3c_e11590",
+  "question_run_path": "datasets/multivariate_regression/mvar_c59a30/questions/run_20q_3c_e11590"
+}

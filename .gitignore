@@ -149,10 +149,7 @@ activemq-data/
 
 # Environments
 .env
-.env.vapi
 .envrc
-.streamlit/secrets.toml
-supabase/.env.local
 .venv
 env/
 venv/
@@ -219,6 +216,7 @@ __marimo__/
 
 # Benchmark generated artifacts
 data/
+benchmarks/
 # Immutable benchmark question-pack payloads are intentionally tracked.
 # This exception does not alter the top-level data/ ignore rule.
 !benchmark_releases/
@@ -228,15 +226,6 @@ data/
 !benchmark_releases/question_packs/*/data/**
 llm_runs/
 
-# User-owned local workspace (never tracked by normal Git operations)
-/workspace/
-
-# Columnar backend problem repository (gitignored like legacy data/)
-backend/data/
-
-# Deployment ledger append lock (the ledger and reviewed evidence stay trackable)
-deployments/.ledger.jsonl.lock
-
 # Local analysis and report-build outputs. Curated report assets are force-added.
 artifacts/.cache/
 artifacts/.matplotlib/
@@ -245,6 +234,7 @@ artifacts/order_parameter_analysis/
 artifacts/q_b24cf4_extended_training/
 artifacts/quiz_attempt_60/
 artifacts/ranking_questions/
+artifacts/v1_llm_bundle/
 
 # Finder metadata from imported templates
 templates/**/__MACOSX/

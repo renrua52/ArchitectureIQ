@@ -426,20 +426,7 @@ def main() -> None:
         },
     ]
 
-    context_dir = QUIZ60 / "context_analysis"
-    context_summary = None
-    case_atlas = None
-    if (context_dir / "summary.json").exists():
-        context_summary = load_json(context_dir / "summary.json")
-    if (context_dir / "case_atlas.json").exists():
-        case_atlas = load_json(context_dir / "case_atlas.json")
-
-    data = {
-        "questions": question_payload,
-        "studies": studies,
-        "context_summary": context_summary,
-        "case_atlas": case_atlas,
-    }
+    data = {"questions": question_payload, "studies": studies}
     (OUT / "case_data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     js = "window.README_CASE_STUDIES = " + json.dumps(data, ensure_ascii=False, indent=2) + ";\n"
     (OUT / "case_data.js").write_text(js, encoding="utf-8")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 LEGACY_LEAKY_RELU_SLOPE = 0.1
 
 SINGLE_AXIS_TYPES = frozenset({"architecture_only", "optimizer_only", "loss_only"})
@@ -30,7 +32,7 @@ def format_mlp_nl(model: dict) -> str:
     if "output_dim" in model and int(model["output_dim"]) > 1:
         lines.append(f"- Output logits: {model['output_dim']}")
     lines.extend([
-        f"- Depth: {model['depth']} hidden layers",
+        f"- Depth: {model['depth']} hidden layer{'s' if int(model['depth']) != 1 else ''}",
         f"- Width: {model['width']} (all hidden layers)",
         f"- Residual connections: {model['residual']}",
         f"- Layer norm per layer: {model['layer_norm']}",
@@ -43,30 +45,10 @@ def format_mlp_nl(model: dict) -> str:
     return "\n".join(lines)
 
 
-def format_kan_nl(model: dict) -> str:
-    lines = ["- Type: spline KAN (efficient_spline_v1)"]
-    if "input_dim" in model and int(model["input_dim"]) > 1:
-        lines.append(f"- Input dimension: {model['input_dim']}")
-    if "output_dim" in model and int(model["output_dim"]) > 1:
-        lines.append(f"- Output logits: {model['output_dim']}")
-    lines.extend([
-        f"- Depth: {model['depth']} hidden layers",
-        f"- Width: {model['width']} (all hidden layers)",
-        f"- Grid size: {model['grid_size']}",
-        f"- Spline order: {model['spline_order']}",
-        f"- Fixed grid range: {model['grid_range']}",
-        f"- Base activation: {model['base_activation']}",
-        "- Grid updates: fixed; no train/test-data adaptation",
-    ])
-    return "\n".join(lines)
-
-
 def format_model_nl(model: dict) -> str:
     model_type = model.get("type", "mlp")
     if model_type == "mlp":
         return format_mlp_nl(model)
-    if model_type == "kan":
-        return format_kan_nl(model)
     if model_type == "transformer_lm":
         return format_transformer_lm_nl(model)
     if model_type == "gru_lm":
@@ -200,6 +182,22 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
     weights = [float(weight) for weight in params["rule_weights"]]
     active = ", ".join(f"`x_{feature}`" for feature in active_features)
 
+    if rule_family == "spiral":
+        turns = float(params.get("spiral_turns", 2.0))
+        noise_std = float(params["noise_std"])
+        sampling = params["point_sampling"]
+        left, right = active_features[:2]
+        return "\n".join(
+            [
+                f"- Rule family: `spiral`; active coordinates: `x_{left}`, `x_{right}` (input is 2-dimensional).",
+                f"- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, {0.5 + turns * 2.0 * math.pi:.6g}]` ({turns:.6g} full turns), radius `r = t`, coordinates `(r·cos(t + phase), r·sin(t + phase))` with `phase ∈ {{0, π}}`; independent Gaussian noise `ε ~ Normal(0, {noise_std:.6g}²)` is then added to each coordinate.",
+                "- Label rule: `y = 0` for points drawn from the `phase = 0` arm and `y = 1` for points from the `phase = π` arm; both arms are equally likely, so classes are balanced.",
+                "- Nominal soft score (intuition only): `s(x) = sin(atan2(x_1, x_0) − ‖x‖₂)`; its zero level sets trace the two arms, but labels come from the generative arm, not from thresholding `s(x)`.",
+                f"- Bayes decision boundary: assign each point to the nearer of the two noiseless arms (up to label-flip symmetry); with `{turns:.6g}` turns the arms interleave, so the boundary is highly non-linear.",
+                f"- Reproducibility: point/noise seed `{sampling['seed']}`, spiral turns `{turns:.6g}`.",
+            ]
+        )
+
     if rule_family == "smooth_additive":
         terms = [
             (weight, f"[sin(x_{feature}) + 0.25·x_{feature}²]")
@@ -274,23 +272,13 @@ def format_dataset_protocol(params: dict, *, family: str | None = None, device: 
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
     expression = params.get("expression", "—")
-    noise = params.get("noise", {}) or {}
-    if noise.get("enabled"):
-        noise_line = (
-            f"- Training labels carry additive Gaussian noise (std={noise.get('std', 0.0)}); "
-            "the held-out test labels are the exact target function (noiseless)"
-        )
-    else:
-        noise_line = "- Labels are noiseless (train and test use the exact target function)"
     lines = [
         f"- Target expression (canonical): `{expression}`",
         f"- Train split size: {params['train_size']} fixed `(x, y)` pairs",
         f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
         f"- Input domain: [{domain[0]}, {domain[1]}], uniform sampling",
         f"- Point-sampling seed: {point_seed} (materializes the fixed train/test splits)",
-        noise_line,
-        "- Minibatch construction: each step draws `batch_size` train indices "
-        "uniformly at random **with replacement**",
+        "- Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",
         "- Randomness: `torch.manual_seed(seed)` once before model init and the training loop",
         f"- Reference device: {device}",

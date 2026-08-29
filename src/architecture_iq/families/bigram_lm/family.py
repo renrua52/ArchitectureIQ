@@ -157,7 +157,6 @@ class BigramLmFamily(DatasetFamily):
 
         torch.save({"x": tx, "y": ty}, out_dir / "train.pt")
         torch.save({"x": vx, "y": vy}, out_dir / "test.pt")
-
         np.savez(
             out_dir / "transition.npz",
             probs=probs,
@@ -177,4 +176,4 @@ class BigramLmFamily(DatasetFamily):
         return {}
 
     def compatible_model_types(self) -> list[str]:
-        return ["transformer_lm"]
+        return ["transformer_lm", "gru_lm"]

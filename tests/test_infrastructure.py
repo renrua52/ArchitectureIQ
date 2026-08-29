@@ -4,8 +4,6 @@ import importlib.util
 import shutil
 from pathlib import Path
 
-import pytest
-
 import architecture_iq.manifest as manifest
 from architecture_iq.candidates.axes import choices_compatible
 from architecture_iq.candidates.sets import (
@@ -80,7 +78,6 @@ def test_write_json_round_trip_creates_parent_dirs(tmp_path: Path) -> None:
 
 
 def test_start_quiz_materializes_bundled_demo(tmp_path: Path, monkeypatch) -> None:
-
     repo = Path(__file__).resolve().parents[1]
     demo_root = tmp_path / "demo"
     question_relative = Path(_START_QUIZ.DEFAULT_RUN).relative_to("data")

@@ -143,53 +143,6 @@ def test_classification_candidate_executes_and_reports_auxiliary_accuracy(small_
     assert all("final_test_accuracy" in row for row in summary["seed_results"])
 
 
-def test_classification_kan_candidate_executes_and_reports_logits(tmp_path: Path) -> None:
-    profile = load_profile("v2.1")
-    profile.ground_truth["n_seeds"] = 2
-    family, dataset_spec, dataset_path = _materialize(
-        profile, tmp_path, seed=17, rule_family="sparse_interaction"
-    )
-    model = {
-        "type": "kan",
-        "input_dim": 8,
-        "output_dim": 2,
-        "depth": 1,
-        "width": 8,
-        "grid_size": 5,
-        "spline_order": 3,
-        "grid_range": [-1.0, 1.0],
-        "base_activation": "silu",
-    }
-    candidate_spec = build_candidate_spec(
-        profile,
-        dataset_id=dataset_spec["dataset_id"],
-        family="synthetic_tabular_classification",
-        budget=128,
-        batch_size=16,
-        model=model,
-        optimizer={
-            "type": "Adam",
-            "lr": 0.001,
-            "weight_decay": 0.0,
-            "betas": [0.9, 0.999],
-        },
-        loss={"loss_id": "cross_entropy"},
-    )
-    candidate_path = tmp_path / "kan_candidate"
-    write_candidate(candidate_spec, candidate_path, get_model_type("kan"))
-    train_module = load_candidate_train(candidate_path)
-    train_x, _, _, _ = family.load_tensors(dataset_path)
-    logits = train_module.Model()(train_x)
-    assert logits.shape == (1024, 2)
-
-    summary = run_ground_truth(candidate_path, profile, dataset_path)
-    assert summary["execution"] == "candidate_py_files"
-    assert summary["selection_metric"] == "test_ce"
-    assert "mean_test_ce" in summary and "std_test_ce" in summary
-    assert "mean_test_accuracy" in summary and "std_test_accuracy" in summary
-    assert all("final_test_accuracy" in row for row in summary["seed_results"])
-
-
 def test_xor_pilot_profile_contract() -> None:
     profile = load_profile("v2.3-xor-pilot")
     cfg = profile.family_config("synthetic_tabular_classification")
@@ -205,7 +158,7 @@ def test_xor_pilot_profile_contract() -> None:
     assert cfg["target_positive_rate"] == 0.5
     ensure_registries()
     family = get_dataset_family("synthetic_tabular_classification")
-    assert profile.model_types_for_family(family.name, family.compatible_model_types()) == ["mlp", "kan"]
+    assert profile.model_types_for_family(family.name, family.compatible_model_types()) == ["mlp"]
 
     for name in ("v2", "v2.1", "v2.2"):
         legacy = load_profile(name)
@@ -255,10 +208,10 @@ def test_xor_rendered_target_has_negative_product_semantics(tmp_path: Path) -> N
     assert torch.equal(target(points), torch.tensor([-1.0, 1.0, 1.0, -1.0]))
 
 
-def test_xor_pilot_mlp_and_kan_forward() -> None:
+def test_xor_pilot_mlp_forward() -> None:
     profile = load_profile("v2.3-xor-pilot")
     ensure_registries()
-    for model_type in ("mlp", "kan"):
+    for model_type in ("mlp",):
         model_family = get_model_type(model_type)
         model = model_family.sample_spec(profile, random.Random(3), dataset_params={"input_dim": 2, "num_classes": 2})
         assert model["input_dim"] == 2 and model["output_dim"] == 2

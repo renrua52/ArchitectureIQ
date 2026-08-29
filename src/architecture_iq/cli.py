@@ -61,12 +61,14 @@ def create_dataset_cmd(
     input_dim: Optional[int] = typer.Option(
         None,
         "--input-dim",
-        help="Input dimension n for multivariate_regression (must be in profile input_dims pool)",
+        help="Input dimension for multivariate_regression or synthetic_tabular_classification "
+        "(must be in that family's profile input_dims pool)",
     ),
-    noise_std: Optional[float] = typer.Option(
+    rule_family: Optional[str] = typer.Option(
         None,
-        "--noise-std",
-        help="Gaussian label-noise std added to TRAIN targets only (regression families); test stays the true function",
+        "--rule-family",
+        help="Rule family for synthetic_tabular_classification "
+        "(e.g. xor, spiral; must be in profile rule_families)",
     ),
     interactive: bool = typer.Option(
         False,
@@ -85,7 +87,7 @@ def create_dataset_cmd(
         random_family=random_family,
         seed=seed is not None,
         input_dim=input_dim is not None,
-        noise_std=noise_std is not None,
+        rule_family=rule_family is not None,
     )
 
     if interactive:
@@ -105,8 +107,16 @@ def create_dataset_cmd(
         )
     if family is not None and random_family:
         raise typer.BadParameter("Use only one of --family and --random-family")
-    if input_dim is not None and family not in (None, "multivariate_regression"):
-        raise typer.BadParameter("--input-dim is only valid with --family multivariate_regression")
+    _dim_families = ("multivariate_regression", "synthetic_tabular_classification")
+    if input_dim is not None and family not in (None, *_dim_families):
+        raise typer.BadParameter(
+            "--input-dim is only valid with multivariate_regression or "
+            "synthetic_tabular_classification"
+        )
+    if rule_family is not None and family not in (None, "synthetic_tabular_classification"):
+        raise typer.BadParameter(
+            "--rule-family is only valid with --family synthetic_tabular_classification"
+        )
 
     instance_seed = seed if seed is not None else 0
     family_name = resolve_dataset_family(
@@ -115,25 +125,22 @@ def create_dataset_cmd(
         random_pick=random_family,
         rng=rng,
     )
-    if input_dim is not None and family_name != "multivariate_regression":
+    if input_dim is not None and family_name not in _dim_families:
         raise typer.BadParameter(
-            "--input-dim requires multivariate_regression (got random family "
-            f"{family_name!r})"
+            "--input-dim requires multivariate_regression or "
+            f"synthetic_tabular_classification (got random family {family_name!r})"
         )
-    if noise_std is not None and family_name not in (
-        "multivariate_regression",
-        "univariate_regression",
-    ):
+    if rule_family is not None and family_name != "synthetic_tabular_classification":
         raise typer.BadParameter(
-            "--noise-std is only valid for regression families (got "
-            f"{family_name!r})"
+            "--rule-family requires synthetic_tabular_classification "
+            f"(got {family_name!r})"
         )
 
-    family_options: dict[str, object] = {}
+    family_options: dict = {}
     if input_dim is not None:
         family_options["input_dim"] = input_dim
-    if noise_std is not None:
-        family_options["noise_std"] = noise_std
+    if rule_family is not None:
+        family_options["rule_family"] = rule_family
     try:
         spec, path = create_dataset(
             prof,
@@ -272,11 +279,6 @@ def generate_question_cmd(
         None,
         help="Number of choices (default: profile num_choices)",
     ),
-    non_repeating_candidates: Optional[bool] = typer.Option(
-        None,
-        "--non-repeating-candidates/--allow-candidate-reuse",
-        help="Override the profile candidate-reuse policy for this question run",
-    ),
     profile: str = typer.Option("v1"),
     seed: int = typer.Option(0),
     candidate_reuse_policy: str = typer.Option(
@@ -299,6 +301,35 @@ def generate_question_cmd(
         "--required-model-type",
         help="Repeat once per required model type (for example: gru_lm and transformer_lm)",
     ),
+    gap_max: Optional[float] = typer.Option(
+        None,
+        "--gap-max",
+        help="Optional: reject subsets whose winner–runner-up metric gap exceeds this "
+        "(overrides profile question_generation.quality.gap_max when passed)",
+    ),
+    gap_worst_max: Optional[float] = typer.Option(
+        None,
+        "--gap-worst-max",
+        help="Optional: reject subsets whose winner–worst metric gap exceeds this "
+        "(overrides profile question_generation.quality.gap_worst_max when passed)",
+    ),
+    require_finite_mean: Optional[bool] = typer.Option(
+        None,
+        "--require-finite-mean/--allow-nonfinite-mean",
+        help="Optional pool wash: drop candidates with non-finite selection mean",
+    ),
+    max_failed_seeds: Optional[int] = typer.Option(
+        None,
+        "--max-failed-seeds",
+        help="Optional pool wash: drop candidates with more failed seeds than N "
+        "(overrides profile; use 0 for no failed seeds)",
+    ),
+    question_type: Optional[str] = typer.Option(
+        None,
+        "--question-type",
+        help="Optional target question type: architecture_only, optimizer_only, "
+        "loss_only, or mixed. When set, subsets must match it.",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -307,6 +338,8 @@ def generate_question_cmd(
     ),
 ) -> None:
     """Assemble questions from one or more candidate sets."""
+    from architecture_iq.questions.quality import QuestionQualityFilters
+
     prof = load_profile(profile)
 
     _reject_interactive_flags(
@@ -315,12 +348,16 @@ def generate_question_cmd(
         candidate_sets=bool(candidate_sets),
         num_questions=num_questions is not None,
         num_choices=num_choices is not None,
-        non_repeating_candidates=non_repeating_candidates is not None,
         seed=seed != 0,
         candidate_reuse_policy=candidate_reuse_policy != "globally_disjoint_within_run",
         max_candidate_uses=max_candidate_uses is not None,
         winner_type_max_fraction=winner_type_max_fraction is not None,
         required_model_types=bool(required_model_types),
+        gap_max=gap_max is not None,
+        gap_worst_max=gap_worst_max is not None,
+        require_finite_mean=require_finite_mean is not None,
+        max_failed_seeds=max_failed_seeds is not None,
+        question_type=question_type is not None,
     )
 
     if interactive:
@@ -343,10 +380,30 @@ def generate_question_cmd(
         raise typer.BadParameter("num_choices must be at least 2")
     if num_questions < 1:
         raise typer.BadParameter("num_questions must be at least 1")
+    if gap_max is not None and gap_max < 0:
+        raise typer.BadParameter("--gap-max must be non-negative")
+    if gap_worst_max is not None and gap_worst_max < 0:
+        raise typer.BadParameter("--gap-worst-max must be non-negative")
+    if max_failed_seeds is not None and max_failed_seeds < 0:
+        raise typer.BadParameter("--max-failed-seeds must be non-negative")
+    if question_type is not None and question_type not in (
+        "architecture_only", "optimizer_only", "loss_only", "mixed"
+    ):
+        raise typer.BadParameter("--question-type must be one of architecture_only, optimizer_only, loss_only, mixed")
 
     for set_path in candidate_sets:
         if not set_path.is_dir():
             raise typer.BadParameter(f"Candidate set not found: {set_path}")
+
+    quality = QuestionQualityFilters.from_profile(prof).overlay(
+        gap_max=gap_max,
+        gap_worst_max=gap_worst_max,
+        require_finite_mean=require_finite_mean,
+        max_failed_seeds=max_failed_seeds,
+        gap_max_provided=gap_max is not None,
+        gap_worst_max_provided=gap_worst_max is not None,
+        max_failed_seeds_provided=max_failed_seeds is not None,
+    )
 
     rng = random.Random(seed)
     run_path, results = generate_questions(
@@ -357,20 +414,24 @@ def generate_question_cmd(
         num_questions=num_questions,
         num_choices=n_choices,
         seed=seed,
-        non_repeating_candidates=non_repeating_candidates,
         required_model_types=frozenset(required_model_types) or None,
         candidate_reuse_policy=candidate_reuse_policy,
         max_candidate_uses=max_candidate_uses,
         winner_type_max_fraction=winner_type_max_fraction,
+        quality=quality,
+        question_type=question_type,
     )
 
     typer.echo(f"Question run written to {run_path}")
+    if quality.any_enabled:
+        typer.echo(f"Quality filters: {quality.as_dict()}")
     for record, out in results:
         write_prompt(out)
         typer.echo(
             f"Question {record['question_id']} type={record['type']} "
             f"varying={record['varying_axes']} correct={record['correct_letter']} at {out}"
         )
+
 
 
 if __name__ == "__main__":

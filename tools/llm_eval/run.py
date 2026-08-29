@@ -22,53 +22,6 @@ def _default_runs_root() -> Path:
     return Path(__file__).resolve().parents[2] / "llm_runs"
 
 
-def _load_manifest_selection(
-    path: Path, questions_root: Path
-) -> tuple[list[str] | None, list[Path] | None]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    questions = payload.get("questions") if isinstance(payload, dict) else None
-    if not isinstance(questions, list):
-        raise ValueError(f"Question manifest {path} must contain a 'questions' list")
-
-    question_ids: list[str] = []
-    for question in questions:
-        question_id = question.get("question_id") if isinstance(question, dict) else question
-        if not isinstance(question_id, str) or not question_id:
-            raise ValueError(f"Question manifest {path} contains an invalid question_id")
-        question_ids.append(question_id)
-    if not question_ids:
-        raise ValueError(f"Question manifest {path} contains no questions")
-    if len(question_ids) != len(set(question_ids)):
-        raise ValueError(f"Question manifest {path} contains duplicate question IDs")
-
-    has_paths = [
-        isinstance(question, dict) and "question_path" in question
-        for question in questions
-    ]
-    if any(has_paths) and not all(has_paths):
-        raise ValueError(
-            f"Question manifest {path} must provide question_path for every question or none"
-        )
-    if not any(has_paths):
-        return question_ids, None
-
-    question_paths: list[Path] = []
-    for question in questions:
-        assert isinstance(question, dict)
-        rel_path = question["question_path"]
-        if not isinstance(rel_path, str) or not rel_path:
-            raise ValueError(f"Question manifest {path} contains an invalid question_path")
-        resolved = (questions_root / rel_path).resolve()
-        try:
-            resolved.relative_to(questions_root)
-        except ValueError as exc:
-            raise ValueError(
-                f"Question manifest {path} path escapes questions root: {rel_path}"
-            ) from exc
-        question_paths.append(resolved)
-    return None, question_paths
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run an LLM on ArchitectureIQ question prompts and score answers."
@@ -82,6 +35,12 @@ def main() -> None:
     parser.add_argument("--model", required=True, help="Model name passed to the chat API")
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--max-tokens", type=int, default=16384)
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="Read timeout in seconds for each API attempt (default: 120)",
+    )
     parser.add_argument("--top-p", type=float, default=None)
     parser.add_argument(
         "--runs-root",
@@ -100,11 +59,6 @@ def main() -> None:
     )
     parser.add_argument("--limit", type=int, default=None, help="Evaluate at most N questions")
     parser.add_argument(
-        "--question-manifest",
-        default=None,
-        help="Public JSON manifest whose ordered questions[].question_id list selects a subset",
-    )
-    parser.add_argument(
         "--workers",
         type=int,
         default=4,
@@ -113,19 +67,21 @@ def main() -> None:
     parser.add_argument(
         "--skip-existing",
         action="store_true",
-        help="Reuse cached per-question results already present in the run dir",
+        help="Reuse valid cached results already present in the run dir",
+    )
+    parser.add_argument(
+        "--reuse-results-from",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="Reuse valid results from a run directory or results directory; repeatable",
     )
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
 
     questions_root = Path(args.questions_root).expanduser().resolve()
     runs_root = Path(args.runs_root).expanduser().resolve()
-    question_ids, question_paths = (
-        _load_manifest_selection(
-            Path(args.question_manifest).expanduser().resolve(), questions_root
-        )
-        if args.question_manifest
-        else (None, None)
-    )
     if args.run_dir:
         run_dir = Path(args.run_dir).expanduser().resolve()
     else:
@@ -137,7 +93,7 @@ def main() -> None:
         max_tokens=args.max_tokens,
         top_p=args.top_p,
     )
-    client = LLMClient()
+    client = LLMClient(timeout_s=args.timeout)
 
     manifest = run_evaluation(
         questions_root=questions_root,
@@ -145,10 +101,12 @@ def main() -> None:
         model_config=config,
         client=client,
         limit=args.limit,
-        question_ids=question_ids,
-        question_paths=question_paths,
         skip_existing=args.skip_existing,
         workers=args.workers,
+        timeout_s=args.timeout,
+        reuse_results_from=[
+            Path(path).expanduser().resolve() for path in args.reuse_results_from
+        ],
     )
 
     summary = manifest["summary"]

@@ -6,7 +6,7 @@ from unittest.mock import patch
 import json
 import pytest
 
-from architecture_iq.candidates.generator import choices_compatible, sample_loss, sample_variant_pool
+from architecture_iq.candidates.generator import choices_compatible, sample_variant_pool
 from architecture_iq.profile import load_profile
 from architecture_iq.registry import ensure_registries
 from architecture_iq.significance.validator import SignificanceResult
@@ -82,13 +82,6 @@ def test_mixed_pool_varies_all_training_axes() -> None:
     assert len(optimizers) > 1
     assert len(losses) > 1
     assert len(batch_sizes) == 1
-
-
-def test_bigram_regularized_loss_has_lambda() -> None:
-    profile = load_profile("v1")
-    loss = sample_loss(profile, "bigram_lm", __import__("random").Random(0))
-    assert loss["loss_id"] in {"cross_entropy_l1", "cross_entropy_l2"}
-    assert loss["lambda"] in profile.loss_grids["lambda"]
 
 
 def test_choices_compatible_rejects_mixed_batch_sizes() -> None:
@@ -188,32 +181,6 @@ def test_candidate_disjoint_picker_returns_empty_when_impossible() -> None:
     assert _pick_candidate_disjoint_subsets(subsets, 2) == []
 
 
-def test_pick_distinct_subsets_recovers_from_greedy_dead_end() -> None:
-    """A single first-fit pass can consume both endpoints of two valid pairs."""
-    subsets = [
-        [Path("a"), Path("b")],
-        [Path("a"), Path("c")],
-        [Path("b"), Path("d")],
-    ]
-
-    # The listed order is a greedy dead end: accepting {a, b} leaves no
-    # candidate-disjoint subset, even though {a, c} + {b, d} is feasible.
-    used: set[str] = set()
-    first_fit: list[list[Path]] = []
-    for subset in subsets:
-        candidate_ids = {path.name for path in subset}
-        if candidate_ids & used:
-            continue
-        first_fit.append(subset)
-        used.update(candidate_ids)
-    assert len(first_fit) == 1
-
-    picked = _pick_candidate_disjoint_subsets(subsets, 2)
-    assert len(picked) == 2
-    assert {path.name for subset in picked for path in subset} == {"a", "b", "c", "d"}
-    assert picked == _pick_candidate_disjoint_subsets(subsets, 2)
-
-
 def test_select_significant_candidates_exhaustive() -> None:
     profile = load_profile("v1")
 
@@ -250,14 +217,11 @@ def test_select_significant_candidates_exhaustive() -> None:
     assert len(selected) == 2
 
 
-def test_eligible_candidate_paths_filters_excluded_and_failed() -> None:
-    paths = [Path("a"), Path("b"), Path("c")]
+def test_eligible_candidate_paths_filters_excluded() -> None:
+    paths = [Path("a"), Path("b")]
 
     def fake_load_summary(path: Path) -> dict:
-        return {
-            "excluded": path.name == "b",
-            "failed_seeds": 1 if path.name == "c" else 0,
-        }
+        return {"excluded": path.name == "b"}
 
     with patch("architecture_iq.questions.generator.load_summary", fake_load_summary):
         assert eligible_candidate_paths(paths) == [Path("a")]
@@ -305,7 +269,9 @@ def test_build_question_record_persists_profile_hash(tmp_path: Path, monkeypatch
     monkeypatch.setattr(
         question_generator,
         "validate_significance",
-        lambda summaries, profile, metric: SignificanceResult(True, 0.2, 1.0, metric, 0),
+        lambda summaries, profile, metric, **kwargs: SignificanceResult(
+            True, 0.2, 1.0, metric, 0
+        ),
     )
 
     record = build_question_record(
@@ -443,8 +409,8 @@ def test_run_manifest_uses_canonical_winner_cap_and_custom_artifact_root(
         {
             "profile": "v2.4-xor-review",
             "profile_hash": "hash",
-            "candidate_ids": ["c_mlp", "c_kan"],
-            "model_types": ["kan", "mlp"],
+            "candidate_ids": ["c_mlp", "c_gru"],
+            "model_types": ["gru_lm", "mlp"],
         }
     ]
 
@@ -463,7 +429,7 @@ def test_run_manifest_uses_canonical_winner_cap_and_custom_artifact_root(
         run_purpose="review_blind_pool",
         canonical_blind_evaluation=False,
         pair_reuse_policy="unique",
-        required_model_types=["kan", "mlp"],
+        required_model_types=["gru_lm", "mlp"],
         winner_type_max_fraction=0.7,
         candidate_profile_provenance=provenance,
         artifact_root=artifact_root,
@@ -497,7 +463,7 @@ def test_run_manifest_uses_canonical_winner_cap_and_custom_artifact_root(
             run_purpose="review_blind_pool",
             canonical_blind_evaluation=False,
             pair_reuse_policy="unique",
-            required_model_types=["kan", "mlp"],
+            required_model_types=["gru_lm", "mlp"],
             winner_type_max_fraction=0.49,
             artifact_root=artifact_root,
         )

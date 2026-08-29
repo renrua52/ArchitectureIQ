@@ -329,6 +329,19 @@ def _dataset_payload(dataset_dir: Path, family: str) -> dict[str, Any]:
     return out
 
 
+def _finite_series(values: list[Any], *, fill: float = 0.0) -> list[float]:
+    """Replace non-finite / null curve points so BakeFile schema stays numeric."""
+    out: list[float] = []
+    last = fill
+    for value in values:
+        if isinstance(value, (int, float)) and math.isfinite(float(value)):
+            last = float(value)
+            out.append(last)
+        else:
+            out.append(last)
+    return out
+
+
 def _curve_series(choice: dict[str, Any]) -> dict[str, Any] | None:
     candidate_dir = choice["candidate_dir"]
     spec = read_json_file(candidate_dir / "candidate_spec.json")
@@ -341,14 +354,15 @@ def _curve_series(choice: dict[str, Any]) -> dict[str, Any] | None:
     )
     if "error" in loaded:
         return None
-    curves = loaded["curves"]
+    curves = np.asarray(loaded["curves"], dtype=float)
     samples = loaded["eval_samples"]
-    mean = _json_number(curves.mean(axis=0).tolist())
-    std = (
-        _json_number(curves.std(axis=0).tolist())
-        if curves.shape[0] > 1
-        else [0.0] * len(mean)
-    )
+    # Failed seeds are all-NaN rows in curves.npz; drop them per-point.
+    mean = _finite_series(_json_number(np.nanmean(curves, axis=0).tolist()))
+    if curves.shape[0] > 1:
+        std_raw = _json_number(np.nanstd(curves, axis=0).tolist())
+    else:
+        std_raw = [0.0] * len(mean)
+    std = _finite_series(std_raw, fill=0.0)
     return {
         "letter": choice["letter"],
         "samples": samples,

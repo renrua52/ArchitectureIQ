@@ -120,6 +120,7 @@ class Model(nn.Module):
         profile: Any,
         rng: random.Random,
         dataset_params: dict[str, Any] | None = None,
+        shared: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if dataset_params is None:
             raise ValueError("transformer_lm sampling requires dataset_params")

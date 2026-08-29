@@ -44,7 +44,6 @@ def _register_all() -> None:
     from architecture_iq.families.synthetic_tabular_classification import SyntheticTabularClassificationFamily
     from architecture_iq.families.univariate_regression import UnivariateRegressionFamily
     from architecture_iq.models.gru_lm import GruLmModelFamily
-    from architecture_iq.models.kan import KanModelFamily
     from architecture_iq.models.mlp import MlpModelFamily
     from architecture_iq.models.transformer_lm import TransformerLmModelFamily
 
@@ -52,7 +51,6 @@ def _register_all() -> None:
     register_dataset_family(MultivariateRegressionFamily())
     register_dataset_family(BigramLmFamily())
     register_dataset_family(SyntheticTabularClassificationFamily())
-    register_model_type(KanModelFamily())
     register_model_type(GruLmModelFamily())
     register_model_type(MlpModelFamily())
     register_model_type(TransformerLmModelFamily())

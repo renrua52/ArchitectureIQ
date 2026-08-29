@@ -278,7 +278,6 @@ def run_ground_truth(
     finals = [r[final_key] for r in ok] or [float("inf")]
     accuracies = [r["final_test_accuracy"] for r in ok if "final_test_accuracy" in r]
 
-
     max_len = max((len(r["step_metrics"]) for r in ok), default=0)
     curves = np.full((n_seeds, max_len), np.nan, dtype=np.float64)
     sample_axis: list[int] | None = None
@@ -291,8 +290,6 @@ def run_ground_truth(
 
     mean_key = mean_metric_key(selection_metric)
     std_key = f"std_{selection_metric}"
-    mean_value = float(np.mean(finals)) if ok else None
-    std_value = float(np.std(finals)) if ok else None
     summary = {
         "schema_version": profile.schema_version,
         "candidate_id": spec["candidate_id"],
@@ -302,12 +299,12 @@ def run_ground_truth(
         "base_seed": base_seed,
         "failed_seeds": failed_count,
         "excluded": failed_count >= int(profile.ground_truth["max_failed_seeds"]),
-        mean_key: mean_value,
-        std_key: std_value,
+        mean_key: float(np.mean(finals)) if ok else float("inf"),
+        std_key: float(np.std(finals)) if ok else float("inf"),
         **(
             {
-                "mean_test_mse": mean_value,
-                "std_test_mse": std_value,
+                "mean_test_mse": float(np.mean(finals)) if ok else float("inf"),
+                "std_test_mse": float(np.std(finals)) if ok else float("inf"),
             }
             if selection_metric == "test_mse"
             else {}
@@ -350,6 +347,8 @@ def run_ground_truth(
             "git_commit": git_commit_hash(ROOT),
         },
     }
+    summary = {k: v for k, v in summary.items() if v is not None}
+
     results_dir = candidate_path / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
     write_json(results_dir / "summary.json", summary)

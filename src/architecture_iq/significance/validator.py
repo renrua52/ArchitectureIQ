@@ -35,9 +35,17 @@ def validate_significance(
     metric: str = "test_mse",
     higher_is_better: bool = False,
     gap_min: float | None = None,
+    gap_max: float | None = None,
+    gap_worst_max: float | None = None,
     win_rate_min: float | None = None,
     use_non_overlap: bool | None = None,
 ) -> SignificanceResult:
+    """Validate that a choice set has a decisive winner.
+
+    Optional ``gap_max`` / ``gap_worst_max`` are off unless the caller passes
+    them (typically from question-quality options). They are not read from the
+    profile significance block, so large-but-informative gaps stay usable by default.
+    """
     sig = profile.significance
     gap_min = float(gap_min if gap_min is not None else sig["gap_min"])
     win_rate_min = float(win_rate_min if win_rate_min is not None else sig["win_rate_min"])
@@ -73,7 +81,9 @@ def validate_significance(
             passed=False, gap=0.0, win_rate=0.0, metric=metric, winner_index=winner, reason="too few choices"
         )
     runner_up = int(order[1])
+    worst = int(order[-1])
     gap = float(abs(means[runner_up] - means[winner]))
+    gap_worst = float(abs(means[worst] - means[winner]))
     if gap < gap_min:
         return SignificanceResult(
             passed=False,
@@ -82,6 +92,24 @@ def validate_significance(
             metric=metric,
             winner_index=winner,
             reason=f"gap {gap:.4f} < {gap_min}",
+        )
+    if gap_max is not None and gap > float(gap_max):
+        return SignificanceResult(
+            passed=False,
+            gap=gap,
+            win_rate=0.0,
+            metric=metric,
+            winner_index=winner,
+            reason=f"gap {gap:.4f} > gap_max {float(gap_max)}",
+        )
+    if gap_worst_max is not None and gap_worst > float(gap_worst_max):
+        return SignificanceResult(
+            passed=False,
+            gap=gap,
+            win_rate=0.0,
+            metric=metric,
+            winner_index=winner,
+            reason=f"worst_gap {gap_worst:.4f} > gap_worst_max {float(gap_worst_max)}",
         )
 
     n_seeds = len(summaries[0]["seed_results"])
