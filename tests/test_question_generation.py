@@ -80,7 +80,10 @@ def test_mixed_pool_varies_all_training_axes() -> None:
     batch_sizes = {spec["budget"]["batch_size"] for spec in specs}
     assert len(models) > 1
     assert len(optimizers) > 1
-    assert len(losses) > 1
+    # A5: loss-side L1/L2 penalties are no longer sampled, so the univariate
+    # loss axis has a single unregularized option; loss cannot vary within a
+    # mixed pool until new unregularized loss variants are added.
+    assert len(losses) == 1
     assert len(batch_sizes) == 1
 
 

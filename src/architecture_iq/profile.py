@@ -166,6 +166,16 @@ class Profile:
             )
         return total_samples_seen // batch_size
 
+    def min_training_steps(self) -> int | None:
+        """Optional per-candidate floor on training_steps (None = no floor).
+
+        Set via `budgets.min_training_steps`. When set, batch sizes that would
+        push a budget below the floor are rejected during sampling, so every
+        candidate trains long enough to escape systematic underfitting.
+        """
+        value = self.raw.get("budgets", {}).get("min_training_steps")
+        return int(value) if value is not None else None
+
     def family_training_defaults(self, family: str) -> dict[str, int]:
         defaults = self.training_defaults.get(family)
         if defaults is None:

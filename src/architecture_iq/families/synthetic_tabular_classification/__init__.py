@@ -243,7 +243,13 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
         # Consecutive instance seeds cycle evenly; batch builders may instead use the schedule above.
         resolved_rule = rule_family or allowed_rules[seed % len(allowed_rules)]
 
-        spiral_turns = float(cfg.get("spiral_turns", 2.0))
+        spiral_turns_cfg = cfg.get("spiral_turns", 2.0)
+        if isinstance(spiral_turns_cfg, (list, tuple)):
+            # Diversity: sample turns per instance instead of freezing every
+            # spiral dataset at the same geometry.
+            spiral_turns = float(rng.choice([float(t) for t in spiral_turns_cfg]))
+        else:
+            spiral_turns = float(spiral_turns_cfg)
         if resolved_rule == "spiral":
             if 2 not in input_dims:
                 raise ValueError("spiral requires 2 in dataset_configs.input_dims")
@@ -276,7 +282,14 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
                 active_count = 2
             else:
                 min_features = 2 if resolved_rule in {"sparse_interaction", "piecewise_boundary"} else 1
-                active_count = max(min_features, min(requested_active, resolved_input_dim))
+                if resolved_rule == "piecewise_boundary":
+                    # The piecewise renderer consumes exactly two active
+                    # features (primary/secondary); sampling more would make
+                    # the prompt claim active features that never influence
+                    # the decision boundary.
+                    active_count = min(2, resolved_input_dim)
+                else:
+                    active_count = max(min_features, min(requested_active, resolved_input_dim))
             active_features = sorted(rng.sample(range(resolved_input_dim), active_count))
             interaction_pairs = []
             piecewise_breakpoint = 0.0

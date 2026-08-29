@@ -324,6 +324,18 @@ def generate_question_cmd(
         help="Optional pool wash: drop candidates with more failed seeds than N "
         "(overrides profile; use 0 for no failed seeds)",
     ),
+    param_ratio_max: Optional[float] = typer.Option(
+        None,
+        "--param-ratio-max",
+        help="Optional: reject subsets whose largest/smallest trainable parameter "
+        "count ratio exceeds this (overrides profile quality.param_ratio_max)",
+    ),
+    max_questions_per_dataset: Optional[int] = typer.Option(
+        None,
+        "--max-questions-per-dataset",
+        help="Optional: refuse runs requesting more questions than N for one "
+        "dataset instance (overrides profile quality.max_questions_per_dataset)",
+    ),
     question_type: Optional[str] = typer.Option(
         None,
         "--question-type",
@@ -400,9 +412,13 @@ def generate_question_cmd(
         gap_worst_max=gap_worst_max,
         require_finite_mean=require_finite_mean,
         max_failed_seeds=max_failed_seeds,
+        param_ratio_max=param_ratio_max,
+        max_questions_per_dataset=max_questions_per_dataset,
         gap_max_provided=gap_max is not None,
         gap_worst_max_provided=gap_worst_max is not None,
         max_failed_seeds_provided=max_failed_seeds is not None,
+        param_ratio_max_provided=param_ratio_max is not None,
+        max_questions_per_dataset_provided=max_questions_per_dataset is not None,
     )
 
     rng = random.Random(seed)

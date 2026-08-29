@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,14 @@ from architecture_iq.families.base import DatasetFamily
 from architecture_iq.profile import Profile
 from architecture_iq.runtime.loader import load_synthesize_module
 from architecture_iq.util import short_hash, write_json
+
+
+def _resolve_value(cfg_value: Any, rng: random.Random, cast: type) -> Any:
+    # Diversity: profile configs may provide a list of candidate values that
+    # is sampled per instance; a scalar keeps the previous fixed behaviour.
+    if isinstance(cfg_value, (list, tuple)):
+        return cast(rng.choice(list(cfg_value)))
+    return cast(cfg_value)
 
 
 SYNTHESIZE_TEMPLATE = '''"""Bigram LM dataset — one shared transition matrix for train and test."""
@@ -101,13 +110,14 @@ class BigramLmFamily(DatasetFamily):
     def create_instance(self, profile: Profile, seed: int) -> dict[str, Any]:
         sequence_seed, table_seed = self._rng_streams(seed)
         cfg = profile.family_config(self.name)
+        jitter_rng = random.Random(seed + 20_000)
         params = {
             "instance_seed": seed,
-            "vocab_size": int(cfg["vocab_size"]),
-            "context_length": int(cfg["context_length"]),
+            "vocab_size": _resolve_value(cfg["vocab_size"], jitter_rng, int),
+            "context_length": _resolve_value(cfg["context_length"], jitter_rng, int),
             "train_size": int(cfg["train_size"]),
             "test_size": int(cfg["test_size"]),
-            "alpha": float(cfg.get("alpha", 1.0)),
+            "alpha": _resolve_value(cfg.get("alpha", 1.0), jitter_rng, float),
             "layout": str(cfg.get("layout", "lm")),
             "sequence_seed": sequence_seed,
             "table_seed": table_seed,

@@ -42,6 +42,34 @@ def test_rule_family_schedule_is_balanced() -> None:
     assert max(counts) - min(counts) <= 1
 
 
+def test_piecewise_active_features_match_renderer(small_profile, tmp_path: Path) -> None:
+    # B5: the piecewise renderer consumes exactly two active features, so a
+    # sampled instance must claim exactly two — no silent truncation — and
+    # each claimed feature must really influence the target.
+    ensure_registries()
+    family = get_dataset_family("synthetic_tabular_classification")
+    for seed in range(6):
+        partial = family.create_instance(
+            small_profile, seed, input_dim=8, rule_family="piecewise_boundary"
+        )
+        assert len(partial["params"]["active_features"]) == 2
+
+    partial = family.create_instance(small_profile, 0, input_dim=8, rule_family="piecewise_boundary")
+    spec = family.build_spec_with_id(partial)
+    out = tmp_path / "piecewise_0"
+    family.materialize({**partial, **spec}, out)
+    syn = load_synthesize_module(out / "synthesize.py")
+    data = torch.load(out / "train.pt", weights_only=True)
+    x = data["x"]
+    base = syn.target(x)
+    for feature in partial["params"]["active_features"]:
+        shifted = x.clone()
+        shifted[:, feature] = torch.roll(shifted[:, feature], shifts=1)
+        assert not torch.equal(base, syn.target(shifted)), (
+            f"claimed feature {feature} does not influence the target"
+        )
+
+
 def test_classification_default_training_setting() -> None:
     profile = load_profile("v2")
     assert profile.family_config("synthetic_tabular_classification")["train_size"] == 1024

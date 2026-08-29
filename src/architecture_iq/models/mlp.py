@@ -41,6 +41,10 @@ class MLPBlock(nn.Module):
         self.norm = nn.LayerNorm(width) if use_layer_norm else None
         self.linear = nn.Linear(width, width)
         self.act = _activation_module(activation, leaky_relu_slope)
+        # Standard pre-activation residual needs a down-projection so the
+        # branch can output negative values; without it the residual stream
+        # grows monotonically block after block.
+        self.linear2 = nn.Linear(width, width) if use_residual else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = x
@@ -48,8 +52,9 @@ class MLPBlock(nn.Module):
             h = self.norm(h)
         h = self.linear(h)
         h = self.act(h)
-        if self.use_residual:
-            h = h + x
+        if self.linear2 is not None:
+            h = self.linear2(h)
+            return x + h
         return h
 
 
@@ -68,7 +73,14 @@ class MLP(nn.Module):
         super().__init__()
         if not (depth == len(activations) == len(layer_norm)):
             raise ValueError("depth must match activations and layer_norm length")
-        layers: list[nn.Module] = [nn.Linear(input_dim, width)]
+        # The input projection is followed by an activation; otherwise the
+        # stem Linear and the first block Linear would be adjacent linear
+        # maps (collapsible into one layer, inflating the parameter count
+        # relative to the architecture the spec describes).
+        layers: list[nn.Module] = [
+            nn.Linear(input_dim, width),
+            _activation_module(activations[0], leaky_relu_slope),
+        ]
         for i in range(depth):
             layers.append(
                 MLPBlock(
@@ -156,6 +168,7 @@ class MLPBlock(nn.Module):
         self.norm = nn.LayerNorm(width) if use_layer_norm else None
         self.linear = nn.Linear(width, width)
         self.act = _activation(activation)
+        self.linear2 = nn.Linear(width, width) if use_residual else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = x
@@ -163,8 +176,9 @@ class MLPBlock(nn.Module):
             h = self.norm(h)
         h = self.linear(h)
         h = self.act(h)
-        if self.use_residual:
-            h = h + x
+        if self.linear2 is not None:
+            h = self.linear2(h)
+            return x + h
         return h
 
 
@@ -173,6 +187,7 @@ class Model(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear({input_dim}, {width}),
+            _activation({acts[0]!r}),
 {blocks_str}
             nn.Linear({width}, {output_dim}),
         )
@@ -209,7 +224,6 @@ class Model(nn.Module):
             "residual": residual,
             "layer_norm": layer_norm,
             "activations": activations,
-            "leaky_relu_slope": float(cfg["leaky_relu_slope"]),
         }
         if dataset_params is not None and "input_dim" in dataset_params:
             spec["input_dim"] = int(dataset_params["input_dim"])

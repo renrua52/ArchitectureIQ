@@ -162,6 +162,15 @@ def find_significant_subsets(
         specs = [read_json(p / "candidate_spec.json") for p in combo]
         if not choices_compatible(specs, question_type):
             return False
+        if filters.param_ratio_max is not None:
+            counts = [
+                int(spec.get("trainable_parameter_count") or 0) for spec in specs
+            ]
+            smallest = min(counts)
+            largest = max(counts)
+            ratio = float("inf") if smallest <= 0 else largest / smallest
+            if ratio > float(filters.param_ratio_max):
+                return False
         sig = validate_significance(
             [summary_map[p] for p in combo],
             profile,
@@ -672,6 +681,15 @@ def generate_questions(
         raise ValueError(f"Unknown question_type: {question_type}")
 
     filters = quality if quality is not None else QuestionQualityFilters.from_profile(profile)
+    if (
+        filters.max_questions_per_dataset is not None
+        and num_questions > int(filters.max_questions_per_dataset)
+    ):
+        raise ValueError(
+            f"num_questions={num_questions} exceeds "
+            f"max_questions_per_dataset={filters.max_questions_per_dataset}; "
+            "a single dataset instance may not carry this many questions"
+        )
     resolved_sets = [p.resolve() for p in candidate_set_paths]
     dataset_spec = read_json(dataset_path / "dataset_spec.json")
     selection_metric = str(dataset_spec["selection_metric"])

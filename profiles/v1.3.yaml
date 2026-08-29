@@ -1,0 +1,163 @@
+profile: v1.3
+schema_version: "1.0"
+
+# v1.2 re-generation profile, built from the v1.1 final rebuild plus the
+# agreed review fixes (Feishu checklist, 2026-08):
+# - A5/A6: lambda/L1/L2 losses removed (regularisation lives only in
+#   optimizer weight_decay, so double regularisation cannot occur).
+# - C1: bigram vocab_size / context_length / alpha become per-instance
+#   sampled pools; spiral_turns becomes a per-instance pool.
+# - C3: budgets drop 2048 (underfitting tier), min_training_steps=256 forces
+#   batch <= budget/256, and the lr grid gains a 3e-5 low tier.
+# - C5: significance floor raised to gap_min=0.06 / win_rate_min=0.8.
+# - C4/C2: question quality filters enabled (param_ratio_max,
+#   max_questions_per_dataset).
+
+pools:
+  dataset_families:
+    - univariate_regression
+    - multivariate_regression
+    - bigram_lm
+    - synthetic_tabular_classification
+  model_types:
+    - mlp
+    - transformer_lm
+    - gru_lm
+  optimizers:
+    - SGD
+    - Adam
+    - AdamW
+    - RMSprop
+    - Adagrad
+  losses:
+    univariate_regression:
+      - mse
+    multivariate_regression:
+      - mse
+    bigram_lm:
+      - cross_entropy
+    synthetic_tabular_classification:
+      - cross_entropy
+  question_types:
+    - architecture_only
+    - optimizer_only
+    - loss_only
+    - mixed
+  num_choices: 2
+
+dataset:
+  family: univariate_regression
+  domain: [0.0, 1.0]
+  train_size: 256
+  test_size: 256
+  sampler:
+    id: symbolic_expr
+    max_depth: 3
+    max_retries: 200
+
+dataset_configs:
+  univariate_regression:
+    domain: [0.0, 1.0]
+    train_size: 256
+    test_size: 256
+    sampler:
+      id: symbolic_expr
+      max_depth: 3
+      max_retries: 200
+  multivariate_regression:
+    input_dims: [2, 3, 4, 5, 8]
+    domain: [0.0, 1.0]
+    train_size: 256
+    test_size: 256
+    sampler:
+      id: symbolic_expr_mv
+      max_depth: 3
+      max_retries: 200
+  bigram_lm:
+    vocab_size: [24, 32, 48]
+    context_length: [12, 16, 24]
+    train_size: 800
+    test_size: 200
+    alpha: [0.8, 1.0, 1.4]
+    layout: lm
+    fail_threshold: 4.0
+  synthetic_tabular_classification:
+    input_dims: [2, 4, 8, 16]
+    rule_families: [smooth_additive, sparse_interaction, piecewise_boundary, xor, spiral]
+    spiral_turns: [1.0, 1.5, 2.0, 2.5, 3.0]
+    active_feature_counts: [2, 3, 4]
+    interaction_order: 2
+    noise_std: [0.05, 0.1]
+    train_size: 1024
+    test_size: 2048
+    calibration_size: 4096
+    target_positive_rate: 0.5
+
+mlp:
+  depth: [1, 2, 3, 4, 5, 6]
+  width: [16, 24, 32, 48, 64, 96, 128, 192, 256]
+  residual: [false, true]
+  # Activations are fixed to ReLU; the single-option grid is kept so
+  # interactive tooling that enumerates profile choices keeps working.
+  activations: [relu]
+
+transformer_lm:
+  d_model: [32, 64, 128]
+  num_layers: [1, 2, 3]
+  num_heads: [2, 4]
+  d_ff: [64, 128, 256]
+
+gru_lm:
+  d_model: [32, 64]
+  num_layers: [1, 2]
+  layer_residual: false
+
+optimizer_grids:
+  lr: [3.0e-5, 1.0e-4, 3.0e-4, 1.0e-3, 3.0e-3, 1.0e-2]
+  weight_decay: [0, 1.0e-5, 1.0e-4, 1.0e-3]
+  sgd_momentum: [0, 0.9]
+  adam_betas: [0.9, 0.999]
+  batch_size: [16, 32, 64]
+
+loss_grids:
+  lambda: [1.0e-4, 1.0e-3, 1.0e-2]
+
+budgets:
+  total_samples_seen: [4096, 8192, 16384]
+  # C3: every candidate trains at least 256 steps; valid_batch_sizes rejects
+  # batch sizes that would violate this floor.
+  min_training_steps: 256
+
+training_defaults:
+  synthetic_tabular_classification:
+    batch_size: 32
+    training_steps: 256
+    total_samples_seen: 8192
+
+ground_truth:
+  n_seeds: 10
+  base_seed: 0
+  fail_threshold: 2.0
+  max_failed_seeds: 3
+
+significance:
+  gap_min: 0.06
+  win_rate_min: 0.8
+  use_non_overlap: true
+
+question_generation:
+  max_attempts: 20
+  targeted_pool_size: 32
+  quality:
+    gap_max: 0.25
+    require_finite_mean: true
+    max_failed_seeds: 0
+    # C4: winner/loser parameter ratio above this makes "pick the largest
+    # model" a free win; reject such subsets.
+    param_ratio_max: 8.0
+    # C2: cap how many questions a single dataset instance may appear in.
+    max_questions_per_dataset: 25
+
+prompts:
+  use_llm_paraphrase: false
+  template_version: "1.0"

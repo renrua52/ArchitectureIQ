@@ -55,13 +55,22 @@ def test_sample_candidate_set_pool_respects_varying_axes() -> None:
     assert len(models) > 1
 
 
-def test_sample_language_regularized_loss_has_lambda() -> None:
+def test_sample_loss_excludes_regularized_losses() -> None:
+    # A5: loss-side L1/L2 penalties are no longer sampled; regularisation
+    # lives solely in optimizer weight_decay.
     profile = load_profile("v2.3-gru-pilot")
-    for loss_id in ("cross_entropy_l1", "cross_entropy_l2"):
-        profile.pools["losses"]["bigram_lm"] = [loss_id]
-        loss = sample_loss(profile, "bigram_lm", random.Random(0))
-        assert loss["loss_id"] == loss_id
-        assert loss["lambda"] in profile.loss_grids["lambda"]
+    rng = random.Random(0)
+    for _ in range(50):
+        loss = sample_loss(profile, "bigram_lm", rng)
+        assert loss["loss_id"] not in {"cross_entropy_l1", "cross_entropy_l2"}
+        assert "lambda" not in loss
+    profile.pools["losses"]["bigram_lm"] = ["cross_entropy_l1"]
+    try:
+        sample_loss(profile, "bigram_lm", rng)
+    except ValueError as exc:
+        assert "no unregularized losses" in str(exc)
+    else:
+        raise AssertionError("expected ValueError for all-regularized pool")
 
 
 def test_model_type_quotas_are_exact() -> None:

@@ -49,7 +49,7 @@ class ExprNode:
         return False
 
 
-CONSTANTS = [round(i / 6, 4) for i in range(-12, 13)]
+CONSTANTS = [0.0, 0.5, 1.0, 2.0, 3.0, 4.0, -0.5, -1.0, -2.0, -3.0, -4.0]
 
 
 def _sample_leaf(rng: random.Random) -> ExprNode:
@@ -225,6 +225,143 @@ class SampledExpression:
     retry: int
 
 
+def _is_const_only(node: ExprNode) -> bool:
+    if node.kind == NodeKind.X:
+        return False
+    if node.kind == NodeKind.CONST:
+        return True
+    if node.left is not None and not _is_const_only(node.left):
+        return False
+    if node.right is not None and not _is_const_only(node.right):
+        return False
+    return True
+
+
+def _trees_equal(a: ExprNode, b: ExprNode) -> bool:
+    if a.kind != b.kind or a.value != b.value:
+        return False
+    if (a.left is None) != (b.left is None):
+        return False
+    if a.left is not None and not _trees_equal(a.left, b.left):
+        return False
+    if (a.right is None) != (b.right is None):
+        return False
+    if a.right is not None and not _trees_equal(a.right, b.right):
+        return False
+    return True
+
+
+def _const_value(node: ExprNode) -> float | None:
+    if not _is_const_only(node):
+        return None
+    ys = eval_node(node, np.array([0.5]))
+    if not np.all(np.isfinite(ys)):
+        return None
+    return float(ys[0])
+
+
+def simplify_tree(node: ExprNode) -> ExprNode | None:
+    """Constant folding plus degenerate-pattern elimination.
+
+    Returns None when the tree is structurally invalid (e.g. division by a
+    zero constant) and the sample should be rejected. Dimensional X nodes
+    (value = dim index) are preserved for multivariate reuse.
+    """
+    if node.kind == NodeKind.X:
+        return ExprNode(NodeKind.X, value=node.value)
+    if node.kind == NodeKind.CONST:
+        return ExprNode(NodeKind.CONST, value=float(node.value))
+
+    left = simplify_tree(node.left) if node.left is not None else None
+    if left is None and node.left is not None:
+        return None
+    right = simplify_tree(node.right) if node.right is not None else None
+    if right is None and node.right is not None:
+        return None
+
+    node = ExprNode(node.kind, value=node.value, left=left, right=right)
+
+    # Constant folding: collapse const-only subtrees to a single CONST leaf,
+    # but only when the folded value is a clean multiple of 0.5 — folded
+    # values like tanh(1)=0.7616 or 0.5/3=0.1667 would reintroduce the
+    # arbitrary-decimal constants this sampler is supposed to avoid.
+    folded = _const_value(node)
+    if folded is not None:
+        snapped = round(folded * 2) / 2
+        if abs(folded - snapped) > 1e-9:
+            return None
+        return ExprNode(NodeKind.CONST, value=snapped)
+
+    if node.kind in {NodeKind.ADD, NodeKind.SUB, NodeKind.MUL, NodeKind.DIV}:
+        assert node.left is not None and node.right is not None
+        lk = node.left.kind
+        rk = node.right.kind
+        lv = node.left.value if lk == NodeKind.CONST else None
+        rv = node.right.value if rk == NodeKind.CONST else None
+        if node.kind == NodeKind.ADD:
+            if lv == 0.0:
+                return node.right
+            if rv == 0.0:
+                return node.left
+        elif node.kind == NodeKind.SUB:
+            if rv == 0.0:
+                return node.left
+            if _trees_equal(node.left, node.right):
+                return ExprNode(NodeKind.CONST, value=0.0)
+        elif node.kind == NodeKind.MUL:
+            if lv == 0.0 or rv == 0.0:
+                return ExprNode(NodeKind.CONST, value=0.0)
+            if lv == 1.0:
+                return node.right
+            if rv == 1.0:
+                return node.left
+        else:  # DIV
+            if rk == NodeKind.CONST and rv == 0.0:
+                return None
+            if lk == NodeKind.CONST and lv == 0.0:
+                return ExprNode(NodeKind.CONST, value=0.0)
+            if rk == NodeKind.CONST and rv == 1.0:
+                return node.left
+    return node
+
+
+def _div_guard_ok(
+    node: ExprNode,
+    domain: tuple[float, float],
+    *,
+    min_denominator: float = 0.1,
+    grid_points: int = 1024,
+) -> bool:
+    """Every DIV right operand must stay above the clamp floor on the domain.
+
+    eval_node applies a silent |denominator| >= 0.1 clamp; when the sampled
+    expression never triggers it, the rendered formula and the executed
+    target coincide exactly.
+    """
+    xs = np.linspace(domain[0], domain[1], grid_points)
+    stack = [node]
+    while stack:
+        cur = stack.pop()
+        if cur.kind == NodeKind.DIV:
+            assert cur.right is not None
+            denom = eval_node(cur.right, xs)
+            if not np.all(np.isfinite(denom)):
+                return False
+            if float(np.min(np.abs(denom))) < min_denominator:
+                return False
+        if cur.left is not None:
+            stack.append(cur.left)
+        if cur.right is not None:
+            stack.append(cur.right)
+    return True
+
+
+def _affine_residual(xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+    design = np.stack([np.ones_like(xs), xs], axis=1)
+    coef, *_ = np.linalg.lstsq(design, ys, rcond=None)
+    return ys - design @ coef
+
+
 def validate_expression(
     tree: ExprNode,
     domain: tuple[float, float],
@@ -234,15 +371,27 @@ def validate_expression(
     near_singular_abs: float = 4.5,
     near_singular_frac: float = 0.95,
     grid_points: int = 128,
+    min_nonlinear_fraction: float = 0.3,
 ) -> bool:
     xs = np.linspace(domain[0], domain[1], grid_points)
     ys = eval_node(tree, xs)
     if not np.all(np.isfinite(ys)):
         return False
-    if not tree.has_nonlinear():
+    # Numeric nonlinearity: an affine fit must leave a substantial residual.
+    # The previous syntactic check was fooled by nonlinear nodes applied to
+    # constant subtrees (e.g. abs(1.5), tanh(2*0.5), 2**3).
+    residual = _affine_residual(xs, ys)
+    if float(np.max(np.abs(residual))) <= 1e-3:
         return False
     y_range = float(np.max(ys) - np.min(ys))
     if y_range < min_range:
+        return False
+    # The nonlinear component must carry a substantial share of the output
+    # range so expressions are neither constant- nor affine-dominated.
+    residual_range = float(np.max(residual) - np.min(residual))
+    if residual_range < min_nonlinear_fraction * y_range:
+        return False
+    if not _div_guard_ok(tree, domain):
         return False
     if float(np.max(np.abs(ys))) > max_abs:
         return False
@@ -259,6 +408,9 @@ def sample_symbolic_expression(
     rng = random.Random(seed)
     for retry in range(max_retries):
         tree = sample_tree(rng, max_depth)
+        tree = simplify_tree(tree)
+        if tree is None or tree.kind == NodeKind.CONST:
+            continue
         if not validate_expression(tree, domain):
             continue
         expression = to_infix(tree)

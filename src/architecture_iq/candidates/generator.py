@@ -395,10 +395,11 @@ def candidate_matches_fixed(spec: dict[str, Any], fixed_shared: dict[str, Any]) 
 
 
 def valid_batch_sizes(profile: Profile, budget: int) -> list[int]:
+    min_steps = profile.min_training_steps()
     return [
         b
         for b in profile.optimizer_grids["batch_size"]
-        if budget % b == 0
+        if budget % b == 0 and (min_steps is None or budget // b >= min_steps)
     ]
 
 
@@ -424,12 +425,25 @@ def sample_optimizer(profile: Profile, rng: random.Random) -> dict[str, Any]:
     return spec
 
 
+REGULARIZED_LOSS_IDS = frozenset(
+    {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"}
+)
+
+
 def sample_loss(profile: Profile, family: str, rng: random.Random) -> dict[str, Any]:
-    loss_id = rng.choice(profile.pools["losses"][family])
-    spec: dict[str, Any] = {"loss_id": loss_id}
-    if loss_id in {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"}:
-        spec["lambda"] = rng.choice(profile.loss_grids["lambda"])
-    return spec
+    # Product decision (v1 pack review): loss-side L1/L2 penalties are no
+    # longer sampled. Regularisation lives solely in optimizer weight_decay;
+    # stacking a parameter-wide loss penalty with weight_decay made the
+    # criterion an ambiguous double-regularisation comparison. Renderer and
+    # formatter branches stay for legacy artifact compatibility.
+    pool = [
+        loss_id
+        for loss_id in profile.pools["losses"][family]
+        if loss_id not in REGULARIZED_LOSS_IDS
+    ]
+    if not pool:
+        raise ValueError(f"loss pool for {family} has no unregularized losses")
+    return {"loss_id": rng.choice(pool)}
 
 
 def sample_model(
@@ -486,6 +500,17 @@ def build_candidate_spec(
 ) -> dict[str, Any]:
     steps = profile.training_steps(budget, batch_size)
     device = validate_execution_device(execution_device or profile.execution_device)
+    # Double-regularisation guard: a loss-side L1/L2 penalty already applies
+    # a parameter-wide penalty, so optimizer weight_decay is zeroed to keep
+    # the comparison criterion unambiguous (legacy specs may still carry
+    # lambda losses; new sampling never produces them). Zeroed as float so
+    # the value survives inspector form roundtrips without changing the
+    # candidate id hash.
+    if (
+        str(loss.get("loss_id")) in REGULARIZED_LOSS_IDS
+        and float(optimizer.get("weight_decay") or 0.0) != 0.0
+    ):
+        optimizer = {**optimizer, "weight_decay": 0.0}
     body = {
         "schema_version": profile.schema_version,
         "profile": profile.name,

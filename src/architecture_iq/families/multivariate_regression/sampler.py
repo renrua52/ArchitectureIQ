@@ -12,6 +12,7 @@ from architecture_iq.families.univariate_regression.sampler import (
     CONSTANTS,
     ExprNode,
     NodeKind,
+    simplify_tree,
 )
 
 
@@ -173,7 +174,7 @@ def eval_node_mv(node: ExprNode, x: np.ndarray) -> np.ndarray:
 def _fmt_float(v: float) -> str:
     if abs(v - round(v)) < 1e-9:
         return str(int(round(v)))
-    return f"{v:.4g}".rstrip("0").rstrip(".")
+    return f"{v:.4f}".rstrip("0").rstrip(".")
 
 
 def to_infix_mv(node: ExprNode, parent_prec: int = 0) -> str:
@@ -256,6 +257,39 @@ def to_torch_expr_mv(node: ExprNode) -> str:
     raise ValueError(node.kind)
 
 
+def _div_guard_ok_mv(
+    node: ExprNode,
+    input_dim: int,
+    domain: tuple[float, float],
+    *,
+    min_denominator: float = 0.1,
+    grid_points: int = 256,
+) -> bool:
+    """Every DIV right operand must stay above the clamp floor on the domain.
+
+    eval_node_mv applies a silent |denominator| >= 0.1 clamp; when the
+    sampled expression never triggers it, the rendered formula and the
+    executed target coincide exactly.
+    """
+    rng = np.random.default_rng(0)
+    xs = rng.uniform(domain[0], domain[1], size=(grid_points, input_dim))
+    stack = [node]
+    while stack:
+        cur = stack.pop()
+        if cur.kind == NodeKind.DIV:
+            assert cur.right is not None
+            denom = eval_node_mv(cur.right, xs)
+            if not np.all(np.isfinite(denom)):
+                return False
+            if float(np.min(np.abs(denom))) < min_denominator:
+                return False
+        if cur.left is not None:
+            stack.append(cur.left)
+        if cur.right is not None:
+            stack.append(cur.right)
+    return True
+
+
 def validate_expression_mv(
     tree: ExprNode,
     input_dim: int,
@@ -266,6 +300,7 @@ def validate_expression_mv(
     near_singular_abs: float = 4.5,
     near_singular_frac: float = 0.95,
     grid_points: int = 64,
+    min_dim_fraction: float = 0.05,
 ) -> bool:
     dims = used_dimensions(tree)
     if dims != set(range(input_dim)):
@@ -275,12 +310,24 @@ def validate_expression_mv(
     ys = eval_node_mv(tree, xs)
     if not np.all(np.isfinite(ys)):
         return False
-    if not tree.has_nonlinear():
-        return False
     y_range = float(np.max(ys) - np.min(ys))
     scaled_min_range = min_range * math.sqrt(input_dim)
     if y_range < scaled_min_range:
         return False
+    if not _div_guard_ok_mv(tree, input_dim, domain):
+        return False
+    # Numeric dead-dimension check (B4): freezing one coordinate at the
+    # domain midpoint must change the output by a visible share of the range.
+    # The previous syntactic has_nonlinear() check was fooled by nonlinear
+    # nodes applied to constant subtrees.
+    mid = (domain[0] + domain[1]) / 2.0
+    for dim in range(input_dim):
+        frozen = xs.copy()
+        frozen[:, dim] = mid
+        ys_frozen = eval_node_mv(tree, frozen)
+        contribution = float(np.std(ys - ys_frozen))
+        if contribution < min_dim_fraction * max(y_range, 1e-9):
+            return False
     if float(np.max(np.abs(ys))) > max_abs * math.sqrt(input_dim):
         return False
     frac_ok = float(np.mean(np.abs(ys) <= near_singular_abs * math.sqrt(input_dim)))
@@ -307,6 +354,9 @@ def sample_symbolic_expression(
     rng = random.Random(seed)
     for retry in range(max_retries):
         tree = sample_tree_mv(rng, max_depth, input_dim)
+        tree = simplify_tree(tree)
+        if tree is None:
+            continue
         if not validate_expression_mv(tree, input_dim, domain):
             continue
         return SampledExpression(

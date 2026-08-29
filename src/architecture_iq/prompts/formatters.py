@@ -35,7 +35,9 @@ def format_mlp_nl(model: dict) -> str:
         lines.append(f"- Output logits: {model['output_dim']}")
     lines.extend(
         [
-            f"- Depth: {model['depth']} hidden layer{'s' if int(model['depth']) != 1 else ''}",
+            f"- Depth: {model['depth']} hidden blocks after a {model['width']}-wide "
+            f"input projection; every Linear is followed by an activation "
+            f"({model['depth'] + 1} active layers total)",
             f"- Width: {model['width']} (all hidden layers)",
             f"- Residual connections: {model['residual']}",
             f"- Layer norm per layer: {model['layer_norm']}",
@@ -115,6 +117,7 @@ def format_transformer_lm_nl(model: dict) -> str:
             f"- num_layers: {model['num_layers']}",
             f"- num_heads: {model['num_heads']}",
             f"- d_ff: {d_ff}",
+            "- Positional encoding: learned embedding (nn.Embedding over positions)",
         ]
     )
 
@@ -159,6 +162,14 @@ def format_loss_nl(loss: dict) -> str:
     return f"- Loss: {loss['loss_id']}"
 
 
+def _format_noise_line(params: dict) -> str:
+    noise = params.get("noise") or {}
+    if not noise.get("enabled"):
+        return "- Noise: none — `y` is the exact evaluation of the target expression"
+    sigma = noise.get("sigma", noise.get("std", "—"))
+    return f"- Noise: Gaussian observation noise with sigma={sigma} added to `y`"
+
+
 def format_regression_protocol(params: dict, *, device: str = "cpu") -> str:
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
@@ -169,6 +180,7 @@ def format_regression_protocol(params: dict, *, device: str = "cpu") -> str:
         f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
         f"- Input domain: [{domain[0]}, {domain[1]}], uniform sampling",
         f"- Point-sampling seed: {point_seed} (materializes the fixed train/test splits)",
+        _format_noise_line(params),
         "- Minibatch construction: each step draws `batch_size` train indices "
         "uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",
@@ -190,6 +202,7 @@ def format_multivariate_protocol(params: dict, *, device: str = "cpu") -> str:
             f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
             f"- Input domain: [{domain[0]}, {domain[1]}] per coordinate, uniform sampling",
             f"- Point-sampling seed: {point_seed}",
+            _format_noise_line(params),
             "- Evaluation: **test MSE** on the held-out split",
             f"- Reference device: {device}",
         ]

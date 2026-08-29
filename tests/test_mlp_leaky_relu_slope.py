@@ -33,13 +33,15 @@ def _leaky_relu(module: nn.Module) -> nn.LeakyReLU:
     return next(layer for layer in module.modules() if isinstance(layer, nn.LeakyReLU))
 
 
-def test_sample_spec_records_profile_leaky_relu_slope() -> None:
+def test_sample_spec_omits_dead_leaky_relu_slope_field() -> None:
+    # D4: with the activation pool fixed to ReLU the slope is a dead field;
+    # fresh specs no longer carry it (legacy specs still build/render fine).
     profile = load_profile("v1")
     spec = MlpModelFamily().sample_spec(profile, random.Random(0))
-    assert spec["leaky_relu_slope"] == pytest.approx(0.01)
+    assert "leaky_relu_slope" not in spec
 
 
-def test_interactive_mlp_spec_records_profile_leaky_relu_slope() -> None:
+def test_interactive_mlp_spec_omits_dead_leaky_relu_slope_field() -> None:
     profile = load_profile("v1")
     spec = assemble_model_spec(
         profile,
@@ -50,7 +52,7 @@ def test_interactive_mlp_spec_records_profile_leaky_relu_slope() -> None:
         activations=["relu", "gelu"],
         layer_norm=[False, False],
     )
-    assert spec["leaky_relu_slope"] == pytest.approx(0.01)
+    assert "leaky_relu_slope" not in spec
 
 
 def test_build_module_uses_explicit_leaky_relu_slope() -> None:

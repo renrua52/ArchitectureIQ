@@ -159,3 +159,82 @@ def test_quality_filters_from_profile_overlay() -> None:
     over = base.overlay(gap_max=0.3, gap_max_provided=True, require_finite_mean=True)
     assert over.gap_max == 0.3
     assert over.require_finite_mean is True
+
+
+def test_param_ratio_max_rejects_free_largest_model_win() -> None:
+    # C4: a subset where the winner has many more parameters than the
+    # runner-up is solvable by "pick the largest model" and must be rejected.
+    profile = load_profile("v1")
+    pool = [Path("tiny"), Path("huge")]
+    summaries = {
+        "tiny": _summary(0.5, 0.01, [0.5] * 10),
+        "huge": _summary(0.1, 0.01, [0.1] * 10),
+    }
+    specs = {
+        "tiny": {
+            "budget": {"batch_size": 16},
+            "model": {"type": "mlp", "depth": 1},
+            "trainable_parameter_count": 1_000,
+            "optimizer": {"type": "Adam"},
+            "loss": {"loss_id": "mse"},
+            "execution": {"device": "cpu"},
+        },
+        "huge": {
+            "budget": {"batch_size": 16},
+            "model": {"type": "mlp", "depth": 6},
+            "trainable_parameter_count": 50_000,
+            "optimizer": {"type": "Adam"},
+            "loss": {"loss_id": "mse"},
+            "execution": {"device": "cpu"},
+        },
+    }
+
+    def fake_read_json(path: Path) -> dict:
+        if path.name == "candidate_spec.json":
+            return specs[path.parent.name]
+        raise FileNotFoundError(path)
+
+    rng = __import__("random").Random(0)
+    with patch("architecture_iq.questions.generator.load_summary", lambda p: summaries[p.name]):
+        with patch("architecture_iq.questions.generator.read_json", fake_read_json):
+            without = find_significant_subsets(pool, profile, rng, num_choices=2)
+            with_cap = find_significant_subsets(
+                pool,
+                profile,
+                rng,
+                num_choices=2,
+                quality=QuestionQualityFilters(param_ratio_max=8.0),
+            )
+    assert without
+    assert with_cap == []
+
+
+def test_v13_profile_quality_and_budgets() -> None:
+    # C3/C4/C5: v1.3 carries the floors agreed in the pack review.
+    profile = load_profile("v1.3")
+    assert profile.min_training_steps() == 256
+    assert profile.raw["budgets"]["total_samples_seen"] == [4096, 8192, 16384]
+    quality = QuestionQualityFilters.from_profile(profile)
+    assert quality.param_ratio_max == 8.0
+    assert quality.max_questions_per_dataset == 25
+    assert profile.significance["gap_min"] == 0.06
+    assert profile.significance["win_rate_min"] == 0.8
+    # A5: no regularized losses in any pool.
+    for family, pool in profile.pools["losses"].items():
+        assert not {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"} & set(pool), family
+    # C1: bigram pools are lists; spiral turns is a list.
+    assert isinstance(profile.family_config("bigram_lm")["vocab_size"], list)
+    assert isinstance(profile.family_config("synthetic_tabular_classification")["spiral_turns"], list)
+
+
+def test_valid_batch_sizes_respect_min_training_steps() -> None:
+    from architecture_iq.candidates.generator import valid_batch_sizes
+
+    profile = load_profile("v1.3")
+    # 4096 / 16 = 256 steps ok; 4096 / 32 = 128 steps below the floor.
+    assert valid_batch_sizes(profile, 4096) == [16]
+    assert valid_batch_sizes(profile, 8192) == [16, 32]
+    assert valid_batch_sizes(profile, 16384) == [16, 32, 64]
+    # Profiles without the knob keep the old behaviour.
+    legacy = load_profile("v1")
+    assert valid_batch_sizes(legacy, 2048) == [16, 32, 64]
