@@ -551,11 +551,31 @@ def _render_question_picker(
         current_index = 0
         st.session_state.question_path = str(pool[0])
 
+    deep_link_q = st.query_params.get("q")
+    if deep_link_q and st.session_state.get("_deep_link_applied") != deep_link_q:
+        st.session_state["_deep_link_applied"] = deep_link_q
+        match = next((p for p in pool if p.name == deep_link_q), None)
+        if match is None:
+            st.warning(
+                f"Deep-linked question `{deep_link_q}` is not in the current question pack."
+            )
+        elif match.resolve() != Path(st.session_state.question_path).resolve():
+            _switch_question(match, data_root)
+            current_path = Path(st.session_state.question_path)
+            try:
+                current_index = pool.index(current_path.resolve())
+            except ValueError:
+                current_index = 0
+            st.session_state["_deep_link_pending_index"] = current_index
+
     if collection_mode:
         picker_key = (
             "review_question_picker_"
             + hashlib.sha256(collection_identity.encode("utf-8")).hexdigest()[:12]
         )
+        pending_index = st.session_state.pop("_deep_link_pending_index", None)
+        if pending_index is not None:
+            st.session_state[picker_key] = pending_index
         if current_index < len(pool) - 1:
             if st.button(
                 f"Next question ({current_index + 2}/{len(pool)})",
@@ -623,6 +643,10 @@ def _render_question_picker(
         st.caption(f"Question {current_index + 1} / {len(pool)} · `{picked_path.name}`")
     else:
         st.caption(f"{len(pool)} question(s) · `{picked_path.name}`")
+
+    if st.session_state.get("_deep_link_synced") != picked_path.name:
+        st.session_state["_deep_link_synced"] = picked_path.name
+        st.query_params["q"] = picked_path.name
 
 
 def _selection_metric(bundle: QuestionBundle, q: dict[str, Any]) -> str:
