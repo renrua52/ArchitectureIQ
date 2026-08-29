@@ -218,7 +218,7 @@ def test_v13_profile_quality_and_budgets() -> None:
     assert quality.param_ratio_max == 8.0
     assert quality.max_questions_per_dataset == 25
     assert profile.significance["gap_min"] == 0.06
-    assert profile.significance["win_rate_min"] == 0.8
+    assert profile.significance["win_rate_min"] == 1.0
     # A5: no regularized losses in any pool.
     for family, pool in profile.pools["losses"].items():
         assert not {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"} & set(pool), family
