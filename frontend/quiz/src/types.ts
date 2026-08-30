@@ -129,7 +129,8 @@ export type BakeFile = {
   split?: boolean;
 };
 
-export type Stage = "observe" | "compare" | "reveal";
+/** The dataset and the choices share one screen, so there are two stages. */
+export type Stage = "study" | "reveal";
 
 /** Yes/No vote for "Is this a good problem?" */
 export type ProblemVote = "yes" | "no";

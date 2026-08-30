@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { classificationRuleLatex, expressionToLatex } from "./latex";
+import { decisionField, regionBands } from "./regions";
+import { MathInline } from "./math";
 import { newSessionId, track } from "./telemetry";
 import type {
   BakeFile,
@@ -81,7 +84,7 @@ function App() {
   const [bake, setBake] = useState<BakeFile | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [index, setIndex] = useState(0);
-  const [stage, setStage] = useState<Stage>("observe");
+  const [stage, setStage] = useState<Stage>("study");
   const [selected, setSelected] = useState<string | null>(null);
   const [answered, setAnswered] = useState(false);
   const [info, setInfo] = useState<InfoTarget>(null);
@@ -166,7 +169,7 @@ function App() {
     }
     const prior = results.current[question.id];
     const already = prior !== undefined;
-    setStage(already ? "reveal" : "observe");
+    setStage(already ? "reveal" : "study");
     setFeedback({ ...(feedbackByQuestion.current[question.id] ?? EMPTY_FEEDBACK) });
     setSelected(prior?.picked ?? null);
     setAnswered(already);
@@ -208,7 +211,7 @@ function App() {
     setFeedback(EMPTY_FEEDBACK);
     setSelected(null);
     setAnswered(false);
-    setStage("observe");
+    setStage("study");
     setInfo(null);
     bump((n) => n + 1);
   }
@@ -324,11 +327,12 @@ function App() {
       session_id: sessionId.current,
       event_type: "stage_change",
       question_id: question.id,
-      payload: { from: "compare", to: "reveal" }
+      payload: { from: "study", to: "reveal" }
     });
     setStage("reveal");
   }
-  function goCompare() {
+  /** Reveal → back to the question, so the dataset can be re-read after the answer. */
+  function backToStudy() {
     if (!question) {
       return;
     }
@@ -336,9 +340,38 @@ function App() {
       session_id: sessionId.current,
       event_type: "stage_change",
       question_id: question.id,
-      payload: { from: "observe", to: "compare" }
+      payload: { from: "reveal", to: "study" }
     });
-    setStage("compare");
+    setStage("study");
+  }
+
+  /** Study → reveal, only for a question that has already been answered. */
+  function backToAnswer() {
+    if (!question || !answered) {
+      return;
+    }
+    track({
+      session_id: sessionId.current,
+      event_type: "stage_change",
+      question_id: question.id,
+      payload: { from: "study", to: "reveal" }
+    });
+    setStage("reveal");
+  }
+
+  function previousQuestion() {
+    if (!summaries.length) {
+      return;
+    }
+    if (index === 0) {
+      // Mirror Next: wrap in an unordered bake, stop at the edge in an ordered one.
+      if (bake?.ordered) {
+        return;
+      }
+      leaveAndSwitch(summaries.length - 1);
+      return;
+    }
+    leaveAndSwitch(index - 1);
   }
 
   if (error) {
@@ -427,10 +460,18 @@ function App() {
           </span>
           <button
             type="button"
+            onClick={previousQuestion}
+            disabled={Boolean(bake.ordered && index === 0)}
+            title="Previous question"
+          >
+            ← Back
+          </button>
+          <button
+            type="button"
             onClick={nextQuestion}
             disabled={Boolean(bake.ordered && index >= summaries.length - 1)}
           >
-            {bake.ordered && index >= summaries.length - 1 ? "End" : "Next"}
+            {bake.ordered && index >= summaries.length - 1 ? "End" : "Next →"}
           </button>
           <button type="button" onClick={openMenu}>
             Questions
@@ -451,18 +492,15 @@ function App() {
       </h1>
 
       <section className="stage-screen" key={`${question.id}-${stage}`}>
-        {stage === "observe" ? (
-          <DatasetStage
+        {stage === "study" ? (
+          <StudyStage
             question={question}
-            onSeeChoices={goCompare}
-            onInfo={() => setInfo({ kind: "dataset" })}
-          />
-        ) : null}
-        {stage === "compare" ? (
-          <ChoicesStage
-            question={question}
+            answered={answered}
+            selected={selected}
             onPick={pickChoice}
-            onInfo={(letter) => setInfo({ kind: "choice", letter })}
+            onBackToAnswer={backToAnswer}
+            onChoiceInfo={(letter) => setInfo({ kind: "choice", letter })}
+            onInfo={() => setInfo({ kind: "dataset" })}
           />
         ) : null}
         {stage === "reveal" ? (
@@ -471,6 +509,7 @@ function App() {
             selected={selected}
             feedback={feedback}
             onVote={submitProblemVote}
+            onBack={backToStudy}
             onInfo={(letter) => setInfo({ kind: "choice", letter })}
             onDatasetInfo={() => setInfo({ kind: "dataset" })}
           />
@@ -625,7 +664,7 @@ function TaskDescription({ question }: { question: BakedQuestion }) {
     const rule = String(params.rule_family ?? "synthetic rule").replace(/_/g, " ");
     summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional tabular features. Labels follow a ${rule} rule using ${activeFeatures}, cut at a fixed threshold that keeps the two classes close to balanced; the boundary is non-linear in the features. The held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
   } else if (question.family === "xor_classification") {
-    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional features under an XOR-style rule: the class is the sign of the product of ${activeFeatures}, so it flips across each of the four quadrants those two coordinates form, and every other coordinate is a distractor. The held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
+    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional features under an XOR-style rule: the class is decided by the sign of the product of ${activeFeatures}, so it flips across each of the four quadrants those two coordinates form, and every other coordinate is a distractor. The held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
   } else if (question.family === "spiral_classification") {
     const turnCount = Number(params.spiral_turns);
     // 1.0 -> "1 turn", 1.5 -> "1.5 turns": the profile grid holds halves.
@@ -652,132 +691,198 @@ function TaskDescription({ question }: { question: BakedQuestion }) {
   );
 }
 
-function DatasetStage({
-  question,
-  onSeeChoices,
-  onInfo
-}: {
-  question: BakedQuestion;
-  onSeeChoices: () => void;
-  onInfo: () => void;
-}) {
-  const params = question.detail.dataset.params ?? {};
+/** A sampled target expression as math, or as its source text if it will not parse. */
+function ExpressionValue({ source }: { source: string }) {
+  const latex = useMemo(() => expressionToLatex(source), [source]);
+  if (latex == null) {
+    return <span className="mono">{source}</span>;
+  }
+  return <MathInline latex={latex} fallback={source} />;
+}
+
+/** A labelled value that wraps with its neighbours instead of claiming a whole row. */
+function StatPill({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="stage-inner">
-      <TaskDescription question={question} />
-      <div className="panel dataset-panel">
-        <div className="panel-head">
-          <p className="stage-kicker">Dataset</p>
-          <button type="button" className="ghost-info" onClick={onInfo} aria-label="Dataset files">
-            i
-          </button>
-        </div>
-        <div className="dataset-layout">
-          <dl className="attr-list">
-            <div>
-              <dt>Family</dt>
-              <dd>{humanFamily(question.family)}</dd>
-            </div>
-            <div>
-              <dt>Target metric</dt>
-              <dd>{humanMetric(question.metric)}</dd>
-            </div>
-            {params.expression != null ? (
-              <div>
-                <dt>Target expression</dt>
-                <dd className="mono">{String(params.expression)}</dd>
-              </div>
-            ) : null}
-            {params.input_dim != null ? (
-              <div>
-                <dt>Input dim</dt>
-                <dd>{String(params.input_dim)}</dd>
-              </div>
-            ) : null}
-            {params.domain != null ? (
-              <div>
-                <dt>Domain</dt>
-                <dd className="mono">{formatParam(params.domain)}</dd>
-              </div>
-            ) : null}
-            {params.vocab_size != null ? (
-              <div>
-                <dt>Vocab size</dt>
-                <dd>{String(params.vocab_size)}</dd>
-              </div>
-            ) : null}
-            {params.context_length != null ? (
-              <div>
-                <dt>Context length</dt>
-                <dd>{String(params.context_length)}</dd>
-              </div>
-            ) : null}
-            {params.train_size != null ? (
-              <div>
-                <dt>Train / test size</dt>
-                <dd>
-                  {String(params.train_size)} / {String(params.test_size ?? "—")}
-                </dd>
-              </div>
-            ) : null}
-            {params.noise != null ? (
-              <div>
-                <dt>Noise</dt>
-                <dd className="mono">{formatParam(params.noise)}</dd>
-              </div>
-            ) : null}
-            {question.detail.dataset.example ? (
-              <div>
-                <dt>Example</dt>
-                <dd className="mono example-io">
-                  <div>
-                    <span className="io-label">in</span>{" "}
-                    {formatParam(question.detail.dataset.example.input)}
-                  </div>
-                  <div>
-                    <span className="io-label">out</span>{" "}
-                    {formatParam(question.detail.dataset.example.output)}
-                  </div>
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-          <DatasetVisual question={question} />
-        </div>
-      </div>
-      <div className="stage-footer stage-footer-end">
-        <button type="button" className="cta" onClick={onSeeChoices}>
-          See choices →
+    <span className="pill">
+      <span className="pill-label">{label}</span>
+      <span className="pill-value">{children}</span>
+    </span>
+  );
+}
+
+const FLAG_TRUE = new Set(["yes", "true", "on", "enabled"]);
+const FLAG_FALSE = new Set(["no", "false", "off", "disabled"]);
+
+/** ✓ / ✗ for a flag, a row of them for a per-layer list, plain text otherwise. */
+function FieldValue({ label, value }: { label: string; value: string }) {
+  const parts = value.split(",").map((part) => part.trim().toLowerCase());
+  const allFlags = parts.length > 0 && parts.every((part) => FLAG_TRUE.has(part) || FLAG_FALSE.has(part));
+  if (allFlags) {
+    return (
+      <span className="flag-row">
+        {parts.map((part, index) => {
+          const on = FLAG_TRUE.has(part);
+          return (
+            <span
+              key={index}
+              className={`flag ${on ? "on" : "off"}`}
+              title={parts.length > 1 ? `layer ${index + 1}: ${on ? "yes" : "no"}` : on ? "yes" : "no"}
+            >
+              {on ? "✓" : "✗"}
+            </span>
+          );
+        })}
+      </span>
+    );
+  }
+  return <span className="field-text">{formatFieldValue(label, value)}</span>;
+}
+
+function DatasetPanel({ question, onInfo }: { question: BakedQuestion; onInfo: () => void }) {
+  const params = question.detail.dataset.params ?? {};
+  const example = question.detail.dataset.example;
+  // Classification families state their boundary as a formula; regression
+  // families state theirs as the target expression.
+  const ruleLines = useMemo(
+    () => classificationRuleLatex(question.family, params),
+    [question.family, params]
+  );
+  return (
+    <div className="panel dataset-panel">
+      <div className="panel-head">
+        <p className="stage-kicker">Dataset</p>
+        <span className="head-note">{humanFamily(question.family)}</span>
+        <button type="button" className="ghost-info" onClick={onInfo} aria-label="Dataset files">
+          i
         </button>
+      </div>
+      <div className="pill-row">
+        <StatPill label="metric">{humanMetric(question.metric)}</StatPill>
+        {params.input_dim != null ? <StatPill label="input dim">{String(params.input_dim)}</StatPill> : null}
+        {params.num_classes != null ? <StatPill label="classes">{String(params.num_classes)}</StatPill> : null}
+        {params.vocab_size != null ? <StatPill label="vocab">{String(params.vocab_size)}</StatPill> : null}
+        {params.context_length != null ? (
+          <StatPill label="context">{String(params.context_length)}</StatPill>
+        ) : null}
+        {params.train_size != null ? (
+          <StatPill label="train / test">
+            {`${String(params.train_size)} / ${String(params.test_size ?? "—")}`}
+          </StatPill>
+        ) : null}
+        {params.domain != null ? (
+          <StatPill label="domain">
+            <span className="mono">{formatParam(params.domain)}</span>
+          </StatPill>
+        ) : null}
+        {params.noise != null ? (
+          <StatPill label="noise">
+            <span className="mono">{formatParam(params.noise)}</span>
+          </StatPill>
+        ) : null}
+        {example ? (
+          <StatPill label="example">
+            <span className="mono">
+              {formatParam(example.input)} → {formatParam(example.output)}
+            </span>
+          </StatPill>
+        ) : null}
+      </div>
+      {params.expression != null ? (
+        <div className="formula-row">
+          <span className="formula-label">target</span>
+          <ExpressionValue source={String(params.expression)} />
+        </div>
+      ) : null}
+      {ruleLines
+        ? ruleLines.map((line, index) => (
+            <div key={index} className="formula-row">
+              <span className="formula-label">{line.prefix ?? (index === 0 ? "rule" : "")}</span>
+              <MathInline latex={line.latex} />
+            </div>
+          ))
+        : null}
+      <DatasetVisual question={question} />
+    </div>
+  );
+}
+
+/** The axes every choice holds in common, stated once instead of on each card. */
+function SharedSummary({ fields }: { fields: CardField[] }) {
+  if (!fields.length) {
+    return null;
+  }
+  return (
+    <div className="shared-summary">
+      <span className="shared-label">Same for every choice</span>
+      <div className="pill-row">
+        {fields.map((field) => (
+          <StatPill key={field.label} label={titleCase(shortLabel(field.label))}>
+            <FieldValue label={field.label} value={field.value} />
+          </StatPill>
+        ))}
       </div>
     </div>
   );
 }
 
-function ChoicesStage({
+function StudyStage({
   question,
+  answered,
+  selected,
   onPick,
+  onBackToAnswer,
+  onChoiceInfo,
   onInfo
 }: {
   question: BakedQuestion;
+  answered: boolean;
+  selected: string | null;
   onPick: (letter: string) => void;
-  onInfo: (letter: string) => void;
+  onBackToAnswer: () => void;
+  onChoiceInfo: (letter: string) => void;
+  onInfo: () => void;
 }) {
+  const shared = useMemo(() => sharedFields(question), [question]);
   return (
-    <div className="stage-inner">
-      <p className="stage-kicker">Choices</p>
-      <p className="hint">Choose the better model.</p>
-      <div className="choice-grid">
-        {question.detail.choices.map((choice) => (
-          <ChoiceCard
-            key={choice.letter}
-            choice={choice}
-            fields={fieldsForChoice(question, choice)}
-            interactive
-            onPick={() => onPick(choice.letter)}
-            onInfo={() => onInfo(choice.letter)}
-          />
-        ))}
+    <div className="stage-inner study">
+      <div className="study-grid">
+        <div className="study-col">
+          <TaskDescription question={question} />
+          <DatasetPanel question={question} onInfo={onInfo} />
+        </div>
+        <div className="study-col">
+          <div className="panel choices-panel">
+            <div className="panel-head">
+              <p className="stage-kicker">Choices</p>
+              <span className="head-note">
+                {answered
+                  ? "Already answered — the setups are shown for review."
+                  : `Which setup reaches the better ${humanMetric(question.metric)}?`}
+              </span>
+            </div>
+            <SharedSummary fields={shared} />
+            <div className="choice-grid study-choices">
+              {question.detail.choices.map((choice) => (
+                <ChoiceCard
+                  key={choice.letter}
+                  choice={choice}
+                  fields={varyingFields(question, choice)}
+                  interactive={!answered}
+                  picked={selected === choice.letter}
+                  onPick={() => onPick(choice.letter)}
+                  onInfo={() => onChoiceInfo(choice.letter)}
+                />
+              ))}
+            </div>
+            {answered ? (
+              <div className="stage-footer stage-footer-end">
+                <button type="button" className="cta" onClick={onBackToAnswer}>
+                  Back to answer →
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -788,6 +893,7 @@ function AnswerStage({
   selected,
   feedback,
   onVote,
+  onBack,
   onInfo,
   onDatasetInfo
 }: {
@@ -795,6 +901,7 @@ function AnswerStage({
   selected: string | null;
   feedback: FeedbackDraft;
   onVote: (vote: ProblemVote) => void;
+  onBack: () => void;
   onInfo: (letter: string) => void;
   onDatasetInfo: () => void;
 }) {
@@ -806,6 +913,9 @@ function AnswerStage({
     <div className="stage-inner">
       <div className="panel-head">
         <p className="stage-kicker">Answer</p>
+        <button type="button" className="back-link" onClick={onBack}>
+          ← Back to the question
+        </button>
         <button type="button" className="ghost-info" onClick={onDatasetInfo} aria-label="Dataset files">
           i
         </button>
@@ -851,7 +961,7 @@ function AnswerStage({
             <ChoiceCard
               key={choice.letter}
               choice={choice}
-              fields={fieldsForChoice(question, choice)}
+              fields={varyingFields(question, choice)}
               interactive={false}
               correct={choice.letter === correct}
               wrongPick={Boolean(selected && choice.letter === selected && choice.letter !== correct)}
@@ -948,6 +1058,7 @@ function ChoiceCard({
   onInfo,
   correct,
   wrongPick,
+  picked,
   metricText
 }: {
   choice: Choice;
@@ -957,12 +1068,14 @@ function ChoiceCard({
   onInfo: () => void;
   correct?: boolean;
   wrongPick?: boolean;
+  picked?: boolean;
   metricText?: string;
 }) {
   const className = [
     "choice-card",
     correct ? "correct" : "",
-    wrongPick ? "wrong" : ""
+    wrongPick ? "wrong" : "",
+    picked ? "picked" : ""
   ]
     .filter(Boolean)
     .join(" ");
@@ -1001,8 +1114,10 @@ function ChoiceCard({
       <div className="choice-fields">
         {fields.map((field) => (
           <div key={field.label} className={field.varying ? "field vary" : "field same"}>
-            <span>{titleCase(field.label)}</span>
-            <strong>{formatFieldValue(field.label, field.value)}</strong>
+            <span>{titleCase(shortLabel(field.label))}</span>
+            <strong>
+              <FieldValue label={field.label} value={field.value} />
+            </strong>
           </div>
         ))}
       </div>
@@ -1010,7 +1125,12 @@ function ChoiceCard({
   );
 }
 
-function fieldsForChoice(question: BakedQuestion, choice: Choice): CardField[] {
+/**
+ * Split a choice's attributes into the ones every choice shares and the ones
+ * that actually differ. The shared half is stated once above the cards, which
+ * is what lets the dataset and the choices share a single screen.
+ */
+function splitFields(question: BakedQuestion, choice: Choice): { shared: CardField[]; varying: CardField[] } {
   const shared = question.detail.shared.map((field) => ({ ...field, varying: false }));
   const variant = choice.variant.map((field) => ({ ...field, varying: true }));
   const parameterLabel = "trainable parameter count";
@@ -1021,17 +1141,26 @@ function fieldsForChoice(question: BakedQuestion, choice: Choice): CardField[] {
     const parameterValues = question.detail.choices.map((item) => trainableParameterCount(item));
     const parameterValue = trainableParameterCount(choice);
     const allEqual = parameterValues.every((value) => value === parameterValues[0]);
-    const field = { label: parameterLabel, value: parameterValue, varying: !allEqual };
+    // Short label: the cards sit in a narrow column, and "parameters" reads the same.
+    const field = { label: "parameters", value: parameterValue, varying: !allEqual };
     if (allEqual) {
       shared.push(field);
     } else {
       variant.push(field);
     }
   }
-  // Keep a stable key order: shared keys first (as baked), then varying keys.
   const seen = new Set(shared.map((field) => field.label));
-  const extra = variant.filter((field) => !seen.has(field.label));
-  return [...shared, ...extra];
+  return { shared, varying: variant.filter((field) => !seen.has(field.label)) };
+}
+
+/** Shared axes are identical across choices, so any choice can report them. */
+function sharedFields(question: BakedQuestion): CardField[] {
+  const first = question.detail.choices[0];
+  return first ? splitFields(question, first).shared : [];
+}
+
+function varyingFields(question: BakedQuestion, choice: Choice): CardField[] {
+  return splitFields(question, choice).varying;
 }
 
 function trainableParameterCount(choice: Choice): string {
@@ -1118,7 +1247,7 @@ function DatasetVisual({ question }: { question: BakedQuestion }) {
     return null;
   }
   if (plot.kind === "classification") {
-    return <ClassificationPlot plot={plot} />;
+    return <ClassificationPlot plot={plot} params={question.detail.dataset.params ?? {}} />;
   }
   if (plot.kind === "heatmap" && plot.matrix) {
     return (
@@ -1165,15 +1294,19 @@ function Scatter({
   const width = 560;
   const height = 260;
   const plot = { x: 48, y: 18, width: 480, height: 190 };
-  const domain = pointDomain(all);
-  const xTicks = makeTicks(domain.xMin, domain.xMax, 6);
-  const yTicks = makeTicks(domain.yMin, domain.yMax, 5);
+  // The axes span exactly the data, snapped out to round tick multiples, so
+  // every gridline gets a label a reader would have chosen.
+  const xScale = niceScale(Math.min(...all.map((p) => p.x)), Math.max(...all.map((p) => p.x)), 6);
+  const yScale = niceScale(Math.min(...all.map((p) => p.y)), Math.max(...all.map((p) => p.y)), 5);
+  const domain = { xMin: xScale.lo, xMax: xScale.hi, yMin: yScale.lo, yMax: yScale.hi };
+  const xTicks = xScale.ticks;
+  const yTicks = yScale.ticks;
   const pos = (point: Point) => ({
     x: plot.x + ((point.x - domain.xMin) / (domain.xMax - domain.xMin || 1)) * plot.width,
     y: plot.y + plot.height - ((point.y - domain.yMin) / (domain.yMax - domain.yMin || 1)) * plot.height
   });
   return (
-    <div className="viz">
+    <div className="viz viz-scatter">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dataset scatter">
         <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="#1a1d24" />
         {xTicks.map((tick) => {
@@ -1182,7 +1315,7 @@ function Scatter({
             <g key={`x-${tick}`}>
               <line x1={x} x2={x} y1={plot.y} y2={plot.y + plot.height} stroke="#2a2e38" />
               <text x={x} y={plot.y + plot.height + 22} textAnchor="middle" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
+                {formatTickStep(tick, xScale.step)}
               </text>
             </g>
           );
@@ -1194,7 +1327,7 @@ function Scatter({
             <g key={`y-${tick}`}>
               <line x1={plot.x} x2={plot.x + plot.width} y1={y} y2={y} stroke="#2a2e38" />
               <text x={plot.x - 10} y={y + 4} textAnchor="end" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
+                {formatTickStep(tick, yScale.step)}
               </text>
             </g>
           );
@@ -1225,30 +1358,57 @@ function Scatter({
 }
 
 function ClassificationPlot({
-  plot
+  plot,
+  params
 }: {
   plot: NonNullable<BakedQuestion["detail"]["dataset"]["plot"]>;
+  params: Record<string, unknown>;
 }) {
   const train = (plot.train ?? []) as Array<Point & { label?: number }>;
   const test = (plot.test ?? []) as Array<Point & { label?: number }>;
   const all = [...train, ...test].filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  const featurePair = plot.featurePair;
+  // The dataset publishes its own rule, so shade the true regions whenever the
+  // plotted coordinate pair carries the whole rule; the smoothed empirical grid
+  // is the fallback for a projection that would not be faithful.
+  const field = useMemo(
+    () => (featurePair ? decisionField(params, featurePair) : null),
+    [params, featurePair]
+  );
   if (!all.length) {
     return <p className="hint">Classification projection unavailable for this dataset.</p>;
   }
   const fallback = pointDomain(all);
   const xEdges = plot.xEdges && plot.xEdges.length > 1 ? plot.xEdges : [fallback.xMin, fallback.xMax];
   const yEdges = plot.yEdges && plot.yEdges.length > 1 ? plot.yEdges : [fallback.yMin, fallback.yMax];
-  const xMin = xEdges[0];
-  const xMax = xEdges[xEdges.length - 1];
-  const yMin = yEdges[0];
-  const yMax = yEdges[yEdges.length - 1];
-  const width = 560;
-  const height = 310;
-  const chart = { x: 52, y: 18, width: 470, height: 230 };
+  const gridXMin = xEdges[0];
+  const gridXMax = xEdges[xEdges.length - 1];
+  const gridYMin = yEdges[0];
+  const gridYMax = yEdges[yEdges.length - 1];
+  // Both plotted coordinates live in the same feature space, so the axes share
+  // one scale: otherwise the spiral's arms read as ellipses and the XOR
+  // quadrants as rectangles. Widen the shorter range rather than stretch the
+  // picture, and keep the grid centred in the square.
+  const span = Math.max(gridXMax - gridXMin, gridYMax - gridYMin) || 1;
+  const xMid = (gridXMin + gridXMax) / 2;
+  const yMid = (gridYMin + gridYMax) / 2;
+  const xMin = xMid - span / 2;
+  const xMax = xMid + span / 2;
+  const yMin = yMid - span / 2;
+  const yMax = yMid + span / 2;
+  const chart = { x: 40, y: 8, width: 240, height: 240 };
+  const width = chart.x + chart.width + 8;
+  const height = chart.y + chart.height + 40;
   const mapX = (value: number) => chart.x + ((value - xMin) / (xMax - xMin || 1)) * chart.width;
   const mapY = (value: number) => chart.y + chart.height - ((value - yMin) / (yMax - yMin || 1)) * chart.height;
-  const xTicks = makeTicks(xMin, xMax, 5);
-  const yTicks = makeTicks(yMin, yMax, 5);
+  const clampX = (value: number) => Math.min(chart.x + chart.width, Math.max(chart.x, mapX(value)));
+  const clampY = (value: number) => Math.min(chart.y + chart.height, Math.max(chart.y, mapY(value)));
+  // The domain is pinned to the baked grid, so only the tick positions become
+  // round -- moving the ends would shear the field against the sampled points.
+  const xAxis = niceTicksWithin(xMin, xMax, 5);
+  const yAxis = niceTicksWithin(yMin, yMax, 5);
+  const xTicks = xAxis.ticks;
+  const yTicks = yAxis.ticks;
   const probability = plot.probability ?? [];
   const observedLabels = Array.from(
     new Set(
@@ -1265,6 +1425,8 @@ function ClassificationPlot({
     const index = legendLabels.indexOf(label ?? legendLabels[0]);
     return classPalette[(index < 0 ? 0 : index) % classPalette.length];
   };
+  const regionFill = (label: number) =>
+    label === 0 ? "rgba(37,99,235,0.22)" : "rgba(220,38,38,0.22)";
   const probabilityFill = (value: number) => {
     const bounded = Math.min(1, Math.max(0, value));
     if (bounded === 0.5) return "rgba(148,163,184,0.12)";
@@ -1273,41 +1435,85 @@ function ClassificationPlot({
       ? `rgba(37,99,235,${alpha})`
       : `rgba(220,38,38,${alpha})`;
   };
+  const bands = useMemo(
+    () => (field ? regionBands(field, { xMin, xMax, yMin, yMax }) : []),
+    [field, xMin, xMax, yMin, yMax]
+  );
+  const armPaths = (field?.curves ?? []).map((curve) => ({
+    label: curve.label,
+    d: curve.points
+      .filter(([x, y]) => x >= xMin && x <= xMax && y >= yMin && y <= yMax)
+      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${mapX(x).toFixed(2)} ${mapY(y).toFixed(2)}`)
+      .join(" ")
+  }));
   const trainPoints = train.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
   const testPoints = test.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
-  const legendY = height - 8;
-  const markerLegendX = chart.x + 8 + legendLabels.length * 100 + 8;
+  const caption = field?.caption ?? "background: blue = low P(class 1), red = high P(class 1)";
   return (
-    <div className="viz">
+    <div className="viz viz-projection">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="Synthetic classification projection: background empirical P(class 1); filled train points; cross test points"
+        aria-label={
+          field
+            ? "Classification projection: shaded exact label regions, filled train points, cross test points"
+            : "Classification projection: background empirical P(class 1); filled train points; cross test points"
+        }
       >
         <rect x={chart.x} y={chart.y} width={chart.width} height={chart.height} fill="#1a1d24" />
-        {probability.map((row, x) => row.map((value, y) => {
-          const x0 = xEdges[x];
-          const x1 = xEdges[x + 1];
-          const y0 = yEdges[y];
-          const y1 = yEdges[y + 1];
-          if (
-            !Number.isFinite(value) ||
-            x0 == null || x1 == null || y0 == null || y1 == null ||
-            !Number.isFinite(x0) || !Number.isFinite(x1) ||
-            !Number.isFinite(y0) || !Number.isFinite(y1)
-          ) {
-            return null;
-          }
-          return (
-            <rect key={`prob-${x}-${y}`} x={mapX(x0)} y={mapY(y1)}
-              width={Math.max(0, mapX(x1) - mapX(x0))}
-              height={Math.max(0, mapY(y0) - mapY(y1))}
-              fill={probabilityFill(value)} />
-          );
-        }))}
-        {xTicks.map((tick) => <g key={`x-${tick}`}><line x1={mapX(tick)} x2={mapX(tick)} y1={chart.y} y2={chart.y + chart.height} stroke="#2a2e38" /><text x={mapX(tick)} y={chart.y + chart.height + 18} textAnchor="middle" fill="#8b919f" fontSize="10">{formatTick(tick)}</text></g>)}
-        {yTicks.map((tick) => <g key={`y-${tick}`}><line x1={chart.x} x2={chart.x + chart.width} y1={mapY(tick)} y2={mapY(tick)} stroke="#2a2e38" /><text x={chart.x - 8} y={mapY(tick) + 3} textAnchor="end" fill="#8b919f" fontSize="10">{formatTick(tick)}</text></g>)}
-        {trainPoints.map((point, i) => <circle key={`train-${i}`} cx={mapX(point.x)} cy={mapY(point.y)} r="3.1" fill={classColor(point.label)} opacity="0.7" />)}
+        {field
+          ? bands.map((band, index) => (
+              <rect
+                key={`band-${index}`}
+                x={clampX(band.x0)}
+                y={clampY(band.y1)}
+                width={Math.max(0, clampX(band.x1) - clampX(band.x0)) + 0.4}
+                height={Math.max(0, clampY(band.y0) - clampY(band.y1)) + 0.4}
+                fill={regionFill(band.label)}
+              />
+            ))
+          : probability.map((row, x) => row.map((value, y) => {
+              const x0 = xEdges[x];
+              const x1 = xEdges[x + 1];
+              const y0 = yEdges[y];
+              const y1 = yEdges[y + 1];
+              if (
+                !Number.isFinite(value) ||
+                x0 == null || x1 == null || y0 == null || y1 == null ||
+                !Number.isFinite(x0) || !Number.isFinite(x1) ||
+                !Number.isFinite(y0) || !Number.isFinite(y1)
+              ) {
+                return null;
+              }
+              return (
+                <rect key={`prob-${x}-${y}`} x={mapX(x0)} y={mapY(y1)}
+                  width={Math.max(0, mapX(x1) - mapX(x0))}
+                  height={Math.max(0, mapY(y0) - mapY(y1))}
+                  fill={probabilityFill(value)} />
+              );
+            }))}
+        {xTicks.map((tick) => <g key={`x-${tick}`}><line x1={mapX(tick)} x2={mapX(tick)} y1={chart.y} y2={chart.y + chart.height} stroke="rgba(255,255,255,0.07)" /><text x={mapX(tick)} y={chart.y + chart.height + 18} textAnchor="middle" fill="#8b919f" fontSize="10">{formatTickStep(tick, xAxis.step)}</text></g>)}
+        {yTicks.map((tick) => <g key={`y-${tick}`}><line x1={chart.x} x2={chart.x + chart.width} y1={mapY(tick)} y2={mapY(tick)} stroke="rgba(255,255,255,0.07)" /><text x={chart.x - 8} y={mapY(tick) + 3} textAnchor="end" fill="#8b919f" fontSize="10">{formatTickStep(tick, yAxis.step)}</text></g>)}
+        {field?.originAxes ? (
+          <g stroke="rgba(255,255,255,0.42)" strokeDasharray="4 3">
+            {xMin < 0 && xMax > 0 ? <line x1={mapX(0)} x2={mapX(0)} y1={chart.y} y2={chart.y + chart.height} /> : null}
+            {yMin < 0 && yMax > 0 ? <line x1={chart.x} x2={chart.x + chart.width} y1={mapY(0)} y2={mapY(0)} /> : null}
+          </g>
+        ) : null}
+        {armPaths.map((arm, index) =>
+          arm.d ? (
+            <path
+              key={`arm-${index}`}
+              d={arm.d}
+              fill="none"
+              stroke={classColor(arm.label)}
+              strokeWidth="2"
+              strokeLinecap="round"
+              opacity="0.9"
+            />
+          ) : null
+        )}
+        {trainPoints.map((point, i) => <circle key={`train-${i}`} cx={mapX(point.x)} cy={mapY(point.y)} r="3.1" fill={classColor(point.label)} opacity="0.8" />)}
         {testPoints.map((point, i) => {
           const x = mapX(point.x);
           const y = mapY(point.y);
@@ -1316,19 +1522,31 @@ function ClassificationPlot({
             <line x1={x - 3.5} y1={y + 3.5} x2={x + 3.5} y2={y - 3.5} />
           </g>;
         })}
-        <text x={chart.x} y={chart.y - 6} fill="#c5c9d4" fontSize="10">background: blue = low P(class 1), red = high P(class 1)</text>
-        <text x={chart.x + chart.width} y={chart.y - 6} textAnchor="end" fill="#8b919f" fontSize="10">projection · {plot.selectionNote ?? "rule-aware feature pair"}</text>
-        <text x={chart.x + chart.width / 2} y={height - 25} textAnchor="middle" fill="#8b919f" fontSize="11">{plot.xLabel ?? "feature x"}</text>
-        <text x="14" y={chart.y + chart.height / 2} textAnchor="middle" fill="#8b919f" fontSize="11" transform={`rotate(-90 14 ${chart.y + chart.height / 2})`}>{plot.yLabel ?? "feature y"}</text>
-        {legendLabels.map((label, index) => {
-          const x = chart.x + 8 + index * 100;
-          return <g key={`legend-${label}`}><circle cx={x} cy={legendY} r="4" fill={classColor(label)} /><text x={x + 10} y={legendY + 4} fill="#c5c9d4" fontSize="10">{`class ${label}`}</text></g>;
-        })}
-        <circle cx={markerLegendX} cy={legendY} r="4" fill="#c5c9d4" />
-        <text x={markerLegendX + 10} y={legendY + 4} fill="#c5c9d4" fontSize="10">filled = train</text>
-        <g stroke="#c5c9d4" strokeWidth="1.5" strokeLinecap="round"><line x1={markerLegendX + 100} y1={legendY - 4} x2={markerLegendX + 108} y2={legendY + 4} /><line x1={markerLegendX + 100} y1={legendY + 4} x2={markerLegendX + 108} y2={legendY - 4} /></g>
-        <text x={markerLegendX + 114} y={legendY + 4} fill="#c5c9d4" fontSize="10">cross = test</text>
+        <text x={chart.x + chart.width / 2} y={height - 8} textAnchor="middle" fill="#8b919f" fontSize="11">{plot.xLabel ?? "feature x"}</text>
+        <text x="12" y={chart.y + chart.height / 2} textAnchor="middle" fill="#8b919f" fontSize="11" transform={`rotate(-90 12 ${chart.y + chart.height / 2})`}>{plot.yLabel ?? "feature y"}</text>
       </svg>
+      {/* Caption and legend as text, not as SVG labels: they wrap to the space
+          beside a square plot instead of colliding with each other. */}
+      <div className="viz-side">
+        <p className="viz-caption">{caption}</p>
+        <ul className="viz-legend">
+          {legendLabels.map((label) => (
+            <li key={`legend-${label}`}>
+              <span className="swatch" style={{ background: classColor(label) }} />
+              {`class ${label}`}
+            </li>
+          ))}
+          <li>
+            <span className="swatch swatch-train" />
+            filled = train
+          </li>
+          <li>
+            <span className="swatch swatch-test">✕</span>
+            cross = test
+          </li>
+        </ul>
+        <p className="viz-note">projection · {plot.selectionNote ?? "rule-aware feature pair"}</p>
+      </div>
     </div>
   );
 }
@@ -1369,7 +1587,7 @@ function Heatmap({
   const norm = (value: number) => (hi === lo ? 0.5 : (value - lo) / (hi - lo));
 
   return (
-    <div className="viz">
+    <div className="viz viz-heatmap">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Transition matrix">
         {matrix.map((row, y) =>
           row.map((value, x) => {
@@ -1620,19 +1838,21 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
   const ySource = visibleY.length ? visibleY : allY;
   const yMin = Math.min(...ySource);
   const yMax = Math.max(...ySource);
-  const yPad = Math.max((yMax - yMin) * 0.12, 1e-6);
-  // Always include y=0 so the axis shows where zero sits relative to the curves.
-  const yLo = Math.min(yMin - yPad, 0);
-  const yHi = Math.max(yMax + yPad, 0);
+  // The y axis covers exactly the values on screen, snapped out to round tick
+  // multiples. Zero needs no special case: every tick is a multiple of the
+  // step, so a range that spans zero always lands on it.
+  const yScale = niceScale(yMin, yMax, 5);
+  const yLo = yScale.lo;
+  const yHi = yScale.hi;
 
-  const fullYMin = Math.min(...allY);
-  const fullYMax = Math.max(...allY);
-  const fullYPad = Math.max((fullYMax - fullYMin) * 0.08, 1e-6);
-  const brushYLo = Math.min(fullYMin - fullYPad, 0);
-  const brushYHi = Math.max(fullYMax + fullYPad, 0);
+  const brushScale = niceScale(Math.min(...allY), Math.max(...allY), 4);
+  const brushYLo = brushScale.lo;
+  const brushYHi = brushScale.hi;
 
-  const xTicks = makeTicks(viewX0, viewX1, 6);
-  const yTicks = makeTicksIncludingZero(yLo, yHi, 5);
+  // The x domain is the brush selection and must stay put; only the ticks snap.
+  const xAxis = niceTicksWithin(viewX0, viewX1, 6);
+  const xTicks = xAxis.ticks;
+  const yTicks = yScale.ticks;
   const colorFor = (letter: string) =>
     question.detail.choices.find((choice) => choice.letter === letter)?.color ?? "#ccc";
 
@@ -1766,7 +1986,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
             <g key={`cx-${tick}`}>
               <line x1={x} x2={x} y1={plot.y} y2={plot.y + plot.height} stroke="#2a2e38" />
               <text x={x} y={plot.y + plot.height + 22} textAnchor="middle" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
+                {formatTickStep(tick, xAxis.step)}
               </text>
             </g>
           );
@@ -1792,7 +2012,7 @@ function CurvesPlot({ question }: { question: BakedQuestion }) {
                 fontSize="11"
                 fontWeight={isZero ? 700 : 400}
               >
-                {formatTick(tick)}
+                {formatTickStep(tick, yScale.step)}
               </text>
             </g>
           );
@@ -2070,6 +2290,15 @@ function DifficultyBadge({ difficulty }: { difficulty: DifficultyLevel }) {
   );
 }
 
+/** Bake labels are written for a wide table; the study cards are one narrow column. */
+const SHORT_LABELS: Record<string, string> = {
+  "trainable parameter count": "parameters"
+};
+
+function shortLabel(label: string): string {
+  return SHORT_LABELS[label.toLowerCase().replace(/_/g, " ")] ?? label;
+}
+
 function titleCase(text: string) {
   return text.replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -2097,38 +2326,93 @@ function pointDomain(points: Point[]) {
   return { xMin: xMin - xPad, xMax: xMax + xPad, yMin: yMin - yPad, yMax: yMax + yPad };
 }
 
-function makeTicks(min: number, max: number, count: number) {
-  if (count <= 1) return [min];
-  return Array.from({ length: count }, (_, i) => min + ((max - min) * i) / (count - 1));
+/** Upper bound on axis labels, so a tighter fit never turns into clutter. */
+const MAX_TICKS = 9;
+
+/** A tick step a reader recognizes: 1, 2, 2.5 or 5 times a power of ten. */
+function niceStep(rough: number): number {
+  if (!(rough > 0) || !Number.isFinite(rough)) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const normalized = rough / magnitude;
+  for (const candidate of [1, 2, 2.5, 5]) {
+    if (normalized <= candidate) return candidate * magnitude;
+  }
+  return 10 * magnitude;
 }
 
-/** Like makeTicks, but always includes 0 when it lies in [min, max]. */
-function makeTicksIncludingZero(min: number, max: number, count: number) {
+/** An axis over [min, max] whose ends and ticks are all multiples of one nice
+ *  step. Because every tick is a multiple of the step, zero is automatically a
+ *  tick whenever the range spans it, and no label ever reads 1638.4.
+ *
+ *  `count` is a target, not a promise: snapping the ends outward can add a tick.
+ */
+function niceScale(min: number, max: number, count: number): { lo: number; hi: number; ticks: number[]; step: number } {
+  let lo = Math.min(min, max);
+  let hi = Math.max(min, max);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    return { lo: 0, hi: 1, ticks: [0, 1], step: 1 };
+  }
+  if (hi - lo < Math.max(Math.abs(hi), Math.abs(lo)) * 1e-9 || hi === lo) {
+    // A flat series still needs a visible band around its single value.
+    const pad = Math.abs(hi) > 0 ? Math.abs(hi) * 0.05 : 0.5;
+    lo -= pad;
+    hi += pad;
+  }
+  // Snapping the ends out to a multiple of the step wastes range, and the
+  // coarsest step wastes the most: a curve whose band dips 0.02 below zero
+  // would drag a step-0.5 axis all the way down to -0.5. So try a few step
+  // sizes and keep the one that covers the data most tightly.
+  const target = Math.max(1, count - 1);
+  let best: { step: number; start: number; end: number; steps: number } | null = null;
+  for (let divisions = target; divisions <= target + 3; divisions += 1) {
+    const step = niceStep((hi - lo) / divisions);
+    const start = Math.floor(lo / step) * step;
+    const end = Math.ceil(hi / step) * step;
+    const steps = Math.round((end - start) / step);
+    if (best !== null && steps + 1 > MAX_TICKS) continue;
+    // Ascending divisions means later candidates are finer: only take one when
+    // it is strictly tighter, so the fewest ticks win a tie.
+    if (best !== null && end - start >= best.end - best.start - step * 1e-9) continue;
+    best = { step, start, end, steps };
+  }
+  const { step, start, end, steps } = best!;
+  const ticks: number[] = [];
+  // Multiply rather than accumulate: repeated addition of 0.1 drifts off-grid.
+  for (let i = 0; i <= steps; i += 1) {
+    const tick = start + i * step;
+    ticks.push(Math.abs(tick) < step * 1e-9 ? 0 : tick);
+  }
+  return { lo: start, hi: end, ticks, step };
+}
+
+/** Nice ticks for an axis whose domain is fixed elsewhere and must not move. */
+function niceTicksWithin(min: number, max: number, count: number): { ticks: number[]; step: number } {
+  const scale = niceScale(min, max, count);
   const lo = Math.min(min, max);
   const hi = Math.max(min, max);
-  const ticks = makeTicks(lo, hi, count);
-  if (lo > 0 || hi < 0) {
-    return ticks;
+  const inside = scale.ticks.filter((tick) => tick >= lo - scale.step * 1e-9 && tick <= hi + scale.step * 1e-9);
+  return { ticks: inside.length ? inside : [lo, hi], step: scale.step };
+}
+
+/** Decimals the step itself needs. Taking the log instead would print a 2.5
+ *  step as "3": its magnitude is 1, but its value is not a whole number. */
+function stepDecimals(step: number): number {
+  if (!(step > 0) || !Number.isFinite(step)) return 0;
+  for (let decimals = 0; decimals <= 6; decimals += 1) {
+    const scaled = step * 10 ** decimals;
+    if (Math.abs(scaled - Math.round(scaled)) < 1e-9) return decimals;
   }
-  const hasZero = ticks.some((tick) => Math.abs(tick) < 1e-12);
-  if (hasZero) {
-    return ticks;
+  return 6;
+}
+
+/** Label a tick with just enough decimals for its own step to be legible. */
+function formatTickStep(value: number, step: number): string {
+  if (value === 0) return "0";
+  const abs = Math.abs(value);
+  if (abs >= 10000 || (abs > 0 && abs < 0.001)) {
+    return value.toExponential(1).replace("e+", "e").replace(/\.0e/, "e");
   }
-  const merged = [...ticks, 0].sort((a, b) => a - b);
-  // Drop a neighboring non-zero tick if crowding is extreme near zero.
-  const deduped: number[] = [];
-  for (const tick of merged) {
-    const prev = deduped[deduped.length - 1];
-    if (prev != null && Math.abs(prev - tick) < (hi - lo) * 0.04) {
-      // Prefer keeping exact zero.
-      if (Math.abs(tick) < 1e-12) {
-        deduped[deduped.length - 1] = 0;
-      }
-      continue;
-    }
-    deduped.push(Math.abs(tick) < 1e-12 ? 0 : tick);
-  }
-  return deduped;
+  return value.toFixed(stepDecimals(step));
 }
 
 function formatTick(value: number) {

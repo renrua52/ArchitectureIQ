@@ -179,7 +179,9 @@ def _classification_points(x: np.ndarray, y: np.ndarray, first: int, second: int
     for label in unique_labels:
         indices = np.flatnonzero(labels == label)
         if len(indices) > maximum:
-            indices = np.linspace(0, len(indices) - 1, maximum, dtype=int)
+            # Thin the class's own row indices; indexing by position here would
+            # make every class plot rows 0..maximum of the split instead.
+            indices = indices[np.linspace(0, len(indices) - 1, maximum, dtype=int)]
         for index in indices.tolist():
             points.append({"x": float(x[index, first]), "y": float(x[index, second]), "label": label})
     return points

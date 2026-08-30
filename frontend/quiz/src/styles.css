@@ -234,67 +234,21 @@ a {
   line-height: 1.5;
 }
 
-.attr-list {
-  margin: 0;
-  display: grid;
-  gap: 0.85rem;
-  align-content: start;
-}
-
-.attr-list > div {
-  display: grid;
-  grid-template-columns: 8.5rem 1fr;
-  gap: 1rem;
-  padding: 0.2rem 0;
-  background: transparent;
-}
-
-.attr-list dt {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 650;
-}
-
-.attr-list dd {
-  margin: 0;
-  font-size: 0.92rem;
-}
-
-.dataset-layout {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(240px, 0.95fr);
-  gap: 1.75rem;
-  align-items: start;
-  margin-top: 0.85rem;
-}
-
-.dataset-layout .viz {
-  margin-top: 0;
-}
-
-.dataset-layout .viz svg {
-  max-height: 240px;
+/* KaTeX lays a formula out as one unbreakable inline row, so a long target
+   expression scrolls inside its own cell rather than overflowing the card. */
+.math {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-size: 0.95rem;
+  padding-bottom: 0.1rem;
 }
 
 .mono {
   font-family: var(--mono);
   font-size: 0.82rem;
   word-break: break-word;
-}
-
-.example-io {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.io-label {
-  color: var(--muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  margin-right: 0.25rem;
 }
 
 .viz {
@@ -852,15 +806,6 @@ a {
   .topnav {
     grid-template-columns: 1fr;
   }
-
-  .dataset-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .attr-list > div {
-    grid-template-columns: 1fr;
-    gap: 0.15rem;
-  }
 }
 
 .provenance {
@@ -871,4 +816,367 @@ a {
   color: var(--muted);
   font-size: 0.78rem;
   font-family: var(--mono);
+}
+
+/* ---------------------------------------------------------------------------
+   Study stage — dataset and choices share one screen.
+
+   Everything here is sized to keep the whole stage inside one viewport on a
+   laptop: two columns, denser panels than the reveal stage, and pill rows
+   instead of key/value tables so short facts share a line.
+   --------------------------------------------------------------------------- */
+
+.shell.quiz {
+  max-width: 1280px;
+}
+
+.stage-inner.study {
+  gap: 0.9rem;
+}
+
+.study-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+/* min-width:0 so a long formula scrolls inside its panel instead of widening
+   the column past its share of the grid. */
+.study-col {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.stage-inner.study .panel,
+.stage-inner.study .dataset-panel {
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 16px;
+}
+
+.stage-inner.study .task-description {
+  gap: 0.45rem;
+  margin-bottom: 0;
+}
+
+.stage-inner.study .task-summary {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #cdcdcd;
+}
+
+.stage-inner.study .stage-kicker {
+  margin: 0;
+}
+
+.head-note {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+/* ---- Pills: a labelled fact that wraps with its neighbours ---- */
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.4rem;
+  margin: 0.55rem 0 0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.24rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 0.8rem;
+}
+
+.pill-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pill-value {
+  font-weight: 640;
+  overflow-wrap: anywhere;
+}
+
+.pill-value .mono {
+  font-size: 0.75rem;
+}
+
+/* ---- Flags: ✓ / ✗ instead of the words, one badge per layer ---- */
+
+.flag-row {
+  display: inline-flex;
+  gap: 0.22rem;
+}
+
+.flag {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.flag.on {
+  color: #0d2b21;
+  background: var(--ok);
+}
+
+/* Muted rather than red: a false flag is a setting, not a mistake. */
+.flag.off {
+  color: #7c7c7c;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.field-text {
+  overflow-wrap: break-word;
+}
+
+/* ---- Formulas get their own full-width strip ---- */
+
+.formula-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  overflow-x: auto;
+}
+
+.formula-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.stage-inner.study .math {
+  font-size: 0.88rem;
+}
+
+/* ---- Choices column ---- */
+
+.shared-summary {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.65rem 0.6rem;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.shared-label {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.shared-summary .pill-row {
+  margin-top: 0.4rem;
+}
+
+.study-choices {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.study-choices .choice-card {
+  padding: 0.65rem 0.8rem 0.7rem;
+  border-radius: 14px;
+}
+
+.study-choices .choice-letter {
+  font-size: 1.1rem;
+  margin-bottom: 0.15rem;
+}
+
+/* Two field columns inside a full-width card: the same facts, half the height. */
+.study-choices .choice-fields {
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.18rem 0.9rem;
+}
+
+.study-choices .field {
+  font-size: 0.8rem;
+}
+
+.choice-card.picked {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--choice) 80%, white),
+    0 0 22px color-mix(in srgb, var(--choice) 40%, transparent);
+}
+
+.back-link {
+  padding: 0.2rem 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.stage-footer-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.8rem;
+}
+
+/* The plot is the tallest single element on the study screen, so it is the
+   first thing to shrink when the stage has to fit one viewport. */
+.dataset-panel .viz {
+  margin-top: 0.7rem;
+  padding: 0.45rem;
+  border-radius: 12px;
+}
+
+.dataset-panel .viz:not(.viz-projection):not(.viz-heatmap):not(.viz-scatter) svg {
+  max-height: 208px;
+}
+
+@media (max-width: 1080px) {
+  .study-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dataset-panel .viz svg {
+    max-height: 260px;
+  }
+}
+
+/* ---- 2-D feature projection: square plot, legend beside it ---- */
+
+.viz-projection {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+/* The viewBox is square, so height follows width and the equal-scale axes stay
+   equal at every container width. */
+.viz-projection svg {
+  flex: 0 0 auto;
+  width: min(16rem, 58%);
+  height: auto;
+}
+
+.viz-side {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 0.55rem;
+  align-content: center;
+}
+
+.viz-caption {
+  margin: 0;
+  color: #c5c9d4;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.viz-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.viz-legend {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #c5c9d4;
+  font-size: 0.74rem;
+}
+
+.viz-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  background: #c5c9d4;
+  font-size: 0.6rem;
+  color: #c5c9d4;
+}
+
+.swatch-test {
+  background: transparent;
+  border-radius: 0;
+}
+
+/* A heatmap and a scatter each have a fixed viewBox aspect. Sizing them by
+   width (instead of clamping height) stops the browser letterboxing them into
+   a fraction of the panel with dead space on both sides. */
+.viz-heatmap,
+.viz-scatter {
+  display: flex;
+  justify-content: center;
+}
+
+.viz-heatmap svg {
+  width: min(19rem, 100%);
+  height: auto;
+}
+
+.viz-scatter svg {
+  width: min(28rem, 100%);
+  height: auto;
+}
+
+/* Short viewports: trim padding and the plot before the stage starts to scroll.
+   The tallest case is a classification question — prose, four formula rows and a
+   square projection — so the two levers are panel padding and plot size. */
+@media (max-height: 900px) {
+  .stage-inner.study { gap: .7rem }
+  .study-grid { gap: .75rem }
+  .study-col { gap: .7rem }
+  .stage-inner.study .panel,
+  .stage-inner.study .dataset-panel { padding: .7rem .9rem .8rem }
+  .stage-inner.study .task-summary { font-size: .82rem; line-height: 1.45 }
+  .viz-projection svg { width: min(13.5rem, 52%) }
+  .viz-heatmap svg { width: min(16rem, 100%) }
+  .viz-scatter svg { width: min(24rem, 100%) }
+}
+
+@media (max-height: 780px) {
+  .viz-projection svg { width: min(11.5rem, 48%) }
+  .dataset-panel .viz { padding: .3rem }
+  .formula-row { margin-top: .35rem; padding: .3rem .5rem }
 }
