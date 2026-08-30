@@ -259,3 +259,12 @@ outputs/demo_release_integration/*
 # Generated demo question bundles — regenerable via the CLI; per AGENTS.md
 # generated data lives in gitignored data/, not in git.
 examples/quiz_demo/
+
+# Agent-tool uploads and local runtime scratch (untracked 2026-08 cleanup)
+.verdent/
+backend/
+lark-im-resources/
+
+# Generated eval/audit HTML reports (regenerable via tools/)
+artifacts/llm_eval_400_vs_1000_report.html
+artifacts/new_question_quality_audit_1000.html
