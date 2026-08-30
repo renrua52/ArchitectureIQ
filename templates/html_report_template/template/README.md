@@ -12,7 +12,7 @@
 ## 文件结构
 
 ```
-html模板/
+template/
 ├── template.html        起手式: 内容幕 + 全部功能接好线
 ├── showcase.html        画廊: 每种组件/主题/动画工具的示范
 ├── css/
@@ -29,7 +29,7 @@ html模板/
 
 ## 用法
 
-1. 复制整个 `html模板/` 文件夹改名（css/js 用相对路径，要一起带走）。
+1. 复制整个 `template/` 文件夹改名（css/js 用相对路径，要一起带走）。
 2. 在 `template.html` 里，每一「幕」是一个 `<div class="slide" data-title="目录名">`，第一幕加 `active`。
 3. 删掉不需要的示范幕、照结构填内容。导航/目录/圆点由 `engine.js` 自动生成。
 4. 动画写在 `template.html` 底部 inline `<script>`，用 `animate()` 注册（见下）。
