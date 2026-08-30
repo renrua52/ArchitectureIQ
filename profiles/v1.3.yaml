@@ -43,7 +43,7 @@ pools:
     - optimizer_only
     - loss_only
     - mixed
-  num_choices: 2
+  num_choices: 3
 
 dataset:
   family: univariate_regression
