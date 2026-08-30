@@ -128,9 +128,44 @@ def test_spiral_rule_card_parity() -> None:
     text = pkg.format_synthetic_tabular_classification_rule(params)
     assert text == insp.format_synthetic_tabular_classification_rule(params)
     assert "two-spirals" in text
+    # The arm's parameter range is printed as a multiple of pi, not as 13.0665.
+    assert "[0.5, 0.5 + 4π]" in text
     assert "Label rule" in text
     assert "Bayes decision boundary" in text
     assert "phase = π" in text
+    assert "def " not in text
+
+
+def test_exact_xor_rule_card_parity() -> None:
+    """A zero cut-off with no label noise makes the quadrant rule exact.
+
+    The two hedging lines the calibrated-threshold version needs ("nominal
+    only", "need not follow") must then be gone, because they would be telling
+    the reader to distrust a rule that now holds exactly.
+    """
+    params = {
+        "input_dim": 4,
+        "rule_family": "xor",
+        "active_features": [0, 2],
+        "interaction_pairs": [[0, 2]],
+        "rule_weights": [-1.0],
+        "piecewise_breakpoint": 0.0,
+        "decision_threshold": 0.0,
+        "point_sampling": {"seed": 11},
+        "calibration": {
+            "seed": 22,
+            "size": 4096,
+            "target_positive_rate": 0.5,
+            "realized_positive_rate": 0.4993,
+        },
+    }
+    text = pkg.format_synthetic_tabular_classification_rule(params)
+    assert text == insp.format_synthetic_tabular_classification_rule(params)
+    assert "class 1 exactly when its two active coordinates have opposite signs" in text
+    assert "nominal only" not in text
+    assert "need not follow" not in text
+    # The stated balance is the one the cut-off achieves, not the target.
+    assert "labels 49.9% of them class 1" in text
     assert "def " not in text
 
 

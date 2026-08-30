@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import math
 import random
 from pathlib import Path
 from typing import Any
@@ -8,8 +9,55 @@ from typing import Any
 import torch
 
 from architecture_iq.families.base import DatasetFamily
+from architecture_iq.families.symbolic_expr import CONST_QUANTUM
 from architecture_iq.profile import Profile
 from architecture_iq.util import short_hash, write_json
+
+
+# Every number the prompt shows comes off the same clean grid the regression
+# targets use -- eighths, imported rather than restated so there is one
+# convention in the repo. Before this, the rules drew straight from
+# rng.uniform and the prompt read
+#   `s(x) = -1.52998*x_1 - 1.51632*x_0`  cut at  `0.0468835`,
+# six-digit noise a reader cannot hold in their head or reason about. The grids
+# below are the eighths inside the magnitude ranges those uniforms spanned, so
+# the sampled scale is unchanged; only its resolution is.
+def _clean_grid(low: float, high: float) -> list[float]:
+    """The eighths lying in [low, high], as a sampling pool."""
+    first = math.ceil(low / CONST_QUANTUM - 1e-9)
+    last = math.floor(high / CONST_QUANTUM + 1e-9)
+    grid = [round(step * CONST_QUANTUM, 3) for step in range(first, last + 1)]
+    if not grid:
+        raise ValueError(f"no clean constant lies in [{low}, {high}]")
+    return grid
+
+
+#: Was rng.uniform(0.6, 1.4) -- smooth_additive per-feature weight magnitude.
+SMOOTH_WEIGHT_MAGNITUDES = _clean_grid(0.6, 1.4)
+#: Was rng.uniform(0.8, 1.6) -- interaction, XOR-style and piecewise magnitudes.
+INTERACTION_WEIGHT_MAGNITUDES = _clean_grid(0.8, 1.6)
+#: Was rng.uniform(-0.5, 0.5) -- where the piecewise branch switches.
+BREAKPOINT_GRID = _clean_grid(-0.5, 0.5)
+
+
+def _signed_clean_weight(rng: random.Random, magnitudes: list[float]) -> float:
+    """One clean weight, magnitude then sign -- two draws, as the uniform was."""
+    return rng.choice(magnitudes) * rng.choice([-1.0, 1.0])
+
+
+def snap_threshold(value: float) -> float:
+    """Snap a calibrated cut-off to the nearest eighth.
+
+    The raw quantile is an artefact of the calibration draw (`0.0468835`,
+    `0.00378419`) that carries no information a solver can use, and it reads as
+    precision the rule does not have. Snapping moves the cut by at most 1/16 of
+    a score unit, which shifts the class balance by a couple of percent -- so
+    the prompt states the realized positive rate instead of claiming an exact
+    50%. XOR is the case that matters most: its quantile is ~0.004 away from 0,
+    and snapping to exactly 0 makes the sign-product rule the literal label
+    rule again instead of something the prompt has to walk back.
+    """
+    return round(value / CONST_QUANTUM) * CONST_QUANTUM + 0.0
 
 
 # Keep this legacy tuple stable: callers that omit an explicit rule set must not
@@ -345,18 +393,38 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
             interaction_pairs = []
             piecewise_breakpoint = 0.0
             if resolved_rule == "smooth_additive":
-                rule_weights = [rng.uniform(0.6, 1.4) * rng.choice([-1.0, 1.0]) for _ in active_features]
+                rule_weights = [
+                    _signed_clean_weight(rng, SMOOTH_WEIGHT_MAGNITUDES)
+                    for _ in active_features
+                ]
             elif resolved_rule == "sparse_interaction":
                 all_pairs = list(itertools.combinations(active_features, int(cfg["interaction_order"])))
                 pair_count = min(len(all_pairs), max(1, active_count - 1))
                 interaction_pairs = [list(pair) for pair in rng.sample(all_pairs, pair_count)]
-                rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in interaction_pairs]
+                rule_weights = [
+                    _signed_clean_weight(rng, INTERACTION_WEIGHT_MAGNITUDES)
+                    for _ in interaction_pairs
+                ]
             elif resolved_rule == "xor":
                 interaction_pairs = [[active_features[0], active_features[1]]]
                 rule_weights = [-1.0]
             else:
-                piecewise_breakpoint = rng.uniform(-0.5, 0.5)
-                rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in range(3)]
+                piecewise_breakpoint = rng.choice(BREAKPOINT_GRID)
+                # The kink is the whole point of this rule, so the two branches
+                # get opposite signs on the secondary coordinate. Drawing both
+                # freely produced boundaries like -1.52998*x_1 below the
+                # breakpoint and -1.37105*x_1 above it: a 10% change in one
+                # slope, which is a straight line for any practical purpose and
+                # leaves the bucket measuring nothing a linear model cannot do.
+                # With the sign flipped the boundary genuinely bends.
+                below_magnitude = rng.choice(INTERACTION_WEIGHT_MAGNITUDES)
+                above_magnitude = rng.choice(INTERACTION_WEIGHT_MAGNITUDES)
+                below_sign = rng.choice([-1.0, 1.0])
+                rule_weights = [
+                    below_magnitude * below_sign,
+                    above_magnitude * -below_sign,
+                    _signed_clean_weight(rng, INTERACTION_WEIGHT_MAGNITUDES),
+                ]
 
             noise_std = _resolve_noise_std(cfg, rng)
             calibration_size = int(cfg["calibration_size"])
@@ -375,8 +443,12 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
                 calibration_score = calibration_score + noise_std * torch.randn(
                     calibration_size, generator=calibration_gen
                 )
-            decision_threshold = float(
-                torch.quantile(calibration_score, 1.0 - target_positive_rate).item()
+            decision_threshold = snap_threshold(
+                float(torch.quantile(calibration_score, 1.0 - target_positive_rate).item())
+            )
+            realized_positive_rate = round(
+                float((calibration_score > decision_threshold).to(torch.float64).mean().item()),
+                4,
             )
             point_sampling = {"distribution": "standard_normal", "seed": point_seed}
             calibration = {
@@ -384,6 +456,11 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
                 "seed": calibration_seed,
                 "size": calibration_size,
                 "target_positive_rate": target_positive_rate,
+                # What the snapped cut-off actually achieves on the calibration
+                # sample. The prompt states this rather than the target, because
+                # the cut-off is the clean value near the target quantile, not
+                # the quantile itself.
+                "realized_positive_rate": realized_positive_rate,
             }
 
         params = {

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 
 LEGACY_LEAKY_RELU_SLOPE = 0.1
 
@@ -308,6 +307,38 @@ def _turns_nl(turns: float) -> str:
     return f"{turns:.6g} full turn" + ("" if turns == 1.0 else "s")
 
 
+def _spiral_t_upper_nl(turns: float) -> str:
+    """`0.5 + 2π` -- the arm's parameter range, symbolically.
+
+    Printing the product gave `[0.5, 6.78319]`, a number that hides the one
+    fact the reader wants: the arm runs a whole number of half-turns. Every
+    profile turns value makes `2·turns` an integer, so the multiple of π is
+    exact; a non-integer multiple falls back to the decimal.
+    """
+    multiple = 2.0 * float(turns)
+    if abs(multiple - round(multiple)) > 1e-9:
+        return f"0.5 + {multiple:.6g}π"
+    whole = int(round(multiple))
+    return "0.5 + π" if whole == 1 else f"0.5 + {whole}π"
+
+
+def _positive_rate_nl(calibration: dict) -> str:
+    """What fraction of rows the stated cut-off actually labels class 1.
+
+    The cut-off is the clean value nearest the target quantile, not the
+    quantile, so it lands a couple of percent off 50%. Specs written before the
+    snapping have no realized rate recorded and keep the target wording.
+    """
+    realized = calibration.get("realized_positive_rate")
+    target = float(calibration["target_positive_rate"])
+    if realized is None:
+        return f"to target a positive-class rate of {target:.0%}"
+    return (
+        f"as the closest round value to the {target:.0%} quantile of `s(x)`; "
+        f"on those {calibration['size']} rows it labels {float(realized):.1%} of them class 1"
+    )
+
+
 def format_synthetic_tabular_classification_rule(params: dict) -> str:
     rule_family = params["rule_family"]
     active_features = [int(feature) for feature in params["active_features"]]
@@ -331,7 +362,7 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
         return "\n".join(
             [
                 f"- Rule family: `spiral`; active coordinates: `x_{left}`, `x_{right}` (input is 2-dimensional).",
-                f"- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, {0.5 + turns * 2.0 * math.pi:.6g}]` ({_turns_nl(turns)}), radius `r = t`, coordinates `(r·cos(t + phase), r·sin(t + phase))` with `phase ∈ {{0, π}}`{jitter_clause}.",
+                f"- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, {_spiral_t_upper_nl(turns)}]` ({_turns_nl(turns)}), radius `r = t`, coordinates `(r·cos(t + phase), r·sin(t + phase))` with `phase ∈ {{0, π}}`{jitter_clause}.",
                 "- Label rule: `y = 0` for points drawn from the `phase = 0` arm and `y = 1` for points from the `phase = π` arm; both arms are equally likely, so classes are balanced.",
                 "- Nominal soft score (intuition only): `s(x) = sin(atan2(x_1, x_0) − ‖x‖₂)`; its zero level sets trace the two arms, but labels come from the generative arm, not from thresholding `s(x)`.",
                 f"- Bayes decision boundary: assign each point to the nearer of {arms_phrase} (up to label-flip symmetry); with {_turns_nl(turns)} the arms interleave, so the boundary is highly non-linear.",
@@ -391,7 +422,16 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
             f"- Label rule: `y = 1` exactly when "
             f"`{'s(x) + ε' if noisy else 's(x)'} > {threshold:.6g}`; otherwise `y = 0`.",
             *(
+                # The cut-off snaps to a round value, and for XOR the calibrated
+                # quantile is within a rounding step of 0 -- so the quadrant rule
+                # is the label rule, exactly, and the prompt can say so instead
+                # of stating it and then walking it back. A non-zero threshold
+                # (or label noise) still needs the caveat.
                 [
+                    "- XOR interpretation: `x` is class 1 exactly when its two active coordinates have opposite signs, and class 0 when they share a sign."
+                ]
+                if rule_family == "xor" and threshold == 0.0 and not noisy
+                else [
                     "- XOR interpretation (nominal only): with threshold `0`"
                     + (" and `ε = 0`" if noisy else "")
                     + ", opposite-sign active coordinates are class 1 and same-sign active coordinates are class 0.",
@@ -407,7 +447,7 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
                 if noisy
                 else f"- Bayes decision boundary: `s(x) = {threshold:.6g}`; labels are an exact function of `x`, so this boundary is attainable."
             ),
-            f"- Threshold calibration: `{threshold:.6g}` was estimated from {calibration['size']} independent calibration rows to target a positive-class rate of {float(calibration['target_positive_rate']):.0%}.",
+            f"- Threshold calibration: `{threshold:.6g}` was chosen from {calibration['size']} independent calibration rows {_positive_rate_nl(calibration)}.",
             f"- Reproducibility: {'point/noise seed' if noisy else 'point seed'} `{params['point_sampling']['seed']}`, calibration seed `{calibration['seed']}`.",
         ]
     )

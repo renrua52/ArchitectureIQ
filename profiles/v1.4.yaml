@@ -48,6 +48,19 @@ schema_version: "1.0"
 #   target. Nothing about noise reaches the spec, the generated synthesize.py,
 #   or the prompt. Profiles that still declare noise_std keep generating it
 #   unchanged, so v1.3's datasets stay reproducible.
+# - Classification rules get the same clean-constant treatment as the regression
+#   targets: rule weights and the piecewise breakpoint are drawn from eighths
+#   instead of rng.uniform, and the calibrated cut-off is snapped to the nearest
+#   eighth, so a prompt reads `s(x) = -1.5*x_1 - 1.5*x_0` cut at `0` rather than
+#   `-1.52998*x_1 - 1.51632*x_0` cut at `0.0468835`. XOR's quantile is within a
+#   rounding step of 0, so its cut-off becomes exactly 0 and the quadrant rule is
+#   the label rule. piecewise_boundary now forces opposite signs on its two
+#   branch weights -- freely drawn, the two slopes could differ by 10%, which is
+#   a straight line for any practical purpose. The snapped cut-off shifts the
+#   class balance by a couple of percent, so calibration records the realized
+#   positive rate and the prompt states that instead of the 50% target. This
+#   changes every classification dataset_id except spiral's (whose labels come
+#   from the generative arm, so none of its sampled params move).
 # - xor and spiral become their own dataset families (xor_classification,
 #   spiral_classification) instead of two of five rule_families inside
 #   synthetic_tabular_classification, so each is its own benchmark bucket with

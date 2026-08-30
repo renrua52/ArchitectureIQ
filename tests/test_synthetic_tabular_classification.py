@@ -10,6 +10,7 @@ import torch
 from architecture_iq.candidates.generator import build_candidate_spec, write_candidate
 from architecture_iq.candidates.sets import sample_candidate_set_pool
 from architecture_iq.families import synthetic_tabular_classification as classification_module
+from architecture_iq.families.symbolic_expr import CONST_QUANTUM
 from architecture_iq.families.synthetic_tabular_classification import RULE_FAMILIES, balanced_rule_family_schedule
 from architecture_iq.ground_truth.runner import run_ground_truth
 from architecture_iq.profile import load_profile
@@ -264,3 +265,75 @@ def test_xor_pilot_candidate_ground_truth_smoke(tmp_path: Path) -> None:
     assert summary["selection_metric"] == "test_ce"
     assert len(summary["seed_results"]) == 1
     assert torch.isfinite(torch.tensor(float(summary["mean_test_ce"])))
+
+
+def _clean(value: float) -> bool:
+    """True when ``value`` sits exactly on the eighths grid the prompt shows."""
+    steps = float(value) / CONST_QUANTUM
+    return abs(steps - round(steps)) < 1e-9
+
+
+@pytest.mark.parametrize(
+    ("family_name", "rule_family"),
+    [
+        ("synthetic_tabular_classification", "smooth_additive"),
+        ("synthetic_tabular_classification", "sparse_interaction"),
+        ("synthetic_tabular_classification", "piecewise_boundary"),
+        ("xor_classification", "xor"),
+    ],
+)
+def test_classification_constants_stay_on_the_clean_grid(
+    family_name: str, rule_family: str
+) -> None:
+    """Nothing the rule card prints is a six-digit artefact of an rng.uniform draw.
+
+    Weights, the piecewise breakpoint and the calibrated cut-off all have to be
+    readable numbers, because the prompt states the label rule literally and a
+    solver has to reason about it. 24 seeds is enough to hit every grid entry
+    for the narrower pools.
+    """
+    ensure_registries()
+    profile = load_profile("v1.4")
+    family = get_dataset_family(family_name)
+    for seed in range(24):
+        params = family.create_instance(profile, seed, rule_family=rule_family)["params"]
+        for weight in params["rule_weights"]:
+            assert _clean(weight), (rule_family, seed, weight)
+        assert _clean(params["piecewise_breakpoint"]), (rule_family, seed)
+        assert _clean(params["decision_threshold"]), (rule_family, seed)
+        # The snapped cut-off has to stay near the median it approximates,
+        # otherwise the bucket quietly becomes a majority-class problem.
+        assert 0.4 <= params["calibration"]["realized_positive_rate"] <= 0.6
+
+
+def test_piecewise_branches_bend_the_boundary() -> None:
+    """The two branch slopes must differ in sign, not merely in magnitude.
+
+    Drawn independently they once came out at -1.52998 and -1.37105: a 10%
+    change in one coefficient, which a linear model fits about as well as the
+    true rule and leaves the bucket measuring nothing.
+    """
+    ensure_registries()
+    profile = load_profile("v1.4")
+    family = get_dataset_family("synthetic_tabular_classification")
+    for seed in range(24):
+        params = family.create_instance(
+            profile, seed, rule_family="piecewise_boundary"
+        )["params"]
+        below, above, _offset = params["rule_weights"]
+        assert below * above < 0, (seed, below, above)
+
+
+def test_xor_threshold_is_exactly_zero() -> None:
+    """XOR's cut-off lands on 0, so the quadrant rule *is* the label rule.
+
+    -x_l*x_r is sign-symmetric under standard normal features, so its median is
+    0 up to calibration sampling error; snapping removes that error rather than
+    printing it.
+    """
+    ensure_registries()
+    profile = load_profile("v1.4")
+    family = get_dataset_family("xor_classification")
+    for seed in range(12):
+        params = family.create_instance(profile, seed)["params"]
+        assert params["decision_threshold"] == 0.0, seed
