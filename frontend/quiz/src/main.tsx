@@ -28,10 +28,36 @@ type FeedbackDraft = {
 
 const EMPTY_FEEDBACK: FeedbackDraft = { vote: null, submitted: false };
 
+/** Fetch a BakeFile-shaped JSON document, or null when the path holds no bake.
+ *
+ * A missing path is not always a 404: both the vite dev server and a static
+ * host with SPA fallback answer an unknown path with index.html and a 200, so
+ * `response.ok` alone would hand HTML to JSON.parse. The document also has to
+ * carry a `questions` array before it can be treated as a bake.
+ */
+async function fetchBakeDocument(path: string): Promise<BakeFile | null> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    return null;
+  }
+  if (!(response.headers.get("content-type") ?? "").includes("json")) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as BakeFile).questions)) {
+    return null;
+  }
+  return parsed as BakeFile;
+}
+
 async function loadBakeFile(): Promise<BakeFile> {
-  const indexResponse = await fetch("/data/index.json");
-  if (indexResponse.ok) {
-    const index = (await indexResponse.json()) as BakeFile;
+  const index = await fetchBakeDocument("/data/index.json");
+  if (index) {
     return {
       schema_version: index.schema_version,
       ordered: index.ordered,
@@ -42,13 +68,13 @@ async function loadBakeFile(): Promise<BakeFile> {
     };
   }
 
-  const response = await fetch("/data/questions.json");
-  if (!response.ok) {
+  const bake = await fetchBakeDocument("/data/questions.json");
+  if (!bake) {
     throw new Error(
       "Missing baked questions. Expected /data/index.json (deploy) or /data/questions.json (local)."
     );
   }
-  return response.json() as Promise<BakeFile>;
+  return bake;
 }
 
 function App() {
@@ -551,11 +577,15 @@ function QuestionMenu({
       </header>
       <section className="panel">
         <h1 className="panel-title">Questions</h1>
-        <div className="difficulty-legend" aria-label="LLM difficulty levels">
-          {DIFFICULTY_ORDER.map((level) => (
-            <DifficultyBadge key={level} difficulty={level} />
-          ))}
-        </div>
+        {/* Only a graded BakeFile carries difficulty; an ungraded one would show
+            a legend for badges that never appear. */}
+        {summaries.some((item) => resolveDifficulty(undefined, item.track)) ? (
+          <div className="difficulty-legend" aria-label="LLM difficulty levels">
+            {DIFFICULTY_ORDER.map((level) => (
+              <DifficultyBadge key={level} difficulty={level} />
+            ))}
+          </div>
+        ) : null}
         <ul className="question-list">
           {summaries.map((item, itemIndex) => {
             const result = results[item.id];
@@ -587,13 +617,22 @@ function TaskDescription({ question }: { question: BakedQuestion }) {
   const metric = humanMetric(question.metric);
   const train = params.train_size != null ? String(params.train_size) : "—";
   const test = params.test_size != null ? String(params.test_size) : "—";
+  const activeFeatures = Array.isArray(params.active_features)
+    ? params.active_features.map((value) => `x_${String(value)}`).join(", ")
+    : "the active features";
   let summary: string;
   if (question.family === "synthetic_tabular_classification") {
     const rule = String(params.rule_family ?? "synthetic rule").replace(/_/g, " ");
-    const active = Array.isArray(params.active_features)
-      ? params.active_features.map((value) => `x_${String(value)}`).join(", ")
-      : "the active features";
-    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional tabular features. Labels follow a ${rule} rule using ${active}; the held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
+    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional tabular features. Labels follow a ${rule} rule using ${activeFeatures}, cut at a fixed threshold that keeps the two classes close to balanced; the boundary is non-linear in the features. The held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
+  } else if (question.family === "xor_classification") {
+    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional features under an XOR-style rule: the class is the sign of the product of ${activeFeatures}, so it flips across each of the four quadrants those two coordinates form, and every other coordinate is a distractor. The held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
+  } else if (question.family === "spiral_classification") {
+    const turnCount = Number(params.spiral_turns);
+    // 1.0 -> "1 turn", 1.5 -> "1.5 turns": the profile grid holds halves.
+    const turns = Number.isFinite(turnCount)
+      ? `${String(turnCount)} ${turnCount === 1 ? "turn" : "turns"}`
+      : "several turns";
+    summary = `Separate two interleaved spiral arms in the plane: every point is generated on one of two arms of ${turns} and labelled by the arm it came from, so the boundary winds around the origin and no threshold is calibrated. The held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
   } else if (question.family === "bigram_lm") {
     summary = `Predict the next token in a synthetic bigram language model with vocabulary size ${params.vocab_size ?? "—"} and context length ${params.context_length ?? "—"}. Compare held-out ${metric} after the stated training budget (lower is better).`;
   } else if (question.family === "multivariate_regression") {
