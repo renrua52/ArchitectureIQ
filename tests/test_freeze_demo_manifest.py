@@ -27,7 +27,11 @@ def test_repo_relative_rejects_paths_outside_repository() -> None:
 
 
 def test_tracked_release_manifest_uses_repository_relative_paths() -> None:
-    manifest_path = ROOT / "outputs" / "demo_release_integration" / "RELEASE_FREEZE_MANIFEST.json"
+    # outputs/ is a build directory and no longer tracked; the curated record
+    # lives under docs/release/.
+    manifest_path = (
+        ROOT / "docs" / "release" / "demo_release_integration" / "RELEASE_FREEZE_MANIFEST.json"
+    )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema_version"] == "demo_release_freeze_v2"
     assert manifest["path_base"] == "repository_root"

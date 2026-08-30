@@ -44,7 +44,7 @@ from prompt_format import (  # noqa: E402
     format_optimizer_nl,
 )
 
-DEFAULT_DATA = ROOT / "examples" / "quiz_demo" / "bundle"
+DEFAULT_DATA = ROOT / "data"
 OUT = ROOT / "frontend" / "quiz" / "public" / "data" / "questions.json"
 MAX_POINTS = 180
 CHOICE_COLORS = ["#7c6cff", "#f26e4f", "#20a87e", "#2f7de1", "#e0b144"]
@@ -502,7 +502,7 @@ def main() -> None:
         "--data-root",
         type=Path,
         default=DEFAULT_DATA,
-        help="Directory containing datasets/ (default: examples/quiz_demo/bundle)",
+        help="Directory containing datasets/ (default: data)",
     )
     parser.add_argument("--out", type=Path, default=OUT)
     parser.add_argument(

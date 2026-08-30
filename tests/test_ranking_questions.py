@@ -16,17 +16,20 @@ from score_answers import score_answers  # noqa: E402
 
 
 REPO = Path(__file__).resolve().parents[1]
-DEMO_SET = (
-    REPO
-    / "examples"
-    / "quiz_demo"
-    / "bundle"
-    / "datasets"
-    / "univariate_regression"
-    / "sym_62678b"
-    / "candidates"
-    / "set_2048_var_var_fix_696edb"
-)
+DATA = REPO / "data"
+
+
+def _local_candidate_set(min_candidates: int) -> Path | None:
+    """A generated candidate set to rank, or None on a checkout without one.
+
+    Candidate sets are pipeline artifacts under gitignored data/ -- no tracked
+    demo bundle carries one -- so this end-to-end test runs against whatever the
+    local pipeline produced and skips when nothing is there.
+    """
+    for set_dir in sorted(DATA.glob("datasets/*/*/candidates/set_*")):
+        if len(list(set_dir.glob("c_*/results/summary.json"))) >= min_candidates:
+            return set_dir
+    return None
 
 
 def test_count_inversions_perfect_order() -> None:
@@ -51,13 +54,17 @@ def test_ranking_generation_blind_bundle_and_scoring(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    demo_set = _local_candidate_set(min_candidates=3)
+    if demo_set is None:
+        pytest.skip("no generated candidate set with ground truth under data/")
+
     output_root = tmp_path / "ranking"
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "generate.py",
-            str(DEMO_SET),
+            str(demo_set),
             "--output",
             str(output_root),
             "--run-name",

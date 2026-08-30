@@ -40,7 +40,7 @@ Use **Project Settings → Database → Connection string → URI**.
 | Path | Role |
 |------|------|
 | `frontend/quiz/` | Staged React quiz (static bake) |
-| `tools/export_quiz_static.py` | Bake `questions.json` from quiz_demo/data |
+| `tools/export_quiz_static.py` | Bake `questions.json` from generated artifacts under `data/` |
 | `supabase/functions/telemetry/` | Experimental Edge Function ingest; not approved for external deployment |
 | `services/telemetry_api/` | Optional local FastAPI ingest |
 

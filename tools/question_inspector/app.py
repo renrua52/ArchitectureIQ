@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import random
 import secrets
-import shutil
 import sys
 import tempfile
 import time
@@ -2478,23 +2477,6 @@ def _render_question_page(
         )
 
 
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def _ensure_demo_data(data_root: str) -> None:
-    """Copy bundled demo questions into data/ when deploying without a local snapshot."""
-    root = _repo_root()
-    resolved = _resolve_data_root(data_root)
-    if _discover_questions(str(resolved)):
-        return
-    bundled = root / "examples" / "quiz_demo" / "bundle"
-    if not bundled.is_dir():
-        return
-    shutil.copytree(bundled, resolved, dirs_exist_ok=True)
-    _cached_question_dirs.clear()
-
-
 def main() -> None:
     _init_state()
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -2506,8 +2488,6 @@ def main() -> None:
         collection_path = (
             active_pack["collection_path"] if active_pack is not None else None
         )
-        if active_pack is None:
-            _ensure_demo_data(st.session_state.data_root)
         _render_score_panel()
         st.divider()
         data_root = st.text_input(

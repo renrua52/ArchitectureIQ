@@ -251,10 +251,6 @@ pytest-*/
 # Build outputs are never tracked; curated release records live in docs/release/.
 outputs/
 
-# Generated demo question bundles — regenerable via the CLI; per AGENTS.md
-# generated data lives in gitignored data/, not in git.
-examples/quiz_demo/
-
 # Agent-tool uploads and local runtime scratch (untracked 2026-08 cleanup)
 .verdent/
 backend/

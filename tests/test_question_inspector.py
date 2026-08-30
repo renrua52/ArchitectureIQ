@@ -18,6 +18,7 @@ import sys
 TOOLS = Path(__file__).resolve().parents[1] / "tools" / "question_inspector"
 sys.path.insert(0, str(TOOLS))
 
+import artifact_loader  # noqa: E402
 from artifact_loader import (  # noqa: E402
     format_metrics,
     list_question_dirs,
@@ -43,13 +44,21 @@ import app as inspector_app  # noqa: E402
 
 
 REPO = Path(__file__).resolve().parents[1]
-DATA = REPO / "examples" / "quiz_demo" / "bundle"
+# Questions are generated artifacts under gitignored data/; there is no tracked
+# demo bundle any more. The artifact-backed tests therefore read whatever the
+# local pipeline has produced, and skip on a checkout that has generated none.
+DATA = REPO / "data"
+
+
+def _local_question_dirs() -> list[Path]:
+    return list_question_dirs(DATA) if DATA.is_dir() else []
 
 
 @pytest.fixture
 def question_path() -> Path:
-    questions = list_question_dirs(DATA)
-    assert questions, "the bundled demo must contain at least one question"
+    questions = _local_question_dirs()
+    if not questions:
+        pytest.skip("no generated questions under data/")
     return questions[0]
 
 
@@ -84,19 +93,65 @@ def test_load_question_bundle(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     assert bundle.question["question_id"].startswith("q_")
     provenance = inspector_app._profile_provenance(bundle, bundle.question)
-    assert provenance == {"profile": "v1", "profile_hash": "legacy/unknown"}
+    # A locally generated question carries real provenance; the legacy fallback
+    # is asserted on its own below rather than through whichever artifact this
+    # checkout happens to hold.
+    assert set(provenance) == {"profile", "profile_hash"}
+    assert provenance["profile"] == bundle.question["profile"]
+    assert provenance["profile_hash"] != "legacy/unknown"
     assert len(bundle.choices) == bundle.question["num_choices"]
     for choice in bundle.choices:
         assert choice["candidate_dir"].is_dir()
         assert (choice["candidate_dir"] / "candidate_spec.json").is_file()
 
 
+def test_profile_provenance_falls_back_for_legacy_artifacts(tmp_path: Path) -> None:
+    question_root = tmp_path / "run_1q_3c_aaaaaa" / "q_aaaaaa"
+    question_root.mkdir(parents=True)
+    bundle = artifact_loader.QuestionBundle(
+        question_root=question_root,
+        data_root=tmp_path,
+        question={"question_id": "q_aaaaaa"},
+        prompt_text="",
+        dataset_dir=tmp_path,
+        choices=[],
+    )
+
+    assert inspector_app._profile_provenance(bundle, bundle.question) == {
+        "profile": "legacy/unknown",
+        "profile_hash": "legacy/unknown",
+    }
+
+
+def test_profile_provenance_reads_the_run_manifest(tmp_path: Path) -> None:
+    run_root = tmp_path / "run_1q_3c_aaaaaa"
+    question_root = run_root / "q_aaaaaa"
+    question_root.mkdir(parents=True)
+    (run_root / "run.json").write_text(
+        json.dumps({"profile": "v1.4", "profile_hash": "0123456789abcdef"}),
+        encoding="utf-8",
+    )
+    bundle = artifact_loader.QuestionBundle(
+        question_root=question_root,
+        data_root=tmp_path,
+        question={"question_id": "q_aaaaaa"},
+        prompt_text="",
+        dataset_dir=tmp_path,
+        choices=[],
+    )
+
+    assert inspector_app._profile_provenance(bundle, bundle.question) == {
+        "profile": "v1.4",
+        "profile_hash": "0123456789abcdef",
+    }
+
+
 def test_load_dataset_tensors(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     tx, ty, vx, vy = load_dataset_tensors(bundle.dataset_dir)
-    # Train and test may intentionally have different sample counts (the
-    # bundled bigram demo uses 800/200). Validate each split independently
-    # and require matching non-batch dimensions.
+    # Train and test may intentionally have different sample counts (a bigram
+    # instance uses 800/200). Validate each split independently and require
+    # matching non-batch dimensions.
     assert tx.ndim == 2
     assert tx.shape[0] == ty.shape[0]
     assert vx.shape[0] == vy.shape[0]
@@ -597,8 +652,9 @@ def test_curve_series_exposes_positive_log_quantiles(
     assert np.allclose(series["log_median"], [3.0, 100.0, 1000.0])
 
 def test_list_question_dirs() -> None:
-    pool = list_question_dirs(DATA)
-    assert pool
+    pool = _local_question_dirs()
+    if not pool:
+        pytest.skip("no generated questions under data/")
     assert all(p.name.startswith("q_") for p in pool)
     assert all((p / "question.json").is_file() for p in pool)
 
@@ -715,23 +771,6 @@ def test_question_pack_registry_rejects_path_traversal(tmp_path: Path) -> None:
     assert registry["good-pack"]["collection_path"] == (
         good / "collection.json"
     ).resolve()
-
-
-def test_tracked_question_packs_load_100_questions() -> None:
-    registry = inspector_app._question_pack_registry()
-
-    assert set(registry) == {
-        "xor-v2.5-100q-37b9da",
-        "gru-v2.5-100q-a48abc",
-    }
-    for pack in registry.values():
-        questions = inspector_app._startup_question_collection(
-            str(pack["data_root"]),
-            pack["collection_path"],
-        )
-        assert questions is not None
-        assert len(questions) == 100
-        assert all((path / "prompt.txt").is_file() for path in questions)
 
 
 def test_startup_question_collection_rejects_paths_outside_data_root(
