@@ -255,3 +255,7 @@ outputs/*
 outputs/demo_release_integration/*
 !outputs/demo_release_integration/DEMO_RELEASE_INTEGRATION_FINAL_REPORT.md
 !outputs/demo_release_integration/RELEASE_FREEZE_MANIFEST.json
+
+# Generated demo question bundles — regenerable via the CLI; per AGENTS.md
+# generated data lives in gitignored data/, not in git.
+examples/quiz_demo/
