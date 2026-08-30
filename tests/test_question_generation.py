@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+from collections import Counter
 from pathlib import Path
 from unittest.mock import patch
 
@@ -8,6 +10,7 @@ import pytest
 
 from architecture_iq.candidates.generator import choices_compatible, sample_variant_pool
 from architecture_iq.profile import load_profile
+from architecture_iq.questions.quality import QuestionQualityFilters
 from architecture_iq.registry import ensure_registries
 from architecture_iq.significance.validator import SignificanceResult
 from architecture_iq.questions.generator import (
@@ -160,6 +163,46 @@ def test_find_significant_subsets_returns_multiple() -> None:
     picked = _pick_candidate_disjoint_subsets(subsets, 2)
     assert len(picked) == 2
     assert set(picked[0]).isdisjoint(picked[1])
+
+
+def test_find_significant_subsets_reports_rejection_buckets() -> None:
+    profile = load_profile("v1")
+
+    def fake_load_summary(path: Path) -> dict:
+        return {
+            "excluded": False,
+            "mean_test_mse": 0.1,
+            "std_test_mse": 0.01,
+            "seed_results": [
+                {"failed": False, "final_test_mse": 0.09} for _ in range(10)
+            ],
+        }
+
+    pool = [Path(p) for p in ("good", "mid", "bad1", "bad2")]
+    rng = __import__("random").Random(0)
+    specs = _fake_candidate_specs()
+
+    def fake_read_json(path: Path) -> dict:
+        if path.name == "candidate_spec.json":
+            return specs[path.parent.name]
+        raise FileNotFoundError(path)
+
+    stats: Counter[str] = Counter()
+    with patch("architecture_iq.questions.generator.load_summary", fake_load_summary):
+        with patch("architecture_iq.questions.generator.read_json", fake_read_json):
+            subsets = find_significant_subsets(
+                pool,
+                profile,
+                rng,
+                num_choices=2,
+                quality=QuestionQualityFilters(
+                    param_ratio_max=1.0, gap_max=None, gap_worst_max=None
+                ),
+                rejection_stats=stats,
+            )
+
+    assert not subsets
+    assert stats["param_ratio"] == math.comb(len(pool), 2)
 
 
 def test_candidate_disjoint_picker_backtracks_past_greedy_dead_end() -> None:

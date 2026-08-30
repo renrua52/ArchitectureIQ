@@ -22,6 +22,26 @@ from architecture_iq.paths import ROOT
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
+# Each generate-candidates worker process runs its own interpreter; without a
+# clamp every process defaults torch to all cores and N parallel workers
+# oversubscribe OpenMP into a spin deadlock (observed with 8 workers).
+# Override with ARCHITECTURE_IQ_TORCH_THREADS if the host needs a different cap.
+DEFAULT_TORCH_THREADS = 8
+
+
+def _clamp_process_torch_threads() -> int:
+    raw = os.environ.get("ARCHITECTURE_IQ_TORCH_THREADS")
+    try:
+        threads = int(raw) if raw is not None else DEFAULT_TORCH_THREADS
+    except ValueError as exc:
+        raise ValueError(
+            "ARCHITECTURE_IQ_TORCH_THREADS must be a positive integer"
+        ) from exc
+    if threads <= 0:
+        raise ValueError("ARCHITECTURE_IQ_TORCH_THREADS must be a positive integer")
+    torch.set_num_threads(threads)
+    return threads
+
 
 def _emit_progress(callback: ProgressCallback | None, event: dict[str, Any]) -> None:
     """Report optional UI progress without affecting ground-truth execution."""
@@ -209,6 +229,11 @@ def run_ground_truth(
     seed_workers, seed_torch_threads = _seed_parallelism_config(
         device, n_seeds, progress_callback
     )
+    if seed_workers == 1:
+        # Seed-parallel workers set their own per-worker thread counts; the
+        # plain path clamps so N parallel candidate processes cannot each
+        # grab every core (see DEFAULT_TORCH_THREADS above).
+        _clamp_process_torch_threads()
 
     training_steps = int(spec["budget"]["training_steps"])
     total_samples_seen = int(spec["budget"]["total_samples_seen"])

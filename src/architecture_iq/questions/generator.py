@@ -143,8 +143,14 @@ def find_significant_subsets(
     question_type: str | None = None,
     selection_metric: str = "test_mse",
     quality: QuestionQualityFilters | None = None,
+    rejection_stats: Counter[str] | None = None,
 ) -> list[list[Path]]:
-    """Return significant candidate subsets; exhaustive when feasible."""
+    """Return significant candidate subsets; exhaustive when feasible.
+
+    When ``rejection_stats`` is given, each scanned subset that fails is
+    bucketed under ``incompatible_axes`` / ``param_ratio`` / ``significance``
+    so callers can explain why a pool produced no (or few) questions.
+    """
     num_choices = num_choices if num_choices is not None else profile.num_choices
     if len(pool) < num_choices:
         return []
@@ -158,10 +164,15 @@ def find_significant_subsets(
 
     passing: list[list[Path]] = []
 
+    def _reject(bucket: str) -> bool:
+        if rejection_stats is not None:
+            rejection_stats[bucket] += 1
+        return False
+
     def _subset_ok(combo: tuple[Path, ...]) -> bool:
         specs = [read_json(p / "candidate_spec.json") for p in combo]
         if not choices_compatible(specs, question_type):
-            return False
+            return _reject("incompatible_axes")
         if filters.param_ratio_max is not None:
             counts = [
                 int(spec.get("trainable_parameter_count") or 0) for spec in specs
@@ -170,7 +181,7 @@ def find_significant_subsets(
             largest = max(counts)
             ratio = float("inf") if smallest <= 0 else largest / smallest
             if ratio > float(filters.param_ratio_max):
-                return False
+                return _reject("param_ratio")
         sig = validate_significance(
             [summary_map[p] for p in combo],
             profile,
@@ -178,7 +189,9 @@ def find_significant_subsets(
             gap_max=filters.gap_max,
             gap_worst_max=filters.gap_worst_max,
         )
-        return sig.passed
+        if not sig.passed:
+            return _reject("significance")
+        return True
 
     if n_combos <= max_exhaustive:
         for combo in combinations(pool, num_choices):
@@ -735,6 +748,7 @@ def generate_questions(
     ):
         raise ValueError("winner_type_max_fraction must be in [0.5, 1.0]")
 
+    rejection_stats: Counter[str] = Counter()
     subsets = find_significant_subsets(
         pool,
         profile,
@@ -743,6 +757,7 @@ def generate_questions(
         selection_metric=selection_metric,
         question_type=question_type,
         quality=filters,
+        rejection_stats=rejection_stats,
     )
     model_types = {
         candidate_path: read_json(candidate_path / "candidate_spec.json")["model"]["type"]
@@ -762,8 +777,16 @@ def generate_questions(
             if len({model_types[candidate_path] for candidate_path in subset}) == n_choices
         ]
     if not subsets:
+        scanned = sum(rejection_stats.values())
+        breakdown = (
+            ", ".join(
+                f"{bucket}={count}" for bucket, count in rejection_stats.most_common()
+            )
+            or "no subset was scanned"
+        )
         raise RuntimeError(
-            f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"
+            f"Failed to find significant {n_choices}-candidate subsets in pool "
+            f"of {len(pool)} (scanned={scanned}; rejections: {breakdown})"
         )
 
     if candidate_reuse_policy == DEFAULT_CANDIDATE_REUSE_POLICY:
