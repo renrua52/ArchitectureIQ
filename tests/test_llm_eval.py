@@ -89,6 +89,14 @@ def test_format_eval_prompt_appends_answer_tags() -> None:
     assert "Valid choices: A, B" in wrapped
 
 
+def test_format_eval_prompt_does_not_duplicate_the_answer_section() -> None:
+    """A v1.4 prompt already asks for the tag; a second block would repeat it."""
+    base = "Pick one.\n\n## Your answer\nWrap it in `<answer></answer>` tags."
+    wrapped = format_eval_prompt(base, frozenset({"A", "B"}))
+    assert "Response format" not in wrapped
+    assert wrapped.strip() == base.strip()
+
+
 def test_parse_choice_letter_from_answer_tag() -> None:
     valid = frozenset({"A", "B", "C"})
     assert parse_choice_letter("Step by step...\n<answer>B</answer>", valid) == "B"

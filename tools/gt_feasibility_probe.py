@@ -30,7 +30,12 @@ PROBE_ROOT = REPO / "data" / "gt_probe"
 RESULTS_DIR = PROBE_ROOT / "results"
 
 MLP_FAMILIES = ["univariate_regression", "multivariate_regression", "synthetic_tabular_classification"]
-FAMILY_WEIGHTS = {  # old-build question share (stabcls covers xor/spiral/general_tabular)
+# Question share of the pre-v1.4 build, when synthetic_tabular_classification
+# alone covered the xor / spiral / general_tabular buckets -- hence its weight 3.
+# Under v1.4 those are three families with one bucket each; this probe still
+# loads the default (v1) profile, which has no config for the two new families,
+# so the weights are left as the record of what was actually timed.
+FAMILY_WEIGHTS = {
     "univariate_regression": 1,
     "multivariate_regression": 1,
     "bigram_lm": 1,
@@ -96,8 +101,7 @@ def _mlp_spec(size: str, params: dict) -> dict:
         "width": width,
         "residual": residual,
         "layer_norm": [ln] * depth,
-        "activations": ["relu"] * depth,
-        "leaky_relu_slope": 0.01,
+        "activation": "relu",
         "input_dim": int(params.get("input_dim", 1)),
         "output_dim": int(params.get("num_classes", 1)),
     }

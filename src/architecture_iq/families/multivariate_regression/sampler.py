@@ -1,4 +1,11 @@
-"""Symbolic expression sampler for R^n -> R targets."""
+"""Symbolic expression sampler for R^n -> R targets.
+
+The tree grammar, canonicalization and rendering live in
+`architecture_iq.families.symbolic_expr`; this module contributes the
+multivariate tree shape (one nonlinear term per coordinate plus a few
+cross-variable interactions) and the multivariate acceptance criteria. Each
+coordinate renders as `x0`, `x1`, ....
+"""
 
 from __future__ import annotations
 
@@ -8,68 +15,88 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from architecture_iq.families.univariate_regression.sampler import (
+from architecture_iq.families.symbolic_expr import (
     CONSTANTS,
     ExprNode,
     NodeKind,
-    simplify_tree,
+    canonicalize,
+    context_nd,
+    denominators_are_safe,
+    eval_tree,
+    render_infix,
+    render_torch,
+    sample_binary_kind,
+    sample_constant_node,
+    sample_unary_node,
+    used_dimensions,
 )
 
-
-def used_dimensions(node: ExprNode) -> set[int]:
-    if node.kind == NodeKind.X:
-        return {int(node.value or 0)}
-    dims: set[int] = set()
-    if node.left is not None:
-        dims |= used_dimensions(node.left)
-    if node.right is not None:
-        dims |= used_dimensions(node.right)
-    return dims
-
-
-def _sample_unary(rng: random.Random) -> NodeKind:
-    return rng.choice(
-        [
-            NodeKind.SIN2PI,
-            NodeKind.COS2PI,
-            NodeKind.TANH2,
-            NodeKind.ABS,
-            NodeKind.SQUARE,
-            NodeKind.CUBE,
-        ]
-    )
+__all__ = [
+    "CONSTANTS",
+    "ExprNode",
+    "NodeKind",
+    "SampledExpression",
+    "eval_node_mv",
+    "sample_symbolic_expression",
+    "sample_tree_mv",
+    "to_infix_mv",
+    "to_torch_expr_mv",
+    "used_dimensions",
+    "validate_expression_mv",
+]
 
 
-def _sample_binary(rng: random.Random) -> NodeKind:
-    return rng.choice([NodeKind.ADD, NodeKind.SUB, NodeKind.MUL, NodeKind.DIV])
+def _var_name(dim: int) -> str:
+    """Prose name of a coordinate: `x0`, `x1`, ..."""
+    return f"x{dim}"
+
+
+def _torch_var_name(dim: int) -> str:
+    """Executable name of a coordinate.
+
+    The generated `synthesize.py` defines `target(x)` over the whole `[N, D]`
+    batch, so the torch form has to slice rather than reference `x0` names that
+    exist nowhere at runtime. Indexing binds tighter than any operator the
+    renderer emits, so a slice is safe as an atom.
+    """
+    return f"x[:, {dim}]"
+
+
+def to_infix_mv(node: ExprNode) -> str:
+    return render_infix(node, var=_var_name)
+
+
+def to_torch_expr_mv(node: ExprNode) -> str:
+    return render_torch(node, var=_torch_var_name)
+
+
+# eval_node_mv is the historical name; the shared implementation dispatches on
+# the input rank, so `[N, D]` rows and 1-D samples share one code path.
+eval_node_mv = eval_tree
 
 
 def _x_node(dim: int) -> ExprNode:
     return ExprNode(NodeKind.X, value=float(dim))
 
 
-def _const_node(rng: random.Random) -> ExprNode:
-    return ExprNode(NodeKind.CONST, value=rng.choice(CONSTANTS))
-
-
 def _sample_dim_term(rng: random.Random, max_depth: int, dim: int) -> ExprNode:
     """Nonlinear subtree that always depends on x_dim."""
     x = _x_node(dim)
     if max_depth <= 1:
-        return ExprNode(_sample_unary(rng), left=x)
+        return sample_unary_node(rng, x)
 
     roll = rng.random()
     if roll < 0.45:
         inner = x
         if rng.random() < 0.4:
             inner = _sample_dim_term(rng, max_depth - 1, dim)
-        return ExprNode(_sample_unary(rng), left=inner)
+        return sample_unary_node(rng, inner)
     if roll < 0.8:
-        kind = _sample_binary(rng)
-        left = ExprNode(_sample_unary(rng), left=x) if rng.random() < 0.65 else x
-        return ExprNode(kind, left=left, right=_const_node(rng))
+        kind = sample_binary_kind(rng)
+        left = sample_unary_node(rng, x) if rng.random() < 0.65 else x
+        return ExprNode(kind, left=left, right=sample_constant_node(rng))
     inner = _sample_dim_term(rng, max_depth - 1, dim)
-    return ExprNode(_sample_unary(rng), left=inner)
+    return sample_unary_node(rng, inner)
 
 
 def _sample_interaction_term(
@@ -82,10 +109,10 @@ def _sample_interaction_term(
     xj = _x_node(j)
     if rng.random() < 0.55:
         if rng.random() < 0.5:
-            xi = ExprNode(_sample_unary(rng), left=xi)
+            xi = sample_unary_node(rng, xi)
         if rng.random() < 0.5:
-            xj = ExprNode(_sample_unary(rng), left=xj)
-        kind = NodeKind.MUL if rng.random() < 0.7 else _sample_binary(rng)
+            xj = sample_unary_node(rng, xj)
+        kind = NodeKind.MUL if rng.random() < 0.7 else sample_binary_kind(rng)
         return ExprNode(kind, left=xi, right=xj)
     if max_depth > 1 and rng.random() < 0.5:
         return ExprNode(
@@ -101,8 +128,6 @@ def _sample_interaction_term(
 
 
 def _fold_add(nodes: list[ExprNode]) -> ExprNode:
-    if len(nodes) == 1:
-        return nodes[0]
     acc = nodes[0]
     for node in nodes[1:]:
         acc = ExprNode(NodeKind.ADD, left=acc, right=node)
@@ -110,7 +135,7 @@ def _fold_add(nodes: list[ExprNode]) -> ExprNode:
 
 
 def sample_tree_mv(rng: random.Random, max_depth: int, input_dim: int) -> ExprNode:
-    """Build f(x) as sum of per-coordinate nonlinear terms plus cross-variable interactions."""
+    """Build f(x) as a sum of per-coordinate nonlinear terms plus interactions."""
     per_dim_depth = max(2, max_depth)
     terms = [_sample_dim_term(rng, per_dim_depth, dim) for dim in range(input_dim)]
 
@@ -128,166 +153,13 @@ def sample_tree_mv(rng: random.Random, max_depth: int, input_dim: int) -> ExprNo
     return _fold_add(terms)
 
 
-def eval_node_mv(node: ExprNode, x: np.ndarray) -> np.ndarray:
-    if node.kind == NodeKind.X:
-        dim = int(node.value or 0)
-        return x[:, dim]
-    if node.kind == NodeKind.CONST:
-        return np.full(x.shape[0], float(node.value), dtype=np.float64)
-    left = eval_node_mv(node.left, x) if node.left is not None else None
-    if node.kind in {
-        NodeKind.SIN2PI,
-        NodeKind.COS2PI,
-        NodeKind.TANH2,
-        NodeKind.ABS,
-        NodeKind.SQUARE,
-        NodeKind.CUBE,
-    }:
-        assert left is not None
-        if node.kind == NodeKind.SIN2PI:
-            return np.sin(2 * math.pi * left)
-        if node.kind == NodeKind.COS2PI:
-            return np.cos(2 * math.pi * left)
-        if node.kind == NodeKind.TANH2:
-            return np.tanh(2 * left)
-        if node.kind == NodeKind.ABS:
-            return np.abs(left)
-        if node.kind == NodeKind.SQUARE:
-            return left ** 2
-        if node.kind == NodeKind.CUBE:
-            return left ** 3
-    assert node.right is not None and left is not None
-    right = eval_node_mv(node.right, x)
-    if node.kind == NodeKind.ADD:
-        return left + right
-    if node.kind == NodeKind.SUB:
-        return left - right
-    if node.kind == NodeKind.MUL:
-        return left * right
-    if node.kind == NodeKind.DIV:
-        denom = np.maximum(np.abs(right), 0.1) * np.sign(right + 1e-12)
-        denom = np.where(np.abs(denom) < 0.1, 0.1, denom)
-        return left / denom
-    raise ValueError(node.kind)
-
-
-def _fmt_float(v: float) -> str:
-    if abs(v - round(v)) < 1e-9:
-        return str(int(round(v)))
-    return f"{v:.4f}".rstrip("0").rstrip(".")
-
-
-def to_infix_mv(node: ExprNode, parent_prec: int = 0) -> str:
-    if node.kind == NodeKind.X:
-        return f"x{int(node.value or 0)}"
-    if node.kind == NodeKind.CONST:
-        return _fmt_float(float(node.value))
-    if node.kind in {
-        NodeKind.SIN2PI,
-        NodeKind.COS2PI,
-        NodeKind.TANH2,
-        NodeKind.ABS,
-        NodeKind.SQUARE,
-        NodeKind.CUBE,
-    }:
-        inner = to_infix_mv(node.left, 99)  # type: ignore[arg-type]
-        if node.kind == NodeKind.SIN2PI:
-            return f"sin(6.283185307179586*{inner})"
-        if node.kind == NodeKind.COS2PI:
-            return f"cos(6.283185307179586*{inner})"
-        if node.kind == NodeKind.TANH2:
-            return f"tanh(2*{inner})"
-        if node.kind == NodeKind.ABS:
-            return f"abs({inner})"
-        if node.kind == NodeKind.SQUARE:
-            return f"({inner})**2"
-        if node.kind == NodeKind.CUBE:
-            return f"({inner})**3"
-    assert node.left is not None and node.right is not None
-    op = {NodeKind.ADD: "+", NodeKind.SUB: "-", NodeKind.MUL: "*", NodeKind.DIV: "/"}[node.kind]
-    prec = {NodeKind.ADD: 1, NodeKind.SUB: 1, NodeKind.MUL: 2, NodeKind.DIV: 2}[node.kind]
-    left = to_infix_mv(node.left, prec)
-    right = to_infix_mv(node.right, prec + 1)
-    expr = f"{left} {op} {right}"
-    if prec < parent_prec:
-        return f"({expr})"
-    return expr
-
-
-def to_torch_expr_mv(node: ExprNode) -> str:
-    if node.kind == NodeKind.X:
-        dim = int(node.value or 0)
-        return f"x[:, {dim}]"
-    if node.kind == NodeKind.CONST:
-        return f"torch.tensor({_fmt_float(float(node.value))}, dtype=x.dtype, device=x.device)"
-    if node.kind in {
-        NodeKind.SIN2PI,
-        NodeKind.COS2PI,
-        NodeKind.TANH2,
-        NodeKind.ABS,
-        NodeKind.SQUARE,
-        NodeKind.CUBE,
-    }:
-        inner = to_torch_expr_mv(node.left)  # type: ignore[arg-type]
-        if node.kind == NodeKind.SIN2PI:
-            return f"torch.sin(6.283185307179586 * ({inner}))"
-        if node.kind == NodeKind.COS2PI:
-            return f"torch.cos(6.283185307179586 * ({inner}))"
-        if node.kind == NodeKind.TANH2:
-            return f"torch.tanh(2 * ({inner}))"
-        if node.kind == NodeKind.ABS:
-            return f"torch.abs({inner})"
-        if node.kind == NodeKind.SQUARE:
-            return f"({inner}) ** 2"
-        if node.kind == NodeKind.CUBE:
-            return f"({inner}) ** 3"
-    left = to_torch_expr_mv(node.left)  # type: ignore[arg-type]
-    right = to_torch_expr_mv(node.right)  # type: ignore[arg-type]
-    if node.kind == NodeKind.ADD:
-        return f"({left} + {right})"
-    if node.kind == NodeKind.SUB:
-        return f"({left} - {right})"
-    if node.kind == NodeKind.MUL:
-        return f"({left} * {right})"
-    if node.kind == NodeKind.DIV:
-        return (
-            f"({left} / torch.clamp(torch.abs({right}), min=0.1) "
-            f"* torch.sign({right} + 1e-12))"
-        )
-    raise ValueError(node.kind)
-
-
-def _div_guard_ok_mv(
-    node: ExprNode,
-    input_dim: int,
-    domain: tuple[float, float],
-    *,
-    min_denominator: float = 0.1,
-    grid_points: int = 256,
-) -> bool:
-    """Every DIV right operand must stay above the clamp floor on the domain.
-
-    eval_node_mv applies a silent |denominator| >= 0.1 clamp; when the
-    sampled expression never triggers it, the rendered formula and the
-    executed target coincide exactly.
-    """
-    rng = np.random.default_rng(0)
-    xs = rng.uniform(domain[0], domain[1], size=(grid_points, input_dim))
-    stack = [node]
-    while stack:
-        cur = stack.pop()
-        if cur.kind == NodeKind.DIV:
-            assert cur.right is not None
-            denom = eval_node_mv(cur.right, xs)
-            if not np.all(np.isfinite(denom)):
-                return False
-            if float(np.min(np.abs(denom))) < min_denominator:
-                return False
-        if cur.left is not None:
-            stack.append(cur.left)
-        if cur.right is not None:
-            stack.append(cur.right)
-    return True
+@dataclass
+class SampledExpression:
+    tree: ExprNode
+    expression: str
+    torch_expression: str
+    sampler_seed: int
+    retry: int
 
 
 def validate_expression_mv(
@@ -307,24 +179,23 @@ def validate_expression_mv(
         return False
     rng = np.random.default_rng(0)
     xs = rng.uniform(domain[0], domain[1], size=(grid_points, input_dim))
-    ys = eval_node_mv(tree, xs)
+    ys = eval_tree(tree, xs)
     if not np.all(np.isfinite(ys)):
         return False
     y_range = float(np.max(ys) - np.min(ys))
     scaled_min_range = min_range * math.sqrt(input_dim)
     if y_range < scaled_min_range:
         return False
-    if not _div_guard_ok_mv(tree, input_dim, domain):
+    if not denominators_are_safe(tree, context_nd(domain, input_dim)):
         return False
-    # Numeric dead-dimension check (B4): freezing one coordinate at the
-    # domain midpoint must change the output by a visible share of the range.
-    # The previous syntactic has_nonlinear() check was fooled by nonlinear
-    # nodes applied to constant subtrees.
+    # Numeric dead-dimension check: freezing one coordinate at the domain
+    # midpoint must change the output by a visible share of the range. A
+    # syntactic check is fooled by nonlinear nodes over constant subtrees.
     mid = (domain[0] + domain[1]) / 2.0
     for dim in range(input_dim):
         frozen = xs.copy()
         frozen[:, dim] = mid
-        ys_frozen = eval_node_mv(tree, frozen)
+        ys_frozen = eval_tree(tree, frozen)
         contribution = float(np.std(ys - ys_frozen))
         if contribution < min_dim_fraction * max(y_range, 1e-9):
             return False
@@ -332,15 +203,6 @@ def validate_expression_mv(
         return False
     frac_ok = float(np.mean(np.abs(ys) <= near_singular_abs * math.sqrt(input_dim)))
     return frac_ok >= near_singular_frac
-
-
-@dataclass
-class SampledExpression:
-    tree: ExprNode
-    expression: str
-    torch_expression: str
-    sampler_seed: int
-    retry: int
 
 
 def sample_symbolic_expression(
@@ -352,11 +214,13 @@ def sample_symbolic_expression(
     domain: tuple[float, float] = (0.0, 1.0),
 ) -> SampledExpression:
     rng = random.Random(seed)
+    ctx = context_nd(domain, input_dim)
     for retry in range(max_retries):
-        tree = sample_tree_mv(rng, max_depth, input_dim)
-        tree = simplify_tree(tree)
+        tree = canonicalize(sample_tree_mv(rng, max_depth, input_dim), ctx)
         if tree is None:
             continue
+        # Canonicalization can merge or cancel terms, so the every-coordinate
+        # requirement is re-checked on the canonical tree rather than the raw one.
         if not validate_expression_mv(tree, input_dim, domain):
             continue
         return SampledExpression(

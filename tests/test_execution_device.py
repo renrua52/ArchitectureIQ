@@ -23,7 +23,7 @@ def _spec(*, device: str, width: int = 16) -> dict:
             "width": width,
             "residual": False,
             "layer_norm": [False, False],
-            "activations": ["relu", "relu"],
+            "activation": "relu",
         },
         optimizer={
             "type": "Adam",

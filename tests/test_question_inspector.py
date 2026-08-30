@@ -190,7 +190,7 @@ def test_build_custom_setting_spec() -> None:
             "depth": 2,
             "width": 48,
             "residual": True,
-            "activations": ["relu", "gelu"],
+            "activation": "gelu",
             "layer_norm": [False, True],
         },
         dataset_spec["params"],
@@ -214,7 +214,7 @@ def test_build_custom_setting_spec() -> None:
 
     assert spec["budget"]["training_steps"] == 30
     assert spec["model"]["input_dim"] == 4
-    assert spec["model"]["activations"] == ["relu", "gelu"]
+    assert spec["model"]["activation"] == "gelu"
     assert spec["optimizer"]["betas"] == [0.8, 0.99]
     assert spec["loss"]["lambda"] == 5e-4
 
@@ -228,7 +228,7 @@ def test_inherited_form_values_rebuild_exact_candidate_spec() -> None:
             "depth": 3,
             "width": 128,
             "residual": True,
-            "activations": ["relu", "gelu", "silu"],
+            "activation": "silu",
             "layer_norm": [True, False, True],
         },
         dataset_spec["params"],
@@ -261,10 +261,7 @@ def test_inherited_form_values_rebuild_exact_candidate_spec() -> None:
             "depth": values["mlp_depth"],
             "width": values["mlp_width"],
             "residual": values["mlp_residual"],
-            "activations": [
-                values[f"mlp_activation_{index}"]
-                for index in range(values["mlp_depth"])
-            ],
+            "activation": values["mlp_activation"],
             "layer_norm": [
                 values[f"mlp_norm_{index}"]
                 for index in range(values["mlp_depth"])
@@ -303,7 +300,7 @@ def test_build_custom_setting_rejects_invalid_budget() -> None:
             "depth": 1,
             "width": 16,
             "residual": False,
-            "activations": ["relu"],
+            "activation": "relu",
             "layer_norm": [False],
         },
         dataset_spec["params"],
@@ -394,7 +391,7 @@ def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.Monk
             "depth": 1,
             "width": 16,
             "residual": False,
-            "activations": ["relu"],
+            "activation": "relu",
             "layer_norm": [False],
         },
         dataset_spec["params"],
@@ -477,7 +474,7 @@ def test_custom_settings_keep_latest_and_best_history(
             "depth": 1,
             "width": 16,
             "residual": False,
-            "activations": ["relu"],
+            "activation": "relu",
             "layer_norm": [False],
         },
         dataset_spec["params"],

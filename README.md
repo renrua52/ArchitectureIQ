@@ -117,20 +117,40 @@ python tools/llm_eval/run.py --model gpt-4o-mini
 
 Artifacts are written under `data/` (gitignored).
 
-## Dataset families (default profile `v1`)
+## Dataset families
 
-| Family | Task | Models | Losses | Metric |
-|--------|------|--------|--------|--------|
-| `univariate_regression` | R → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
-| `multivariate_regression` | R^n → R symbolic regression | `mlp`, `kan` | MSE (+ L1/L2 reg) | `test_mse` |
-| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm`, `gru_lm` | cross-entropy (+ L1/L2 reg) | `test_ce` |
-| `synthetic_tabular_classification` | Synthetic tabular binary classification (`xor`, `spiral`, and other rule families) | `mlp`, `kan` | cross-entropy | `test_ce` |
+Every registered family, one benchmark bucket each. `Models` is what sampling
+actually draws (the intersection of `pools.model_types` with the family's
+`compatible_model_types()`).
+
+| Family | Task | Models | Loss | Metric |
+|--------|------|--------|------|--------|
+| `univariate_regression` | R → R symbolic regression | `mlp` | MSE | `test_mse` |
+| `multivariate_regression` | R^n → R symbolic regression | `mlp` | MSE | `test_mse` |
+| `bigram_lm` | Next-token prediction from fixed P(y\|x) | `transformer_lm`, `gru_lm` | cross-entropy | `test_ce` |
+| `synthetic_tabular_classification` | Tabular binary classification from a sampled score-threshold rule (`smooth_additive`, `sparse_interaction`, `piecewise_boundary`) | `mlp` | cross-entropy | `test_ce` |
+| `xor_classification` | Tabular binary classification, XOR decision boundary plus distractor coordinates | `mlp` | cross-entropy | `test_ce` |
+| `spiral_classification` | Two interleaved Archimedean spirals in 2-D, labelled by generative arm | `mlp` | cross-entropy | `test_ce` |
+
+`xor_classification` and `spiral_classification` are families of their own as of
+`v1.4`. Before that they were two of five `rule_families` inside
+`synthetic_tabular_classification`, which put five very different difficulties in
+one bucket; artifacts generated then still load and still bucket correctly.
+
+The `v1` pool (the CLI default) enables the first four families and also offers
+the `mse_l1` / `mse_l2` / `cross_entropy_l1` / `cross_entropy_l2` variants;
+`v1.4` enables all six and samples only plain `mse` / `cross_entropy`, leaving
+regularisation to optimizer `weight_decay`.
 
 For `multivariate_regression`, **n** (input dimension) defaults to a random pick from the profile pool `input_dims: [2, 3, 4, 5, 8]`. Pin it with `--input-dim` or the interactive prompt.
 
-Each family declares compatible model types; candidate sampling only draws from the intersection with `pools.model_types`. Config per family lives under `dataset_configs` in `profiles/v1.yaml`.
+Config per family lives under `dataset_configs` in the profile you pass.
 
-Default `v1` equally enables every registered dataset family and each family's compatible models. Older `v2*` pilot profiles remain for historical experiments; new question generation should use `v1` (or an explicit `--profile`).
+`v1` is still the CLI default and enables every family that existed when it was
+written. `v1.4` is the current generation profile: all six families, one shared
+activation and residual flag per MLP, plain losses only, all-10-seed
+significance, and generation-time parameter banding. Older `v2*` pilot profiles
+remain for historical experiments.
 
 ## CLI reference
 

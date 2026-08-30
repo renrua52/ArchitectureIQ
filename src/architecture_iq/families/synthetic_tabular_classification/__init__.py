@@ -71,8 +71,7 @@ def target(
 def _two_spirals(
     n_samples: int,
     *,
-    turns: float,
-    noise_std: float,
+    turns: float,{spiral_noise_param}
     seed: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Classic interleaved Archimedean two-spirals in R^2 with balanced labels."""
@@ -87,7 +86,7 @@ def _two_spirals(
         xs = radius * torch.cos(t + phase)
         ys = radius * torch.sin(t + phase)
         points = torch.stack([xs, ys], dim=1)
-        return points + noise_std * torch.randn(count, 2, generator=gen)
+        return points{spiral_jitter}
 
     x = torch.cat([arm(n0, 0.0), arm(n1, math.pi)], dim=0)
     y = torch.cat(
@@ -106,8 +105,7 @@ def synthesize(
     train_size: int = {train_size},
     test_size: int = {test_size},
     point_seed: int = {point_seed},
-    input_dim: int = {input_dim},
-    noise_std: float = {noise_std!r},
+    input_dim: int = {input_dim},{noise_arg}
     decision_threshold: float = {decision_threshold!r},
     rule_family: str = {rule_family!r},
     spiral_turns: float = {spiral_turns!r},
@@ -116,18 +114,18 @@ def synthesize(
         if input_dim != 2:
             raise ValueError("spiral requires input_dim == 2")
         train_x, train_y = _two_spirals(
-            train_size, turns=spiral_turns, noise_std=noise_std, seed=point_seed
+            train_size, turns=spiral_turns,{spiral_noise_kwarg} seed=point_seed
         )
         test_x, test_y = _two_spirals(
-            test_size, turns=spiral_turns, noise_std=noise_std, seed=point_seed + 1
+            test_size, turns=spiral_turns,{spiral_noise_kwarg} seed=point_seed + 1
         )
         return train_x, train_y, test_x, test_y
 
     gen = torch.Generator().manual_seed(point_seed)
     train_x = torch.randn(train_size, input_dim, generator=gen, dtype=torch.float32)
     test_x = torch.randn(test_size, input_dim, generator=gen, dtype=torch.float32)
-    train_score = target(train_x) + noise_std * torch.randn(train_size, generator=gen)
-    test_score = target(test_x) + noise_std * torch.randn(test_size, generator=gen)
+    train_score = target(train_x){train_score_noise}
+    test_score = target(test_x){test_score_noise}
     train_y = (train_score > decision_threshold).to(torch.int64)
     test_y = (test_score > decision_threshold).to(torch.int64)
     return train_x, train_y, test_x, test_y
@@ -206,8 +204,50 @@ def _raw_score_for_calibration(
     raise ValueError(f"Unknown rule family: {rule_family}")
 
 
+def _resolve_noise_std(cfg: dict[str, Any], rng: random.Random) -> float:
+    """Label/coordinate noise scale, or 0.0 when the profile declares none.
+
+    v1.4 onwards omits ``noise_std`` entirely: labels are an exact function of
+    the features and spiral points sit exactly on their arm, so nothing about
+    noise reaches the spec, the generated code, or the prompt. Profiles that
+    still carry the key keep drawing from it -- and keep consuming the same
+    amount of randomness -- so their datasets reproduce bit-identically.
+    """
+    pool = cfg.get("noise_std")
+    if pool is None:
+        return 0.0
+    return float(rng.choice(pool))
+
 class SyntheticTabularClassificationFamily(DatasetFamily):
+    """Tabular binary classification whose decision rule is a sampled axis.
+
+    XOR and the two-spirals dataset are *not* sampled here: they are their own
+    dataset families (see below), because as benchmark buckets they behave
+    nothing like the smooth/sparse/piecewise rules -- spiral is 2-D by
+    construction with generative labels and no threshold calibration, and XOR's
+    quadrant rule is the one case where a linear score is useless. Grouping them
+    under one family made a "classification" bucket whose difficulty depended
+    entirely on which rule the seed happened to draw.
+
+    The class attributes below are the whole extension mechanism: a single-rule
+    subclass sets its own ``name``, ``dataset_id_prefix`` and
+    ``forced_rule_family`` and inherits synthesis, materialization and metrics
+    unchanged.
+    """
+
     name = "synthetic_tabular_classification"
+    train_loop_kind = "classification"
+    instance_option_names = ("input_dim", "rule_family")
+    #: Prefix of the content-addressed dataset_id. Distinct per family so two
+    #: families that happen to produce identical params never share a folder.
+    dataset_id_prefix = "stabcls"
+    #: Rules the profile may list under ``dataset_configs.{name}.rule_families``.
+    #: Still all five on the base family: pre-v1.4 profiles listed xor and
+    #: spiral here, and those profiles are frozen records of past builds.
+    supported_rule_families: tuple[str, ...] = SUPPORTED_RULE_FAMILIES
+    #: When set, the rule is part of the family identity rather than a sampled
+    #: axis, and the profile does not get to list alternatives.
+    forced_rule_family: str | None = None
 
     @staticmethod
     def _rng_streams(instance_seed: int) -> tuple[int, int, int]:
@@ -228,12 +268,23 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
         if input_dim is not None and input_dim not in input_dims:
             raise ValueError(f"input_dim must be one of {input_dims}, got {input_dim}")
         resolved_input_dim = input_dim if input_dim is not None else rng.choice(input_dims)
-        allowed_rules = [str(value) for value in cfg["rule_families"]]
+        if self.forced_rule_family is not None:
+            # Single-rule family: rule_families in the config would be either
+            # redundant or a contradiction, so it is optional and pinned.
+            configured = [str(value) for value in cfg.get("rule_families", [])]
+            if configured and configured != [self.forced_rule_family]:
+                raise ValueError(
+                    f"{self.name} always uses rule_family "
+                    f"{self.forced_rule_family!r}; profile lists {configured}"
+                )
+            allowed_rules = [self.forced_rule_family]
+        else:
+            allowed_rules = [str(value) for value in cfg["rule_families"]]
         if not allowed_rules:
             raise ValueError("rule_families must be non-empty")
         if len(set(allowed_rules)) != len(allowed_rules):
             raise ValueError("rule_families must not contain duplicates")
-        unknown_rules = set(allowed_rules) - set(SUPPORTED_RULE_FAMILIES)
+        unknown_rules = set(allowed_rules) - set(self.supported_rule_families)
         if unknown_rules:
             raise ValueError(
                 f"rule_families contain unsupported values: {sorted(unknown_rules)}"
@@ -260,7 +311,7 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
             interaction_pairs: list[list[int]] = []
             rule_weights = [1.0]
             piecewise_breakpoint = 0.0
-            noise_std = float(rng.choice(cfg["noise_std"]))
+            noise_std = _resolve_noise_std(cfg, rng)
             decision_threshold = 0.0
             point_sampling: dict[str, Any] = {
                 "distribution": "two_spirals",
@@ -307,7 +358,7 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
                 piecewise_breakpoint = rng.uniform(-0.5, 0.5)
                 rule_weights = [rng.uniform(0.8, 1.6) * rng.choice([-1.0, 1.0]) for _ in range(3)]
 
-            noise_std = float(rng.choice(cfg["noise_std"]))
+            noise_std = _resolve_noise_std(cfg, rng)
             calibration_size = int(cfg["calibration_size"])
             target_positive_rate = float(cfg["target_positive_rate"])
             calibration_gen = torch.Generator().manual_seed(calibration_seed)
@@ -319,7 +370,11 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
                 interaction_pairs=interaction_pairs,
                 rule_weights=rule_weights,
                 piecewise_breakpoint=piecewise_breakpoint,
-            ) + noise_std * torch.randn(calibration_size, generator=calibration_gen)
+            )
+            if noise_std > 0.0:
+                calibration_score = calibration_score + noise_std * torch.randn(
+                    calibration_size, generator=calibration_gen
+                )
             decision_threshold = float(
                 torch.quantile(calibration_score, 1.0 - target_positive_rate).item()
             )
@@ -342,13 +397,17 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
             "rule_weights": rule_weights,
             "piecewise_breakpoint": piecewise_breakpoint,
             "spiral_turns": spiral_turns,
-            "noise_std": noise_std,
             "decision_threshold": decision_threshold,
             "train_size": int(cfg["train_size"]),
             "test_size": int(cfg["test_size"]),
             "point_sampling": point_sampling,
             "calibration": calibration,
         }
+        # Only a dataset that really carries noise records it, so a noiseless
+        # spec has no noise field for the renderer or the prompt to describe.
+        if noise_std > 0.0:
+            params["noise_std"] = noise_std
+
         return {
             "schema_version": profile.schema_version,
             "family": self.name,
@@ -363,13 +422,33 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
 
     def build_spec_with_id(self, partial: dict[str, Any]) -> dict[str, Any]:
         spec = {key: value for key, value in partial.items() if not key.startswith("_")}
-        spec["dataset_id"] = f"stabcls_{short_hash(partial['params'])}"
+        spec["dataset_id"] = f"{self.dataset_id_prefix}_{short_hash(partial['params'])}"
         return spec
 
     def materialize(self, spec: dict[str, Any], out_dir: Path) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         params = spec["params"]
-        synth_code = SYNTHESIZE_TEMPLATE.format(**params, point_seed=params["point_sampling"]["seed"])
+        noise_std = float(params.get("noise_std", 0.0))
+        noisy = noise_std > 0.0
+        synth_code = SYNTHESIZE_TEMPLATE.format(
+            **params,
+            point_seed=params["point_sampling"]["seed"],
+            # noise_std itself is no longer a template field: when the dataset
+            # carries noise it arrives inside noise_arg, and params may already
+            # hold the key, which would collide as a duplicate kwarg.
+            noise_arg=f"\n    noise_std: float = {noise_std!r}," if noisy else "",
+            spiral_noise_param="\n    noise_std: float," if noisy else "",
+            spiral_noise_kwarg=" noise_std=noise_std," if noisy else "",
+            spiral_jitter=(
+                " + noise_std * torch.randn(count, 2, generator=gen)" if noisy else ""
+            ),
+            train_score_noise=(
+                " + noise_std * torch.randn(train_size, generator=gen)" if noisy else ""
+            ),
+            test_score_noise=(
+                " + noise_std * torch.randn(test_size, generator=gen)" if noisy else ""
+            ),
+        )
         (out_dir / "synthesize.py").write_text(synth_code, encoding="utf-8")
         from architecture_iq.runtime.loader import load_synthesize_module
 
@@ -392,3 +471,35 @@ class SyntheticTabularClassificationFamily(DatasetFamily):
 
     def compatible_model_types(self) -> list[str]:
         return ["mlp"]
+
+
+class XorClassificationFamily(SyntheticTabularClassificationFamily):
+    """XOR: labels from the sign product of two active coordinates.
+
+    Its own bucket because no linear score separates the classes at all, which
+    makes it the only classification family where width buys nothing and depth
+    is the whole question. ``input_dim`` stays open -- the two active
+    coordinates may sit inside a larger vector of distractors.
+    """
+
+    name = "xor_classification"
+    instance_option_names = ("input_dim",)
+    dataset_id_prefix = "xorcls"
+    supported_rule_families = ("xor",)
+    forced_rule_family = "xor"
+
+
+class SpiralClassificationFamily(SyntheticTabularClassificationFamily):
+    """Two interleaved Archimedean spirals, labelled by generative arm.
+
+    Its own bucket because it shares almost nothing with the threshold-on-a-
+    score families: the input is 2-D by construction, points come from the arms
+    rather than from a normal, labels are exactly balanced by construction, and
+    there is no threshold to calibrate. ``spiral_turns`` sets the difficulty.
+    """
+
+    name = "spiral_classification"
+    instance_option_names = ()
+    dataset_id_prefix = "spiralcls"
+    supported_rule_families = ("spiral",)
+    forced_rule_family = "spiral"

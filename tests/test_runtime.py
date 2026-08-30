@@ -35,7 +35,7 @@ def test_ground_truth_runs_candidate_py_files() -> None:
         "width": 16,
         "residual": False,
         "layer_norm": [False, True],
-        "activations": ["relu", "gelu"],
+        "activation": "gelu",
     }
     spec = build_candidate_spec(
         profile,

@@ -102,6 +102,7 @@ if __name__ == "__main__":
 
 class BigramLmFamily(DatasetFamily):
     name = "bigram_lm"
+    train_loop_kind = "language_model"
 
     @staticmethod
     def _rng_streams(instance_seed: int) -> tuple[int, int]:

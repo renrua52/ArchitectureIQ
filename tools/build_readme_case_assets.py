@@ -34,7 +34,7 @@ def compact_model(model: dict[str, Any]) -> str:
     if model.get("type") == "mlp":
         return (
             f"MLP depth={model.get('depth')}, width={model.get('width')}, "
-            f"residual={model.get('residual')}, act={','.join(map(str, model.get('activations', [])))}"
+            f"residual={model.get('residual')}, act={model.get('activation')}"
         )
     return ", ".join(f"{k}={v}" for k, v in model.items() if k != "type")
 

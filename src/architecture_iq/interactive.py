@@ -23,6 +23,8 @@ from architecture_iq.datasets import (
 )
 from architecture_iq.families.multivariate_regression.config import allowed_input_dims
 from architecture_iq.profile import Profile
+from architecture_iq.prompts.formatters import TABULAR_CLASSIFICATION_FAMILIES
+from architecture_iq.registry import ensure_registries, get_dataset_family
 from architecture_iq.util import read_json
 
 InputFn = Callable[[str], str]
@@ -153,8 +155,12 @@ def assemble_optimizer_spec(
             else rng.choice(profile.optimizer_grids["sgd_momentum"])
         )
     if opt_type in {"Adam", "AdamW"}:
-        betas = profile.optimizer_grids["adam_betas"]
-        spec["betas"] = [float(betas[0]), float(betas[1])]
+        # Only consume RNG when the pool holds a real choice: a profile with one
+        # fixed pair must keep the sampling stream it had before this was a pool,
+        # so its candidate ids stay reproducible.
+        pool = profile.adam_betas_pool()
+        beta1, beta2 = pool[0] if len(pool) == 1 else rng.choice(pool)
+        spec["betas"] = [float(beta1), float(beta2)]
     return spec
 
 
@@ -186,27 +192,16 @@ def assemble_model_spec(
     width: int | None = None,
     residual: bool | None = None,
     activation: str | None = None,
-    activations: list[str] | None = None,
     layer_norm: list[bool] | None = None,
 ) -> dict[str, Any]:
-    if all(
-        v is None
-        for v in (depth, width, residual, activation, activations, layer_norm)
-    ):
+    if all(v is None for v in (depth, width, residual, activation, layer_norm)):
         return sample_model(profile, rng)
     cfg = profile.mlp
     d = depth if depth is not None else rng.choice(cfg["depth"])
     w = width if width is not None else rng.choice(cfg["width"])
     r = residual if residual is not None else rng.choice(cfg["residual"])
-    if activations is not None:
-        if len(activations) != d:
-            raise ValueError("activations length must match depth")
-        acts = activations
-    else:
-        acts = [
-            activation if activation is not None else rng.choice(cfg["activations"])
-            for _ in range(d)
-        ]
+    # One activation for the whole network; layer_norm stays per-layer.
+    act = activation if activation is not None else rng.choice(cfg["activations"])
     if layer_norm is not None:
         if len(layer_norm) != d:
             raise ValueError("layer_norm length must match depth")
@@ -219,7 +214,7 @@ def assemble_model_spec(
         "width": w,
         "residual": r,
         "layer_norm": norms,
-        "activations": acts,
+        "activation": act,
     }
 
 
@@ -316,25 +311,16 @@ def prompt_layer_norm_flags(
     return flags
 
 
-def prompt_layer_activations(
+def prompt_activation(
     profile: Profile,
-    depth: int,
     rng: random.Random,
     *,
     input_fn: InputFn = _default_input,
     write: WriteFn = _default_write,
-) -> list[str]:
+) -> str:
     options = list(profile.mlp["activations"])
-    activations: list[str] = []
-    for layer in range(1, depth + 1):
-        picked = prompt_choice(
-            f"Layer {layer} activation",
-            options,
-            input_fn=input_fn,
-            write=write,
-        )
-        activations.append(picked if picked is not None else rng.choice(options))
-    return activations
+    picked = prompt_choice("Activation (all layers)", options, input_fn=input_fn, write=write)
+    return picked if picked is not None else rng.choice(options)
 
 
 def prompt_model_spec(
@@ -365,10 +351,8 @@ def prompt_model_spec(
 
     cfg = profile.mlp
     depth = int(depth_raw) if depth_raw is not None else rng.choice(cfg["depth"])
-    write(f"Per-layer settings for depth={depth} (Enter = random):")
-    activations = prompt_layer_activations(
-        profile, depth, rng, input_fn=input_fn, write=write
-    )
+    activation = prompt_activation(profile, rng, input_fn=input_fn, write=write)
+    write(f"Per-layer layer norm for depth={depth} (Enter = random):")
     layer_norm = prompt_layer_norm_flags(depth, rng, input_fn=input_fn, write=write)
 
     return assemble_model_spec(
@@ -377,7 +361,7 @@ def prompt_model_spec(
         depth=depth,
         width=int(width_raw) if width_raw is not None else None,
         residual=bool(residual_raw) if residual_raw is not None else None,
-        activations=activations,
+        activation=activation,
         layer_norm=layer_norm,
     )
 
@@ -784,32 +768,43 @@ def prompt_multivariate_input_dim(
 def prompt_classification_options(
     profile: Profile,
     *,
+    family: str = "synthetic_tabular_classification",
     input_fn: InputFn = _default_input,
     write: WriteFn = _default_write,
 ) -> dict[str, Any]:
-    """Optional input_dim / rule_family for synthetic_tabular_classification."""
-    cfg = profile.family_config("synthetic_tabular_classification")
+    """Prompt only for the options the family actually accepts.
+
+    xor_classification takes input_dim but not rule_family (the rule is the
+    family), and spiral_classification takes neither -- it is 2-D by
+    construction. Driven by the plugin's instance_option_names so a new
+    single-rule family needs no edit here.
+    """
+    ensure_registries()
+    accepted = set(get_dataset_family(family).instance_option_names)
+    cfg = profile.family_config(family)
     options: dict[str, Any] = {}
-    write("Input dimension for tabular classification:")
-    picked_dim = prompt_grid_value(
-        "input_dim",
-        [int(value) for value in cfg["input_dims"]],
-        input_fn=input_fn,
-        write=write,
-        allow_random=True,
-    )
-    if picked_dim is not None:
-        options["input_dim"] = picked_dim
-    write("Decision rule family:")
-    picked_rule = prompt_grid_value(
-        "rule_family",
-        [str(value) for value in cfg["rule_families"]],
-        input_fn=input_fn,
-        write=write,
-        allow_random=True,
-    )
-    if picked_rule is not None:
-        options["rule_family"] = picked_rule
+    if "input_dim" in accepted:
+        write("Input dimension for tabular classification:")
+        picked_dim = prompt_grid_value(
+            "input_dim",
+            [int(value) for value in cfg["input_dims"]],
+            input_fn=input_fn,
+            write=write,
+            allow_random=True,
+        )
+        if picked_dim is not None:
+            options["input_dim"] = picked_dim
+    if "rule_family" in accepted:
+        write("Decision rule family:")
+        picked_rule = prompt_grid_value(
+            "rule_family",
+            [str(value) for value in cfg["rule_families"]],
+            input_fn=input_fn,
+            write=write,
+            allow_random=True,
+        )
+        if picked_rule is not None:
+            options["rule_family"] = picked_rule
     return options
 
 
@@ -839,9 +834,11 @@ def _prompt_and_create_dataset(
         )
         if picked is not None:
             family_options["input_dim"] = picked
-    elif family == "synthetic_tabular_classification":
+    elif family in TABULAR_CLASSIFICATION_FAMILIES:
         family_options.update(
-            prompt_classification_options(profile, input_fn=input_fn, write=write)
+            prompt_classification_options(
+                profile, family=family, input_fn=input_fn, write=write
+            )
         )
 
     spec, path = create_dataset(

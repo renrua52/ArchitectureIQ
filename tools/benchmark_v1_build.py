@@ -48,7 +48,13 @@ def dataset_bucket(family: str, dataset_spec: dict[str, Any]) -> str:
         return "multivariate"
     if family == "bigram_lm":
         return "bigram"
+    if family == "xor_classification":
+        return "xor"
+    if family == "spiral_classification":
+        return "spiral"
     if family == "synthetic_tabular_classification":
+        # Pre-v1.4 artifacts: xor and spiral were rule_families of this one
+        # family before they became families of their own.
         rule = str(dataset_spec.get("params", {}).get("rule_family", ""))
         if rule == "xor":
             return "xor"

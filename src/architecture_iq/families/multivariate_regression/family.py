@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
 class MultivariateRegressionFamily(DatasetFamily):
     name = "multivariate_regression"
+    instance_option_names = ("input_dim",)
 
     @staticmethod
     def _rng_streams(instance_seed: int) -> tuple[int, int]:
@@ -85,7 +86,6 @@ class MultivariateRegressionFamily(DatasetFamily):
             "domain": list(domain),
             "train_size": int(cfg["train_size"]),
             "test_size": int(cfg["test_size"]),
-            "noise": {"enabled": False},
             "point_sampling": {"distribution": "uniform", "seed": point_seed},
         }
         significance = {

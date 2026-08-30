@@ -41,7 +41,11 @@ def list_model_types() -> list[str]:
 def _register_all() -> None:
     from architecture_iq.families.bigram_lm import BigramLmFamily
     from architecture_iq.families.multivariate_regression import MultivariateRegressionFamily
-    from architecture_iq.families.synthetic_tabular_classification import SyntheticTabularClassificationFamily
+    from architecture_iq.families.synthetic_tabular_classification import (
+        SpiralClassificationFamily,
+        SyntheticTabularClassificationFamily,
+        XorClassificationFamily,
+    )
     from architecture_iq.families.univariate_regression import UnivariateRegressionFamily
     from architecture_iq.models.gru_lm import GruLmModelFamily
     from architecture_iq.models.mlp import MlpModelFamily
@@ -51,6 +55,8 @@ def _register_all() -> None:
     register_dataset_family(MultivariateRegressionFamily())
     register_dataset_family(BigramLmFamily())
     register_dataset_family(SyntheticTabularClassificationFamily())
+    register_dataset_family(XorClassificationFamily())
+    register_dataset_family(SpiralClassificationFamily())
     register_model_type(GruLmModelFamily())
     register_model_type(MlpModelFamily())
     register_model_type(TransformerLmModelFamily())

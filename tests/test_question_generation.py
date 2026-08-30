@@ -244,7 +244,7 @@ def test_build_question_record_persists_profile_hash(tmp_path: Path, monkeypatch
         "width": 16,
         "residual": False,
         "layer_norm": [False],
-        "activations": ["relu"],
+        "activation": "relu",
         "input_dim": 1,
         "output_dim": 1,
     }

@@ -39,8 +39,8 @@ def test_mlp_nl_parity_output() -> None:
         "depth": 2,
         "width": 64,
         "residual": False,
-        "layer_norm": [True, True],
-        "activations": ["leaky_relu", "gelu"],
+        "layer_norm": [True, False],
+        "activation": "gelu",
     }
     assert pkg.format_mlp_nl(model) == insp.format_mlp_nl(model)
 

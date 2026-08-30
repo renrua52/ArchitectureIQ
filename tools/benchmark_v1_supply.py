@@ -15,6 +15,9 @@ Supply design (v1.1, confirmed in docs/plans/v1-final-1000q-plan.md):
   3x {model}, 2x {optimizer}, 2x {model,optimizer,loss}, 1x {optimizer,loss}.
 - Budgets cycle the four v1.1 tiers [2048, 4096, 8192, 16384].
 - 12-16 candidates per set (Q10: increased supply to reduce relaxed questions).
+- Under a profile that sets candidate_generation.parameter_ratio_max, every
+  model-varying set is drawn from one parameter band; BANDED_SET_COUNT_CAP holds
+  the per-family ceiling on how many candidates such a band can supply.
 
 Idempotent: existing dataset instances and set dirs are skipped.
 
@@ -35,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from architecture_iq.candidates.generator import write_candidate
 from architecture_iq.candidates.sets import (
     make_set_name,
+    realized_parameter_band,
     sample_candidate_set_pool,
     write_set_manifest,
 )
@@ -45,17 +49,29 @@ from architecture_iq.registry import ensure_registries, get_dataset_family, get_
 
 BUDGET_TIERS = (2048, 4096, 8192, 16384)
 
-# (family, rule_family, count, seed_base) — rule_family only for stabcls.
+# (family, rule_family, count, seed_base) — rule_family only for the
+# multi-rule stabcls family; xor and spiral are families of their own, so their
+# rule is implied and must not be passed as an option.
 DATASET_PLAN = [
     ("univariate_regression", None, 7, 1000),
     ("multivariate_regression", None, 7, 2000),
     ("bigram_lm", None, 7, 3000),
-    ("synthetic_tabular_classification", "xor", 7, 4000),
-    ("synthetic_tabular_classification", "spiral", 7, 5000),
+    ("xor_classification", None, 7, 4000),
+    ("spiral_classification", None, 7, 5000),
     ("synthetic_tabular_classification", "smooth_additive", 3, 6000),
     ("synthetic_tabular_classification", "sparse_interaction", 3, 6100),
     ("synthetic_tabular_classification", "piecewise_boundary", 2, 6200),
 ]
+
+# The three tabular-classification families share a spec shape and the extra
+# mixed-set recipe in --topup (see prompts.formatters for the canonical set).
+TABULAR_CLASSIFICATION_FAMILIES = frozenset(
+    {
+        "synthetic_tabular_classification",
+        "xor_classification",
+        "spiral_classification",
+    }
+)
 
 # 8 sets per dataset; aligned with question-type quotas arch/opt/mixed ~ 4/3/3.
 VARY_PATTERNS = [
@@ -75,10 +91,31 @@ INDEX_PATH = DATA_DIR / "benchmark_v1_supply_index.json"
 # buckets (fills param_similar strata; bigram gap-constrained shortfall) and
 # mixed sets to n=30 for the three stabcls buckets (xor short + thin margins).
 TOPUP_ARCH_PER_DATASET = 3
-TOPUP_MIXED_PER_DATASET = 2  # synthetic_tabular_classification datasets only
+TOPUP_MIXED_PER_DATASET = 2  # tabular-classification datasets only
 TOPUP_COUNT = 30
 TOPUP_ARCH_VARY = frozenset({"model"})
 TOPUP_MIXED_VARY = frozenset({"model", "optimizer", "loss"})
+
+# A model-varying set has to fill from one parameter band when the profile sets
+# candidate_generation.parameter_ratio_max, and a band only holds so many
+# distinct architectures. Measured under v1.4 (R = 2): the widest 2x window
+# reaches ~1500 distinct MLP specs but only 18 across bigram's transformer_lm +
+# gru_lm grids, so an unqualified n=30 is infeasible there and
+# select_parameter_band refuses it rather than widening the band. The ceiling is
+# 23 since transformer_lm.num_layers gained a fourth option; 16 keeps headroom
+# below it. Families absent from this table are uncapped.
+BANDED_SET_COUNT_CAP = {"bigram_lm": 16}
+
+
+def _banded_count(profile, family: str, vary: frozenset[str], count: int) -> int:
+    """Clamp a model-varying set to what one parameter band can supply.
+
+    A profile without banding (every profile before v1.4) keeps the requested
+    count, so this tool reproduces its earlier supply bit-for-bit.
+    """
+    if "model" not in vary or profile.parameter_ratio_max() is None:
+        return count
+    return min(count, BANDED_SET_COUNT_CAP.get(family, count))
 
 
 def _create_dataset_idempotent(profile, family_name, seed, rule_family):
@@ -103,6 +140,7 @@ def _create_dataset_idempotent(profile, family_name, seed, rule_family):
 
 def _write_set_skeleton(profile, dataset_path, dataset_spec, vary, budget, count, seed):
     """Sample specs + write candidate files + set manifest (no GT)."""
+    count = _banded_count(profile, dataset_spec["family"], vary, count)
     rng = random.Random(seed)
     specs = sample_candidate_set_pool(
         profile,
@@ -139,6 +177,9 @@ def _write_set_skeleton(profile, dataset_path, dataset_spec, vary, budget, count
         varying_axes=vary,
         fixed_shared=shared_record,
         model_type_counts=None,
+        parameter_band=realized_parameter_band(
+            specs, ratio_max=profile.parameter_ratio_max()
+        ),
         seed=seed,
         profile=profile,
         dataset_id=dataset_spec["dataset_id"],
@@ -154,14 +195,19 @@ def _write_set_skeleton(profile, dataset_path, dataset_spec, vary, budget, count
     return set_name, set_path, written, "created"
 
 
-def _existing_big_sets(dataset_path: Path, vary: frozenset[str]) -> int:
-    """How many sets of this vary pattern with count >= TOPUP_COUNT exist."""
+def _existing_big_sets(dataset_path: Path, vary: frozenset[str], min_count: int) -> int:
+    """How many sets of this vary pattern with count >= min_count exist.
+
+    ``min_count`` is the *effective* top-up size (TOPUP_COUNT after the
+    parameter-band cap), so a capped family still recognises its own top-up
+    sets instead of re-requesting them on every run.
+    """
     n = 0
     for manifest_path in (dataset_path / "candidates").glob("*/set.json"):
         manifest = json.loads(manifest_path.read_text())
         if (
             frozenset(manifest["varying_axes"]) == vary
-            and int(manifest["count"]) >= TOPUP_COUNT
+            and int(manifest["count"]) >= min_count
         ):
             n += 1
     return n
@@ -179,21 +225,22 @@ def _run_topup(profile, dry_run: bool) -> None:
         base = zlib.crc32(dataset_spec["dataset_id"].encode()) % 100000
 
         recipes = [(TOPUP_ARCH_VARY, TOPUP_ARCH_PER_DATASET)]
-        if family == "synthetic_tabular_classification":
+        if family in TABULAR_CLASSIFICATION_FAMILIES:
             recipes.append((TOPUP_MIXED_VARY, TOPUP_MIXED_PER_DATASET))
 
         for vary, target in recipes:
-            missing = target - _existing_big_sets(dataset_path, vary)
+            topup_count = _banded_count(profile, family, vary, TOPUP_COUNT)
+            missing = target - _existing_big_sets(dataset_path, vary, topup_count)
             for si in range(max(0, missing)):
                 seed = base + 5000 + si * 13 + (0 if vary == TOPUP_ARCH_VARY else 700)
                 budget = BUDGET_TIERS[(base + si) % len(BUDGET_TIERS)]
                 label = f"{dataset_spec['dataset_id']} vary={sorted(vary)} #{si}"
                 if dry_run:
-                    print(f"[dry] topup set {label} budget={budget} n={TOPUP_COUNT}")
+                    print(f"[dry] topup set {label} budget={budget} n={topup_count}")
                     continue
                 set_name, set_path, written, status = _write_set_skeleton(
                     profile, dataset_path, dataset_spec, vary, budget,
-                    TOPUP_COUNT, seed,
+                    topup_count, seed,
                 )
                 if status == "created":
                     n_sets += 1
@@ -209,7 +256,9 @@ def main() -> None:
     ap.add_argument("--profile", default="v1.1")
     ap.add_argument("--topup", action="store_true",
                     help="Add n=30 arch sets (all datasets) and n=30 mixed sets "
-                         "(stabcls datasets) to fill param_similar strata.")
+                         "(stabcls datasets) to fill param_similar strata; "
+                         "clamped per family by BANDED_SET_COUNT_CAP when the "
+                         "profile bands parameters.")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 

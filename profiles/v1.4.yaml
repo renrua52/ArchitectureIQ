@@ -1,0 +1,288 @@
+profile: v1.4
+schema_version: "1.0"
+
+# v1.4 re-generation profile. Starts from v1.3 and applies the 2026-08 review
+# round; v1.3 stays frozen as the record of what produced the existing
+# benchmarks/v1_llm build.
+#
+# Changes vs v1.3:
+# - MLP shape: one activation and one residual flag per network (shared by
+#   every layer); layer_norm is the only per-layer switch, and it is no longer
+#   pinned per candidate set. Depth counts hidden Linear layers, each block
+#   computing act(x + Linear(norm(x))).
+# - MLP activation becomes a real sampled axis again (v1.3 pinned it to ReLU)
+#   now that a spec carries exactly one activation instead of a per-layer list.
+# - Losses: only plain mse / cross_entropy are sampleable. The lambda-weighted
+#   L1/L2 variants and their loss_grids.lambda pool are gone; regularisation
+#   lives solely in optimizer weight_decay.
+# - Significance is seed-range separation: the winner's worst of 10 seeds must
+#   beat every rival's best of 10. The absolute gap floor (gap_min) and the
+#   variance-based mean +/- std non-overlap heuristic are both off; the paired
+#   win_rate 1.0 check is kept, but only as the cheap first gate, since
+#   separation implies it. See the significance block for why the paired check
+#   alone admitted 0.012%-difference questions.
+# - question_generation.quality.gap_max is dropped: an absolute cap cannot be
+#   shared by test_mse and test_ce, whose scales differ by an order of
+#   magnitude, and it contradicts a purely paired-win criterion.
+# - Parameter-ratio control moves from question assembly into candidate
+#   sampling: candidate_generation.parameter_ratio_max bands each set at 2x.
+#   question_generation.quality.param_ratio_max drops 8.0 -> 2.0 and is demoted
+#   to a cross-set / legacy-artifact guard.
+# - Expression sampler: trees are canonicalized before rendering, so targets no
+#   longer contain x*x, x + -1, 0 - x**3, x/0.5, ((x)**2)**3, sin(2*pi*(4 - x)),
+#   or abs() on a same-sign argument; constants are limited to eighths with
+#   |c| <= 12; pi renders symbolically (`pi` / `torch.pi`) instead of as
+#   6.283185307179586; and division is plain division guarded at |denom| >= 0.25
+#   rather than silently clamped. This changes every regression dataset_id.
+# - Pool ranges narrowed/retuned: mlp.depth 6 -> 5 options, transformer_lm
+#   .num_layers 3 -> 4 options, optimizer lr drops the 1e-2 top rung (5 rungs,
+#   3e-5..3e-3), and adam_betas becomes a sampleable pool of two pairs,
+#   (0.9, 0.999) and the (0.9, 0.95) large-LM setting. adam_betas is read
+#   through Profile.adam_betas_pool(), which accepts both the older flat
+#   [beta1, beta2] form and this nested pool; sampling only draws from the RNG
+#   when the pool holds more than one pair, so single-pair profiles keep their
+#   exact sampling stream and candidate ids.
+# - No dataset carries noise any more: dataset_configs drops noise_std, so labels
+#   are an exact function of the features (tabular/xor), spiral points sit
+#   exactly on their arm, and regression y is the exact evaluation of the
+#   target. Nothing about noise reaches the spec, the generated synthesize.py,
+#   or the prompt. Profiles that still declare noise_std keep generating it
+#   unchanged, so v1.3's datasets stay reproducible.
+# - xor and spiral become their own dataset families (xor_classification,
+#   spiral_classification) instead of two of five rule_families inside
+#   synthetic_tabular_classification, so each is its own benchmark bucket with
+#   its own dataset_id prefix. synthetic_tabular_classification now samples only
+#   the three score-threshold rules.
+
+pools:
+  dataset_families:
+    - univariate_regression
+    - multivariate_regression
+    - bigram_lm
+    - synthetic_tabular_classification
+    - xor_classification
+    - spiral_classification
+  model_types:
+    - mlp
+    - transformer_lm
+    - gru_lm
+  optimizers:
+    - SGD
+    - Adam
+    - AdamW
+    - RMSprop
+    - Adagrad
+  losses:
+    univariate_regression:
+      - mse
+    multivariate_regression:
+      - mse
+    bigram_lm:
+      - cross_entropy
+    synthetic_tabular_classification:
+      - cross_entropy
+    xor_classification:
+      - cross_entropy
+    spiral_classification:
+      - cross_entropy
+  # loss_only is not listed: with one loss per family the loss axis cannot vary.
+  question_types:
+    - architecture_only
+    - optimizer_only
+    - mixed
+  num_choices: 3
+
+dataset:
+  family: univariate_regression
+  domain: [0.0, 1.0]
+  train_size: 256
+  test_size: 256
+  sampler:
+    id: symbolic_expr
+    max_depth: 3
+    max_retries: 200
+
+dataset_configs:
+  univariate_regression:
+    domain: [0.0, 1.0]
+    train_size: 256
+    test_size: 256
+    sampler:
+      id: symbolic_expr
+      max_depth: 3
+      max_retries: 200
+  multivariate_regression:
+    input_dims: [2, 3, 4, 5, 8]
+    domain: [0.0, 1.0]
+    train_size: 256
+    test_size: 256
+    sampler:
+      id: symbolic_expr_mv
+      max_depth: 3
+      # 600, not 200: at input_dim 8 the every-coordinate-contributes gate is
+      # the binding constraint, and 4 seeds in 3000 need more than 200 draws
+      # (worst measured 315). A draw costs ~0.2 ms, so the headroom is free.
+      max_retries: 600
+  bigram_lm:
+    vocab_size: [24, 32, 48]
+    context_length: [12, 16, 24]
+    train_size: 800
+    test_size: 200
+    alpha: [0.8, 1.0, 1.4]
+    layout: lm
+    fail_threshold: 4.0
+  # Only the three score-threshold rules. xor and spiral are their own families
+  # below: as benchmark buckets they measure something else entirely, and mixing
+  # all five here made one bucket whose difficulty depended on the seed's draw.
+  synthetic_tabular_classification:
+    input_dims: [2, 4, 8, 16]
+    rule_families: [smooth_additive, sparse_interaction, piecewise_boundary]
+    active_feature_counts: [2, 3, 4]
+    interaction_order: 2
+    train_size: 1024
+    test_size: 2048
+    calibration_size: 4096
+    target_positive_rate: 0.5
+  xor_classification:
+    # Two active coordinates plus distractors; rule_families is implied by the
+    # family and must not be listed.
+    input_dims: [2, 4, 8, 16]
+    active_feature_counts: [2]
+    interaction_order: 2
+    train_size: 1024
+    test_size: 2048
+    calibration_size: 4096
+    target_positive_rate: 0.5
+  spiral_classification:
+    # 2-D by construction; labels come from the generative arm, so the
+    # calibration keys below are unused and kept only for spec-shape parity.
+    input_dims: [2]
+    spiral_turns: [1.0, 1.5, 2.0, 2.5, 3.0]
+    active_feature_counts: [2]
+    interaction_order: 2
+    train_size: 1024
+    test_size: 2048
+    calibration_size: 4096
+    target_positive_rate: 0.5
+
+mlp:
+  depth: [1, 2, 3, 4, 5]
+  width: [16, 24, 32, 48, 64, 96, 128, 192, 256]
+  residual: [false, true]
+  # One activation per network, drawn from this pool and shared by the input
+  # projection and every hidden block.
+  activations: [relu, leaky_relu, gelu, silu]
+  leaky_relu_slope: 0.01
+
+transformer_lm:
+  d_model: [32, 64, 128]
+  num_layers: [1, 2, 3, 4]
+  num_heads: [2, 4]
+  d_ff: [64, 128, 256]
+
+gru_lm:
+  d_model: [32, 64]
+  num_layers: [1, 2]
+  layer_residual: false
+
+optimizer_grids:
+  lr: [3.0e-5, 1.0e-4, 3.0e-4, 1.0e-3, 3.0e-3]
+  weight_decay: [0, 1.0e-5, 1.0e-4, 1.0e-3]
+  sgd_momentum: [0, 0.9]
+  # A pool now, not a fixed pair: (0.9, 0.95) is the beta2 large LM training
+  # runs commonly use, and it is a real axis an optimizer_only question can
+  # vary. Older profiles keep the flat [0.9, 0.999] single-pair form.
+  adam_betas: [[0.9, 0.999], [0.9, 0.95]]
+  batch_size: [16, 32, 64]
+
+budgets:
+  total_samples_seen: [4096, 8192, 16384]
+  # Every candidate trains at least 256 steps; valid_batch_sizes rejects batch
+  # sizes that would violate this floor.
+  min_training_steps: 256
+
+candidate_generation:
+  # Every model in one candidate set is drawn from a single parameter band
+  # [lo, lo * parameter_ratio_max]. Enforced while sampling, so ground truth is
+  # never spent on a candidate that could not be a fair choice against its
+  # siblings -- the old post-hoc filter rejected 132 of 220 xor subsets after
+  # paying 10 seeds of training for each one.
+  #
+  # 2.0 keeps "just pick the biggest model" from being a free win. Measured
+  # occupancy of the widest 2x window under the grids below (re-measured after
+  # mlp.depth dropped 6 -> 5 and transformer_lm.num_layers rose 3 -> 4):
+  #   mlp             752 distinct specs of 4464  (any count is fillable)
+  #   transformer_lm   22 distinct specs of 72
+  #   gru_lm            2 distinct specs of 4
+  # So a gru-only architecture_only set is NOT constructible at this ratio, and
+  # a model-varying bigram set caps at 23 candidates. Both surface as explicit
+  # errors from select_parameter_band rather than a silently widened band.
+  parameter_ratio_max: 2.0
+  # Architectures pre-sampled to locate the band (~0.05-0.10 s at 0.2-0.4 ms
+  # per trainable_parameter_count call).
+  parameter_band_probe: 256
+
+training_defaults:
+  synthetic_tabular_classification:
+    batch_size: 32
+    training_steps: 256
+    total_samples_seen: 8192
+  xor_classification:
+    batch_size: 32
+    training_steps: 256
+    total_samples_seen: 8192
+  spiral_classification:
+    batch_size: 32
+    training_steps: 256
+    total_samples_seen: 8192
+
+ground_truth:
+  n_seeds: 10
+  base_seed: 0
+  fail_threshold: 2.0
+  max_failed_seeds: 3
+
+significance:
+  # The criterion is separation, not a paired per-seed win: the winner's worst
+  # of 10 seeds must still beat every rival's best of 10, so the seed ranges do
+  # not overlap at all.
+  #
+  # win_rate_min: 1.0 alone was too weak, and measurably so. It compares seed i
+  # of the winner against seed i of each rival, and in an optimizer_only set
+  # every choice shares one model spec -- so a single torch.manual_seed(seed)
+  # gives all of them bit-identical initial weights and the same minibatch
+  # order. The paired difference then carries almost no variance, and any
+  # systematic nudge sweeps all 10 seeds regardless of size: a pair differing
+  # only in weight_decay (1e-3 vs 0) won 10/10 on xor at a mean difference of
+  # 0.012%, which is 2.6% of one candidate's own seed-to-seed std. As a test
+  # that is the sign test (p = 2^-10); separation is Mann-Whitney U = 0
+  # (p = 1/C(20,10) ~ 5e-6) and, being unpaired, cannot be passed by an effect
+  # smaller than the seed spread itself.
+  #
+  # Separation implies win_rate == 1.0, so win_rate_min stays at 1.0 as the
+  # cheaper first gate rather than as the operative criterion. Measured cost:
+  # of the 3-choice subsets that pass win_rate 1.0 on this profile's candidate
+  # sets, 79.2% also separate (1090 -> 863 of 1720 subsets).
+  gap_min: 0.0
+  win_rate_min: 1.0
+  use_non_overlap: false
+  require_full_separation: true
+
+question_generation:
+  max_attempts: 20
+  targeted_pool_size: 32
+  quality:
+    require_finite_mean: true
+    max_failed_seeds: 0
+    # No longer the primary mechanism: candidate_generation.parameter_ratio_max
+    # already bands every set at sampling time, so any subset drawn from one set
+    # satisfies this by construction. Kept, at the same value, for the two cases
+    # banding cannot cover: a question unioning several sets (whose bands may sit
+    # at different scales), and legacy sets on disk generated before banding.
+    param_ratio_max: 2.0
+    # Cap how many questions a single dataset instance may appear in.
+    max_questions_per_dataset: 25
+
+prompts:
+  use_llm_paraphrase: false
+  template_version: "1.0"

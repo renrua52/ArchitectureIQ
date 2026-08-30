@@ -70,7 +70,7 @@ def build_model_spec(
             raise ValueError("Depth must be greater than zero.")
         if width <= 0:
             raise ValueError("Width must be greater than zero.")
-        activations = [str(value) for value in params["activations"]]
+        activation = str(params["activation"])
         layer_norm = [bool(value) for value in params["layer_norm"]]
         spec = {
             "type": "mlp",
@@ -78,7 +78,7 @@ def build_model_spec(
             "width": width,
             "residual": bool(params.get("residual", False)),
             "layer_norm": layer_norm,
-            "activations": activations,
+            "activation": activation,
             "input_dim": int(dataset_params.get("input_dim", 1)),
             "output_dim": int(dataset_params.get("num_classes", 1)),
         }
@@ -205,8 +205,10 @@ def form_values_from_candidate_spec(
                 "mlp_residual": bool(model.get("residual", False)),
             }
         )
-        for index, activation in enumerate(model["activations"]):
-            values[f"mlp_activation_{index}"] = activation
+        legacy_acts = model.get("activations") or []
+        values["mlp_activation"] = str(
+            model.get("activation") or (legacy_acts[0] if legacy_acts else "relu")
+        )
         for index, use_norm in enumerate(model["layer_norm"]):
             values[f"mlp_norm_{index}"] = bool(use_norm)
     elif model["type"] == "transformer_lm":

@@ -38,6 +38,7 @@ from artifact_loader import (  # noqa: E402
 )
 from candidate_curves import load_candidate_curves  # noqa: E402
 from prompt_format import (  # noqa: E402
+    TABULAR_CLASSIFICATION_FAMILIES,
     format_loss_nl,
     format_model_spec_lines,
     format_optimizer_nl,
@@ -79,7 +80,7 @@ def _flatten_spec(spec: dict[str, Any]) -> dict[str, Any]:
         "num_heads": model.get("num_heads"),
         "residual": model.get("residual"),
         "layer norm": model.get("layer_norm"),
-        "activations": model.get("activations"),
+        "activation": model.get("activation"),
         "optimizer": spec.get("optimizer", {}).get("type"),
         "learning rate": spec.get("optimizer", {}).get("lr"),
         "weight decay": spec.get("optimizer", {}).get("weight_decay"),
@@ -296,7 +297,7 @@ def _dataset_payload(dataset_dir: Path, family: str) -> dict[str, Any]:
             "train": [{"x": x, "y": y} for x, y in zip(tx, ty, strict=False)],
             "test": [{"x": x, "y": y} for x, y in zip(vx, vy, strict=False)],
         }
-    elif family == "synthetic_tabular_classification" and train is not None and test_path.is_file():
+    elif family in TABULAR_CLASSIFICATION_FAMILIES and train is not None and test_path.is_file():
         test = torch.load(test_path, weights_only=True)
         out["plot"] = _classification_plot(train, test, params)
     elif family == "bigram_lm":

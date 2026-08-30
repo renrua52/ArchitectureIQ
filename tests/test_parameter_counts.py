@@ -22,7 +22,7 @@ def _spec(*, width: int = 16) -> dict:
             "width": width,
             "residual": False,
             "layer_norm": [False, False],
-            "activations": ["relu", "relu"],
+            "activation": "relu",
         },
         optimizer={"type": "Adam", "lr": 1e-3, "weight_decay": 0.0},
         loss={"loss_id": "mse"},

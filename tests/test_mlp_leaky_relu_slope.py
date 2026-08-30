@@ -21,7 +21,7 @@ def _model_spec(slope: float | None = None) -> dict:
         "width": 8,
         "residual": False,
         "layer_norm": [False, False],
-        "activations": ["leaky_relu", "relu"],
+        "activation": "leaky_relu",
         "input_dim": 3,
     }
     if slope is not None:
@@ -36,7 +36,7 @@ def _leaky_relu(module: nn.Module) -> nn.LeakyReLU:
 def test_sample_spec_omits_dead_leaky_relu_slope_field() -> None:
     # D4: with the activation pool fixed to ReLU the slope is a dead field;
     # fresh specs no longer carry it (legacy specs still build/render fine).
-    profile = load_profile("v1")
+    profile = load_profile("v1.3")
     spec = MlpModelFamily().sample_spec(profile, random.Random(0))
     assert "leaky_relu_slope" not in spec
 
@@ -49,7 +49,7 @@ def test_interactive_mlp_spec_omits_dead_leaky_relu_slope_field() -> None:
         depth=2,
         width=8,
         residual=False,
-        activations=["relu", "gelu"],
+        activation="gelu",
         layer_norm=[False, False],
     )
     assert "leaky_relu_slope" not in spec
@@ -86,8 +86,8 @@ def test_rendered_model_uses_slope_and_imports_and_executes(tmp_path: Path) -> N
 
 
 def test_prompt_formatter_mentions_slope_only_when_used() -> None:
-    leaky_text = format_mlp_nl({**_model_spec(0.01), "activations": ["leaky_relu", "relu"]})
+    leaky_text = format_mlp_nl({**_model_spec(0.01), "activation": "leaky_relu"})
     assert "LeakyReLU negative slope: 0.01" in leaky_text
 
-    non_leaky_text = format_mlp_nl({**_model_spec(0.01), "activations": ["relu", "gelu"]})
+    non_leaky_text = format_mlp_nl({**_model_spec(0.01), "activation": "gelu"})
     assert "negative slope" not in non_leaky_text

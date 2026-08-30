@@ -80,7 +80,6 @@ class UnivariateRegressionFamily(DatasetFamily):
             "domain": list(domain),
             "train_size": int(cfg["train_size"]),
             "test_size": int(cfg["test_size"]),
-            "noise": {"enabled": False},
             "point_sampling": {"distribution": "uniform", "seed": point_seed},
         }
         significance = {

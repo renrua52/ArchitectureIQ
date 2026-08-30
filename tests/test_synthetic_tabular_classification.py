@@ -153,7 +153,7 @@ def synthesize():
 
 def test_classification_candidate_executes_and_reports_auxiliary_accuracy(small_profile, tmp_path: Path) -> None:
     family, dataset_spec, dataset_path = _materialize(small_profile, tmp_path, seed=5, rule_family="sparse_interaction")
-    model = {"type": "mlp", "input_dim": 8, "output_dim": 2, "depth": 2, "width": 16, "residual": False, "layer_norm": [False, False], "activations": ["relu", "relu"]}
+    model = {"type": "mlp", "input_dim": 8, "output_dim": 2, "depth": 2, "width": 16, "residual": False, "layer_norm": [False, False], "activation": "relu"}
     candidate_spec = build_candidate_spec(
         small_profile, dataset_id=dataset_spec["dataset_id"], family="synthetic_tabular_classification", budget=128, batch_size=16,
         model=model, optimizer={"type": "Adam", "lr": 0.001, "weight_decay": 0.0, "betas": [0.9, 0.999]}, loss={"loss_id": "cross_entropy"},
@@ -255,7 +255,7 @@ def test_xor_pilot_candidate_ground_truth_smoke(tmp_path: Path) -> None:
     dataset_spec = family.build_spec_with_id(partial)
     dataset_path = tmp_path / "xor_dataset"
     family.materialize({**partial, **dataset_spec}, dataset_path)
-    model = {"type": "mlp", "input_dim": 2, "output_dim": 2, "depth": 1, "width": 16, "residual": False, "layer_norm": [False], "activations": ["relu"]}
+    model = {"type": "mlp", "input_dim": 2, "output_dim": 2, "depth": 1, "width": 16, "residual": False, "layer_norm": [False], "activation": "relu"}
     candidate_spec = build_candidate_spec(profile, dataset_id=dataset_spec["dataset_id"], family="synthetic_tabular_classification", budget=128, batch_size=16, model=model, optimizer={"type": "Adam", "lr": 0.001, "weight_decay": 0.0, "betas": [0.9, 0.999]}, loss={"loss_id": "cross_entropy"})
     candidate_path = tmp_path / "xor_candidate"
     write_candidate(candidate_spec, candidate_path, get_model_type("mlp"))

@@ -80,12 +80,16 @@ def create_dataset(
     resolve_dataset_family(profile, family=family_name)
     family = get_dataset_family(family_name)
     options = family_options or {}
-    if family_name in {"multivariate_regression", "synthetic_tabular_classification"}:
-        partial = family.create_instance(profile, seed, **options)
-    else:
-        if options:
-            raise ValueError(f"family_options are not supported for {family_name!r}")
-        partial = family.create_instance(profile, seed)
+    # Each family declares which create_instance kwargs it takes, so adding a
+    # family never means editing this branch (see DatasetFamily.instance_option_names).
+    unsupported = sorted(set(options) - set(family.instance_option_names))
+    if unsupported:
+        accepted = list(family.instance_option_names)
+        raise ValueError(
+            f"{family_name!r} does not accept family_options {unsupported}"
+            + (f"; it accepts {accepted}" if accepted else " (it accepts none)")
+        )
+    partial = family.create_instance(profile, seed, **options)
     spec = family.build_spec_with_id(partial)
     out = dataset_dir(family.name, spec["dataset_id"])
     materialized = {**partial, **spec}
@@ -114,7 +118,7 @@ def format_dataset_summary_lines(spec: dict) -> list[str]:
             f"Context length: {params['context_length']}",
             f"Layout: {params['layout']}",
         ]
-    if family == "synthetic_tabular_classification":
+    if "rule_family" in params:
         return [
             f"Input dimension: {params['input_dim']}", f"Classes: {params['num_classes']}",
             f"Decision rule: {params['rule_family']}",

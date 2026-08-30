@@ -593,6 +593,10 @@ def build_question_record(
             "passed": sig.passed,
             "gap": sig.gap,
             "win_rate": sig.win_rate,
+            # Positive means the winner's whole seed range clears every rival's;
+            # recorded whether or not the profile gates on it, so an audit can
+            # see how much headroom a shipped question actually had.
+            "separation_margin": sig.separation_margin,
             "metric": sig.metric,
         },
         "quality_filters": filters.as_dict(),

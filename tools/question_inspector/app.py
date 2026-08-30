@@ -1131,7 +1131,7 @@ def _plot_dataset(bundle: QuestionBundle) -> None:
             test_y,
             input_dim=int(params.get("input_dim", train_x.shape[1])),
         )
-    elif family == "synthetic_tabular_classification":
+    elif family in prompt_format.TABULAR_CLASSIFICATION_FAMILIES:
         _render_synthetic_tabular_classification_plot(
             train_x,
             train_y,
@@ -1555,28 +1555,19 @@ def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
             key=_ensure_setting_value(q, "mlp_residual", False),
         )
 
-    st.caption("Choose the activation and layer norm independently for each hidden block.")
-    activations: list[str] = []
+    activation = st.selectbox(
+        "Activation (shared by every layer)",
+        list(profile.mlp["activations"]),
+        key=_ensure_setting_value(q, "mlp_activation", profile.mlp["activations"][0]),
+    )
+    st.caption("Layer norm is chosen independently for each hidden block.")
     layer_norm: list[bool] = []
     layer_columns = st.columns(min(depth, 4))
     for index in range(depth):
         with layer_columns[index % len(layer_columns)]:
-            st.markdown(f"Layer {index + 1}")
-            activations.append(
-                st.selectbox(
-                    "Activation",
-                    list(profile.mlp["activations"]),
-                    key=_ensure_setting_value(
-                        q,
-                        f"mlp_activation_{index}",
-                        profile.mlp["activations"][0],
-                    ),
-                    label_visibility="collapsed",
-                )
-            )
             layer_norm.append(
                 st.checkbox(
-                    "Layer norm",
+                    f"Layer {index + 1} layer norm",
                     key=_ensure_setting_value(q, f"mlp_norm_{index}", False),
                 )
             )
@@ -1584,7 +1575,7 @@ def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
         "depth": depth,
         "width": width,
         "residual": residual,
-        "activations": activations,
+        "activation": activation,
         "layer_norm": layer_norm,
     }
 
@@ -2362,7 +2353,11 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
 
 def _classification_label_latex(params: dict[str, Any]) -> str:
     threshold = float(params.get("decision_threshold", 0.0))
-    noise_std = float(params.get("noise_std", 0.0))
+    # Absent (v1.4 onwards) means the label is an exact function of the score,
+    # so the epsilon term would describe a perturbation that never happened.
+    noise_std = float(params.get("noise_std", 0.0) or 0.0)
+    if noise_std <= 0.0:
+        return rf"y = \mathbf{{1}}\{{s(\mathbf{{x}}) > {threshold:.4g}\}}"
     return (
         rf"y = \mathbf{{1}}\{{s(\mathbf{{x}}) + \varepsilon > {threshold:.4g}\}}, "
         rf"\qquad \varepsilon \sim \mathcal{{N}}(0, {noise_std:.4g}^2)"
@@ -2383,13 +2378,14 @@ def _render_dataset_info(spec: dict[str, Any], dataset_id: str) -> None:
         )
         return
 
-    if family == "synthetic_tabular_classification":
+    if family in prompt_format.TABULAR_CLASSIFICATION_FAMILIES:
         st.markdown(f"**Input dimension:** {params.get('input_dim', '—')}")
         st.markdown(f"**Classes:** {params.get('num_classes', '—')}")
         st.markdown(f"**Decision rule:** {params.get('rule_family', '—')}")
         active = ", ".join(f"x_{value}" for value in params.get("active_features", []))
         st.markdown(f"**Active features:** {active or '—'}")
-        st.markdown(f"**Noise std:** {params.get('noise_std', '—')}")
+        if params.get("noise_std"):
+            st.markdown(f"**Noise std:** {params['noise_std']}")
         st.markdown("**Latent classification rule:**")
         st.latex(_classification_score_latex(params))
         st.latex(_classification_label_latex(params))

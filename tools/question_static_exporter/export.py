@@ -30,6 +30,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "question_inspector"))
+from prompt_format import (  # noqa: E402
+    TABULAR_CLASSIFICATION_FAMILIES as _TABULAR_CLASSIFICATION_FAMILIES,
+)
 from artifact_loader import (  # noqa: E402
     candidate_file_paths,
     dataset_file_paths,
@@ -313,7 +316,7 @@ def _plot_dataset(bundle: Any, out_path: Path) -> bool:
                 ax.set_ylabel("y")
                 ax.set_title("Dataset points")
                 ax.legend(loc="best")
-        elif family == "synthetic_tabular_classification":
+        elif family in _TABULAR_CLASSIFICATION_FAMILIES:
             y_train = np.asarray(train_y).reshape(-1)
             y_test = np.asarray(test_y).reshape(-1)
             if train_x.ndim > 1 and train_x.shape[1] >= 2:

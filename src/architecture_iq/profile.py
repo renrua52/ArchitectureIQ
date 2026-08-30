@@ -54,7 +54,9 @@ class Profile:
             dataset=raw["dataset"],
             mlp=raw["mlp"],
             optimizer_grids=raw["optimizer_grids"],
-            loss_grids=raw["loss_grids"],
+            # Optional since v1.4: no sampleable loss takes a lambda, so a
+            # profile that drops the L1/L2 variants has no grid to declare.
+            loss_grids=raw.get("loss_grids", {}),
             budgets=raw["budgets"],
             training_defaults=raw.get("training_defaults", {}),
             ground_truth=raw["ground_truth"],
@@ -175,6 +177,76 @@ class Profile:
         """
         value = self.raw.get("budgets", {}).get("min_training_steps")
         return int(value) if value is not None else None
+
+    def candidate_generation(self) -> dict[str, Any]:
+        """Profile-scoped knobs for candidate sampling (absent = all defaults)."""
+        raw = self.raw.get("candidate_generation", {})
+        if not isinstance(raw, dict):
+            raise ValueError("candidate_generation must be a mapping when present")
+        return raw
+
+    def parameter_ratio_max(self) -> float | None:
+        """Largest in-set max/min trainable-parameter ratio, or None if unbounded.
+
+        Set via `candidate_generation.parameter_ratio_max`. When set, every
+        model in one candidate set is drawn from a single parameter band, so
+        no ground truth is ever spent on a candidate that could not be a fair
+        choice against its siblings. Absent means the old behaviour: sample
+        architectures freely and let question assembly filter afterwards.
+        """
+        value = self.candidate_generation().get("parameter_ratio_max")
+        if value is None:
+            return None
+        ratio = float(value)
+        if ratio < 1.0:
+            raise ValueError(
+                f"candidate_generation.parameter_ratio_max must be >= 1.0, got {ratio}"
+            )
+        return ratio
+
+    def parameter_band_probe(self) -> int:
+        """How many architectures to pre-sample when locating a parameter band.
+
+        The band has to come from the *reachable* parameter distribution: a
+        profile grid can span three orders of magnitude for one model type and
+        barely half of one for another, so fixed absolute edges would be empty
+        for some family/model-type pairs.
+        """
+        value = self.candidate_generation().get("parameter_band_probe", 256)
+        probe = int(value)
+        if probe < 1:
+            raise ValueError(
+                f"candidate_generation.parameter_band_probe must be >= 1, got {probe}"
+            )
+        return probe
+
+    def adam_betas_pool(self) -> list[tuple[float, float]]:
+        """Adam/AdamW (beta1, beta2) options, normalised to a list of pairs.
+
+        Two shapes are accepted. A flat ``[0.9, 0.999]`` is one fixed pair --
+        every profile written before v1.4 uses that form -- and a nested
+        ``[[0.9, 0.999], [0.9, 0.95]]`` is a pool to sample from. Normalising
+        here keeps the two samplers (candidate generation and the inspector's
+        custom settings) reading one definition instead of each re-deriving the
+        shape.
+        """
+        raw = self.optimizer_grids["adam_betas"]
+        if not isinstance(raw, list) or not raw:
+            raise ValueError("optimizer_grids.adam_betas must be a non-empty list")
+        if all(isinstance(item, (int, float)) for item in raw):
+            if len(raw) != 2:
+                raise ValueError(
+                    f"a flat optimizer_grids.adam_betas must hold exactly 2 values, got {len(raw)}"
+                )
+            return [(float(raw[0]), float(raw[1]))]
+        pairs: list[tuple[float, float]] = []
+        for item in raw:
+            if not isinstance(item, list) or len(item) != 2:
+                raise ValueError(
+                    f"each optimizer_grids.adam_betas entry must be a [beta1, beta2] pair, got {item!r}"
+                )
+            pairs.append((float(item[0]), float(item[1])))
+        return pairs
 
     def family_training_defaults(self, family: str) -> dict[str, int]:
         defaults = self.training_defaults.get(family)

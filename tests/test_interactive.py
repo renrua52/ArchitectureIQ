@@ -73,7 +73,7 @@ def test_assemble_model_partial() -> None:
     spec = assemble_model_spec(profile, rng, depth=2, width=32)
     assert spec["depth"] == 2
     assert spec["width"] == 32
-    assert len(spec["activations"]) == 2
+    assert spec["activation"] in profile.mlp["activations"]
     assert len(spec["layer_norm"]) == 2
 
 
@@ -85,12 +85,12 @@ def test_assemble_model_with_layer_norm() -> None:
         rng,
         depth=2,
         width=32,
-        activations=["relu", "gelu"],
+        activation="gelu",
         layer_norm=[True, False],
         residual=False,
     )
     assert spec["layer_norm"] == [True, False]
-    assert spec["activations"] == ["relu", "gelu"]
+    assert spec["activation"] == "gelu"
 
 
 def test_prompt_model_spec_per_layer() -> None:
@@ -101,8 +101,7 @@ def test_prompt_model_spec_per_layer() -> None:
             "2",  # depth
             "2",  # width 32
             "1",  # residual false
-            "1",  # layer 1 activation relu
-            "3",  # layer 2 activation gelu
+            "3",  # activation gelu (shared by every layer)
             "1",  # layer 1 layer norm true
             "2",  # layer 2 layer norm false
         ]
@@ -114,7 +113,7 @@ def test_prompt_model_spec_per_layer() -> None:
         write=lambda _: None,
     )
     assert spec["depth"] == 2
-    assert spec["activations"] == ["relu", "gelu"]
+    assert spec["activation"] == "gelu"
     assert spec["layer_norm"] == [True, False]
 
 

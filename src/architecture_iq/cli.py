@@ -25,7 +25,11 @@ from architecture_iq.interactive import (
 from architecture_iq.profile import load_profile
 from architecture_iq.prompts.renderer import write_prompt
 from architecture_iq.questions.generator import generate_questions
-from architecture_iq.registry import ensure_registries
+from architecture_iq.registry import (
+    ensure_registries,
+    get_dataset_family,
+    list_dataset_families,
+)
 
 app = typer.Typer(help="ArchitectureIQ benchmark CLI")
 ensure_registries()
@@ -39,6 +43,38 @@ def _reject_interactive_flags(interactive: bool, **flags: bool) -> None:
         raise typer.BadParameter(
             "Interactive mode does not accept other arguments; use only -i/--interactive "
             f"(got: {', '.join('--' + name for name in bad)})"
+        )
+
+
+def _reject_unsupported_family_options(
+    family_name: str,
+    requested: dict[str, object],
+    *,
+    random_pick: bool = False,
+) -> None:
+    """Reject --input-dim / --rule-family for a family that does not take them.
+
+    The accepted set comes from the family plugin
+    (``DatasetFamily.instance_option_names``), so a new family needs no edit here.
+    """
+    ensure_registries()
+    try:
+        accepted = set(get_dataset_family(family_name).instance_option_names)
+    except KeyError:
+        return  # resolve_dataset_family reports the unknown name with better context.
+    for name, value in requested.items():
+        if value is None or name in accepted:
+            continue
+        flag = "--" + name.replace("_", "-")
+        suffix = f" (got random family {family_name!r})" if random_pick else ""
+        allowed = sorted(
+            other
+            for other in list_dataset_families()
+            if name in get_dataset_family(other).instance_option_names
+        )
+        raise typer.BadParameter(
+            f"{flag} is not accepted by {family_name!r}{suffix}; "
+            f"families that accept it: {allowed}"
         )
 
 
@@ -61,14 +97,14 @@ def create_dataset_cmd(
     input_dim: Optional[int] = typer.Option(
         None,
         "--input-dim",
-        help="Input dimension for multivariate_regression or synthetic_tabular_classification "
+        help="Input dimension, for families that accept one "
         "(must be in that family's profile input_dims pool)",
     ),
     rule_family: Optional[str] = typer.Option(
         None,
         "--rule-family",
-        help="Rule family for synthetic_tabular_classification "
-        "(e.g. xor, spiral; must be in profile rule_families)",
+        help="Decision rule, for families that sample one "
+        "(must be in that family's profile rule_families)",
     ),
     interactive: bool = typer.Option(
         False,
@@ -107,16 +143,9 @@ def create_dataset_cmd(
         )
     if family is not None and random_family:
         raise typer.BadParameter("Use only one of --family and --random-family")
-    _dim_families = ("multivariate_regression", "synthetic_tabular_classification")
-    if input_dim is not None and family not in (None, *_dim_families):
-        raise typer.BadParameter(
-            "--input-dim is only valid with multivariate_regression or "
-            "synthetic_tabular_classification"
-        )
-    if rule_family is not None and family not in (None, "synthetic_tabular_classification"):
-        raise typer.BadParameter(
-            "--rule-family is only valid with --family synthetic_tabular_classification"
-        )
+    requested = {"input_dim": input_dim, "rule_family": rule_family}
+    if family is not None:
+        _reject_unsupported_family_options(family, requested)
 
     instance_seed = seed if seed is not None else 0
     family_name = resolve_dataset_family(
@@ -125,22 +154,13 @@ def create_dataset_cmd(
         random_pick=random_family,
         rng=rng,
     )
-    if input_dim is not None and family_name not in _dim_families:
-        raise typer.BadParameter(
-            "--input-dim requires multivariate_regression or "
-            f"synthetic_tabular_classification (got random family {family_name!r})"
-        )
-    if rule_family is not None and family_name != "synthetic_tabular_classification":
-        raise typer.BadParameter(
-            "--rule-family requires synthetic_tabular_classification "
-            f"(got {family_name!r})"
-        )
+    if family_name != family:
+        # --random-family: the flags were checked against nothing above.
+        _reject_unsupported_family_options(family_name, requested, random_pick=True)
 
-    family_options: dict = {}
-    if input_dim is not None:
-        family_options["input_dim"] = input_dim
-    if rule_family is not None:
-        family_options["rule_family"] = rule_family
+    family_options: dict = {
+        name: value for name, value in requested.items() if value is not None
+    }
     try:
         spec, path = create_dataset(
             prof,
@@ -177,6 +197,14 @@ def generate_candidates_cmd(
         help="Exact model quota as model_type=count; repeat for each type (requires --vary model)",
     ),
     profile: str = typer.Option("v1"),
+    param_ratio_max: Optional[float] = typer.Option(
+        None,
+        "--param-ratio-max",
+        help=(
+            "Override candidate_generation.parameter_ratio_max: all models in "
+            "the set fall inside one band of this max/min parameter ratio"
+        ),
+    ),
     device: Optional[str] = typer.Option(
         None,
         "--device",
@@ -257,6 +285,7 @@ def generate_candidates_cmd(
         seed=seed,
         on_progress=lambda i, total, cid: typer.echo(f"[{i}/{total}] {cid}"),
         execution_device=device,
+        parameter_ratio_max=param_ratio_max,
     )
     typer.echo(f"Candidate set written to {set_path}")
 
