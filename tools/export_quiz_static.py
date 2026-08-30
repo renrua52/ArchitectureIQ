@@ -65,9 +65,39 @@ def _fmt(value: Any) -> str:
     return str(value)
 
 
+# Spec keys the curated view above already covers, per section. Anything outside
+# these sets is appended verbatim, because a key that varies across choices and
+# is never displayed makes a question look like it has two identical options.
+_MODEL_KEYS_SHOWN = frozenset(
+    {
+        "type",
+        "depth",
+        "num_layers",
+        "width",
+        "d_model",
+        "embed_dim",
+        "d_ff",
+        "ff_dim",
+        "num_heads",
+        "residual",
+        "layer_norm",
+        "activation",
+        "activations",
+    }
+)
+_OPTIMIZER_KEYS_SHOWN = frozenset({"type", "lr", "weight_decay", "betas", "momentum"})
+_LOSS_KEYS_SHOWN = frozenset({"loss_id", "lambda"})
+
+# Dataset-determined model dimensions. The dataset panel already states them and
+# they cannot differ inside one question, so a card would only repeat itself.
+_DATASET_DERIVED_KEYS = frozenset({"vocab_size", "context_length", "input_dim", "output_dim"})
+
+
 def _flatten_spec(spec: dict[str, Any]) -> dict[str, Any]:
     model = spec.get("model", {})
-    return {
+    optimizer = spec.get("optimizer", {})
+    loss = spec.get("loss", {})
+    flat: dict[str, Any] = {
         "training steps": spec.get("budget", {}).get("training_steps"),
         "batch size": spec.get("budget", {}).get("batch_size"),
         "total samples seen": spec.get("budget", {}).get("total_samples_seen"),
@@ -75,19 +105,31 @@ def _flatten_spec(spec: dict[str, Any]) -> dict[str, Any]:
         "layers": model.get("depth") or model.get("num_layers"),
         "width": model.get("width"),
         "d_model": model.get("d_model") or model.get("embed_dim"),
+        "d_ff": model.get("d_ff") or model.get("ff_dim"),
         "trainable parameter count": spec.get("trainable_parameter_count", "—"),
         "num_heads": model.get("num_heads"),
         "residual": model.get("residual"),
         "layer norm": model.get("layer_norm"),
+        "activation": model.get("activation"),
         "activations": model.get("activations"),
-        "optimizer": spec.get("optimizer", {}).get("type"),
-        "learning rate": spec.get("optimizer", {}).get("lr"),
-        "weight decay": spec.get("optimizer", {}).get("weight_decay"),
-        "betas": spec.get("optimizer", {}).get("betas"),
-        "momentum": spec.get("optimizer", {}).get("momentum"),
-        "loss": spec.get("loss", {}).get("loss_id"),
-        "lambda": spec.get("loss", {}).get("lambda"),
+        "optimizer": optimizer.get("type"),
+        "learning rate": optimizer.get("lr"),
+        "weight decay": optimizer.get("weight_decay"),
+        "betas": optimizer.get("betas"),
+        "momentum": optimizer.get("momentum"),
+        "loss": loss.get("loss_id"),
+        "lambda": loss.get("lambda"),
     }
+    # Sweep up whatever the curated view above does not name: a new model type's
+    # own fields (spline grid size, d_ff before it was listed here) reach the card
+    # instead of disappearing, and no per-family key list has to be maintained.
+    sections = ((model, _MODEL_KEYS_SHOWN), (optimizer, _OPTIMIZER_KEYS_SHOWN), (loss, _LOSS_KEYS_SHOWN))
+    for section, shown in sections:
+        for key, value in section.items():
+            if key in shown or key in _DATASET_DERIVED_KEYS:
+                continue
+            flat.setdefault(key.replace("_", " "), value)
+    return flat
 
 
 def _shared_and_variant(
@@ -99,7 +141,10 @@ def _shared_and_variant(
     variant: dict[str, list[dict[str, str]]] = {letter: [] for letter in letters}
     if not letters:
         return shared, variant
-    for key in flat[letters[0]]:
+    # Union, not just the first choice's keys: an axis present on one choice only
+    # still has to be reported.
+    keys = list(dict.fromkeys(key for letter in letters for key in flat[letter]))
+    for key in keys:
         values = [flat[letter].get(key) for letter in letters]
         if all(value == values[0] for value in values):
             if values[0] is not None:

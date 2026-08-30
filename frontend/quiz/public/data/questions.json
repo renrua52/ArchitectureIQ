@@ -5389,6 +5389,10 @@
                 "value": "64"
               },
               {
+                "label": "d_ff",
+                "value": "256"
+              },
+              {
                 "label": "trainable parameter count",
                 "value": "104600"
               }
@@ -5472,6 +5476,10 @@
                 "value": "128"
               },
               {
+                "label": "d_ff",
+                "value": "256"
+              },
+              {
                 "label": "trainable parameter count",
                 "value": "141720"
               }
@@ -5552,6 +5560,10 @@
               },
               {
                 "label": "d_model",
+                "value": "128"
+              },
+              {
+                "label": "d_ff",
                 "value": "128"
               },
               {
@@ -10072,6 +10084,10 @@
               {
                 "label": "activation",
                 "value": "leaky_relu"
+              },
+              {
+                "label": "leaky relu slope",
+                "value": "0.01"
               }
             ],
             "modelLines": [
@@ -13081,6 +13097,10 @@
               {
                 "label": "activation",
                 "value": "leaky_relu"
+              },
+              {
+                "label": "leaky relu slope",
+                "value": "0.01"
               }
             ],
             "modelLines": [
@@ -24354,6 +24374,10 @@
               {
                 "label": "activation",
                 "value": "leaky_relu"
+              },
+              {
+                "label": "leaky relu slope",
+                "value": "0.01"
               }
             ],
             "modelLines": [
