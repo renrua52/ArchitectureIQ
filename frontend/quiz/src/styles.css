@@ -982,31 +982,12 @@ a {
 
 /* ---- Choices column ---- */
 
-.shared-summary {
-  margin-top: 0.6rem;
-  padding: 0.5rem 0.65rem 0.6rem;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.shared-label {
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.shared-summary .pill-row {
-  margin-top: 0.4rem;
-}
-
 /* ---- Choices side by side, rows aligned across the columns ----
-   The field name is written once in the leading column, so each choice column
-   only has to fit its value; that is what lets three columns stay legible in
-   half a screen. The coloured card spans every row behind the cells, and the
-   cells pass clicks through to it, so a column is one hit target. */
+   Every card states its whole setup: the axes that differ on top, then the
+   settings all three share, greyed out. One grid places each field in the same
+   row of every column, so comparing an axis is reading across one line. The
+   coloured card spans every row behind the cells, and the cells pass clicks
+   through to it, so a column is one hit target. */
 
 .choice-compare-scroll {
   margin-top: 0.7rem;
@@ -1017,7 +998,7 @@ a {
 .choice-compare {
   display: grid;
   gap: 0 0.4rem;
-  min-width: 19rem;
+  min-width: 22rem;
   align-items: center;
 }
 
@@ -1029,42 +1010,66 @@ a {
 }
 
 .compare-head,
-.compare-label,
 .compare-cell {
   /* Above the card, and inert: the click belongs to the column. */
   position: relative;
   z-index: 1;
   pointer-events: none;
-  font-size: 0.8rem;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .compare-head {
-  padding: 0.55rem 0.55rem 0.35rem;
-  font-size: 1.15rem;
+  padding: 0.5rem 0.55rem 0.3rem;
+  font-size: 1.12rem;
   font-weight: 780;
   text-align: center;
 }
 
-.compare-label {
-  padding: 0.26rem 0.35rem 0.26rem 0.1rem;
-  color: var(--muted);
-  text-align: right;
-  white-space: nowrap;
-}
-
 .compare-cell {
   display: flex;
-  justify-content: center;
-  padding: 0.26rem 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.45rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.76rem;
+}
+
+.compare-cell .cell-name {
+  color: var(--muted);
+}
+
+.compare-cell .cell-value {
+  text-align: right;
+}
+
+/* The differing axes read bright; the shared setup stays legible but recedes. */
+.compare-cell.vary .cell-value {
   color: #f2f2f2;
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-weight: 750;
+}
+
+.compare-cell.same .cell-name,
+.compare-cell.same .cell-value {
+  color: #6e6e6e;
+  font-weight: 500;
+}
+
+/* A shared boolean is grey too, or the green would pull the eye to a non-axis. */
+.compare-cell.same .flag.on {
+  color: #1c1c1c;
+  background: #6e6e6e;
+}
+
+/* Rule across the columns where the shared block begins. */
+.compare-cell.group-start {
+  margin-top: 0.25rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* The card ends at the last row, so its bottom breathing room lives here. */
 .compare-cell.last {
-  padding-bottom: 0.6rem;
+  padding-bottom: 0.55rem;
 }
 
 .compare-absent {

@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { classificationRuleLatex, expressionToLatex } from "./latex";
@@ -806,25 +806,6 @@ function DatasetPanel({ question, onInfo }: { question: BakedQuestion; onInfo: (
   );
 }
 
-/** The axes every choice holds in common, stated once instead of on each card. */
-function SharedSummary({ fields }: { fields: CardField[] }) {
-  if (!fields.length) {
-    return null;
-  }
-  return (
-    <div className="shared-summary">
-      <span className="shared-label">Same for every choice</span>
-      <div className="pill-row">
-        {fields.map((field) => (
-          <StatPill key={field.label} label={titleCase(shortLabel(field.label))}>
-            <FieldValue label={field.label} value={field.value} />
-          </StatPill>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function StudyStage({
   question,
   answered,
@@ -842,7 +823,6 @@ function StudyStage({
   onChoiceInfo: (letter: string) => void;
   onInfo: () => void;
 }) {
-  const shared = useMemo(() => sharedFields(question), [question]);
   return (
     <div className="stage-inner study">
       <div className="study-grid">
@@ -860,7 +840,6 @@ function StudyStage({
                   : `Which setup reaches the better ${humanMetric(question.metric)}?`}
               </span>
             </div>
-            <SharedSummary fields={shared} />
             <ChoiceComparison
               question={question}
               interactive={!answered}
@@ -1120,18 +1099,25 @@ function ChoiceCard({
 }
 
 /**
- * One row per differing field, unioned across the choices so a field only one
- * choice carries (a slope that belongs to its activation) still gets a row, with
- * the others reading "—". Order follows the choices' own field order.
+ * One row per field the choices state, varying axes first and the shared setup
+ * below, unioned across the choices so a field only one choice carries (a slope
+ * that belongs to its activation) still gets a row, with the others reading "—".
  */
-function comparisonRows(question: BakedQuestion): { label: string; values: Record<string, string | null> }[] {
+function comparisonRows(
+  question: BakedQuestion
+): { label: string; varying: boolean; values: Record<string, string | null> }[] {
   const order: string[] = [];
+  const varying = new Set<string>();
   const byLetter = new Map<string, Map<string, string>>();
   for (const choice of question.detail.choices) {
+    const split = splitFields(question, choice);
     const fields = new Map<string, string>();
-    for (const field of varyingFields(question, choice)) {
+    for (const field of [...split.varying, ...split.shared]) {
       if (!order.includes(field.label)) {
         order.push(field.label);
+      }
+      if (field.varying) {
+        varying.add(field.label);
       }
       fields.set(field.label, field.value);
     }
@@ -1139,6 +1125,7 @@ function comparisonRows(question: BakedQuestion): { label: string; values: Recor
   }
   return order.map((label) => ({
     label,
+    varying: varying.has(label),
     values: Object.fromEntries(
       question.detail.choices.map((choice) => [choice.letter, byLetter.get(choice.letter)?.get(label) ?? null])
     )
@@ -1146,10 +1133,10 @@ function comparisonRows(question: BakedQuestion): { label: string; values: Recor
 }
 
 /**
- * The choices side by side, as columns of one grid: the field name is written
- * once in a leading column instead of once per card, which is what makes three
- * readable columns fit in half a screen, and equal rows sit at equal height so a
- * difference shows up as a difference in one place.
+ * The choices side by side, as columns of one grid. Each card carries its whole
+ * setup — the shared settings in grey under the axes that differ — and every
+ * field sits in the same row across all three columns, so comparing one axis is
+ * reading across one line.
  *
  * Each column's coloured card is a single element spanning every row, painted
  * behind the cells; the cells are `pointer-events: none`, so a click anywhere in
@@ -1171,13 +1158,15 @@ function ChoiceComparison({
   const rows = useMemo(() => comparisonRows(question), [question]);
   const choices = question.detail.choices;
   const lastRow = rows.length + 1;
+  // The first shared row opens the grey block, and takes the rule above it.
+  const firstShared = rows.findIndex((row) => !row.varying);
   return (
     <div className="choice-compare-scroll">
       <div
         className="choice-compare"
         style={
           {
-            gridTemplateColumns: `auto repeat(${choices.length}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))`,
             gridTemplateRows: `auto repeat(${rows.length}, auto)`
           } as React.CSSProperties
         }
@@ -1190,7 +1179,7 @@ function ChoiceComparison({
             <div
               key={`col-${choice.letter}`}
               className={className}
-              style={{ "--choice": choice.color, gridColumn: index + 2, gridRow: "1 / -1" } as React.CSSProperties}
+              style={{ "--choice": choice.color, gridColumn: index + 1, gridRow: "1 / -1" } as React.CSSProperties}
               role={interactive ? "button" : undefined}
               aria-label={interactive ? `Choose ${choice.letter}` : undefined}
               tabIndex={interactive ? 0 : undefined}
@@ -1224,34 +1213,40 @@ function ChoiceComparison({
           <span
             key={`head-${choice.letter}`}
             className="compare-head"
-            style={{ gridColumn: index + 2, gridRow: 1 } as React.CSSProperties}
+            style={{ gridColumn: index + 1, gridRow: 1 } as React.CSSProperties}
           >
             {choice.letter}
           </span>
         ))}
-        {rows.map((row, rowIndex) => (
-          <Fragment key={row.label}>
-            <span className="compare-label" style={{ gridColumn: 1, gridRow: rowIndex + 2 } as React.CSSProperties}>
-              {titleCase(shortLabel(row.label))}
-            </span>
-            {choices.map((choice, index) => {
-              const value = row.values[choice.letter];
-              return (
-                <span
-                  key={`${row.label}-${choice.letter}`}
-                  className={`compare-cell${rowIndex + 2 === lastRow ? " last" : ""}`}
-                  style={{ gridColumn: index + 2, gridRow: rowIndex + 2 } as React.CSSProperties}
-                >
+        {rows.map((row, rowIndex) =>
+          choices.map((choice, index) => {
+            const value = row.values[choice.letter];
+            const className = [
+              "compare-cell",
+              row.varying ? "vary" : "same",
+              rowIndex === firstShared && rowIndex > 0 ? "group-start" : "",
+              rowIndex + 2 === lastRow ? "last" : ""
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <span
+                key={`${row.label}-${choice.letter}`}
+                className={className}
+                style={{ gridColumn: index + 1, gridRow: rowIndex + 2 } as React.CSSProperties}
+              >
+                <span className="cell-name">{titleCase(shortLabel(row.label))}</span>
+                <span className="cell-value">
                   {value == null ? (
                     <span className="compare-absent">—</span>
                   ) : (
                     <FieldValue label={row.label} value={value} />
                   )}
                 </span>
-              );
-            })}
-          </Fragment>
-        ))}
+              </span>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -1259,8 +1254,8 @@ function ChoiceComparison({
 
 /**
  * Split a choice's attributes into the ones every choice shares and the ones
- * that actually differ. The shared half is stated once above the cards, which
- * is what lets the dataset and the choices share a single screen.
+ * that actually differ. Both halves go on the card — the shared half greyed —
+ * so a choice is readable on its own, with the axes on top.
  */
 function splitFields(question: BakedQuestion, choice: Choice): { shared: CardField[]; varying: CardField[] } {
   const shared = question.detail.shared.map((field) => ({ ...field, varying: false }));
@@ -1283,12 +1278,6 @@ function splitFields(question: BakedQuestion, choice: Choice): { shared: CardFie
   }
   const seen = new Set(shared.map((field) => field.label));
   return { shared, varying: variant.filter((field) => !seen.has(field.label)) };
-}
-
-/** Shared axes are identical across choices, so any choice can report them. */
-function sharedFields(question: BakedQuestion): CardField[] {
-  const first = question.detail.choices[0];
-  return first ? splitFields(question, first).shared : [];
 }
 
 function varyingFields(question: BakedQuestion, choice: Choice): CardField[] {
