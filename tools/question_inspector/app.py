@@ -2291,12 +2291,14 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
     family = str(dataset_spec["family"])
     runs = enforce_custom_setting_retention(_custom_settings_storage_for(q))
 
-    notice = st.session_state.setting_notice
-    if notice:
-        st.success(notice)
-        st.session_state.setting_notice = None
-
     with st.expander("＋ Add custom setting", expanded=False):
+        # The notice renders INSIDE the expander: as a conditional sibling
+        # above, it would shift the expander's element identity and snap the
+        # panel shut on every notice-triggering rerun.
+        notice = st.session_state.setting_notice
+        if notice:
+            st.success(notice)
+            st.session_state.setting_notice = None
         st.caption(
             "Train a setting on this question's dataset. Its curve is added without "
             "changing the original choices or score."
