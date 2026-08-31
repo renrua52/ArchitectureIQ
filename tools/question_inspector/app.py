@@ -2768,6 +2768,12 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
     if family == "xor" and len(features) >= 2:
         left, right = features[:2]
         return rf"s(\mathbf{{x}}) = -x_{{{left}}} \cdot x_{{{right}}}"
+    if family == "spiral" and len(features) >= 2:
+        left, right = features[:2]
+        return (
+            rf"s(\mathbf{{x}}) = \sin\!\left(\operatorname{{atan2}}\!\left(x_{{{right}}}, x_{{{left}}}\right)"
+            rf" - \left\lVert (x_{{{left}}}, x_{{{right}}}) \right\rVert_2\right)"
+        )
     if family == "piecewise_boundary" and len(features) >= 2 and len(weights) >= 3:
         primary, secondary = features[:2]
         below_weight, above_weight, offset_weight = weights[:3]
@@ -2788,6 +2794,28 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
 
 
 def _classification_label_latex(params: dict[str, Any]) -> str:
+    if str(params.get("rule_family")) == "spiral":
+        turns = float(params.get("spiral_turns", 1.0) or 1.0)
+        noise_std = float(params.get("noise_std", 0.0) or 0.0)
+        noise_term = (
+            rf" + \varepsilon"
+            if noise_std > 0.0
+            else ""
+        )
+        noise_def = (
+            rf",\ \varepsilon \sim \mathcal{{N}}(0, {noise_std:.4g}^2)"
+            if noise_std > 0.0
+            else ""
+        )
+        # KaTeX never wraps; keep each aligned row short enough for the
+        # narrow left column beside the projection plot.
+        return (
+            r"\begin{aligned}"
+            r"y &= \text{spiral arm } k \in \{0,1\} \\"
+            rf" \mathbf{{x}} &= t \cdot (\cos(t + k\pi),\ \sin(t + k\pi)){noise_term} \\"
+            rf" &\quad t \in (0.5,\ {turns:.4g} \cdot 2\pi + 0.5]{noise_def}"
+            r"\end{aligned}"
+        )
     threshold = float(params.get("decision_threshold", 0.0))
     # Absent (v1.4 onwards) means the label is an exact function of the score,
     # so the epsilon term would describe a perturbation that never happened.
