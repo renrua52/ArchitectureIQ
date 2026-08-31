@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { classificationRuleLatex, expressionToLatex } from "./latex";
@@ -861,19 +861,13 @@ function StudyStage({
               </span>
             </div>
             <SharedSummary fields={shared} />
-            <div className="choice-grid study-choices">
-              {question.detail.choices.map((choice) => (
-                <ChoiceCard
-                  key={choice.letter}
-                  choice={choice}
-                  fields={varyingFields(question, choice)}
-                  interactive={!answered}
-                  picked={selected === choice.letter}
-                  onPick={() => onPick(choice.letter)}
-                  onInfo={() => onChoiceInfo(choice.letter)}
-                />
-              ))}
-            </div>
+            <ChoiceComparison
+              question={question}
+              interactive={!answered}
+              selected={selected}
+              onPick={onPick}
+              onChoiceInfo={onChoiceInfo}
+            />
             {answered ? (
               <div className="stage-footer stage-footer-end">
                 <button type="button" className="cta" onClick={onBackToAnswer}>
@@ -1119,6 +1113,144 @@ function ChoiceCard({
               <FieldValue label={field.label} value={field.value} />
             </strong>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One row per differing field, unioned across the choices so a field only one
+ * choice carries (a slope that belongs to its activation) still gets a row, with
+ * the others reading "—". Order follows the choices' own field order.
+ */
+function comparisonRows(question: BakedQuestion): { label: string; values: Record<string, string | null> }[] {
+  const order: string[] = [];
+  const byLetter = new Map<string, Map<string, string>>();
+  for (const choice of question.detail.choices) {
+    const fields = new Map<string, string>();
+    for (const field of varyingFields(question, choice)) {
+      if (!order.includes(field.label)) {
+        order.push(field.label);
+      }
+      fields.set(field.label, field.value);
+    }
+    byLetter.set(choice.letter, fields);
+  }
+  return order.map((label) => ({
+    label,
+    values: Object.fromEntries(
+      question.detail.choices.map((choice) => [choice.letter, byLetter.get(choice.letter)?.get(label) ?? null])
+    )
+  }));
+}
+
+/**
+ * The choices side by side, as columns of one grid: the field name is written
+ * once in a leading column instead of once per card, which is what makes three
+ * readable columns fit in half a screen, and equal rows sit at equal height so a
+ * difference shows up as a difference in one place.
+ *
+ * Each column's coloured card is a single element spanning every row, painted
+ * behind the cells; the cells are `pointer-events: none`, so a click anywhere in
+ * the column lands on that one card and the whole column stays one hit target.
+ */
+function ChoiceComparison({
+  question,
+  interactive,
+  selected,
+  onPick,
+  onChoiceInfo
+}: {
+  question: BakedQuestion;
+  interactive: boolean;
+  selected: string | null;
+  onPick: (letter: string) => void;
+  onChoiceInfo: (letter: string) => void;
+}) {
+  const rows = useMemo(() => comparisonRows(question), [question]);
+  const choices = question.detail.choices;
+  const lastRow = rows.length + 1;
+  return (
+    <div className="choice-compare-scroll">
+      <div
+        className="choice-compare"
+        style={
+          {
+            gridTemplateColumns: `auto repeat(${choices.length}, minmax(0, 1fr))`,
+            gridTemplateRows: `auto repeat(${rows.length}, auto)`
+          } as React.CSSProperties
+        }
+      >
+        {choices.map((choice, index) => {
+          const className = ["choice-card", "compare-col", selected === choice.letter ? "picked" : ""]
+            .filter(Boolean)
+            .join(" ");
+          return (
+            <div
+              key={`col-${choice.letter}`}
+              className={className}
+              style={{ "--choice": choice.color, gridColumn: index + 2, gridRow: "1 / -1" } as React.CSSProperties}
+              role={interactive ? "button" : undefined}
+              aria-label={interactive ? `Choose ${choice.letter}` : undefined}
+              tabIndex={interactive ? 0 : undefined}
+              onClick={interactive ? () => onPick(choice.letter) : undefined}
+              onKeyDown={
+                interactive
+                  ? (event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onPick(choice.letter);
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <button
+                type="button"
+                className="ghost-info on-card"
+                aria-label={`Files for choice ${choice.letter}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onChoiceInfo(choice.letter);
+                }}
+              >
+                i
+              </button>
+            </div>
+          );
+        })}
+        {choices.map((choice, index) => (
+          <span
+            key={`head-${choice.letter}`}
+            className="compare-head"
+            style={{ gridColumn: index + 2, gridRow: 1 } as React.CSSProperties}
+          >
+            {choice.letter}
+          </span>
+        ))}
+        {rows.map((row, rowIndex) => (
+          <Fragment key={row.label}>
+            <span className="compare-label" style={{ gridColumn: 1, gridRow: rowIndex + 2 } as React.CSSProperties}>
+              {titleCase(shortLabel(row.label))}
+            </span>
+            {choices.map((choice, index) => {
+              const value = row.values[choice.letter];
+              return (
+                <span
+                  key={`${row.label}-${choice.letter}`}
+                  className={`compare-cell${rowIndex + 2 === lastRow ? " last" : ""}`}
+                  style={{ gridColumn: index + 2, gridRow: rowIndex + 2 } as React.CSSProperties}
+                >
+                  {value == null ? (
+                    <span className="compare-absent">—</span>
+                  ) : (
+                    <FieldValue label={row.label} value={value} />
+                  )}
+                </span>
+              );
+            })}
+          </Fragment>
         ))}
       </div>
     </div>

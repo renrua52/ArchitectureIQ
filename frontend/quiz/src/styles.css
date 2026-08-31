@@ -836,7 +836,9 @@ a {
 
 .study-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+  /* The dataset column carries the plot, so it takes the wider share; the
+     comparison needs only enough width for one value per column. */
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
   gap: 0.9rem;
   align-items: start;
 }
@@ -1000,30 +1002,85 @@ a {
   margin-top: 0.4rem;
 }
 
-.study-choices {
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
+/* ---- Choices side by side, rows aligned across the columns ----
+   The field name is written once in the leading column, so each choice column
+   only has to fit its value; that is what lets three columns stay legible in
+   half a screen. The coloured card spans every row behind the cells, and the
+   cells pass clicks through to it, so a column is one hit target. */
+
+.choice-compare-scroll {
   margin-top: 0.7rem;
+  /* Narrow phones: scroll the comparison rather than crush four columns. */
+  overflow-x: auto;
 }
 
-.study-choices .choice-card {
-  padding: 0.65rem 0.8rem 0.7rem;
+.choice-compare {
+  display: grid;
+  gap: 0 0.4rem;
+  min-width: 19rem;
+  align-items: center;
+}
+
+.choice-card.compare-col {
+  /* The cells are centred in their rows; the card is the column's full height. */
+  align-self: stretch;
+  padding: 0;
   border-radius: 14px;
 }
 
-.study-choices .choice-letter {
-  font-size: 1.1rem;
-  margin-bottom: 0.15rem;
-}
-
-/* Two field columns inside a full-width card: the same facts, half the height. */
-.study-choices .choice-fields {
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-  gap: 0.18rem 0.9rem;
-}
-
-.study-choices .field {
+.compare-head,
+.compare-label,
+.compare-cell {
+  /* Above the card, and inert: the click belongs to the column. */
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
   font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.compare-head {
+  padding: 0.55rem 0.55rem 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 780;
+  text-align: center;
+}
+
+.compare-label {
+  padding: 0.26rem 0.35rem 0.26rem 0.1rem;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.compare-cell {
+  display: flex;
+  justify-content: center;
+  padding: 0.26rem 0.5rem;
+  color: #f2f2f2;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+/* The card ends at the last row, so its bottom breathing room lives here. */
+.compare-cell.last {
+  padding-bottom: 0.6rem;
+}
+
+.compare-absent {
+  color: rgba(255, 255, 255, 0.32);
+  font-weight: 500;
+}
+
+/* A narrow column has no room for a full-size badge; keep it out of the way of
+   the letter and let it take the click the cells pass through. */
+.compare-col .ghost-info.on-card {
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 20px;
+  height: 20px;
+  font-size: 0.68rem;
+  pointer-events: auto;
 }
 
 .choice-card.picked {
@@ -1170,6 +1227,7 @@ a {
   .stage-inner.study .panel,
   .stage-inner.study .dataset-panel { padding: .7rem .9rem .8rem }
   .stage-inner.study .task-summary { font-size: .82rem; line-height: 1.45 }
+  .choice-compare-scroll { margin-top: .55rem }
   .viz-projection svg { width: min(13.5rem, 52%) }
   .viz-heatmap svg { width: min(16rem, 100%) }
   .viz-scatter svg { width: min(24rem, 100%) }
