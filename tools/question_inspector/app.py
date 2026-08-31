@@ -2730,6 +2730,13 @@ def _render_reference_analysis(bundle: QuestionBundle, q: dict[str, Any]) -> Non
     if claude.get("text"):
         st.markdown(f"**Claude (claude-opus-5)**")
         st.markdown(claude["text"])
+    claude_v1 = data.get("claude_v1") or {}
+    if claude_v1.get("text"):
+        with st.expander("Claude v1 (summary-only review, kept for comparison)"):
+            st.markdown(claude_v1["text"])
+            v1_exps = claude_v1.get("experiments") or []
+            if v1_exps:
+                st.markdown(f"*{len(v1_exps)} experiments — see sidecar JSON for details.*")
     if verdent.get("text"):
         st.markdown("**Verdent (reference)**")
         st.markdown(verdent["text"])
@@ -2940,6 +2947,51 @@ def _render_question_page(
         )
 
 
+def _load_kb() -> list[dict[str, Any]]:
+    root = Path(__file__).resolve().parents[2]
+    candidates = sorted(root.glob("data/kb/knowledge_base*.json"))
+    if not candidates:
+        return []
+    try:
+        data = json.loads(candidates[-1].read_text())
+        return data.get("kb") or []
+    except Exception:
+        return []
+
+
+def _render_kb_page() -> None:
+    rules = _load_kb()
+    st.markdown("#### Distilled Knowledge Base")
+    if not rules:
+        st.info("No knowledge base found at data/kb/knowledge_base*.json.")
+        return
+    st.caption(
+        f"{len(rules)} scoped rules distilled from solved questions "
+        "(single-delta experiment paths + full-info post-mortems). "
+        "Each rule predicts a direction only inside its stated scope."
+    )
+    themes: dict[str, list[dict[str, Any]]] = {}
+    for r in rules:
+        themes.setdefault(str(r.get("theme") or "其他"), []).append(r)
+    for theme, items in themes.items():
+        with st.expander(f"{theme} · {len(items)}", expanded=False):
+            for r in items:
+                st.markdown(f"**{r.get('id','')} · {r.get('rule_zh','')}**")
+                if r.get("mechanism_zh"):
+                    st.markdown(f"机制：{r['mechanism_zh']}")
+                if r.get("scope"):
+                    st.markdown(f"适用范围：{r['scope']}")
+                meta = []
+                if r.get("confidence") is not None:
+                    meta.append(f"confidence {r['confidence']}")
+                src = r.get("source_qids") or []
+                if src:
+                    meta.append("source: " + ", ".join(f"`{s}`" for s in src[:6]))
+                if meta:
+                    st.caption(" · ".join(meta))
+                st.divider()
+
+
 def main() -> None:
     _init_state()
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
@@ -2972,7 +3024,7 @@ def main() -> None:
     committed = st.session_state.committed_letter is not None
     focus_letter = st.session_state.focus_letter
 
-    tab_question, tab_prompt = st.tabs(["Question", "Prompt"])
+    tab_question, tab_prompt, tab_kb = st.tabs(["Question", "Prompt", "Knowledge Base"])
     with tab_question:
         _render_question_page(
             bundle,
@@ -2982,6 +3034,8 @@ def main() -> None:
         )
     with tab_prompt:
         _render_prompt_page(bundle)
+    with tab_kb:
+        _render_kb_page()
 
 
 if __name__ == "__main__":
