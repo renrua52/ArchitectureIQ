@@ -983,9 +983,10 @@ a {
 /* ---- Choices column ---- */
 
 /* ---- Choices side by side, rows aligned across the columns ----
-   Every card states its whole setup: the axes that differ on top, then the
-   settings all three share, greyed out. One grid places each field in the same
-   row of every column, so comparing an axis is reading across one line. The
+   Every card states its whole setup in one fixed order — model, optimizer, loss,
+   budget — with the fields that differ picked out and the shared ones greyed, so
+   a field stays where the reader last found it. One grid places each field in the
+   same row of every column, so comparing an axis is reading across one line. The
    coloured card spans every row behind the cells, and the cells pass clicks
    through to it, so a column is one hit target. */
 
@@ -1060,7 +1061,7 @@ a {
   background: #6e6e6e;
 }
 
-/* Rule across the columns where the shared block begins. */
+/* Rule across the columns wherever a new section of the setup begins. */
 .compare-cell.group-start {
   margin-top: 0.25rem;
   padding-top: 0.3rem;

@@ -87,40 +87,58 @@
         "prompt": "You are taking the ArchitectureIQ benchmark.\n\nEach question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt \u2014 either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget \u2014 using architecture and learning-mechanics reasoning only (no training results are provided).\n\n## Dataset\n**Family:** univariate regression on `[0, 1]`.\n\n- Input and target are 1-D scalars.\n- Training and test points are sampled uniformly on the domain.\n- The target is a symbolic expression of `x`, and `y` is its exact evaluation.\n\n### Synthesis (PyTorch)\n```python\ndef target(x: torch.Tensor) -> torch.Tensor:\n    return -torch.cos(2 * torch.pi * x)\n\n\ndef synthesize(\n    *,\n    train_size: int = 256,\n    test_size: int = 256,\n    point_seed: int = 1101,\n    domain_low: float = 0.0,\n    domain_high: float = 1.0,\n) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:\n    gen = torch.Generator().manual_seed(point_seed)\n    train_x = torch.rand(train_size, generator=gen) * (domain_high - domain_low) + domain_low\n    test_x = torch.rand(test_size, generator=gen) * (domain_high - domain_low) + domain_low\n    train_y = target(train_x)\n    test_y = target(test_x)\n    return train_x.unsqueeze(-1), train_y.unsqueeze(-1), test_x.unsqueeze(-1), test_y.unsqueeze(-1)\n```\n\n### Data splits and training protocol\n- Target expression (canonical): `-cos(2*pi*x)`\n- Train split size: 256 fixed `(x, y)` pairs\n- Test split size: 256 fixed `(x, y)` pairs (held out)\n- Input domain: [0.0, 1.0], uniform sampling\n- Point-sampling seed: 1101 (materializes the fixed train/test splits)\n- Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**\n- Evaluation: **test MSE** is mean squared error on the entire fixed test split\n- Randomness: `torch.manual_seed(seed)` once before model init and the training loop\n- Reference device: cpu\n\n## Sample budget (same for all choices)\n- training_steps: 256\n- batch_size: 32\n- total_samples_seen: 8192 (= training_steps \u00d7 batch_size)\n\n## Evaluation metric\n- Ground-truth ranking uses **test_mse** on the held-out test split.\n- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.\n- Execution device: cpu.\n- The correct choice has the lowest **mean** test_mse across seeds.\n\n## Choices\n\n### Choice A\n\n**Model (natural language)**\n- Type: MLP\n- Depth: 4 hidden Linear layers of width 64, between the input projection and the output head (6 nn.Linear layers in total)\n- Width: 64 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [False, False, False, True]\n- Activation: gelu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: gelu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.GELU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(1, 64),\n            nn.GELU(),\n            MLPBlock(width=64, use_layer_norm=False),\n            MLPBlock(width=64, use_layer_norm=False),\n            MLPBlock(width=64, use_layer_norm=False),\n            MLPBlock(width=64, use_layer_norm=True),\n            nn.Linear(64, 1),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 3e-05\n- Weight decay: 0.0001\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=3e-05, weight_decay=0.0001)\n```\n\n**Loss**\n- Loss: mean squared error (MSE) on the minibatch\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    return torch.mean((pred - target) ** 2)\n```\n\n### Choice B\n\n**Model (natural language)**\n- Type: MLP\n- Depth: 2 hidden Linear layers of width 128, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 128 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [False, True]\n- Activation: relu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: relu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.ReLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(1, 128),\n            nn.ReLU(),\n            MLPBlock(width=128, use_layer_norm=False),\n            MLPBlock(width=128, use_layer_norm=True),\n            nn.Linear(128, 1),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 3e-05\n- Weight decay: 0.0001\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=3e-05, weight_decay=0.0001)\n```\n\n**Loss**\n- Loss: mean squared error (MSE) on the minibatch\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    return torch.mean((pred - target) ** 2)\n```\n\n### Choice C\n\n**Model (natural language)**\n- Type: MLP\n- Depth: 2 hidden Linear layers of width 96, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 96 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [True, False]\n- Activation: silu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: silu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.SiLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(1, 96),\n            nn.SiLU(),\n            MLPBlock(width=96, use_layer_norm=True),\n            MLPBlock(width=96, use_layer_norm=False),\n            nn.Linear(96, 1),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 3e-05\n- Weight decay: 0.0001\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=3e-05, weight_decay=0.0001)\n```\n\n**Loss**\n- Loss: mean squared error (MSE) on the minibatch\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    return torch.mean((pred - target) ** 2)\n```\n\n## Your answer\nChoose exactly one of A, B, C and wrap that single letter in `<answer></answer>` tags, for example `<answer>A</answer>`.\nReason first if you want to, then put the tag last: the grader reads the final `<answer>` tag in your reply and nothing else, and a reply with no such tag scores zero.",
         "shared": [
           {
-            "label": "training steps",
-            "value": "256"
-          },
-          {
-            "label": "batch size",
-            "value": "32"
-          },
-          {
-            "label": "total samples seen",
-            "value": "8192"
-          },
-          {
             "label": "model type",
+            "group": "model",
+            "order": 0,
             "value": "mlp"
           },
           {
             "label": "residual",
+            "group": "model",
+            "order": 6,
             "value": "no"
           },
           {
             "label": "optimizer",
+            "group": "optimizer",
+            "order": 11,
             "value": "RMSprop"
           },
           {
             "label": "learning rate",
+            "group": "optimizer",
+            "order": 12,
             "value": "3e-05"
           },
           {
             "label": "weight decay",
+            "group": "optimizer",
+            "order": 13,
             "value": "0.0001"
           },
           {
             "label": "loss",
+            "group": "loss",
+            "order": 16,
             "value": "mse"
+          },
+          {
+            "label": "training steps",
+            "group": "budget",
+            "order": 18,
+            "value": "256"
+          },
+          {
+            "label": "batch size",
+            "group": "budget",
+            "order": 19,
+            "value": "32"
+          },
+          {
+            "label": "total samples seen",
+            "group": "budget",
+            "order": 20,
+            "value": "8192"
           }
         ],
         "dataset": {
@@ -1645,23 +1663,33 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "4"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "64"
               },
               {
-                "label": "trainable parameter count",
-                "value": "16961"
-              },
-              {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, no, no, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "gelu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "16961"
               }
             ],
             "modelLines": [
@@ -1742,23 +1770,33 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "128"
               },
               {
-                "label": "trainable parameter count",
-                "value": "33665"
-              },
-              {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "relu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "33665"
               }
             ],
             "modelLines": [
@@ -1837,23 +1875,33 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "96"
               },
               {
-                "label": "trainable parameter count",
-                "value": "19105"
-              },
-              {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, no"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "silu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "19105"
               }
             ],
             "modelLines": [
@@ -4604,40 +4652,58 @@
         "prompt": "You are taking the ArchitectureIQ benchmark.\n\nEach question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt \u2014 either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget \u2014 using architecture and learning-mechanics reasoning only (no training results are provided).\n\n## Dataset\nBigram language modeling: each example is a length-`L` window of token IDs. Labels are the next token at each position, sampled from a **single fixed** bigram law `P(y|x)` shared by train and test. Only the random windows differ between splits.\n\n### Synthesis (PyTorch)\n```python\ndef target(seq: torch.Tensor) -> torch.Tensor:\n    \"\"\"Next-token labels: input sequence shifted by one (seq shape [N, L+1] -> [N, L]).\"\"\"\n    return seq[:, 1:].to(torch.int64)\n\n\ndef build_transition(\n    *,\n    table_seed: int = 10103,\n    vocab_size: int = 24,\n    alpha: float = 0.8,\n) -> tuple[np.ndarray, np.ndarray]:\n    rng = np.random.default_rng(table_seed)\n    logits = rng.standard_normal((vocab_size, vocab_size)) * alpha\n    logits -= logits.max(axis=1, keepdims=True)\n    probs = np.exp(logits)\n    probs = (probs / probs.sum(axis=1, keepdims=True)).astype(np.float64)\n\n    pi = np.full(vocab_size, 1.0 / vocab_size, dtype=np.float64)\n    for _ in range(256):\n        pi = pi @ probs\n        pi /= pi.sum()\n    return probs, pi\n\n\ndef synthesize(\n    *,\n    train_size: int = 800,\n    test_size: int = 200,\n    sequence_seed: int = 103,\n    table_seed: int = 10103,\n    vocab_size: int = 24,\n    context_length: int = 24,\n    alpha: float = 0.8,\n    layout: str = 'lm',\n) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:\n    def _sample_sequences(n: int, length: int, probs: np.ndarray, pi: np.ndarray, seed: int):\n        rng = np.random.default_rng(seed)\n        v = probs.shape[0]\n        seq = np.empty((n, length), dtype=np.int64)\n        for i in range(n):\n            s = [int(rng.choice(v, p=pi))]\n            while len(s) < length:\n                s.append(int(rng.choice(v, p=probs[s[-1]])))\n            seq[i] = np.asarray(s, dtype=np.int64)\n        return seq\n\n    probs, pi = build_transition(\n        table_seed=table_seed,\n        vocab_size=vocab_size,\n        alpha=alpha,\n    )\n    if layout == \"lm\":\n        seq_train = _sample_sequences(train_size, context_length + 1, probs, pi, sequence_seed)\n        seq_test = _sample_sequences(test_size, context_length + 1, probs, pi, sequence_seed + 1)\n    else:\n        raise ValueError(\"Only layout='lm' is supported in generated synthesize.py\")\n\n    train_seq = torch.from_numpy(seq_train)\n    test_seq = torch.from_numpy(seq_test)\n    x_train = train_seq[:, :-1].to(torch.int64)\n    y_train = target(train_seq)\n    x_test = test_seq[:, :-1].to(torch.int64)\n    y_test = target(test_seq)\n    return x_train, y_train, x_test, y_test\n```\n\n### Data splits and training protocol\n- Vocab size: 24\n- Context length: 24\n- Layout: causal LM windows (`x` shape `[N, L]`, `y` shape `[N, L]`)\n- One fixed bigram transition matrix `P(y|x)` shared by train and test\n- Train rows: 800; test rows: 200\n- Sequence seed: 103; table seed: 10103\n- Evaluation: **test cross-entropy** on held-out windows\n- Reference device: cpu\n\n## Sample budget (same for all choices)\n- training_steps: 256\n- batch_size: 32\n- total_samples_seen: 8192 (= training_steps \u00d7 batch_size)\n\n## Evaluation metric\n- Ground-truth ranking uses **test_ce** on the held-out test split.\n- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.\n- Execution device: cpu.\n- The correct choice has the lowest **mean** test_ce across seeds.\n\n## Choices\n\n### Choice A\n\n**Model (natural language)**\n- Type: causal transformer LM\n- Vocab size: 24\n- Context length: 24\n- d_model: 64\n- num_layers: 2\n- num_heads: 2\n- d_ff: 256\n- Positional encoding: learned embedding (nn.Embedding over positions)\n\n**Model code**\n```python\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.context_length = 24\n        self.token_embed = nn.Embedding(24, 64)\n        self.pos_embed = nn.Embedding(24, 64)\n        layer = nn.TransformerEncoderLayer(\n            d_model=64,\n            nhead=2,\n            dim_feedforward=256,\n            dropout=0.0,\n            batch_first=True,\n            activation=\"gelu\",\n        )\n        self.encoder = nn.TransformerEncoder(layer, num_layers=2)\n        self.head = nn.Linear(64, 24)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        b, seq_len = x.shape\n        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(b, -1)\n        h = self.token_embed(x) + self.pos_embed(positions)\n        mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()\n        h = self.encoder(h, mask=mask)\n        return self.head(h)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 3e-05\n- Weight decay: 0.0001\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=3e-05, weight_decay=0.0001)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice B\n\n**Model (natural language)**\n- Type: causal transformer LM\n- Vocab size: 24\n- Context length: 24\n- d_model: 128\n- num_layers: 1\n- num_heads: 2\n- d_ff: 256\n- Positional encoding: learned embedding (nn.Embedding over positions)\n\n**Model code**\n```python\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.context_length = 24\n        self.token_embed = nn.Embedding(24, 128)\n        self.pos_embed = nn.Embedding(24, 128)\n        layer = nn.TransformerEncoderLayer(\n            d_model=128,\n            nhead=2,\n            dim_feedforward=256,\n            dropout=0.0,\n            batch_first=True,\n            activation=\"gelu\",\n        )\n        self.encoder = nn.TransformerEncoder(layer, num_layers=1)\n        self.head = nn.Linear(128, 24)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        b, seq_len = x.shape\n        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(b, -1)\n        h = self.token_embed(x) + self.pos_embed(positions)\n        mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()\n        h = self.encoder(h, mask=mask)\n        return self.head(h)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 3e-05\n- Weight decay: 0.0001\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=3e-05, weight_decay=0.0001)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice C\n\n**Model (natural language)**\n- Type: causal transformer LM\n- Vocab size: 24\n- Context length: 24\n- d_model: 128\n- num_layers: 1\n- num_heads: 2\n- d_ff: 128\n- Positional encoding: learned embedding (nn.Embedding over positions)\n\n**Model code**\n```python\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.context_length = 24\n        self.token_embed = nn.Embedding(24, 128)\n        self.pos_embed = nn.Embedding(24, 128)\n        layer = nn.TransformerEncoderLayer(\n            d_model=128,\n            nhead=2,\n            dim_feedforward=128,\n            dropout=0.0,\n            batch_first=True,\n            activation=\"gelu\",\n        )\n        self.encoder = nn.TransformerEncoder(layer, num_layers=1)\n        self.head = nn.Linear(128, 24)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        b, seq_len = x.shape\n        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(b, -1)\n        h = self.token_embed(x) + self.pos_embed(positions)\n        mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()\n        h = self.encoder(h, mask=mask)\n        return self.head(h)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 3e-05\n- Weight decay: 0.0001\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=3e-05, weight_decay=0.0001)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n## Your answer\nChoose exactly one of A, B, C and wrap that single letter in `<answer></answer>` tags, for example `<answer>A</answer>`.\nReason first if you want to, then put the tag last: the grader reads the final `<answer>` tag in your reply and nothing else, and a reply with no such tag scores zero.",
         "shared": [
           {
-            "label": "training steps",
-            "value": "256"
-          },
-          {
-            "label": "batch size",
-            "value": "32"
-          },
-          {
-            "label": "total samples seen",
-            "value": "8192"
-          },
-          {
             "label": "model type",
+            "group": "model",
+            "order": 0,
             "value": "transformer_lm"
           },
           {
             "label": "num_heads",
+            "group": "model",
+            "order": 5,
             "value": "2"
           },
           {
             "label": "optimizer",
+            "group": "optimizer",
+            "order": 11,
             "value": "RMSprop"
           },
           {
             "label": "learning rate",
+            "group": "optimizer",
+            "order": 12,
             "value": "3e-05"
           },
           {
             "label": "weight decay",
+            "group": "optimizer",
+            "order": 13,
             "value": "0.0001"
           },
           {
             "label": "loss",
+            "group": "loss",
+            "order": 16,
             "value": "cross_entropy"
+          },
+          {
+            "label": "training steps",
+            "group": "budget",
+            "order": 18,
+            "value": "256"
+          },
+          {
+            "label": "batch size",
+            "group": "budget",
+            "order": 19,
+            "value": "32"
+          },
+          {
+            "label": "total samples seen",
+            "group": "budget",
+            "order": 20,
+            "value": "8192"
           }
         ],
         "dataset": {
@@ -5382,18 +5448,26 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "d_model",
+                "group": "model",
+                "order": 3,
                 "value": "64"
               },
               {
                 "label": "d_ff",
+                "group": "model",
+                "order": 4,
                 "value": "256"
               },
               {
                 "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
                 "value": "104600"
               }
             ],
@@ -5469,18 +5543,26 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "1"
               },
               {
                 "label": "d_model",
+                "group": "model",
+                "order": 3,
                 "value": "128"
               },
               {
                 "label": "d_ff",
+                "group": "model",
+                "order": 4,
                 "value": "256"
               },
               {
                 "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
                 "value": "141720"
               }
             ],
@@ -5556,18 +5638,26 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "1"
               },
               {
                 "label": "d_model",
+                "group": "model",
+                "order": 3,
                 "value": "128"
               },
               {
                 "label": "d_ff",
+                "group": "model",
+                "order": 4,
                 "value": "128"
               },
               {
                 "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
                 "value": "108824"
               }
             ],
@@ -8285,36 +8375,52 @@
         "prompt": "You are taking the ArchitectureIQ benchmark.\n\nEach question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt \u2014 either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget \u2014 using architecture and learning-mechanics reasoning only (no training results are provided).\n\n## Dataset\nXOR binary classification on tabular features. Features are drawn i.i.d. from a standard normal; the label depends on the *sign agreement* of two active coordinates, so no linear function of the inputs separates the classes at all \u2014 a model must compose the two coordinates multiplicatively. Any remaining coordinates are pure distractors. The dataset card below states the active coordinates and the exact label rule. Every candidate trains on the same materialized train/test splits.\n\n### Data-generating and classification rule\n- Rule family: `xor`; active coordinates: `x_3`, `x_8`\n- Feature distribution: every coordinate is sampled independently from `Normal(0, 1)`.\n- Latent score:\n  - `s(x) = -x_3\u00b7x_8`\n- Label rule: `y = 1` exactly when `s(x) > 0`; otherwise `y = 0`.\n- XOR interpretation: `x` is class 1 exactly when its two active coordinates have opposite signs, and class 0 when they share a sign.\n- Bayes decision boundary: `s(x) = 0`; labels are an exact function of `x`, so this boundary is attainable.\n- Threshold calibration: `0` was chosen from 4096 independent calibration rows as the closest round value to the 50% quantile of `s(x)`; on those 4096 rows it labels 51.1% of them class 1.\n- Reproducibility: point seed `1205`, calibration seed `2205`.\n\n### Data splits and training protocol\n- Task: binary classification on one fixed synthetic tabular train/test split.\n- Input shape: float32 `[N, 16]`; labels: int64 `[N]` in `{0, 1}`.\n- Train rows: 1024; held-out test rows: 2048.\n- Every choice receives the same materialized split; minibatches sample train indices uniformly with replacement.\n- Evaluation: **test cross-entropy** is primary; test accuracy is auxiliary only.\n- Reference device: cpu\n\n## Sample budget (same for all choices)\n- training_steps: 256\n- batch_size: 32\n- total_samples_seen: 8192 (= training_steps \u00d7 batch_size)\n\n## Evaluation metric\n- Ground-truth ranking uses **test_ce** on the held-out test split.\n- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.\n- Execution device: cpu.\n- The correct choice has the lowest **mean** test_ce across seeds.\n\n## Choices\n\n### Choice A\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 16\n- Output logits: 2\n- Depth: 5 hidden Linear layers of width 64, between the input projection and the output head (7 nn.Linear layers in total)\n- Width: 64 (all hidden layers)\n- Hidden layer: act(x + Linear(LayerNorm(x))) for a layer with layer norm, act(x + Linear(x)) for a layer without\n- Residual connections: True\n- Layer norm per layer: [True, True, False, True, False]\n- Activation: relu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: relu(x + Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.ReLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        h = h + x\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(16, 64),\n            nn.ReLU(),\n            MLPBlock(width=64, use_layer_norm=True),\n            MLPBlock(width=64, use_layer_norm=True),\n            MLPBlock(width=64, use_layer_norm=False),\n            MLPBlock(width=64, use_layer_norm=True),\n            MLPBlock(width=64, use_layer_norm=False),\n            nn.Linear(64, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 0.001\n- Weight decay: 0\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=0.001, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice B\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 16\n- Output logits: 2\n- Depth: 2 hidden Linear layers of width 128, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 128 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [False, True]\n- Activation: silu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: silu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.SiLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(16, 128),\n            nn.SiLU(),\n            MLPBlock(width=128, use_layer_norm=False),\n            MLPBlock(width=128, use_layer_norm=True),\n            nn.Linear(128, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 0.001\n- Weight decay: 0\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=0.001, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice C\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 16\n- Output logits: 2\n- Depth: 3 hidden Linear layers of width 96, between the input projection and the output head (5 nn.Linear layers in total)\n- Width: 96 (all hidden layers)\n- Hidden layer: act(x + Linear(LayerNorm(x))) for a layer with layer norm, act(x + Linear(x)) for a layer without\n- Residual connections: True\n- Layer norm per layer: [False, False, True]\n- Activation: leaky_relu (one activation, shared by every layer)\n- LeakyReLU negative slope: 0.01\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: leaky_relu(x + Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.LeakyReLU(0.01)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        h = h + x\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(16, 96),\n            nn.LeakyReLU(0.01),\n            MLPBlock(width=96, use_layer_norm=False),\n            MLPBlock(width=96, use_layer_norm=False),\n            MLPBlock(width=96, use_layer_norm=True),\n            nn.Linear(96, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 0.001\n- Weight decay: 0\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=0.001, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n## Your answer\nChoose exactly one of A, B, C and wrap that single letter in `<answer></answer>` tags, for example `<answer>A</answer>`.\nReason first if you want to, then put the tag last: the grader reads the final `<answer>` tag in your reply and nothing else, and a reply with no such tag scores zero.",
         "shared": [
           {
-            "label": "training steps",
-            "value": "256"
-          },
-          {
-            "label": "batch size",
-            "value": "32"
-          },
-          {
-            "label": "total samples seen",
-            "value": "8192"
-          },
-          {
             "label": "model type",
+            "group": "model",
+            "order": 0,
             "value": "mlp"
           },
           {
             "label": "optimizer",
+            "group": "optimizer",
+            "order": 12,
             "value": "RMSprop"
           },
           {
             "label": "learning rate",
+            "group": "optimizer",
+            "order": 13,
             "value": "0.001"
           },
           {
             "label": "weight decay",
+            "group": "optimizer",
+            "order": 14,
             "value": "0"
           },
           {
             "label": "loss",
+            "group": "loss",
+            "order": 17,
             "value": "cross_entropy"
+          },
+          {
+            "label": "training steps",
+            "group": "budget",
+            "order": 19,
+            "value": "256"
+          },
+          {
+            "label": "batch size",
+            "group": "budget",
+            "order": 20,
+            "value": "32"
+          },
+          {
+            "label": "total samples seen",
+            "group": "budget",
+            "order": 21,
+            "value": "8192"
           }
         ],
         "dataset": {
@@ -9858,27 +9964,39 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "5"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "64"
               },
               {
-                "label": "trainable parameter count",
-                "value": "22402"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "yes"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, yes, no, yes, no"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "relu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "22402"
               }
             ],
             "modelLines": [
@@ -9962,27 +10080,39 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "128"
               },
               {
-                "label": "trainable parameter count",
-                "value": "35714"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "no"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "silu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "35714"
               }
             ],
             "modelLines": [
@@ -10063,30 +10193,44 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "3"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "96"
               },
               {
-                "label": "trainable parameter count",
-                "value": "29954"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "yes"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, no, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "leaky_relu"
               },
               {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "29954"
+              },
+              {
                 "label": "leaky relu slope",
+                "group": "model",
+                "order": 11,
                 "value": "0.01"
               }
             ],
@@ -12849,36 +12993,52 @@
         "prompt": "You are taking the ArchitectureIQ benchmark.\n\nEach question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt \u2014 either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget \u2014 using architecture and learning-mechanics reasoning only (no training results are provided).\n\n## Dataset\nMultivariate regression on `[0, 1]^n`: input is a vector `x \u2208 R^n`, target is a scalar `y \u2208 R` from a fixed symbolic expression. Train and test splits are fixed before any candidate training.\n\n### Synthesis (PyTorch)\n```python\ndef target(x: torch.Tensor) -> torch.Tensor:\n    return x[:, 1] ** 3 + torch.cos(2 * torch.pi * x[:, 3]) * torch.sin(2 * torch.pi * x[:, 0]) + torch.cos(2 * torch.pi * x[:, 0]) + torch.sin(2 * torch.pi * x[:, 3]) + x[:, 2] + 5\n\n\ndef synthesize(\n    *,\n    train_size: int = 256,\n    test_size: int = 256,\n    point_seed: int = 1102,\n    input_dim: int = 4,\n    domain_low: float = 0.0,\n    domain_high: float = 1.0,\n) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:\n    gen = torch.Generator().manual_seed(point_seed)\n    train_x = torch.rand(train_size, input_dim, generator=gen) * (domain_high - domain_low) + domain_low\n    test_x = torch.rand(test_size, input_dim, generator=gen) * (domain_high - domain_low) + domain_low\n    train_y = target(train_x)\n    test_y = target(test_x)\n    return train_x, train_y.unsqueeze(-1), test_x, test_y.unsqueeze(-1)\n```\n\n### Data splits and training protocol\n- Target expression (canonical): `x1**3 + cos(2*pi*x3)*sin(2*pi*x0) + cos(2*pi*x0) + sin(2*pi*x3) + x2 + 5`\n- Input dimension: 4\n- Train split size: 256 fixed `(x, y)` pairs\n- Test split size: 256 fixed `(x, y)` pairs (held out)\n- Input domain: [0.0, 1.0] per coordinate, uniform sampling\n- Point-sampling seed: 1102\n- Evaluation: **test MSE** on the held-out split\n- Reference device: cpu\n\n## Sample budget (same for all choices)\n- training_steps: 512\n- batch_size: 16\n- total_samples_seen: 8192 (= training_steps \u00d7 batch_size)\n\n## Evaluation metric\n- Ground-truth ranking uses **test_mse** on the held-out test split.\n- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.\n- Execution device: cpu.\n- The correct choice has the lowest **mean** test_mse across seeds.\n\n## Choices\n\n### Choice A\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 4\n- Depth: 2 hidden Linear layers of width 48, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 48 (all hidden layers)\n- Hidden layer: act(x + Linear(LayerNorm(x))) for a layer with layer norm, act(x + Linear(x)) for a layer without\n- Residual connections: True\n- Layer norm per layer: [True, False]\n- Activation: silu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: silu(x + Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.SiLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        h = h + x\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(4, 48),\n            nn.SiLU(),\n            MLPBlock(width=48, use_layer_norm=True),\n            MLPBlock(width=48, use_layer_norm=False),\n            nn.Linear(48, 1),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: Adagrad\n- Learning rate: 0.003\n- Weight decay: 1e-05\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.Adagrad(params, lr=0.003, weight_decay=1e-05)\n```\n\n**Loss**\n- Loss: mean squared error (MSE) on the minibatch\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    return torch.mean((pred - target) ** 2)\n```\n\n### Choice B\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 4\n- Depth: 5 hidden Linear layers of width 32, between the input projection and the output head (7 nn.Linear layers in total)\n- Width: 32 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [True, False, False, False, True]\n- Activation: leaky_relu (one activation, shared by every layer)\n- LeakyReLU negative slope: 0.01\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: leaky_relu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.LeakyReLU(0.01)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(4, 32),\n            nn.LeakyReLU(0.01),\n            MLPBlock(width=32, use_layer_norm=True),\n            MLPBlock(width=32, use_layer_norm=False),\n            MLPBlock(width=32, use_layer_norm=False),\n            MLPBlock(width=32, use_layer_norm=False),\n            MLPBlock(width=32, use_layer_norm=True),\n            nn.Linear(32, 1),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: Adagrad\n- Learning rate: 0.003\n- Weight decay: 1e-05\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.Adagrad(params, lr=0.003, weight_decay=1e-05)\n```\n\n**Loss**\n- Loss: mean squared error (MSE) on the minibatch\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    return torch.mean((pred - target) ** 2)\n```\n\n### Choice C\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 4\n- Depth: 3 hidden Linear layers of width 48, between the input projection and the output head (5 nn.Linear layers in total)\n- Width: 48 (all hidden layers)\n- Hidden layer: act(x + Linear(LayerNorm(x)))\n- Residual connections: True\n- Layer norm per layer: [True, True, True]\n- Activation: silu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: silu(x + Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.SiLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        h = h + x\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(4, 48),\n            nn.SiLU(),\n            MLPBlock(width=48, use_layer_norm=True),\n            MLPBlock(width=48, use_layer_norm=True),\n            MLPBlock(width=48, use_layer_norm=True),\n            nn.Linear(48, 1),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: Adagrad\n- Learning rate: 0.003\n- Weight decay: 1e-05\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.Adagrad(params, lr=0.003, weight_decay=1e-05)\n```\n\n**Loss**\n- Loss: mean squared error (MSE) on the minibatch\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    return torch.mean((pred - target) ** 2)\n```\n\n## Your answer\nChoose exactly one of A, B, C and wrap that single letter in `<answer></answer>` tags, for example `<answer>A</answer>`.\nReason first if you want to, then put the tag last: the grader reads the final `<answer>` tag in your reply and nothing else, and a reply with no such tag scores zero.",
         "shared": [
           {
-            "label": "training steps",
-            "value": "512"
-          },
-          {
-            "label": "batch size",
-            "value": "16"
-          },
-          {
-            "label": "total samples seen",
-            "value": "8192"
-          },
-          {
             "label": "model type",
+            "group": "model",
+            "order": 0,
             "value": "mlp"
           },
           {
             "label": "optimizer",
+            "group": "optimizer",
+            "order": 12,
             "value": "Adagrad"
           },
           {
             "label": "learning rate",
+            "group": "optimizer",
+            "order": 13,
             "value": "0.003"
           },
           {
             "label": "weight decay",
+            "group": "optimizer",
+            "order": 14,
             "value": "1e-05"
           },
           {
             "label": "loss",
+            "group": "loss",
+            "order": 17,
             "value": "mse"
+          },
+          {
+            "label": "training steps",
+            "group": "budget",
+            "order": 19,
+            "value": "512"
+          },
+          {
+            "label": "batch size",
+            "group": "budget",
+            "order": 20,
+            "value": "16"
+          },
+          {
+            "label": "total samples seen",
+            "group": "budget",
+            "order": 21,
+            "value": "8192"
           }
         ],
         "dataset": {
@@ -12976,27 +13136,39 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "48"
               },
               {
-                "label": "trainable parameter count",
-                "value": "5089"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "yes"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, no"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "silu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "5089"
               }
             ],
             "modelLines": [
@@ -13076,30 +13248,44 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "5"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "32"
               },
               {
-                "label": "trainable parameter count",
-                "value": "5601"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "no"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, no, no, no, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "leaky_relu"
               },
               {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "5601"
+              },
+              {
                 "label": "leaky relu slope",
+                "group": "model",
+                "order": 11,
                 "value": "0.01"
               }
             ],
@@ -13185,27 +13371,39 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "3"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "48"
               },
               {
-                "label": "trainable parameter count",
-                "value": "7633"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "yes"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, yes, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "silu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "7633"
               }
             ],
             "modelLines": [
@@ -18262,44 +18460,64 @@
         "prompt": "You are taking the ArchitectureIQ benchmark.\n\nEach question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt \u2014 either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget \u2014 using architecture and learning-mechanics reasoning only (no training results are provided).\n\n## Dataset\nSynthetic tabular binary classification. Features are drawn i.i.d. from a standard normal; a latent score `s(x)` over a few active coordinates is thresholded at a fixed cut-off chosen near the median of `s(x)`, so the two classes are close to balanced. The score is non-linear in the features, so no linear function of the inputs reproduces the boundary. The dataset card below states the exact rule family, active coordinates, weights, threshold, and the class balance it produces. Every candidate trains on the same materialized train/test splits.\n\n### Data-generating and classification rule\n- Rule family: `piecewise_boundary`; active coordinates: `x_0`, `x_1`\n- Feature distribution: every coordinate is sampled independently from `Normal(0, 1)`.\n- Latent score:\n  - If `x_0 > 0.125`: `s(x) = 1.5\u00b7x_1 - 0.875\u00b7x_0`\n  - Otherwise: `s(x) = -0.875\u00b7x_1 - 0.875\u00b7x_0`\n- Label rule: `y = 1` exactly when `s(x) > 0.125`; otherwise `y = 0`.\n- Bayes decision boundary: `s(x) = 0.125`; labels are an exact function of `x`, so this boundary is attainable.\n- Threshold calibration: `0.125` was chosen from 4096 independent calibration rows as the closest round value to the 50% quantile of `s(x)`; on those 4096 rows it labels 50.4% of them class 1.\n- Reproducibility: point seed `1104`, calibration seed `2104`.\n\n### Data splits and training protocol\n- Task: binary classification on one fixed synthetic tabular train/test split.\n- Input shape: float32 `[N, 2]`; labels: int64 `[N]` in `{0, 1}`.\n- Train rows: 1024; held-out test rows: 2048.\n- Every choice receives the same materialized split; minibatches sample train indices uniformly with replacement.\n- Evaluation: **test cross-entropy** is primary; test accuracy is auxiliary only.\n- Reference device: cpu\n\n## Sample budget (same for all choices)\n- training_steps: 256\n- batch_size: 32\n- total_samples_seen: 8192 (= training_steps \u00d7 batch_size)\n\n## Evaluation metric\n- Ground-truth ranking uses **test_ce** on the held-out test split.\n- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.\n- Execution device: cpu.\n- The correct choice has the lowest **mean** test_ce across seeds.\n\n## Choices\n\n### Choice A\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 2\n- Output logits: 2\n- Depth: 2 hidden Linear layers of width 64, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 64 (all hidden layers)\n- Hidden layer: act(x + Linear(LayerNorm(x))) for a layer with layer norm, act(x + Linear(x)) for a layer without\n- Residual connections: True\n- Layer norm per layer: [True, False]\n- Activation: relu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: relu(x + Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.ReLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        h = h + x\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(2, 64),\n            nn.ReLU(),\n            MLPBlock(width=64, use_layer_norm=True),\n            MLPBlock(width=64, use_layer_norm=False),\n            nn.Linear(64, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: SGD\n- Learning rate: 3e-05\n- Weight decay: 0\n- Momentum: 0.9\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.SGD(params, lr=3e-05, momentum=0.9, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice B\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 2\n- Output logits: 2\n- Depth: 3 hidden Linear layers of width 48, between the input projection and the output head (5 nn.Linear layers in total)\n- Width: 48 (all hidden layers)\n- Hidden layer: act(Linear(x))\n- Residual connections: False\n- Layer norm per layer: [False, False, False]\n- Activation: relu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: relu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.ReLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(2, 48),\n            nn.ReLU(),\n            MLPBlock(width=48, use_layer_norm=False),\n            MLPBlock(width=48, use_layer_norm=False),\n            MLPBlock(width=48, use_layer_norm=False),\n            nn.Linear(48, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: SGD\n- Learning rate: 3e-05\n- Weight decay: 0\n- Momentum: 0.9\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.SGD(params, lr=3e-05, momentum=0.9, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice C\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 2\n- Output logits: 2\n- Depth: 5 hidden Linear layers of width 32, between the input projection and the output head (7 nn.Linear layers in total)\n- Width: 32 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [True, True, True, True, False]\n- Activation: relu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: relu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.ReLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(2, 32),\n            nn.ReLU(),\n            MLPBlock(width=32, use_layer_norm=True),\n            MLPBlock(width=32, use_layer_norm=True),\n            MLPBlock(width=32, use_layer_norm=True),\n            MLPBlock(width=32, use_layer_norm=True),\n            MLPBlock(width=32, use_layer_norm=False),\n            nn.Linear(32, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: SGD\n- Learning rate: 3e-05\n- Weight decay: 0\n- Momentum: 0.9\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.SGD(params, lr=3e-05, momentum=0.9, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n## Your answer\nChoose exactly one of A, B, C and wrap that single letter in `<answer></answer>` tags, for example `<answer>A</answer>`.\nReason first if you want to, then put the tag last: the grader reads the final `<answer>` tag in your reply and nothing else, and a reply with no such tag scores zero.",
         "shared": [
           {
-            "label": "training steps",
-            "value": "256"
-          },
-          {
-            "label": "batch size",
-            "value": "32"
-          },
-          {
-            "label": "total samples seen",
-            "value": "8192"
-          },
-          {
             "label": "model type",
+            "group": "model",
+            "order": 0,
             "value": "mlp"
           },
           {
             "label": "activation",
+            "group": "model",
+            "order": 8,
             "value": "relu"
           },
           {
             "label": "optimizer",
+            "group": "optimizer",
+            "order": 11,
             "value": "SGD"
           },
           {
             "label": "learning rate",
+            "group": "optimizer",
+            "order": 12,
             "value": "3e-05"
           },
           {
             "label": "weight decay",
+            "group": "optimizer",
+            "order": 13,
             "value": "0"
           },
           {
             "label": "momentum",
+            "group": "optimizer",
+            "order": 14,
             "value": "0.9"
           },
           {
             "label": "loss",
+            "group": "loss",
+            "order": 16,
             "value": "cross_entropy"
+          },
+          {
+            "label": "training steps",
+            "group": "budget",
+            "order": 18,
+            "value": "256"
+          },
+          {
+            "label": "batch size",
+            "group": "budget",
+            "order": 19,
+            "value": "32"
+          },
+          {
+            "label": "total samples seen",
+            "group": "budget",
+            "order": 20,
+            "value": "8192"
           }
         ],
         "dataset": {
@@ -19823,23 +20041,33 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "64"
               },
               {
-                "label": "trainable parameter count",
-                "value": "8770"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "yes"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, no"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "8770"
               }
             ],
             "modelLines": [
@@ -19922,23 +20150,33 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "3"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "48"
               },
               {
-                "label": "trainable parameter count",
-                "value": "7298"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "no"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, no, no"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "7298"
               }
             ],
             "modelLines": [
@@ -20022,23 +20260,33 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "5"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "32"
               },
               {
-                "label": "trainable parameter count",
-                "value": "5698"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "no"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "yes, yes, yes, yes, no"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 10,
+                "value": "5698"
               }
             ],
             "modelLines": [
@@ -22802,36 +23050,52 @@
         "prompt": "You are taking the ArchitectureIQ benchmark.\n\nEach question describes one **dataset instance** and several **choices** (each choice is one **candidate**: model, optimizer, loss, and training budget). All choices train on the same dataset instance. Each choice's training budget (`total_samples_seen`) is stated in the prompt \u2014 either shared across all choices or specified per choice in the Sample budget section. Your task is to identify which choice will achieve the **best test metric** on the held-out test set after its stated training budget \u2014 using architecture and learning-mechanics reasoning only (no training results are provided).\n\n## Dataset\nTwo-spirals binary classification. The input is 2-dimensional by construction. Points are drawn along one of two interleaved Archimedean arms that differ by a half-turn phase; the label *is* the arm a point came from, so the classes are exactly balanced and there is no threshold to calibrate. The decision boundary spirals outward, so its complexity grows with the number of turns \u2014 stated in the dataset card below. Every candidate trains on the same materialized train/test splits.\n\n### Data-generating and classification rule\n- Rule family: `spiral`; active coordinates: `x_0`, `x_1` (input is 2-dimensional).\n- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, 0.5 + 2\u03c0]` (1 full turn), radius `r = t`, coordinates `(r\u00b7cos(t + phase), r\u00b7sin(t + phase))` with `phase \u2208 {0, \u03c0}`.\n- Label rule: `y = 0` for points drawn from the `phase = 0` arm and `y = 1` for points from the `phase = \u03c0` arm; both arms are equally likely, so classes are balanced.\n- Nominal soft score (intuition only): `s(x) = sin(atan2(x_1, x_0) \u2212 \u2016x\u2016\u2082)`; its zero level sets trace the two arms, but labels come from the generative arm, not from thresholding `s(x)`.\n- Bayes decision boundary: assign each point to the nearer of the two arms (up to label-flip symmetry); with 1 full turn the arms interleave, so the boundary is highly non-linear.\n- Reproducibility: point seed `1106`, spiral turns `1`.\n\n### Data splits and training protocol\n- Task: binary classification on one fixed synthetic tabular train/test split.\n- Input shape: float32 `[N, 2]`; labels: int64 `[N]` in `{0, 1}`.\n- Train rows: 1024; held-out test rows: 2048.\n- Every choice receives the same materialized split; minibatches sample train indices uniformly with replacement.\n- Evaluation: **test cross-entropy** is primary; test accuracy is auxiliary only.\n- Reference device: cpu\n\n## Sample budget (same for all choices)\n- training_steps: 256\n- batch_size: 32\n- total_samples_seen: 8192 (= training_steps \u00d7 batch_size)\n\n## Evaluation metric\n- Ground-truth ranking uses **test_ce** on the held-out test split.\n- Each choice is trained independently for **10** seeds (`0`..`9`), one `torch.manual_seed(seed)` per run.\n- Execution device: cpu.\n- The correct choice has the lowest **mean** test_ce across seeds.\n\n## Choices\n\n### Choice A\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 2\n- Output logits: 2\n- Depth: 2 hidden Linear layers of width 128, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 128 (all hidden layers)\n- Hidden layer: act(Linear(x))\n- Residual connections: False\n- Layer norm per layer: [False, False]\n- Activation: leaky_relu (one activation, shared by every layer)\n- LeakyReLU negative slope: 0.01\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: leaky_relu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.LeakyReLU(0.01)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(2, 128),\n            nn.LeakyReLU(0.01),\n            MLPBlock(width=128, use_layer_norm=False),\n            MLPBlock(width=128, use_layer_norm=False),\n            nn.Linear(128, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 0.001\n- Weight decay: 0\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=0.001, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice B\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 2\n- Output logits: 2\n- Depth: 2 hidden Linear layers of width 128, between the input projection and the output head (4 nn.Linear layers in total)\n- Width: 128 (all hidden layers)\n- Hidden layer: act(Linear(LayerNorm(x))) for a layer with layer norm, act(Linear(x)) for a layer without\n- Residual connections: False\n- Layer norm per layer: [False, True]\n- Activation: silu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: silu(Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.SiLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(2, 128),\n            nn.SiLU(),\n            MLPBlock(width=128, use_layer_norm=False),\n            MLPBlock(width=128, use_layer_norm=True),\n            nn.Linear(128, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 0.001\n- Weight decay: 0\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=0.001, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n### Choice C\n\n**Model (natural language)**\n- Type: MLP\n- Input dimension: 2\n- Output logits: 2\n- Depth: 5 hidden Linear layers of width 64, between the input projection and the output head (7 nn.Linear layers in total)\n- Width: 64 (all hidden layers)\n- Hidden layer: act(x + Linear(LayerNorm(x))) for a layer with layer norm, act(x + Linear(x)) for a layer without\n- Residual connections: True\n- Layer norm per layer: [False, False, True, True, False]\n- Activation: silu (one activation, shared by every layer)\n- Initialization: PyTorch Linear defaults\n\n**Model code**\n```python\nclass MLPBlock(nn.Module):\n    \"\"\"One hidden layer: silu(x + Linear(norm(x))).\"\"\"\n\n    def __init__(self, width: int, use_layer_norm: bool) -> None:\n        super().__init__()\n        self.norm = nn.LayerNorm(width) if use_layer_norm else nn.Identity()\n        self.linear = nn.Linear(width, width)\n        self.act = nn.SiLU()\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        h = self.linear(self.norm(x))\n        h = h + x\n        return self.act(h)\n\n\nclass Model(nn.Module):\n    def __init__(self) -> None:\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(2, 64),\n            nn.SiLU(),\n            MLPBlock(width=64, use_layer_norm=False),\n            MLPBlock(width=64, use_layer_norm=False),\n            MLPBlock(width=64, use_layer_norm=True),\n            MLPBlock(width=64, use_layer_norm=True),\n            MLPBlock(width=64, use_layer_norm=False),\n            nn.Linear(64, 2),\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        return self.net(x)\n```\n\n**Optimizer**\n- Optimizer: RMSprop\n- Learning rate: 0.001\n- Weight decay: 0\n\n```python\ndef build_optimizer(model: nn.Module) -> torch.optim.Optimizer:\n    params = model.parameters()\n    return torch.optim.RMSprop(params, lr=0.001, weight_decay=0)\n```\n\n**Loss**\n- Loss: cross-entropy on minibatch target labels\n\n```python\ndef loss_fn(model: nn.Module, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:\n    if pred.ndim == 3:\n        vocab = pred.shape[-1]\n        return torch.nn.functional.cross_entropy(pred.reshape(-1, vocab), target.reshape(-1))\n    return torch.nn.functional.cross_entropy(pred, target.reshape(-1))\n```\n\n## Your answer\nChoose exactly one of A, B, C and wrap that single letter in `<answer></answer>` tags, for example `<answer>A</answer>`.\nReason first if you want to, then put the tag last: the grader reads the final `<answer>` tag in your reply and nothing else, and a reply with no such tag scores zero.",
         "shared": [
           {
-            "label": "training steps",
-            "value": "256"
-          },
-          {
-            "label": "batch size",
-            "value": "32"
-          },
-          {
-            "label": "total samples seen",
-            "value": "8192"
-          },
-          {
             "label": "model type",
+            "group": "model",
+            "order": 0,
             "value": "mlp"
           },
           {
             "label": "optimizer",
+            "group": "optimizer",
+            "order": 12,
             "value": "RMSprop"
           },
           {
             "label": "learning rate",
+            "group": "optimizer",
+            "order": 13,
             "value": "0.001"
           },
           {
             "label": "weight decay",
+            "group": "optimizer",
+            "order": 14,
             "value": "0"
           },
           {
             "label": "loss",
+            "group": "loss",
+            "order": 17,
             "value": "cross_entropy"
+          },
+          {
+            "label": "training steps",
+            "group": "budget",
+            "order": 19,
+            "value": "256"
+          },
+          {
+            "label": "batch size",
+            "group": "budget",
+            "order": 20,
+            "value": "32"
+          },
+          {
+            "label": "total samples seen",
+            "group": "budget",
+            "order": 21,
+            "value": "8192"
           }
         ],
         "dataset": {
@@ -24353,31 +24617,45 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "128"
               },
               {
-                "label": "trainable parameter count",
-                "value": "33666"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "no"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, no"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "leaky_relu"
               },
               {
                 "label": "leaky relu slope",
+                "group": "model",
+                "order": 10,
                 "value": "0.01"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 11,
+                "value": "33666"
               }
             ],
             "modelLines": [
@@ -24460,27 +24738,39 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "2"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "128"
               },
               {
-                "label": "trainable parameter count",
-                "value": "33922"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "no"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, yes"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "silu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 11,
+                "value": "33922"
               }
             ],
             "modelLines": [
@@ -24561,27 +24851,39 @@
             "variant": [
               {
                 "label": "layers",
+                "group": "model",
+                "order": 1,
                 "value": "5"
               },
               {
                 "label": "width",
+                "group": "model",
+                "order": 2,
                 "value": "64"
               },
               {
-                "label": "trainable parameter count",
-                "value": "21378"
-              },
-              {
                 "label": "residual",
+                "group": "model",
+                "order": 6,
                 "value": "yes"
               },
               {
                 "label": "layer norm",
+                "group": "model",
+                "order": 7,
                 "value": "no, no, yes, yes, no"
               },
               {
                 "label": "activation",
+                "group": "model",
+                "order": 8,
                 "value": "silu"
+              },
+              {
+                "label": "trainable parameter count",
+                "group": "model",
+                "order": 11,
+                "value": "21378"
               }
             ],
             "modelLines": [

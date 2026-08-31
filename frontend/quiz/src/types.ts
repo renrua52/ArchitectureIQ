@@ -1,4 +1,7 @@
-export type Field = { label: string; value: string };
+// `group` and `order` carry the canonical card layout the exporter decided:
+// which section of the setup the field belongs to, and where it sits. Older
+// bakes omit both, and then the cards fall back to the order they arrive in.
+export type Field = { label: string; value: string; group?: string; order?: number };
 
 export type Point = { x: number; y: number };
 

@@ -65,7 +65,7 @@ def _fmt(value: Any) -> str:
     return str(value)
 
 
-# Spec keys the curated view above already covers, per section. Anything outside
+# Spec keys the curated view below already covers, per section. Anything outside
 # these sets is appended verbatim, because a key that varies across choices and
 # is never displayed makes a question look like it has two identical options.
 _MODEL_KEYS_SHOWN = frozenset(
@@ -92,67 +92,102 @@ _LOSS_KEYS_SHOWN = frozenset({"loss_id", "lambda"})
 # they cannot differ inside one question, so a card would only repeat itself.
 _DATASET_DERIVED_KEYS = frozenset({"vocab_size", "context_length", "input_dim", "output_dim"})
 
+# The order a card is read in: what the model is, then how it was optimized, what
+# it optimized, and finally how long it trained. Groups are kept apart so model
+# and optimizer settings never sit in one undifferentiated list. The order is
+# fixed, and deliberately not "whatever differs first": a reader who has learned
+# where the learning rate lives should find it in the same place in every
+# question, and the highlighting alone says which fields differ.
+_GROUP_ORDER = ("model", "optimizer", "loss", "budget")
 
-def _flatten_spec(spec: dict[str, Any]) -> dict[str, Any]:
+
+def _flatten_spec(spec: dict[str, Any]) -> dict[str, tuple[Any, str]]:
+    """Card fields as `label -> (value, group)`, in canonical reading order."""
     model = spec.get("model", {})
     optimizer = spec.get("optimizer", {})
     loss = spec.get("loss", {})
-    flat: dict[str, Any] = {
-        "training steps": spec.get("budget", {}).get("training_steps"),
-        "batch size": spec.get("budget", {}).get("batch_size"),
-        "total samples seen": spec.get("budget", {}).get("total_samples_seen"),
-        "model type": model.get("type"),
-        "layers": model.get("depth") or model.get("num_layers"),
-        "width": model.get("width"),
-        "d_model": model.get("d_model") or model.get("embed_dim"),
-        "d_ff": model.get("d_ff") or model.get("ff_dim"),
-        "trainable parameter count": spec.get("trainable_parameter_count", "—"),
-        "num_heads": model.get("num_heads"),
-        "residual": model.get("residual"),
-        "layer norm": model.get("layer_norm"),
-        "activation": model.get("activation"),
-        "activations": model.get("activations"),
-        "optimizer": optimizer.get("type"),
-        "learning rate": optimizer.get("lr"),
-        "weight decay": optimizer.get("weight_decay"),
-        "betas": optimizer.get("betas"),
-        "momentum": optimizer.get("momentum"),
-        "loss": loss.get("loss_id"),
-        "lambda": loss.get("lambda"),
-    }
-    # Sweep up whatever the curated view above does not name: a new model type's
-    # own fields (spline grid size, d_ff before it was listed here) reach the card
-    # instead of disappearing, and no per-family key list has to be maintained.
-    sections = ((model, _MODEL_KEYS_SHOWN), (optimizer, _OPTIMIZER_KEYS_SHOWN), (loss, _LOSS_KEYS_SHOWN))
-    for section, shown in sections:
+    budget = spec.get("budget", {})
+    curated: list[tuple[str, str, Any]] = [
+        ("model", "model type", model.get("type")),
+        ("model", "layers", model.get("depth") or model.get("num_layers")),
+        ("model", "width", model.get("width")),
+        ("model", "d_model", model.get("d_model") or model.get("embed_dim")),
+        ("model", "d_ff", model.get("d_ff") or model.get("ff_dim")),
+        ("model", "num_heads", model.get("num_heads")),
+        ("model", "residual", model.get("residual")),
+        ("model", "layer norm", model.get("layer_norm")),
+        ("model", "activation", model.get("activation")),
+        ("model", "activations", model.get("activations")),
+        ("optimizer", "optimizer", optimizer.get("type")),
+        ("optimizer", "learning rate", optimizer.get("lr")),
+        ("optimizer", "weight decay", optimizer.get("weight_decay")),
+        ("optimizer", "momentum", optimizer.get("momentum")),
+        ("optimizer", "betas", optimizer.get("betas")),
+        ("loss", "loss", loss.get("loss_id")),
+        ("loss", "lambda", loss.get("lambda")),
+        ("budget", "training steps", budget.get("training_steps")),
+        ("budget", "batch size", budget.get("batch_size")),
+        ("budget", "total samples seen", budget.get("total_samples_seen")),
+    ]
+    named = {label for _, label, _ in curated} | {"trainable parameter count"}
+    # Sweep up whatever the curated view does not name: a new model type's own
+    # fields (spline grid size, a LeakyReLU slope) reach the card instead of
+    # disappearing, and no per-family key list has to be maintained. Each extra
+    # joins the end of its own group, not the end of the card.
+    sections = (
+        ("model", model, _MODEL_KEYS_SHOWN),
+        ("optimizer", optimizer, _OPTIMIZER_KEYS_SHOWN),
+        ("loss", loss, _LOSS_KEYS_SHOWN),
+    )
+    extra: dict[str, list[tuple[str, Any]]] = {group: [] for group in _GROUP_ORDER}
+    for group, section, shown in sections:
         for key, value in section.items():
-            if key in shown or key in _DATASET_DERIVED_KEYS:
+            label = key.replace("_", " ")
+            if key in shown or key in _DATASET_DERIVED_KEYS or label in named:
                 continue
-            flat.setdefault(key.replace("_", " "), value)
+            extra[group].append((label, value))
+
+    # The parameter count summarizes the architecture above it, so it closes the
+    # model section — after the family's own extra knobs, not before them.
+    trailing = {"model": [("trainable parameter count", spec.get("trainable_parameter_count", "—"))]}
+
+    flat: dict[str, tuple[Any, str]] = {}
+    for group in _GROUP_ORDER:
+        for entry_group, label, value in curated:
+            if entry_group == group:
+                flat[label] = (value, group)
+        for label, value in extra[group] + trailing.get(group, []):
+            flat.setdefault(label, (value, group))
     return flat
 
 
 def _shared_and_variant(
     specs: dict[str, dict[str, Any]],
-) -> tuple[list[dict[str, str]], dict[str, list[dict[str, str]]]]:
+) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
     flat = {letter: _flatten_spec(spec) for letter, spec in specs.items()}
     letters = list(flat)
-    shared: list[dict[str, str]] = []
-    variant: dict[str, list[dict[str, str]]] = {letter: [] for letter in letters}
+    shared: list[dict[str, Any]] = []
+    variant: dict[str, list[dict[str, Any]]] = {letter: [] for letter in letters}
     if not letters:
         return shared, variant
     # Union, not just the first choice's keys: an axis present on one choice only
-    # still has to be reported.
+    # still has to be reported. Sorting by group is stable, so a group keeps the
+    # canonical within-group order every choice agrees on.
     keys = list(dict.fromkeys(key for letter in letters for key in flat[letter]))
-    for key in keys:
-        values = [flat[letter].get(key) for letter in letters]
+    group_of = {
+        key: next(flat[letter][key][1] for letter in letters if key in flat[letter]) for key in keys
+    }
+    keys.sort(key=lambda key: _GROUP_ORDER.index(group_of[key]))
+    for order, key in enumerate(keys):
+        values = [flat[letter].get(key, (None, ""))[0] for letter in letters]
+        common = {"label": key, "group": group_of[key], "order": order}
         if all(value == values[0] for value in values):
             if values[0] is not None:
-                shared.append({"label": key, "value": _fmt(values[0])})
+                shared.append({**common, "value": _fmt(values[0])})
         else:
             for letter, value in zip(letters, values, strict=True):
                 if value is not None:
-                    variant[letter].append({"label": key, "value": _fmt(value)})
+                    variant[letter].append({**common, "value": _fmt(value)})
     return shared, variant
 
 

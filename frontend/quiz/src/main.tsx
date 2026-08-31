@@ -1098,45 +1098,67 @@ function ChoiceCard({
   );
 }
 
+/** The card sections, in reading order. Fields the bake did not group go last. */
+const GROUP_ORDER = ["model", "optimizer", "loss", "budget"];
+
+function groupRank(group: string | undefined): number {
+  const rank = group ? GROUP_ORDER.indexOf(group) : -1;
+  return rank < 0 ? GROUP_ORDER.length : rank;
+}
+
 /**
- * One row per field the choices state, varying axes first and the shared setup
- * below, unioned across the choices so a field only one choice carries (a slope
- * that belongs to its activation) still gets a row, with the others reading "—".
+ * One row per field the choices state, in the exporter's fixed order — model,
+ * then optimizer, then loss, then budget — and never reordered by which fields
+ * differ, so a field stays where the reader last found it. The rows are unioned
+ * across the choices, so a field only one choice carries (a slope that belongs
+ * to its activation) still gets a row, with the others reading "—".
  */
 function comparisonRows(
   question: BakedQuestion
-): { label: string; varying: boolean; values: Record<string, string | null> }[] {
-  const order: string[] = [];
-  const varying = new Set<string>();
-  const byLetter = new Map<string, Map<string, string>>();
+): { label: string; group: string | undefined; varying: boolean; values: Record<string, string | null> }[] {
+  type Row = {
+    label: string;
+    group: string | undefined;
+    order: number;
+    seen: number;
+    varying: boolean;
+    values: Record<string, string | null>;
+  };
+  const blank = Object.fromEntries(question.detail.choices.map((choice) => [choice.letter, null]));
+  const rows = new Map<string, Row>();
   for (const choice of question.detail.choices) {
     const split = splitFields(question, choice);
-    const fields = new Map<string, string>();
     for (const field of [...split.varying, ...split.shared]) {
-      if (!order.includes(field.label)) {
-        order.push(field.label);
+      let row = rows.get(field.label);
+      if (!row) {
+        row = {
+          label: field.label,
+          group: field.group,
+          order: field.order ?? Number.MAX_SAFE_INTEGER,
+          seen: rows.size,
+          varying: false,
+          values: { ...blank }
+        };
+        rows.set(field.label, row);
       }
-      if (field.varying) {
-        varying.add(field.label);
-      }
-      fields.set(field.label, field.value);
+      row.varying = row.varying || field.varying;
+      row.values[choice.letter] = field.value;
     }
-    byLetter.set(choice.letter, fields);
   }
-  return order.map((label) => ({
-    label,
-    varying: varying.has(label),
-    values: Object.fromEntries(
-      question.detail.choices.map((choice) => [choice.letter, byLetter.get(choice.letter)?.get(label) ?? null])
+  return [...rows.values()]
+    .sort(
+      (left, right) =>
+        groupRank(left.group) - groupRank(right.group) || left.order - right.order || left.seen - right.seen
     )
-  }));
+    .map(({ label, group, varying, values }) => ({ label, group, varying, values }));
 }
 
 /**
  * The choices side by side, as columns of one grid. Each card carries its whole
- * setup — the shared settings in grey under the axes that differ — and every
- * field sits in the same row across all three columns, so comparing one axis is
- * reading across one line.
+ * setup in a fixed order, with the fields that differ across the choices picked
+ * out in white and the ones they share left grey, and every field sits in the
+ * same row across all three columns, so comparing one axis is reading across one
+ * line.
  *
  * Each column's coloured card is a single element spanning every row, painted
  * behind the cells; the cells are `pointer-events: none`, so a click anywhere in
@@ -1158,8 +1180,11 @@ function ChoiceComparison({
   const rows = useMemo(() => comparisonRows(question), [question]);
   const choices = question.detail.choices;
   const lastRow = rows.length + 1;
-  // The first shared row opens the grey block, and takes the rule above it.
-  const firstShared = rows.findIndex((row) => !row.varying);
+  // A rule goes above the first row of each section after the first, so model
+  // settings never run straight into optimizer settings.
+  const groupStarts = new Set(
+    rows.map((row, index) => (index > 0 && row.group !== rows[index - 1].group ? index : -1)).filter((index) => index >= 0)
+  );
   return (
     <div className="choice-compare-scroll">
       <div
@@ -1224,7 +1249,7 @@ function ChoiceComparison({
             const className = [
               "compare-cell",
               row.varying ? "vary" : "same",
-              rowIndex === firstShared && rowIndex > 0 ? "group-start" : "",
+              groupStarts.has(rowIndex) ? "group-start" : "",
               rowIndex + 2 === lastRow ? "last" : ""
             ]
               .filter(Boolean)
@@ -1254,8 +1279,8 @@ function ChoiceComparison({
 
 /**
  * Split a choice's attributes into the ones every choice shares and the ones
- * that actually differ. Both halves go on the card — the shared half greyed —
- * so a choice is readable on its own, with the axes on top.
+ * that actually differ. Both halves go on the card, in one fixed order; the
+ * split only decides which rows are picked out and which recede.
  */
 function splitFields(question: BakedQuestion, choice: Choice): { shared: CardField[]; varying: CardField[] } {
   const shared = question.detail.shared.map((field) => ({ ...field, varying: false }));
@@ -1269,7 +1294,14 @@ function splitFields(question: BakedQuestion, choice: Choice): { shared: CardFie
     const parameterValue = trainableParameterCount(choice);
     const allEqual = parameterValues.every((value) => value === parameterValues[0]);
     // Short label: the cards sit in a narrow column, and "parameters" reads the same.
-    const field = { label: "parameters", value: parameterValue, varying: !allEqual };
+    const field = {
+      label: "parameters",
+      value: parameterValue,
+      varying: !allEqual,
+      // A model property, so it joins the end of the model section.
+      group: "model",
+      order: Number.MAX_SAFE_INTEGER
+    };
     if (allEqual) {
       shared.push(field);
     } else {
