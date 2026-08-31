@@ -37,3 +37,10 @@ cd frontend/quiz
 # cp ../../contracts/examples/mini_bake.json public/data/questions.json
 npm install && npm run dev
 ```
+
+## 下载可复现代码包
+
+顶栏的 **↓ Code** 按钮把当前题目打包成 zip，用户 `python reproduce.py` 就能重跑
+Ground Truth。这个功能**完全建立在现有 bake 之上**（`files` 字段），不需要改
+schema、也不需要重新导出。契约与两份实现（浏览器 / 命令行）见
+[REPRO_BUNDLE.md](./REPRO_BUNDLE.md)。

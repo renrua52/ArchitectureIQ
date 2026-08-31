@@ -5,6 +5,7 @@ import { classificationRuleLatex, expressionToLatex } from "./latex";
 import { decisionField, regionBands } from "./regions";
 import { MathInline } from "./math";
 import { newSessionId, track } from "./telemetry";
+import { bundleFilename, canBuildBundle, downloadBundle } from "./bundle";
 import type {
   BakeFile,
   BakedQuestion,
@@ -359,6 +360,25 @@ function App() {
     setStage("reveal");
   }
 
+  /**
+   * Hand over the runnable code folder for this question as a zip.
+   *
+   * Gated exactly like the file viewer: before answering it is code only, after
+   * answering it also carries the reference results and the answer key.
+   */
+  function downloadCode() {
+    if (!question || !canBuildBundle(question)) {
+      return;
+    }
+    track({
+      session_id: sessionId.current,
+      event_type: "bundle_download",
+      question_id: question.id,
+      payload: { answered }
+    });
+    downloadBundle(question, answered);
+  }
+
   function previousQuestion() {
     if (!summaries.length) {
       return;
@@ -439,6 +459,7 @@ function App() {
   const accuracy =
     score.total > 0 ? `${Math.round((100 * score.correct) / score.total)}%` : "—";
   const difficulty = resolveDifficulty(question.llmDifficulty, question.track);
+  const bundleReady = canBuildBundle(question);
 
   return (
     <main className="shell quiz">
@@ -472,6 +493,20 @@ function App() {
             disabled={Boolean(bake.ordered && index >= summaries.length - 1)}
           >
             {bake.ordered && index >= summaries.length - 1 ? "End" : "Next →"}
+          </button>
+          <button
+            type="button"
+            onClick={downloadCode}
+            disabled={!bundleReady}
+            title={
+              bundleReady
+                ? answered
+                  ? `Download ${bundleFilename(question.id)} — the code, the reference results and a reproduce.py`
+                  : `Download ${bundleFilename(question.id)} — the runnable code for every choice (no results until you answer)`
+                : "This question was baked without source files, so there is nothing to download"
+            }
+          >
+            ↓ Code
           </button>
           <button type="button" onClick={openMenu}>
             Questions
