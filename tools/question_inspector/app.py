@@ -175,6 +175,55 @@ CUSTOM_CSS = """
         line-height: 1.35;
         text-align: left;
     }
+    .ma-grid {
+        display: grid;
+        gap: 0.35rem;
+        margin-bottom: 0.5rem;
+    }
+    .ma-row {
+        display: grid;
+        grid-template-columns: 12rem 2.2rem 1.8rem 1fr;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.32rem 0.7rem;
+        border-radius: 10px;
+        border: 1px solid rgba(100, 116, 139, 0.18);
+        background: #ffffff;
+    }
+    .ma-row.right {
+        border-left: 3px solid #059669;
+    }
+    .ma-row.wrong {
+        border-left: 3px solid #dc2626;
+    }
+    .ma-row.miss {
+        border-left: 3px solid #94a3b8;
+    }
+    .ma-model {
+        font-weight: 640;
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
+    }
+    .ma-pred {
+        font-weight: 780;
+        font-size: 1.05rem;
+        text-align: center;
+    }
+    .ma-badge {
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    .ma-row.right .ma-badge {
+        color: #059669;
+    }
+    .ma-row.wrong .ma-badge {
+        color: #dc2626;
+    }
+    .ma-fact {
+        color: #475569;
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
     .qc-axis.group-start {
         margin-top: 0.3rem;
         padding-top: 0.38rem;
@@ -2591,6 +2640,101 @@ def _render_ranked_metrics(bundle: QuestionBundle, q: dict[str, Any]) -> None:
             st.write(f"**{row['letter']}** `{row['candidate_id']}` — no metrics")
 
 
+def _load_sidecar(question_root: Path, name: str) -> dict[str, Any]:
+    path = question_root / name
+    if not path.is_file():
+        return {}
+    try:
+        return read_json_file(path)
+    except ValueError:
+        return {}
+
+
+def _render_model_answers(bundle: QuestionBundle, q: dict[str, Any]) -> None:
+    data = _load_sidecar(bundle.question_root, "model_answers.json")
+    answers = data.get("answers") or {}
+    if not answers:
+        return
+    st.divider()
+    st.markdown("#### Model answers")
+    leaderboard = data.get("leaderboard") or []
+    if leaderboard:
+        chips = " · ".join(
+            f"`{entry['name']}` {entry['correct']}/{entry['n']}"
+            for entry in leaderboard
+        )
+        st.caption(f"Bank accuracy — {chips}")
+    correct = q["correct_letter"]
+    parts = ['<div class="qc-scroll"><div class="ma-grid">']
+    for name, rec in answers.items():
+        pred = rec.get("pred")
+        right = pred == correct
+        badge = "✓" if right else "✗"
+        cls = " right" if right else (" wrong" if pred else " miss")
+        pred_html = pred if pred else "—"
+        sec = rec.get("sec")
+        sec_html = f" · {sec:.0f}s" if isinstance(sec, (int, float)) else ""
+        excerpt = (rec.get("excerpt") or "").strip().replace("\n", " ")
+        if len(excerpt) > 220:
+            excerpt = excerpt[:217] + "…"
+        parts.append(
+            f'<div class="ma-row{cls}"><span class="ma-model">{html.escape(name)}</span>'
+            f'<span class="ma-pred">{pred_html}</span>'
+            f'<span class="ma-badge">{badge}</span>'
+            f'<span class="ma-fact">{html.escape(excerpt)}{sec_html}</span></div>'
+        )
+    parts.append("</div></div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+    with st.expander("Full model reasoning", expanded=False):
+        for name, rec in answers.items():
+            pred = rec.get("pred")
+            right = pred == correct
+            verdict = "correct" if right else "incorrect"
+            body = (rec.get("content") or "").strip() or "_(no answer text)_"
+            reasoning = (rec.get("reasoning") or "").strip()
+            st.markdown(f"**{name}** — picked **{pred or '—'}** ({verdict})")
+            st.markdown(body)
+            if reasoning:
+                with st.expander("reasoning trace", expanded=False):
+                    st.markdown(reasoning)
+            st.divider()
+
+
+def _render_reference_analysis(bundle: QuestionBundle, q: dict[str, Any]) -> None:
+    data = _load_sidecar(bundle.question_root, "analysis.json")
+    if not data:
+        return
+    st.divider()
+    st.markdown("#### Reference analyses")
+    claude = data.get("claude") or {}
+    verdent = data.get("verdent") or {}
+    experiments = claude.get("experiments") or []
+    if experiments:
+        st.markdown("**Claude's experiments** (trained on this question's dataset)")
+        rows = []
+        for exp in experiments:
+            if not exp.get("ok"):
+                rows.append({
+                    "hypothesis": exp.get("rationale") or exp.get("exp_id"),
+                    "change": json.dumps(exp.get("overrides") or {}, ensure_ascii=False)[:120],
+                    "result": f"failed: {exp.get('error', '')[:60]}",
+                })
+                continue
+            rows.append({
+                "hypothesis": exp.get("rationale") or exp.get("exp_id"),
+                "change": json.dumps(exp.get("overrides") or {}, ensure_ascii=False)[:120],
+                "result": f"{exp.get('mean'):.6g} ± {exp.get('std'):.2g} "
+                          f"({exp.get('n_seeds')} seeds)",
+            })
+        st.table(rows)
+    if claude.get("text"):
+        st.markdown(f"**Claude (claude-opus-5)**")
+        st.markdown(claude["text"])
+    if verdent.get("text"):
+        st.markdown("**Verdent (reference)**")
+        st.markdown(verdent["text"])
+
+
 def _signed_latex_sum(terms: list[tuple[float, str]]) -> str:
     rendered: list[str] = []
     for index, (weight, expression) in enumerate(terms):
@@ -2752,6 +2896,8 @@ def _render_question_page(
         )
     if committed:
         _render_ranked_metrics(bundle, q)
+        _render_model_answers(bundle, q)
+        _render_reference_analysis(bundle, q)
 
     inspect_letter = st.session_state.info_letter or st.session_state.focus_letter
     if inspect_letter:
