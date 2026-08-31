@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import html
+import json
 import random
 import secrets
 import sys
@@ -65,6 +67,7 @@ from architecture_iq.profile import load_profile  # noqa: E402
 QUESTION_PACKS_ROOT = (
     Path(__file__).resolve().parents[2] / "benchmark_releases" / "question_packs"
 )
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_QUESTION_PACK = "local"
 
 st.set_page_config(
@@ -152,6 +155,138 @@ CUSTOM_CSS = """
         color: #047857;
         font-size: 0.82rem;
         font-weight: 600;
+    }
+    .qc-scroll {
+        overflow-x: auto;
+        margin: 0.2rem 0 0.6rem 0;
+    }
+    .qc-grid {
+        display: grid;
+        gap: 0;
+        min-width: 42rem;
+        align-items: center;
+    }
+    .qc-axis {
+        min-width: 8.5rem;
+        padding: 0.22rem 0.6rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.35;
+        text-align: left;
+    }
+    .qc-axis.group-start {
+        margin-top: 0.3rem;
+        padding-top: 0.38rem;
+        border-top: 1px solid rgba(100, 116, 139, 0.16);
+    }
+    .qc-col {
+        z-index: 0;
+        align-self: stretch;
+        border-radius: 14px;
+        margin: 0 0.28rem;
+        padding: 0;
+        background: color-mix(in srgb, var(--cc) 7%, #f8fafc 93%);
+        border: 1.5px solid color-mix(in srgb, var(--cc) 28%, #cbd5e1 72%);
+        border-top: 3px solid var(--cc);
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+    .qc-col.picked {
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc) 70%, white);
+    }
+    .qc-col.correct {
+        box-shadow:
+            0 0 0 2px var(--cc),
+            0 0 18px color-mix(in srgb, var(--cc) 28%, transparent);
+    }
+    .qc-col.wrong {
+        opacity: 0.72;
+        filter: saturate(0.7);
+    }
+    .qc-head {
+        position: relative;
+        z-index: 1;
+        padding: 0.55rem 0.55rem 0.3rem;
+        font-size: 1.3rem;
+        font-weight: 780;
+        text-align: center;
+        color: var(--cc);
+        line-height: 1.1;
+    }
+    .qc-head-metric {
+        font-family: "Source Code Pro", monospace;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #475569;
+        margin-top: 0.1rem;
+    }
+    .qc-cell {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: baseline;
+        gap: 0.5rem;
+        padding: 0.22rem 0.6rem;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        min-width: 0;
+    }
+    .qc-val {
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+    .qc-cell.vary .qc-val {
+        color: #0f172a;
+        font-weight: 700;
+    }
+    .qc-cell.same .qc-name,
+    .qc-cell.same .qc-val {
+        color: #94a3b8;
+        font-weight: 500;
+    }
+    .qc-cell.group-start {
+        margin-top: 0.3rem;
+        padding-top: 0.38rem;
+        border-top: 1px solid rgba(100, 116, 139, 0.16);
+    }
+    .qc-cell.same {
+        color: #94a3b8;
+    }
+    .qc-flags {
+        display: inline-flex;
+        gap: 0.2rem;
+    }
+    .qc-flag {
+        display: inline-grid;
+        place-items: center;
+        width: 1.05rem;
+        height: 1.05rem;
+        border-radius: 5px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .qc-flag.on {
+        color: #0d2b21;
+        background: #10b981;
+    }
+    .qc-flag.off {
+        color: #94a3b8;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+    .qc-cell.same .qc-flag.on {
+        color: #f8fafc;
+        background: #94a3b8;
+    }
+    @media (max-width: 720px) {
+        .qc-grid {
+            min-width: 42rem;
+        }
+        .qc-axis {
+            min-width: 7.5rem;
+        }
     }
 </style>
 """
@@ -285,13 +420,42 @@ def _resolve_data_root(data_root: str) -> Path:
     return Path(data_root).expanduser().resolve()
 
 
+def _resolve_pack_data_root(
+    pack_root: Path,
+    value: str,
+    repo_root: Path,
+) -> Path | None:
+    """Resolve a pack's data root.
+
+    A data root may live inside the pack itself (self-contained pack) or, for
+    packs that reference live generation output, at a clean relative path
+    inside the repository (e.g. "data" or "benchmarks/v1_llm"). Absolute
+    values and traversal outside both roots are rejected.
+    """
+    raw = Path(value)
+    if raw.is_absolute():
+        return None
+    inside_pack = (pack_root / raw).resolve()
+    if inside_pack.is_relative_to(pack_root) and inside_pack.is_dir():
+        return inside_pack
+    if ".." in raw.parts:
+        return None
+    in_repo = (repo_root / raw).resolve()
+    if in_repo.is_relative_to(repo_root) and in_repo.is_dir():
+        return in_repo
+    return None
+
+
 def _question_pack_registry(
     packs_root: Path | None = None,
+    *,
+    repo_root: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Return valid tracked question packs keyed by their stable pack ID."""
     root = (packs_root or QUESTION_PACKS_ROOT).resolve()
     if not root.is_dir():
         return {}
+    repo = repo_root.resolve() if repo_root is not None else REPO_ROOT
 
     packs: dict[str, dict[str, Any]] = {}
     for manifest_path in sorted(root.glob("*/pack.json")):
@@ -312,12 +476,11 @@ def _question_pack_registry(
         if pack_id != pack_root.name or pack_id in packs:
             continue
         collection_path = (pack_root / collection_value).resolve()
-        pack_data_root = (pack_root / data_root_value).resolve()
+        pack_data_root = _resolve_pack_data_root(pack_root, data_root_value, repo)
         if (
             not collection_path.is_relative_to(pack_root)
-            or not pack_data_root.is_relative_to(pack_root)
             or not collection_path.is_file()
-            or not pack_data_root.is_dir()
+            or pack_data_root is None
         ):
             continue
         packs[pack_id] = {
@@ -381,7 +544,10 @@ def _render_question_pack_selector(
 
     _reset_for_question_pack(selected)
     if selected == LOCAL_QUESTION_PACK:
-        if st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve())):
+        pack_data_roots = {str(pack["data_root"]) for pack in packs.values()}
+        if st.session_state.data_root in pack_data_roots or st.session_state.data_root.startswith(
+            str(QUESTION_PACKS_ROOT.resolve())
+        ):
             st.session_state.data_root = "data"
         return None
 
@@ -1483,6 +1649,228 @@ def _render_candidate_spec_html(spec: dict[str, Any]) -> str:
     return "".join(blocks)
 
 
+QC_COLORS = {"A": "#2563eb", "B": "#ea580c", "C": "#7c3aed", "D": "#0d9488", "E": "#db2777"}
+
+
+def _fmt_lr(value: Any) -> str:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if 0 < abs(v) < 0.01:
+        return f"{v:.0e}"
+    return f"{v:g}"
+
+
+def _fmt_num(value: Any) -> str:
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, int):
+        return f"{value:,}"
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value)
+
+
+def _compare_field_rows(spec: dict[str, Any]) -> list[tuple[str, str, Any]]:
+    """(label, group, value) triples per choice, in the quiz-frontend group order."""
+    model = spec.get("model", {})
+    opt = spec.get("optimizer", {})
+    budget = spec.get("budget") or {}
+    loss = spec.get("loss") or {}
+    rows: list[tuple[str, str, Any]] = []
+    mtype = model.get("type", "mlp")
+    if mtype == "mlp":
+        acts = prompt_format._mlp_activations(model)
+        act_label = acts[0] if len(acts) == 1 else "/".join(acts)
+        if "leaky_relu" in acts:
+            slope = float(model.get("leaky_relu_slope", prompt_format.LEGACY_LEAKY_RELU_SLOPE))
+            act_label = f"LeakyReLU({slope:g})"
+        rows += [
+            ("Type", "model", "MLP"),
+            ("Depth", "model", f"{model.get('depth')} × {model.get('width')}"),
+            ("Hidden layer", "model", prompt_format._mlp_block_formula(model)),
+            ("Residual", "model", bool(model.get("residual"))),
+            ("LayerNorm", "model", [bool(v) for v in model.get("layer_norm", [])]),
+            ("Activation", "model", act_label),
+        ]
+    elif mtype == "transformer_lm":
+        d_model, d_ff = prompt_format._transformer_dims(model)
+        rows += [
+            ("Type", "model", "Transformer"),
+            ("d_model", "model", d_model),
+            ("Layers", "model", model.get("num_layers")),
+            ("Heads", "model", model.get("num_heads")),
+            ("d_ff", "model", d_ff),
+            ("Pos encoding", "model", "learned"),
+            ("Vocab", "model", model.get("vocab_size")),
+            ("Context", "model", model.get("context_length")),
+        ]
+    elif mtype == "gru_lm":
+        rows += [
+            ("Type", "model", "GRU LM"),
+            ("d_model", "model", model.get("d_model")),
+            ("Layers", "model", model.get("num_layers")),
+            ("Residual", "model", bool(model.get("layer_residual", False))),
+            ("Vocab", "model", model.get("vocab_size")),
+            ("Context", "model", model.get("context_length")),
+        ]
+    params = spec.get("trainable_parameter_count")
+    rows.append(("Parameters", "model", f"{int(params):,}" if params is not None else "—"))
+
+    rows.append(("Optimizer", "optimizer", opt.get("type", "?")))
+    rows.append(("LR", "optimizer", _fmt_lr(opt.get("lr"))))
+    rows.append(("WD", "optimizer", _fmt_num(opt.get("weight_decay", 0))))
+    if opt.get("type") == "SGD" and "momentum" in opt:
+        rows.append(("Momentum", "optimizer", _fmt_num(opt["momentum"])))
+    if opt.get("type") in {"Adam", "AdamW"} and "betas" in opt:
+        rows.append(("Betas", "optimizer", str(opt["betas"])))
+
+    loss_id = loss.get("loss_id", "?")
+    rows.append(("Loss", "loss", {"mse": "MSE", "cross_entropy": "CE"}.get(loss_id, loss_id)))
+
+    rows += [
+        ("Steps", "budget", _fmt_num(budget.get("training_steps"))),
+        ("Batch", "budget", _fmt_num(budget.get("batch_size"))),
+        ("Samples", "budget", _fmt_num(budget.get("total_samples_seen"))),
+    ]
+    return rows
+
+
+def _compare_rows(
+    choices: list[dict[str, Any]],
+) -> list[tuple[str, str, list[Any], bool]]:
+    """Union of field rows across choices: (label, group, values, varying)."""
+    per_choice = [_compare_field_rows(read_json_file(c["candidate_dir"] / "candidate_spec.json"))
+                  for c in choices]
+    labels: list[tuple[str, str]] = []
+    for rows in per_choice:
+        for label, group, _ in rows:
+            if (label, group) not in labels:
+                labels.append((label, group))
+    out: list[tuple[str, str, list[Any], bool]] = []
+    for label, group in labels:
+        values = [next((v for l, g, v in rows if l == label and g == group), None)
+                  for rows in per_choice]
+        out.append((label, group, values, len({json.dumps(v, sort_keys=True, default=str) for v in values}) > 1))
+    return out
+
+
+def _qc_value_html(value: Any, *, varying: bool) -> str:
+    flags: list[bool] | None = None
+    if isinstance(value, bool):
+        flags = [value]
+    elif isinstance(value, list) and value and all(isinstance(v, bool) for v in value):
+        flags = value
+    if flags is not None:
+        spans = "".join(
+            f'<span class="qc-flag {"on" if f else "off"}">{"✓" if f else "✗"}</span>'
+            for f in flags
+        )
+        return f'<span class="qc-flags">{spans}</span>'
+    if value is None:
+        return "—"
+    return html.escape(str(value))
+
+
+def _render_choice_comparison(
+    bundle: QuestionBundle,
+    q: dict[str, Any],
+    *,
+    committed: bool,
+    committed_letter: str | None,
+    correct_letter: str,
+) -> None:
+    choices = bundle.choices
+    n = len(choices)
+    rows = _compare_rows(choices)
+    colors = [QC_COLORS.get(c["letter"], "#64748b") for c in choices]
+    summaries = []
+    for c in choices:
+        sp = c["candidate_dir"] / "results" / "summary.json"
+        summaries.append(read_json_file(sp) if sp.is_file() else {})
+
+    parts = [
+        f'<div class="qc-scroll"><div class="qc-grid" '
+        f'style="grid-template-columns:minmax(8.5rem, 0.9fr) '
+        f'repeat({n}, minmax(0, 1fr));'
+        f'grid-template-rows:auto repeat({len(rows)}, auto)">'
+    ]
+    for i, choice in enumerate(choices):
+        letter = choice["letter"]
+        state = ""
+        if committed:
+            if letter == correct_letter:
+                state = " correct"
+            elif letter == committed_letter:
+                state = " wrong"
+        parts.append(
+            f'<div class="qc-col{state}" style="--cc:{colors[i]};'
+            f'grid-column:{i + 2};grid-row:1 / -1"></div>'
+        )
+    for i, choice in enumerate(choices):
+        metric_html = ""
+        if committed and summaries[i] and "error" not in summaries[i]:
+            metric_html = f'<div class="qc-head-metric">{format_metrics(summaries[i])}</div>'
+        parts.append(
+            f'<div class="qc-head" style="--cc:{colors[i]};'
+            f'grid-column:{i + 2};grid-row:1">'
+            f"{choice['letter']}{metric_html}</div>"
+        )
+    row_index = 2
+    prev_group = None
+    for label, group, values, varying in rows:
+        group_start = group != prev_group
+        parts.append(
+            f'<div class="qc-axis{" group-start" if group_start else ""}" '
+            f'style="grid-column:1;grid-row:{row_index}">'
+            f'{html.escape(label)}</div>'
+        )
+        for i, value in enumerate(values):
+            parts.append(
+                f'<div class="qc-cell{" vary" if varying else " same"}'
+                f'{" group-start" if group_start else ""}" '
+                f'style="grid-column:{i + 2};grid-row:{row_index}">'
+                f'<span class="qc-val">{_qc_value_html(value, varying=varying)}</span></div>'
+            )
+        prev_group = group
+        row_index += 1
+    parts.append("</div></div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
+    btn_cols = st.columns([1.1] + [1] * n)
+    btn_cols = btn_cols[1:]
+    for col, choice in zip(btn_cols, choices, strict=True):
+        letter = choice["letter"]
+        with col:
+            main_b, info_b = st.columns([4, 1])
+            if committed and letter == committed_letter:
+                button_label, button_type, disabled = "Your pick", "primary", True
+            elif committed:
+                button_label, button_type, disabled = "View", "secondary", False
+            else:
+                button_label = "Select"
+                button_type = "primary"
+                disabled = False
+            if main_b.button(
+                button_label,
+                key=f"select_{letter}",
+                use_container_width=True,
+                type=button_type,
+                disabled=disabled,
+            ):
+                if not committed:
+                    _commit_selection(q, letter)
+                else:
+                    st.session_state.focus_letter = letter
+                    st.session_state.info_letter = None
+                st.rerun()
+            if info_b.button("i", key=f"info_{letter}", help="View candidate files"):
+                st.session_state.info_letter = letter
+                st.session_state.focus_letter = letter
+                st.rerun()
+
+
 def _question_budget(q: dict[str, Any]) -> int:
     budget = q["budget"]
     if isinstance(budget, dict):
@@ -2160,103 +2548,6 @@ def _render_metadata(
         unsafe_allow_html=True,
     )
 
-def _card_border_style(
-    letter: str,
-    *,
-    committed: bool,
-    committed_letter: str | None,
-    correct_letter: str,
-    focused: bool,
-) -> str:
-    if not committed:
-        return "2px solid #2563eb" if focused else "2px solid #e2e8f0"
-    if letter == correct_letter:
-        return "2px solid #16a34a"
-    if letter == committed_letter and letter != correct_letter:
-        return "2px solid #dc2626"
-    return "2px solid #e2e8f0"
-
-
-def _render_candidate_card(
-    choice: dict[str, Any],
-    q: dict[str, Any],
-    *,
-    committed: bool,
-    committed_letter: str | None,
-    correct_letter: str,
-    focus_letter: str | None,
-) -> None:
-    letter = choice["letter"]
-    spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
-    summary_path = choice["candidate_dir"] / "results" / "summary.json"
-    summary = read_json_file(summary_path) if summary_path.is_file() else {}
-
-    border = _card_border_style(
-        letter,
-        committed=committed,
-        committed_letter=committed_letter,
-        correct_letter=correct_letter,
-        focused=focus_letter == letter,
-    )
-    bg = "#f8fafc" if focus_letter == letter else "#ffffff"
-
-    st.markdown('<div class="candidate-card-marker"></div>', unsafe_allow_html=True)
-
-    header_left, header_right = st.columns([5, 1])
-    with header_left:
-        st.markdown(
-            f'<p class="candidate-letter">{letter}</p>'
-            f'<p class="candidate-id">{choice["candidate_id"]}</p>',
-            unsafe_allow_html=True,
-        )
-    with header_right:
-        st.markdown('<div class="info-btn-slot"></div>', unsafe_allow_html=True)
-        if st.button("i", key=f"info_{letter}", help="View candidate files"):
-            st.session_state.info_letter = letter
-            st.session_state.focus_letter = letter
-            st.rerun()
-
-    metric_pill = ""
-    if committed and summary and "error" not in summary:
-        metric_pill = f'<span class="metric-pill">{format_metrics(summary)}</span>'
-
-    st.markdown(
-        f'<div style="border: {border}; border-radius: 12px; padding: 0.85rem 1rem; '
-        f'background: {bg}; min-height: 18rem;">'
-        f"{_render_candidate_spec_html(spec)}"
-        f"{metric_pill}"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-
-    if committed and letter == committed_letter:
-        button_label = "Your pick"
-        button_type = "primary"
-        disabled = True
-    elif committed:
-        button_label = "View"
-        button_type = "secondary"
-        disabled = False
-    else:
-        button_label = "Select"
-        button_type = "primary" if focus_letter == letter else "secondary"
-        disabled = False
-
-    if st.button(
-        button_label,
-        key=f"select_{letter}",
-        use_container_width=True,
-        type=button_type,
-        disabled=disabled,
-    ):
-        if not committed:
-            _commit_selection(q, letter)
-        else:
-            st.session_state.focus_letter = letter
-            st.session_state.info_letter = None
-        st.rerun()
-
-
 def _render_answer_banner(q: dict[str, Any], committed_letter: str, *, metric: str) -> None:
     correct = q["correct_letter"]
     metric_label = _metric_display_name(metric)
@@ -2437,17 +2728,13 @@ def _render_question_page(
     _render_dataset_panel(bundle)
     st.markdown("#### Choices")
 
-    cols = st.columns(len(bundle.choices))
-    for col, choice in zip(cols, bundle.choices, strict=True):
-        with col:
-            _render_candidate_card(
-                choice,
-                q,
-                committed=committed,
-                committed_letter=st.session_state.committed_letter,
-                correct_letter=q["correct_letter"],
-                focus_letter=focus_letter,
-            )
+    _render_choice_comparison(
+        bundle,
+        q,
+        committed=committed,
+        committed_letter=st.session_state.committed_letter,
+        correct_letter=q["correct_letter"],
+    )
 
     _render_custom_setting_builder(bundle, q)
     custom_runs = list_custom_setting_runs(_custom_settings_storage_for(q))

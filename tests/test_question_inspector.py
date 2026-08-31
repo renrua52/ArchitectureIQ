@@ -773,6 +773,53 @@ def test_question_pack_registry_rejects_path_traversal(tmp_path: Path) -> None:
     ).resolve()
 
 
+def test_question_pack_registry_allows_repo_relative_data_root(
+    tmp_path: Path,
+) -> None:
+    packs_root = tmp_path / "question_packs"
+    repo_root = tmp_path / "repo"
+    live = packs_root / "live-pack"
+    live.mkdir(parents=True)
+    (live / "collection.json").write_text(
+        json.dumps({"question_paths": []}),
+        encoding="utf-8",
+    )
+    (live / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "live-pack",
+                "display_name": "Live pack",
+                "collection_path": "collection.json",
+                "data_root": "data",
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    repo_data = repo_root / "data"
+    repo_data.mkdir(parents=True)
+
+    registry = inspector_app._question_pack_registry(packs_root, repo_root=repo_root)
+
+    assert list(registry) == ["live-pack"]
+    assert registry["live-pack"]["data_root"] == repo_data.resolve()
+
+    # Absolute data roots and traversal stay rejected even with a repo root.
+    (live / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "live-pack",
+                "display_name": "Live pack",
+                "collection_path": "collection.json",
+                "data_root": str(repo_data),
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert inspector_app._question_pack_registry(packs_root, repo_root=repo_root) == {}
+
+
 def test_startup_question_collection_rejects_paths_outside_data_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
