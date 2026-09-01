@@ -209,7 +209,7 @@ optimizer_grids:
   batch_size: [16, 32, 64]
 
 budgets:
-  total_samples_seen: [4096, 8192, 16384]
+  total_samples_seen: [4096, 8192, 16384, 32768]
   # Every candidate trains at least 256 steps; valid_batch_sizes rejects batch
   # sizes that would violate this floor.
   min_training_steps: 256
@@ -293,8 +293,9 @@ question_generation:
     # banding cannot cover: a question unioning several sets (whose bands may sit
     # at different scales), and legacy sets on disk generated before banding.
     param_ratio_max: 2.0
-    # Cap how many questions a single dataset instance may appear in.
-    max_questions_per_dataset: 25
+    # 2026-09-01 setter decision: every question must use its own dataset
+    # instance, so a run produces at most one question per dataset.
+    max_questions_per_dataset: 1
 
 prompts:
   use_llm_paraphrase: false
