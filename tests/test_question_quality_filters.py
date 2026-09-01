@@ -217,7 +217,7 @@ def test_v13_profile_quality_and_budgets() -> None:
     quality = QuestionQualityFilters.from_profile(profile)
     assert quality.gap_max is None
     assert quality.param_ratio_max == 10.0
-    assert quality.max_questions_per_dataset == 25
+    assert quality.max_questions_per_dataset == 1
     assert profile.significance["gap_min"] == 0.06
     assert profile.significance["win_rate_min"] == 1.0
     # A5: no regularized losses in any pool.

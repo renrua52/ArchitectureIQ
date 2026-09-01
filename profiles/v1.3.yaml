@@ -161,8 +161,9 @@ question_generation:
     # C4: winner/loser parameter ratio above this makes "pick the largest
     # model" a free win; reject such subsets.
     param_ratio_max: 10.0
-    # C2: cap how many questions a single dataset instance may appear in.
-    max_questions_per_dataset: 25
+    # 2026-09-01: every question must use its own dataset instance, so a
+    # question run may request at most one question per dataset.
+    max_questions_per_dataset: 1
 
 prompts:
   use_llm_paraphrase: false
