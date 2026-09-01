@@ -1738,7 +1738,6 @@ def _compare_field_rows(spec: dict[str, Any]) -> list[tuple[str, str, Any]]:
         rows += [
             ("Type", "model", "MLP"),
             ("Depth", "model", f"{model.get('depth')} × {model.get('width')}"),
-            ("Hidden layer", "model", prompt_format._mlp_block_formula(model)),
             ("Residual", "model", bool(model.get("residual"))),
             ("LayerNorm", "model", [bool(v) for v in model.get("layer_norm", [])]),
             ("Activation", "model", act_label),

@@ -56,23 +56,6 @@ def _format_activation_line(acts: list[str]) -> str:
     return f"- Activations (per layer, legacy spec): [{', '.join(acts)}]"
 
 
-def _mlp_block_formula(model: dict) -> str:
-    """Exact hidden-layer computation, so the NL cannot drift from model.py."""
-
-    def form(with_norm: bool) -> str:
-        inner = "Linear(LayerNorm(x))" if with_norm else "Linear(x)"
-        return f"act(x + {inner})" if bool(model["residual"]) else f"act({inner})"
-
-    norms = [bool(v) for v in model.get("layer_norm", [])]
-    if norms and all(norms):
-        return form(True)
-    if not any(norms):
-        return form(False)
-    # layer_norm is per-layer, so a mixed pattern points at the per-layer row
-    # instead of spelling out both forms.
-    return f"{form(True)}; on layers whose per-layer flag is False, drop the LayerNorm"
-
-
 def format_mlp_nl(model: dict) -> str:
     lines = [
         "- Type: MLP",
@@ -91,7 +74,6 @@ def format_mlp_nl(model: dict) -> str:
             f"input projection and the output head "
             f"({depth + 2} nn.Linear layers in total)",
             f"- Width: {width} (all hidden layers)",
-            f"- Hidden layer: {_mlp_block_formula(model)}",
             f"- Residual connections: {model['residual']}",
             f"- Layer norm per layer: {model['layer_norm']}",
             _format_activation_line(acts),
