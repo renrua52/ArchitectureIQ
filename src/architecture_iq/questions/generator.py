@@ -220,6 +220,49 @@ def find_significant_subsets(
     return passing
 
 
+def _pick_type_balanced_subsets(
+    subsets: list[list[Path]],
+    num_questions: int,
+) -> list[list[Path]]:
+    """Pick candidate-disjoint subsets with an even question-type quota.
+
+    The passing pool is grouped by inferred question type; each round picks
+    one candidate-disjoint subset per still-feasible type in canonical order,
+    so slots are shared evenly across types. A type that runs out of disjoint
+    subsets stops consuming rounds and its unused quota flows to the others.
+    """
+    type_order = ("architecture_only", "optimizer_only", "loss_only", "mixed")
+    grouped: dict[str, list[tuple[list[Path], frozenset[str]]]] = {
+        qtype: [] for qtype in type_order
+    }
+    seen: set[frozenset[str]] = set()
+    for subset in subsets:
+        key = _candidate_set_key(subset)
+        if key in seen:
+            continue
+        seen.add(key)
+        specs = [read_json(path / "candidate_spec.json") for path in subset]
+        grouped[infer_question_type(specs)].append((subset, key))
+    feasible = [qtype for qtype in type_order if grouped[qtype]]
+
+    picked: list[list[Path]] = []
+    used: frozenset[str] = frozenset()
+    while len(picked) < num_questions and feasible:
+        for qtype in list(feasible):
+            if len(picked) == num_questions:
+                break
+            bucket = grouped[qtype]
+            for index, (subset, key) in enumerate(bucket):
+                if key.isdisjoint(used):
+                    picked.append(subset)
+                    used = used | key
+                    bucket.pop(index)
+                    break
+            else:
+                feasible.remove(qtype)
+    return picked
+
+
 def select_significant_candidates(
     pool: list[Path],
     profile: Profile,
@@ -790,7 +833,10 @@ def generate_questions(
         )
 
     if candidate_reuse_policy == DEFAULT_CANDIDATE_REUSE_POLICY:
-        selected_sets = _pick_candidate_disjoint_subsets(subsets, num_questions)
+        if question_type is None:
+            selected_sets = _pick_type_balanced_subsets(subsets, num_questions)
+        else:
+            selected_sets = _pick_candidate_disjoint_subsets(subsets, num_questions)
     elif candidate_reuse_policy == "blind_pair_unique":
         if winner_type_max_fraction is None:
             selected_sets = _pick_unique_subsets(subsets, num_questions)
