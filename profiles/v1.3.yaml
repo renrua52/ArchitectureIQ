@@ -12,6 +12,9 @@ schema_version: "1.0"
 # - C5: significance floor raised to gap_min=0.06 / win_rate_min=0.8.
 # - C4/C2: question quality filters enabled (param_ratio_max,
 #   max_questions_per_dataset).
+# - 2026-09-01 review decisions: add a 32768 budget tier (stays log-uniform),
+#   drop the gap_max ceiling (large-gap questions are easier, not invalid),
+#   loosen param_ratio_max to 10.
 
 pools:
   dataset_families:
@@ -125,7 +128,7 @@ loss_grids:
   lambda: [1.0e-4, 1.0e-3, 1.0e-2]
 
 budgets:
-  total_samples_seen: [4096, 8192, 16384]
+  total_samples_seen: [4096, 8192, 16384, 32768]
   # C3: every candidate trains at least 256 steps; valid_batch_sizes rejects
   # batch sizes that would violate this floor.
   min_training_steps: 256
@@ -152,12 +155,12 @@ question_generation:
   max_attempts: 20
   targeted_pool_size: 32
   quality:
-    gap_max: 0.25
+    # No gap_max ceiling: large-gap questions are merely easier, not invalid.
     require_finite_mean: true
     max_failed_seeds: 0
     # C4: winner/loser parameter ratio above this makes "pick the largest
     # model" a free win; reject such subsets.
-    param_ratio_max: 8.0
+    param_ratio_max: 10.0
     # C2: cap how many questions a single dataset instance may appear in.
     max_questions_per_dataset: 25
 
