@@ -209,12 +209,19 @@ def render_prompt(
         [
             "",
             "## Your answer",
-            f"Choose exactly one of {', '.join(letters)} and wrap that single "
-            "letter in `<answer></answer>` tags, for example "
-            f"`<answer>{letters[0]}</answer>`.",
-            "Reason first if you want to, then put the tag last: the grader "
-            "reads the final `<answer>` tag in your reply and nothing else, and "
-            "a reply with no such tag scores zero.",
+            f"Choose exactly one of {', '.join(letters)}. End your reply with "
+            "exactly two tagged fields, in this order and with nothing after "
+            "them:",
+            "",
+            "<explanation>One short paragraph: the mechanism that decides the "
+            "winner, and why each other choice loses.</explanation>",
+            f"<answer>{letters[0]}</answer>",
+            "",
+            f"Rules: `<answer>` must contain exactly one letter from "
+            f"{{{', '.join(letters)}}}. The grader reads only the **final** "
+            "`<answer>` tag in your reply; everything else is treated as "
+            "reasoning. A reply with no `<answer>` tag, or a letter outside "
+            "the choices, scores zero.",
         ]
     )
     return "\n".join(parts)
