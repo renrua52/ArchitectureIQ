@@ -216,7 +216,7 @@ def test_v13_profile_quality_and_budgets() -> None:
     assert profile.raw["budgets"]["total_samples_seen"] == [4096, 8192, 16384, 32768]
     quality = QuestionQualityFilters.from_profile(profile)
     assert quality.gap_max is None
-    assert quality.param_ratio_max == 10.0
+    assert quality.param_ratio_max == 2.0
     assert quality.max_questions_per_dataset == 1
     assert profile.significance["gap_min"] == 0.06
     assert profile.significance["win_rate_min"] == 1.0
