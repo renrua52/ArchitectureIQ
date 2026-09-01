@@ -66,8 +66,9 @@ def _mlp_block_formula(model: dict) -> str:
         return form(True)
     if not any(norms):
         return form(False)
-    # layer_norm is per-layer, so a mixed pattern needs both forms spelled out.
-    return f"{form(True)} for a layer with layer norm, {form(False)} for a layer without"
+    # layer_norm is per-layer, so a mixed pattern points at the per-layer row
+    # instead of spelling out both forms.
+    return f"{form(True)}; on layers whose per-layer flag is False, drop the LayerNorm"
 
 
 def format_mlp_nl(model: dict) -> str:
