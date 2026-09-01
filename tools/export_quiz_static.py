@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import math
 import sys
@@ -43,6 +44,7 @@ from prompt_format import (  # noqa: E402
     format_model_spec_lines,
     format_optimizer_nl,
 )
+from architecture_iq.runtime.loader import load_synthesize_module  # noqa: E402
 
 DEFAULT_DATA = ROOT / "data"
 OUT = ROOT / "frontend" / "quiz" / "public" / "data" / "questions.json"
@@ -53,6 +55,8 @@ CLASSIFICATION_BINS = 12
 CLASSIFICATION_PRIOR_STRENGTH = 6.0
 CLASSIFICATION_TRAIN_POINTS_PER_CLASS = 80
 CLASSIFICATION_TEST_POINTS_PER_CLASS = 40
+CLASSIFICATION_RULE_GRID = 128
+CLASSIFICATION_REGION_MIN_AGREEMENT = 0.9
 
 def _fmt(value: Any) -> str:
     if isinstance(value, float):
@@ -180,7 +184,7 @@ def _classification_points(x: np.ndarray, y: np.ndarray, first: int, second: int
     for label in unique_labels:
         indices = np.flatnonzero(labels == label)
         if len(indices) > maximum:
-            indices = np.linspace(0, len(indices) - 1, maximum, dtype=int)
+            indices = indices[np.linspace(0, len(indices) - 1, maximum, dtype=int)]
         for index in indices.tolist():
             points.append({"x": float(x[index, first]), "y": float(x[index, second]), "label": label})
     return points
@@ -236,7 +240,153 @@ def _classification_probability_grid(
     return x_edges, y_edges, probability
 
 
-def _classification_plot(train: dict[str, Any], test: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+def _rule_dependent_columns(params: dict[str, Any]) -> set[int] | None:
+    """Feature columns the frozen label rule actually reads, or None if unknown."""
+    rule = str(params.get("rule_family", ""))
+    active = [int(v) for v in params.get("active_features", []) if isinstance(v, (int, float))]
+    if rule == "smooth_additive":
+        return set(active)
+    if rule == "sparse_interaction":
+        columns: set[int] = set()
+        for pair in params.get("interaction_pairs") or []:
+            if isinstance(pair, (list, tuple)) and len(pair) == 2:
+                columns.update(int(v) for v in pair)
+        return columns or set(active)
+    if rule in ("xor", "spiral"):
+        return set(active)
+    if rule == "piecewise_boundary":
+        return set(active[:2])
+    return None
+
+
+def _rule_grid_scores(
+    module: Any,
+    kwargs: dict[str, Any],
+    input_dim: int,
+    first: int,
+    second: int,
+    x_lo: float,
+    x_hi: float,
+    y_lo: float,
+    y_hi: float,
+    res: int,
+) -> np.ndarray:
+    """Evaluate the dataset's frozen rule on a (res+1) x (res+1) corner grid."""
+    xs = np.linspace(x_lo, x_hi, res + 1)
+    ys = np.linspace(y_lo, y_hi, res + 1)
+    grid_x, grid_y = np.meshgrid(xs, ys, indexing="ij")
+    probe = np.stack([grid_x.ravel(), grid_y.ravel()], axis=1)
+    full = np.zeros((probe.shape[0], input_dim), dtype=np.float32)
+    full[:, first] = probe[:, 0]
+    full[:, second] = probe[:, 1]
+    with torch.no_grad():
+        return (
+            module.target(torch.from_numpy(full), **kwargs)
+            .detach()
+            .cpu()
+            .numpy()
+            .reshape(res + 1, res + 1)
+        )
+
+
+def _rule_region_plot(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_test: np.ndarray,
+    y_test: np.ndarray,
+    params: dict[str, Any],
+    dataset_dir: Path,
+    first: int,
+    second: int,
+    note: str,
+) -> dict[str, Any] | None:
+    """Plot payload backed by the dataset's frozen rule, or None when unusable.
+
+    The rule grid is evaluated by importing the dataset's own ``synthesize.py``
+    and calling its ``target()`` on a 2-D probe grid — the exporter never
+    re-implements per-rule formulas.  Hard regions are only emitted when the
+    displayed feature pair covers every column the rule reads and the resulting
+    regions reproduce the materialized labels; otherwise the caller falls back
+    to the empirical probability projection.
+    """
+    columns = _rule_dependent_columns(params)
+    if columns is None or not columns.issubset({first, second}):
+        return None
+    synthesize_path = dataset_dir / "synthesize.py"
+    if not synthesize_path.is_file():
+        return None
+    threshold = float(params.get("decision_threshold", 0.0))
+    input_dim = x_train.shape[1]
+    module = load_synthesize_module(synthesize_path)
+    allowed = {
+        name
+        for name, param in inspect.signature(module.target).parameters.items()
+        if param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    }
+    kwargs = {key: value for key, value in params.items() if key in allowed}
+
+    def _domain(values: np.ndarray) -> tuple[float, float]:
+        low, high = float(np.min(values)), float(np.max(values))
+        if low == high:
+            low -= 0.5
+            high += 0.5
+        margin = 0.05 * (high - low)
+        return low - margin, high + margin
+
+    x_lo, x_hi = _domain(np.concatenate([x_train[:, first], x_test[:, first]]))
+    y_lo, y_hi = _domain(np.concatenate([x_train[:, second], x_test[:, second]]))
+    grid = CLASSIFICATION_RULE_GRID
+    xs = np.linspace(x_lo, x_hi, grid + 1)
+    ys = np.linspace(y_lo, y_hi, grid + 1)
+    scores = _rule_grid_scores(module, kwargs, input_dim, first, second, x_lo, x_hi, y_lo, y_hi, grid)
+    if not np.isfinite(scores).all():
+        return None
+    step_x = (x_hi - x_lo) / grid
+    step_y = (y_hi - y_lo) / grid
+
+    point_x = np.concatenate([x_train[:, first], x_test[:, first]])
+    point_y = np.concatenate([x_train[:, second], x_test[:, second]])
+    labels = np.concatenate([y_train, y_test]).astype(int)
+    cell_x = np.clip(((point_x - x_lo) / step_x).astype(int), 0, grid - 1)
+    cell_y = np.clip(((point_y - y_lo) / step_y).astype(int), 0, grid - 1)
+    cell_score = 0.25 * (
+        scores[:-1, :-1] + scores[1:, :-1] + scores[1:, 1:] + scores[:-1, 1:]
+    )
+
+    def _agreement(inverted: bool) -> float:
+        predicted = (cell_score < threshold) if inverted else (cell_score > threshold)
+        return float(np.mean(predicted[cell_x, cell_y].astype(int) == labels))
+
+    direct_agreement = _agreement(False)
+    inverted_agreement = _agreement(True)
+    inverted = inverted_agreement > direct_agreement
+    if max(direct_agreement, inverted_agreement) < CLASSIFICATION_REGION_MIN_AGREEMENT:
+        return None
+    label_grid = (cell_score < threshold) if inverted else (cell_score > threshold)
+
+    return {
+        "kind": "classification",
+        "train": _classification_points(x_train, y_train, first, second, CLASSIFICATION_TRAIN_POINTS_PER_CLASS),
+        "test": _classification_points(x_test, y_test, first, second, CLASSIFICATION_TEST_POINTS_PER_CLASS),
+        "xEdges": xs.tolist(),
+        "yEdges": ys.tolist(),
+        "labelGrid": label_grid.astype(int).tolist(),
+        "featurePair": [first, second],
+        "selectionNote": note,
+        "xLabel": f"feature {first}",
+        "yLabel": f"feature {second}",
+        "legend": "true rule regions: blue = class 0, red = class 1",
+        "min": 0.0,
+        "max": 1.0,
+    }
+
+
+def _classification_plot(
+    train: dict[str, Any],
+    test: dict[str, Any],
+    params: dict[str, Any],
+    dataset_dir: Path,
+) -> dict[str, Any]:
     x_train = train["x"].detach().cpu().numpy()
     y_train = train["y"].detach().cpu().reshape(-1).numpy().astype(int)
     x_test = test["x"].detach().cpu().numpy()
@@ -244,6 +394,13 @@ def _classification_plot(train: dict[str, Any], test: dict[str, Any], params: di
     if x_train.ndim != 2 or x_train.shape[1] < 2:
         return {"kind": "none", "reason": "classification dataset has fewer than two features"}
     first, second, note = _classification_feature_pair(params, x_train.shape[1])
+    try:
+        region = _rule_region_plot(x_train, y_train, x_test, y_test, params, dataset_dir, first, second, note)
+    except Exception as exc:  # noqa: BLE001 - the plot is auxiliary; fall back to the empirical grid
+        print(f"[export_quiz_static] rule-region plot unavailable for {dataset_dir.name}: {exc}", file=sys.stderr)
+        region = None
+    if region is not None:
+        return region
     x_edges, y_edges, probability = _classification_probability_grid(x_train, y_train, first, second)
     return {
         "kind": "classification",
@@ -299,7 +456,7 @@ def _dataset_payload(dataset_dir: Path, family: str) -> dict[str, Any]:
         }
     elif family in TABULAR_CLASSIFICATION_FAMILIES and train is not None and test_path.is_file():
         test = torch.load(test_path, weights_only=True)
-        out["plot"] = _classification_plot(train, test, params)
+        out["plot"] = _classification_plot(train, test, params, dataset_dir)
     elif family == "bigram_lm":
         transition = dataset_dir / "transition.npz"
         if transition.is_file():
@@ -496,6 +653,34 @@ def bake_question(question_dir: Path, data_root: Path) -> dict[str, Any]:
     }
 
 
+def _compact_label_grids(node: Any, tokens: list[str]) -> Any:
+    """Replace labelGrid rows with placeholder tokens so each row dumps on one line."""
+    if isinstance(node, dict):
+        out: dict[str, Any] = {}
+        for key, value in node.items():
+            if key == "labelGrid" and isinstance(value, list) and value:
+                out[key] = []
+                for row in value:
+                    marker = f"\u0001grid{len(tokens)}\u0001"
+                    tokens.append("[" + ",".join(str(int(v)) for v in row) + "]")
+                    out[key].append(marker)
+            else:
+                out[key] = _compact_label_grids(value, tokens)
+        return out
+    if isinstance(node, list):
+        return [_compact_label_grids(item, tokens) for item in node]
+    return node
+
+
+def dump_bakefile_json(payload: dict[str, Any]) -> str:
+    """Pretty-print a BakeFile but keep classification label grids compact."""
+    tokens: list[str] = []
+    text = json.dumps(_json_number(_compact_label_grids(payload, tokens)), indent=2, allow_nan=False)
+    for index, row in enumerate(tokens):
+        text = text.replace(f'"\\u0001grid{index}\\u0001"', row)
+    return text
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -530,7 +715,7 @@ def main() -> None:
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
-        json.dumps(_json_number(payload), indent=2, allow_nan=False) + "\n",
+        dump_bakefile_json(payload) + "\n",
         encoding="utf-8",
     )
     print(f"exported {len(baked)} questions → {args.out}")

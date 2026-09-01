@@ -62,6 +62,7 @@ export type BakedQuestion = {
         xEdges?: number[];
         yEdges?: number[];
         probability?: number[][];
+        labelGrid?: number[][];
         featurePair?: [number, number];
         selectionNote?: string;
         xLabel?: string;

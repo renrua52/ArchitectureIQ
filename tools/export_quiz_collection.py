@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from export_quiz_static import bake_question
+from export_quiz_static import bake_question, dump_bakefile_json
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,7 +92,7 @@ def main() -> int:
     output = args.out.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        dump_bakefile_json(payload) + "\n",
         encoding="utf-8",
     )
     print(json.dumps({"questions": len(payload["questions"]), "ordered": payload["ordered"], "collection_id": payload["collection"].get("collection_id")}, ensure_ascii=False))

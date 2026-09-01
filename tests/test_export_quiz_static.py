@@ -16,7 +16,7 @@ sys.modules[SPEC.name] = EXPORTER
 SPEC.loader.exec_module(EXPORTER)
 
 
-def test_classification_export_uses_a_smoothed_compact_projection() -> None:
+def test_classification_export_uses_a_smoothed_compact_projection(tmp_path: Path) -> None:
     train = {
         "x": torch.tensor([[0.1, 0.1], [0.2, 0.2], [0.8, 0.8], [0.9, 0.9]]),
         "y": torch.tensor([0, 0, 1, 1]),
@@ -27,7 +27,7 @@ def test_classification_export_uses_a_smoothed_compact_projection() -> None:
     }
 
     plot = EXPORTER._classification_plot(
-        train, test, {"active_features": [0, 1], "rule_family": "smooth_additive"}
+        train, test, {"active_features": [0, 1], "rule_family": "smooth_additive"}, tmp_path
     )
 
     probability = np.asarray(plot["probability"], dtype=float)

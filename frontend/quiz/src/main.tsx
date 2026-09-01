@@ -1107,6 +1107,9 @@ function ClassificationPlot({
   const xTicks = makeTicks(xMin, xMax, 5);
   const yTicks = makeTicks(yMin, yMax, 5);
   const probability = plot.probability ?? [];
+  const labelGrid = plot.labelGrid;
+  const ruleRegion =
+    Array.isArray(labelGrid) && labelGrid.length > 1 && Array.isArray(labelGrid[0]) && (labelGrid[0]?.length ?? 0) > 0;
   const observedLabels = Array.from(
     new Set(
       [...train, ...test]
@@ -1139,10 +1142,31 @@ function ClassificationPlot({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="Synthetic classification projection: background empirical P(class 1); filled train points; cross test points"
+        aria-label={ruleRegion
+          ? "Classification projection: true rule regions, train and test points"
+          : "Synthetic classification projection: background empirical P(class 1); filled train points; cross test points"}
       >
         <rect x={chart.x} y={chart.y} width={chart.width} height={chart.height} fill="#1a1d24" />
-        {probability.map((row, x) => row.map((value, y) => {
+        {ruleRegion && (plot.labelGrid ?? []).map((row, x) => row.map((value, y) => {
+          const x0 = xEdges[x];
+          const x1 = xEdges[x + 1];
+          const y0 = yEdges[y];
+          const y1 = yEdges[y + 1];
+          if (
+            x0 == null || x1 == null || y0 == null || y1 == null ||
+            !Number.isFinite(x0) || !Number.isFinite(x1) ||
+            !Number.isFinite(y0) || !Number.isFinite(y1)
+          ) {
+            return null;
+          }
+          return (
+            <rect key={`region-${x}-${y}`} x={mapX(x0)} y={mapY(y1)}
+              width={Math.max(0, mapX(x1) - mapX(x0))}
+              height={Math.max(0, mapY(y0) - mapY(y1))}
+              fill={value === 1 ? "rgba(220,38,38,0.3)" : "rgba(37,99,235,0.3)"} />
+          );
+        }))}
+        {!ruleRegion && probability.map((row, x) => row.map((value, y) => {
           const x0 = xEdges[x];
           const x1 = xEdges[x + 1];
           const y0 = yEdges[y];
@@ -1173,7 +1197,7 @@ function ClassificationPlot({
             <line x1={x - 3.5} y1={y + 3.5} x2={x + 3.5} y2={y - 3.5} />
           </g>;
         })}
-        <text x={chart.x} y={chart.y - 6} fill="#c5c9d4" fontSize="10">background: blue = low P(class 1), red = high P(class 1)</text>
+        <text x={chart.x} y={chart.y - 6} fill="#c5c9d4" fontSize="10">{ruleRegion ? "background: true rule regions — blue = class 0, red = class 1" : "background: blue = low P(class 1), red = high P(class 1)"}</text>
         <text x={chart.x + chart.width} y={chart.y - 6} textAnchor="end" fill="#8b919f" fontSize="10">projection · {plot.selectionNote ?? "rule-aware feature pair"}</text>
         <text x={chart.x + chart.width / 2} y={height - 25} textAnchor="middle" fill="#8b919f" fontSize="11">{plot.xLabel ?? "feature x"}</text>
         <text x="14" y={chart.y + chart.height / 2} textAnchor="middle" fill="#8b919f" fontSize="11" transform={`rotate(-90 14 ${chart.y + chart.height / 2})`}>{plot.yLabel ?? "feature y"}</text>
