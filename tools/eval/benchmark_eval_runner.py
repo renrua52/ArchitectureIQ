@@ -470,7 +470,12 @@ def main() -> int:
 
     items = list_questions(args.questions_root, args.ledger)
     if args.only:
-        wanted_ids = set(json.loads(args.only.read_text(encoding="utf-8")))
+        raw = json.loads(args.only.read_text(encoding="utf-8"))
+        # Entries may be plain ids or rich dicts carrying question_id/item_id.
+        wanted_ids = {
+            str(e.get("question_id") or e.get("item_id")) if isinstance(e, dict) else str(e)
+            for e in raw
+        }
         items = [
             it for it in items
             if it.question_id in wanted_ids or it.question.get("item_id") in wanted_ids
