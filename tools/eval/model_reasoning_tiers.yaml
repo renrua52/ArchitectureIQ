@@ -1,56 +1,64 @@
-# Per-model evaluation settings — 2026-09-02 protocol freeze (setter decision).
+# Per-model evaluation settings — 2026-09-02 protocol freeze v2 (setter decision).
 #
 # Protocol:
-# - Every reasoning model runs at its MAXIMUM reasoning tier.
-# - No practical token/time cap: max_tokens 65536 where the endpoint accepts
-#   it; deepseek-r1 endpoint ceiling is 64000 total context -> 32768 output.
-# - Client timeout 7200s; relay-side 524s are retried automatically.
+# - Every reasoning model runs at its MAXIMUM reasoning tier, decided from
+#   OFFICIAL vendor docs (probes are verification only).
+# - No output cap: max_tokens is OMITTED from requests (verified 2026-09-02:
+#   claude-opus-5 / gpt-5.6-sol / glm-5.2 all complete >8k tokens with
+#   finish_reason=stop when the field is omitted -> no hidden relay cap).
+# - No time cap: client timeout 86400s; relay-side 524s retried automatically.
 # - temperature 0.0; per-model concurrency 20; judge = final <answer> tag.
 #
-# Probe evidence (2026-09-02, against https://api.gpt.ge/v1 and openrouter):
-# - reasoning_effort:"high" -> HTTP 200 on every gptge reasoning model.
-# - gpt-4o rejects reasoning_effort (HTTP 400, non-reasoning model): no param.
-# - thinking:{"type":"enabled"} is rejected by gpt-5.6-luna; reasoning_effort
-#   is the only parameter accepted by ALL gptge reasoning models.
-# - max_tokens 65536 accepted by gpt-4o, gpt-5.6-sol, claude-opus-5,
-#   gemini-2.5-pro, glm-5.2, deepseek-v4-flash-0731, deepseek-v4-pro-0813.
-# - Default effort is NOT verifiably max: gpt-5.6-sol answered 35/100 pilot
-#   questions with reasoning_tokens=0 at default; claude usage reports no
-#   reasoning detail at default (extended thinking likely off). Therefore all
-#   default-effort pilot results were archived and re-run at effort=high.
+# Tier decisions (official sources):
+# - OpenAI gpt-5.x: reasoning.effort values none/minimal/low/medium/high/
+#   xhigh/max, model-dependent (developers.openai.com/api/docs/guides/reasoning).
+#   Upstream enum on this relay: sol/terra/5.4/5.5 include 'max';
+#   luna tops out at 'xhigh' (its enum has no 'max').
+# - Claude (platform.claude.com/docs/en/build-with-claude/effort):
+#   low/medium/high(default)/xhigh/max; 'max' introduced with Opus 4.6,
+#   'xhigh' with Opus 4.7. opus-5/sonnet-5 verified to accept 'max' on relay.
+#   NOTE: Anthropic API default effort is 'high'.
+# - Gemini (ai.google.dev/gemini-api/docs/thinking): gemini-2.5-pro and
+#   gemini-3.1-pro-preview support thinking_level low/medium/high only ->
+#   'high' IS the max; gemini-3.1-pro-preview-high has it baked in
+#   (relay rejects max/xhigh for it, verified).
+# - GLM-5.2 (docs.bigmodel.cn/cn/guide/capabilities/thinking): reasoning_effort
+#   max(default, recommended)/xhigh/high/medium/low/minimal/none; xhigh maps
+#   to max. Set explicit 'max' (default is already max; explicit for audit).
+# - DeepSeek V4 (api-docs.deepseek.com/guides/thinking_mode): reasoning_effort
+#   low/high/max, default high. Set 'max'.
+# - OpenRouter deepseek/deepseek-r1: reasoning.effort enum
+#   max|xhigh|high|medium|low|minimal|none -> set 'max'.
+#
+# Archive history: default-effort pilot results -> archive_default_effort_20260902;
+# high-tier results for models upgraded to max/xhigh -> archive_effort_high_20260902.
+# Kept in place: gpt-4o (no tiers), gemini-2.5-pro + gemini-3.1-pro-preview-high
+# ('high' already their max).
 
 providers:
   gptge:
     base_url: https://api.gpt.ge/v1
     concurrency: 20
-    max_tokens: 65536
+    max_tokens: 0        # omit field = uncapped (verified)
+    timeout_s: 86400
     models:
-      gpt-5.6-sol:
-        params: {reasoning_effort: high}
-      gpt-5.6-luna:
-        params: {reasoning_effort: high}
-      gpt-4o:
-        params: {}  # non-reasoning; reasoning_effort -> HTTP 400
-      claude-opus-5:
-        params: {reasoning_effort: high}
-      claude-sonnet-5:
-        params: {reasoning_effort: high}
-      gemini-2.5-pro:
-        params: {reasoning_effort: high}
-      gemini-3.1-pro-preview-high:
-        params: {reasoning_effort: high}  # "-high" is the highest relay variant; param kept explicit
-      glm-5.2:
-        params: {reasoning_effort: high}
-      deepseek-v4-flash-0731:
-        params: {reasoning_effort: high}
-      deepseek-v4-pro-0813:
-        params: {reasoning_effort: high}
+      gpt-5.6-sol:                {params: {reasoning_effort: max}}    # enum ..max
+      gpt-5.6-luna:               {params: {reasoning_effort: xhigh}}  # enum tops at xhigh
+      gpt-4o:                     {params: {}}                         # non-reasoning
+      claude-opus-5:              {params: {reasoning_effort: max}}
+      claude-sonnet-5:            {params: {reasoning_effort: max}}
+      gemini-2.5-pro:             {params: {reasoning_effort: high}}   # high = official max
+      gemini-3.1-pro-preview-high:{params: {reasoning_effort: high}}   # high = only/baked max
+      glm-5.2:                    {params: {reasoning_effort: max}}
+      deepseek-v4-flash-0731:     {params: {reasoning_effort: max}}
+      deepseek-v4-pro-0813:       {params: {reasoning_effort: max}}
   openrouter:
     base_url: https://openrouter.ai/api/v1
     concurrency: 20
-    max_tokens: 65536
+    max_tokens: 0
+    timeout_s: 86400
     models:
-      deepseek/deepseek-r1:
-        params:
-          reasoning: {effort: high}
-          max_tokens: 32768  # endpoint context ceiling 64000 incl. input
+      deepseek/deepseek-r1:       {params: {reasoning: {effort: max}}}
+
+# Insight-list prep (enum verified on relay 2026-09-02, not yet running):
+#   gpt-5.4: max | gpt-5.5: max | gpt-5.6-terra: max
