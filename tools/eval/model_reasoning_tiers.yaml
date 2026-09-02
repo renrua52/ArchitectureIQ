@@ -60,5 +60,15 @@ providers:
     models:
       deepseek/deepseek-r1:       {params: {reasoning: {effort: max}}}
 
-# Insight-list prep (enum verified on relay 2026-09-02, not yet running):
-#   gpt-5.4: max | gpt-5.5: max | gpt-5.6-terra: max
+# Insight board (50-question stratified subset v15_insight50.json, launched
+# 2026-09-02 14:07 UTC, out-dir data/evals/v15_insight50):
+#   relay: claude-opus-4-6=max (earliest opus-4 with a channel; 4-5 unroutable),
+#     claude-sonnet-4-5-20250929=high (its official max), claude-fable-5=max,
+#     gpt-5.6-terra=max, gpt-5.4=max, gpt-5.5=max, gpt-5=xhigh (enum tops there),
+#     o3=xhigh (enum tops there), gemini-2.5-flash=high, kimi-k3=high,
+#     qwen3.8-max=max, R1-Distill-Qwen-32B/7B=no param (always-on reasoning),
+#     qwen3.5-27b=no param
+#   openrouter (~$4 balance left, China billing blocks top-up):
+#     deepseek-chat-v3-0324, llama-3.1-8b-instruct, llama-3.1-70b-instruct
+#   needs deployment (not on either provider): MiniCPM5-1B, qwen3.5-0.8b,
+#     muse-spark-1.2
