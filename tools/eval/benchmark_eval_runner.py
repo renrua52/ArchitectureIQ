@@ -18,21 +18,25 @@ Usage (from the machine hosting the question set):
         --models gpt-5.6-sol,claude-opus-5,kimi-k3 \
         --concurrency 8 --max-tokens 16384
 
-The backends config maps provider names to {base_url, api_key_env, models}:
+The backends config maps provider names to {base_url, api_key, models}. Keys
+live inline in this file; it sits under gitignored `data/` so it is never
+committed. Designated location: `data/evals/eval_keys.json`.
 
     {
-      "gptge": {
+      "vapi": {
         "base_url": "https://api.gpt.ge/v1",
-        "api_key_env": "GPTGE_API_KEY",
+        "api_key": "sk-...",
         "models": ["gpt-5.6-sol", "claude-opus-5", "kimi-k3"]
       },
       "openrouter": {
         "base_url": "https://openrouter.ai/api/v1",
-        "api_key_env": "OPENROUTER_API_KEY",
-        "models": ["openai/gpt-5"]
+        "api_key": "sk-or-v1-...",
+        "models": []
       }
     }
 
+`api_key_env` is still honored as a fallback (key from the environment) for
+CI or machines that prefer not to store keys on disk.
 `--models` accepts names or `provider:name` to disambiguate.
 """
 
@@ -158,13 +162,17 @@ def http_chat_completion(
     timeout_s: float,
     max_retries: int,
     extra_headers: dict[str, str],
+    params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    payload = {
+    payload: dict[str, Any] = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
-        "max_tokens": max_tokens,
     }
+    if max_tokens and max_tokens > 0:
+        payload["max_tokens"] = max_tokens
+    if params:
+        payload.update(params)
     body = json.dumps(payload).encode("utf-8")
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -201,6 +209,7 @@ class ModelSpec:
     api_key: str
     concurrency: int
     extra_headers: dict[str, str] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
     @property
     def slug(self) -> str:
@@ -265,6 +274,7 @@ async def eval_one(
                 timeout_s=timeout_s,
                 max_retries=max_retries,
                 extra_headers=spec.extra_headers,
+                params=spec.params,
             )
             msg = raw["choices"][0]["message"]
             response_text = msg.get("content") or ""
@@ -273,6 +283,7 @@ async def eval_one(
             ok = parsed is not None
             if parsed is None:
                 # One clarification exchange, matching completion.py behavior.
+                # Full token budget: reasoning models must think before the tag.
                 clar = await asyncio.to_thread(
                     http_chat_completion,
                     base_url=spec.base_url,
@@ -284,10 +295,11 @@ async def eval_one(
                         + "Reply with ONLY the tag, e.g. <answer>A</answer>."
                     ),
                     temperature=temperature,
-                    max_tokens=512,
+                    max_tokens=max_tokens,
                     timeout_s=timeout_s,
                     max_retries=max_retries,
                     extra_headers=spec.extra_headers,
+                    params=spec.params,
                 )
                 retry_msg = clar["choices"][0]["message"].get("content") or ""
                 parsed = parse_choice_letter(retry_msg, item.valid_letters)
@@ -307,6 +319,7 @@ async def eval_one(
             "budget": item.question.get("budget", {}).get("total_samples_seen"),
             "model": spec.name,
             "provider": spec.provider,
+            "request_params": spec.params or None,
             "prompt_hash": item.prompt_hash,
             "correct_letter": item.correct_letter,
             "parsed_letter": parsed,
@@ -390,17 +403,30 @@ def load_backends(config_path: Path, *, default_concurrency: int) -> dict[str, M
     cfg = json.loads(config_path.read_text(encoding="utf-8"))
     specs: dict[str, ModelSpec] = {}
     for provider, block in cfg.items():
-        api_key = os.environ.get(block["api_key_env"], "").strip()
+        api_key = str(block.get("api_key") or "").strip() or os.environ.get(
+            str(block.get("api_key_env") or ""), ""
+        ).strip()
         if not api_key:
-            raise SystemExit(f"missing env {block['api_key_env']} for provider {provider}")
-        for model in block.get("models", []):
-            specs[f"{provider}:{model}"] = ModelSpec(
+            raise SystemExit(
+                f"missing api_key (or env {block.get('api_key_env')!r}) for provider {provider}"
+            )
+        block_params = dict(block.get("params", {}))
+        for entry in block.get("models", []):
+            if isinstance(entry, str):
+                name, model_params, model_conc = entry, {}, None
+            else:
+                name = entry["name"]
+                model_params = dict(entry.get("params", {}))
+                model_conc = entry.get("concurrency")
+            params = {**block_params, **model_params}
+            specs[f"{provider}:{name}"] = ModelSpec(
                 provider=provider,
-                name=model,
+                name=name,
                 base_url=block["base_url"],
                 api_key=api_key,
-                concurrency=int(block.get("concurrency", default_concurrency)),
+                concurrency=int(model_conc or block.get("concurrency", default_concurrency)),
                 extra_headers=block.get("extra_headers", {}),
+                params=params,
             )
     return specs
 
@@ -414,7 +440,8 @@ def main() -> int:
     ap.add_argument("--models", required=True, help="comma list; entries may be name or provider:name")
     ap.add_argument("--concurrency", type=int, default=8, help="default per-model concurrency")
     ap.add_argument("--temperature", type=float, default=0.0)
-    ap.add_argument("--max-tokens", type=int, default=16384)
+    ap.add_argument("--max-tokens", type=int, default=16384,
+                    help="completion token cap; 0 omits the field (provider default)")
     ap.add_argument("--timeout-s", type=float, default=900.0)
     ap.add_argument("--max-retries", type=int, default=4)
     ap.add_argument("--limit", type=int, default=None, help="cap questions per model (pilot)")
