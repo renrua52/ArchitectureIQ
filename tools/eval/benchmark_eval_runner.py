@@ -102,7 +102,9 @@ def list_questions(questions_root: Path, ledger_path: Path | None) -> list[Quest
                 continue
             qdir = Path(rec["question_path"])
             if (qdir / "question.json").is_file():
-                items.append(load_question(qdir))
+                item = load_question(qdir)
+                item.question.setdefault("item_id", rec.get("item_id"))
+                items.append(item)
     else:
         for qfile in sorted(questions_root.rglob("questions/*/*/question.json")):
             items.append(load_question(qfile.parent))
@@ -416,6 +418,8 @@ def main() -> int:
     ap.add_argument("--timeout-s", type=float, default=900.0)
     ap.add_argument("--max-retries", type=int, default=4)
     ap.add_argument("--limit", type=int, default=None, help="cap questions per model (pilot)")
+    ap.add_argument("--only", type=Path, default=None,
+                    help="json list of question_id or ledger item_id; eval exactly this subset")
     args = ap.parse_args()
 
     specs = load_backends(args.backends_config, default_concurrency=args.concurrency)
@@ -433,6 +437,12 @@ def main() -> int:
         wanted.extend(matches)
 
     items = list_questions(args.questions_root, args.ledger)
+    if args.only:
+        wanted_ids = set(json.loads(args.only.read_text(encoding="utf-8")))
+        items = [
+            it for it in items
+            if it.question_id in wanted_ids or it.question.get("item_id") in wanted_ids
+        ]
     if not items:
         raise SystemExit("no questions found")
     print(f"[{datetime.now(timezone.utc).isoformat()}] {len(items)} questions, "
