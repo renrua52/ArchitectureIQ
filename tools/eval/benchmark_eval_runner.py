@@ -190,6 +190,11 @@ def http_chat_completion(
             retryable = exc.code == 429 or exc.code >= 500
             if not retryable or attempt >= max_retries:
                 raise BackendError(f"HTTP {exc.code}: {detail}") from exc
+            if exc.code == 524:
+                # relay upstream congestion: each attempt already burned
+                # minutes server-side; wait minutes, not seconds.
+                time.sleep(min(300.0, 60.0 * (attempt + 1)))
+                continue
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             if attempt >= max_retries:
                 raise BackendError(f"request failed: {exc}") from exc
