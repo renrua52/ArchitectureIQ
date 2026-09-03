@@ -215,7 +215,7 @@ def render_prompt(
             "",
             "<explanation>One short paragraph: the mechanism that decides the "
             "winner, and why each other choice loses.</explanation>",
-            f"<answer>{letters[0]}</answer>",
+            "<answer>the letter of your chosen option</answer>",
             "",
             f"Rules: `<answer>` must contain exactly one letter from "
             f"{{{', '.join(letters)}}}. The grader reads only the **final** "

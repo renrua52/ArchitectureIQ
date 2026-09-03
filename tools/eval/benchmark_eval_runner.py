@@ -317,7 +317,8 @@ async def eval_one(
                     prompt=(
                         item.prompt_text
                         + "\n\nYour previous reply contained no <answer> tag. "
-                        + "Reply with ONLY the tag, e.g. <answer>A</answer>."
+                        + "Reply with ONLY the tag containing your chosen "
+                        + "letter, in the form <answer>...</answer>."
                     ),
                     temperature=temperature,
                     max_tokens=max_tokens,

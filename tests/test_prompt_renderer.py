@@ -174,6 +174,8 @@ def test_render_prompt_asks_for_answer_tags(tmp_path: Path) -> None:
     )
 
     assert "<answer></answer>" in text
-    assert "<answer>A</answer>" in text
+    # No concrete letter may appear inside the format example: a literal
+    # "<answer>A</answer>" primes letter-anchored models.
+    assert "<answer>A</answer>" not in text
     # The old bare-letter instruction must be gone, not merely supplemented.
     assert "Reply with a single letter" not in text
