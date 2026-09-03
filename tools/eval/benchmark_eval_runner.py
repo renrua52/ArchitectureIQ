@@ -291,7 +291,7 @@ async def eval_one(
             # Reasoning models (gemini, deepseek, kimi, terra, glm...) put the
             # chain-of-thought in reasoning_content; keep it for trajectory
             # analysis -- the visible content alone is only the summary.
-            reasoning_text = msg.get("reasoning_content") or None
+            reasoning_text = msg.get("reasoning_content") or msg.get("reasoning") or None
             usage = raw.get("usage")
             parsed = parse_choice_letter(response_text, item.valid_letters)
             ok = parsed is not None
