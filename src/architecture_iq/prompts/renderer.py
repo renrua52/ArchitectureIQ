@@ -213,15 +213,12 @@ def render_prompt(
             "exactly two tagged fields, in this order and with nothing after "
             "them:",
             "",
-            "<explanation>One short paragraph: the mechanism that decides the "
-            "winner, and why each other choice loses.</explanation>",
+            "<explanation>The mechanism that decides the winner, and why "
+            "each other choice loses.</explanation>",
             "<answer>the letter of your chosen option</answer>",
             "",
             f"Rules: `<answer>` must contain exactly one letter from "
-            f"{{{', '.join(letters)}}}. The grader reads only the **final** "
-            "`<answer>` tag in your reply; everything else is treated as "
-            "reasoning. A reply with no `<answer>` tag, or a letter outside "
-            "the choices, scores zero.",
+            f"{{{', '.join(letters)}}}.",
         ]
     )
     return "\n".join(parts)
