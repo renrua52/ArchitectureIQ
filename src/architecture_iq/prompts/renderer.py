@@ -218,7 +218,8 @@ def render_prompt(
             "<answer>the letter of your chosen option</answer>",
             "",
             f"Rules: `<answer>` must contain exactly one letter from "
-            f"{{{', '.join(letters)}}}.",
+            f"{{{', '.join(letters)}}}. The grader reads only the **final** "
+            "`<answer>` tag in your reply.",
         ]
     )
     return "\n".join(parts)
