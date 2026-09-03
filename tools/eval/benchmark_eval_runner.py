@@ -215,6 +215,10 @@ class ModelSpec:
     concurrency: int
     extra_headers: dict[str, str] = field(default_factory=dict)
     params: dict[str, Any] = field(default_factory=dict)
+    # Upstream model id sent in the request payload when it differs from the
+    # board name (e.g. board id "deepseek-v4-flash-0731" -> official API id
+    # "deepseek-v4-flash"). Storage (slug/ledger/records) always uses `name`.
+    upstream: str | None = None
 
     @property
     def slug(self) -> str:
@@ -272,7 +276,7 @@ async def eval_one(
                 http_chat_completion,
                 base_url=spec.base_url,
                 api_key=spec.api_key,
-                model=spec.name,
+                model=spec.upstream or spec.name,
                 prompt=item.prompt_text,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -293,7 +297,7 @@ async def eval_one(
                     http_chat_completion,
                     base_url=spec.base_url,
                     api_key=spec.api_key,
-                    model=spec.name,
+                    model=spec.upstream or spec.name,
                     prompt=(
                         item.prompt_text
                         + "\n\nYour previous reply contained no <answer> tag. "
@@ -324,7 +328,11 @@ async def eval_one(
             "budget": item.question.get("budget", {}).get("total_samples_seen"),
             "model": spec.name,
             "provider": spec.provider,
-            "request_params": spec.params or None,
+            "request_params": (
+                {"upstream_model": spec.upstream, **spec.params}
+                if spec.upstream
+                else (spec.params or None)
+            ),
             "prompt_hash": item.prompt_hash,
             "correct_letter": item.correct_letter,
             "parsed_letter": parsed,
@@ -419,10 +427,12 @@ def load_backends(config_path: Path, *, default_concurrency: int) -> dict[str, M
         for entry in block.get("models", []):
             if isinstance(entry, str):
                 name, model_params, model_conc = entry, {}, None
+                model_upstream = None
             else:
                 name = entry["name"]
                 model_params = dict(entry.get("params", {}))
                 model_conc = entry.get("concurrency")
+                model_upstream = entry.get("upstream")
             params = {**block_params, **model_params}
             specs[f"{provider}:{name}"] = ModelSpec(
                 provider=provider,
@@ -432,6 +442,7 @@ def load_backends(config_path: Path, *, default_concurrency: int) -> dict[str, M
                 concurrency=int(model_conc or block.get("concurrency", default_concurrency)),
                 extra_headers=block.get("extra_headers", {}),
                 params=params,
+                upstream=model_upstream,
             )
     return specs
 
