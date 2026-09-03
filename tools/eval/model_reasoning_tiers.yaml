@@ -12,8 +12,12 @@
 # Tier decisions (official sources):
 # - OpenAI gpt-5.x: reasoning.effort values none/minimal/low/medium/high/
 #   xhigh/max, model-dependent (developers.openai.com/api/docs/guides/reasoning).
-#   Upstream enum on this relay: sol/terra/5.4/5.5 include 'max';
-#   luna tops out at 'xhigh' (its enum has no 'max').
+#   Upstream enum on this relay: sol/terra include 'max'; luna/5.4/5.5 top
+#   out at 'xhigh'. CORRECTION 2026-09-03: 5.4/5.5 were first set to 'max';
+#   a strict upstream channel rejects it ("Supported values are: 'none',
+#   'low', 'medium', 'high', and 'xhigh'") while a lenient channel silently
+#   accepted it with unknown mapping -> all 5.4/5.5 'max' results archived
+#   (archive_max_20260903) and rerun at documented top 'xhigh'.
 # - Claude (platform.claude.com/docs/en/build-with-claude/effort):
 #   low/medium/high(default)/xhigh/max; 'max' introduced with Opus 4.6,
 #   'xhigh' with Opus 4.7. opus-5/sonnet-5 verified to accept 'max' on relay.
@@ -62,15 +66,32 @@ providers:
 
 # Insight board (50-question stratified subset v15_insight50.json, relaunched
 # 2026-09-02 14:42 UTC, out-dir data/evals/v15_insight50):
-#   relay: claude-opus-4-6-max + claude-sonnet-4-6-max as the DEDICATED -max
-#     channel ids (setter decision: first-gen opus/sonnet-4 retired 2026-06;
-#     all 4.5 variants have no channel for our key (403/503); 4-6 is the
-#     closest available; differential probe low-vs-max on same prompt: tokens
-#     2-3x, tier is real). claude-fable-5=max, gpt-5.6-terra=max, gpt-5.4=max,
-#     gpt-5.5=max, gpt-5=xhigh (enum tops there), o3=xhigh (enum tops there),
-#     gemini-2.5-flash=high, kimi-k3=high, qwen3.8-max=max,
+#   relay: claude-opus-4-6-max (dedicated -max channel id) as the opus-4
+#     representative + claude-sonnet-4-5-20250929-thinking as the sonnet-4.5
+#     representative (setter decision: first-gen opus/sonnet-4 retired 2026-06;
+#     opus-4.5 variants have no channel for our key (403/503), sonnet-4.5
+#     thinking channel is live; 4-6 is the closest available for opus; differential probe low-vs-max on same prompt: tokens
+#     2-3x, tier is real). claude-fable-5=max, gpt-5.6-terra=max, gpt-5.4=xhigh,
+#     gpt-5.5=xhigh (2026-09-03 correction, see above), gemini-2.5-flash=high,
+#     kimi-k3=high, qwen3.8-max=max,
+#   CORRECTION 2026-09-03 #2: gpt-5 and o3 do NOT support 'xhigh' (gpt-5 tops
+#     at 'high', o3 at 'high'). This relay silently maps the invalid 'xhigh'
+#     to ~zero reasoning instead of erroring (probe: xhigh -> rt=0/64 tokens,
+#     6s; high -> rt=5440/1792). Their xhigh insight-50 results were
+#     effectively no-reasoning runs (medCT 182/355) -> archived to
+#     archive_xhigh_silent_20260903 and rerun at 'high'. Lesson: a lenient
+#     channel silently downgrades unknown effort values; ALWAYS verify tier
+#     via reasoning-token counts, never by absence of an error.
 #     R1-Distill-Qwen-32B/7B=no param (always-on reasoning), qwen3.5-27b=no param
 #   openrouter (~$4 balance left, China billing blocks top-up):
 #     deepseek-chat-v3-0324, llama-3.1-8b-instruct, llama-3.1-70b-instruct
 #   needs deployment (not on either provider): MiniCPM5-1B, qwen3.5-0.8b,
 #     muse-spark-1.2
+#   local deployment (360 GPU box, llama.cpp CPU): the GGUF chat templates
+#     for Qwen3.5 / MiniCPM5 expose only a thinking on/off switch
+#     (chat_template_kwargs.enable_thinking) - no effort tiers exist for
+#     these models, so enable_thinking=true IS the maximum setting. Served
+#     with -c 131072 so 19k-token prompts + long thinking never overflow
+#     (2026-09-03: a 64k window caused 46/50 HTTP 500 context-overflow
+#     errors for qwen3.5-0.8b). muse-spark-1.2 runs via openrouter from a
+#     local client instead (aiq->openrouter returns empty content for it).
