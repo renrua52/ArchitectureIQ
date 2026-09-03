@@ -184,7 +184,18 @@ def http_chat_completion(
     for attempt in range(max_retries + 1):
         try:
             with urllib.request.urlopen(request, timeout=timeout_s) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                raw_body = resp.read().decode("utf-8")
+            try:
+                return json.loads(raw_body)
+            except json.JSONDecodeError:
+                # Some providers (openrouter->Baidu observed) return a body of
+                # pure whitespace keepalives with no JSON at all. Retryable.
+                if attempt >= max_retries:
+                    raise BackendError(
+                        f"non-JSON response ({len(raw_body)} chars): {raw_body[:200]!r}"
+                    )
+                time.sleep(min(30, 5 * (attempt + 1)))
+                continue
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:500]
             retryable = exc.code == 429 or exc.code >= 500
