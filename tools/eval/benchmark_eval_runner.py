@@ -269,6 +269,7 @@ async def eval_one(
         ok = False
         parsed = None
         response_text = ""
+        reasoning_text = None
         error = None
         usage = None
         try:
@@ -287,6 +288,10 @@ async def eval_one(
             )
             msg = raw["choices"][0]["message"]
             response_text = msg.get("content") or ""
+            # Reasoning models (gemini, deepseek, kimi, terra, glm...) put the
+            # chain-of-thought in reasoning_content; keep it for trajectory
+            # analysis -- the visible content alone is only the summary.
+            reasoning_text = msg.get("reasoning_content") or None
             usage = raw.get("usage")
             parsed = parse_choice_letter(response_text, item.valid_letters)
             ok = parsed is not None
@@ -343,6 +348,7 @@ async def eval_one(
             "usage": usage,
             "explanation": explanation,
             "response": response_text,
+            "reasoning_content": reasoning_text,
         }
         out = result_path(out_dir, spec, item.question_id)
         out.parent.mkdir(parents=True, exist_ok=True)
