@@ -566,7 +566,10 @@ def _render_question_pack_selector(
             return "Local data root"
         return str(packs[pack_id]["display_name"])
 
-    query_value = st.query_params.get("question_pack", LOCAL_QUESTION_PACK)
+    query_value = st.query_params.get(
+        "question_pack",
+        next((pid for pid, m in packs.items() if m.get("default")), LOCAL_QUESTION_PACK),
+    )
     query_selected = (
         query_value if query_value in options else LOCAL_QUESTION_PACK
     )
@@ -2663,40 +2666,42 @@ def _render_model_answers(bundle: QuestionBundle, q: dict[str, Any]) -> None:
             for entry in leaderboard
         )
         st.caption(f"Bank accuracy — {chips}")
+    st.caption("Click a model card to expand its full trajectory; click again to collapse.")
     correct = q["correct_letter"]
-    parts = ['<div class="qc-scroll"><div class="ma-grid">']
+    open_key = f"ma_open_{q['question_id']}"
     for name, rec in answers.items():
         pred = rec.get("pred")
         right = pred == correct
-        badge = "✓" if right else "✗"
-        cls = " right" if right else (" wrong" if pred else " miss")
-        pred_html = pred if pred else "—"
+        badge = "✅" if right else ("❌" if pred else "➖")
         sec = rec.get("sec")
         sec_html = f" · {sec:.0f}s" if isinstance(sec, (int, float)) else ""
         excerpt = (rec.get("excerpt") or "").strip().replace("\n", " ")
-        if len(excerpt) > 220:
-            excerpt = excerpt[:217] + "…"
-        parts.append(
-            f'<div class="ma-row{cls}"><span class="ma-model">{html.escape(name)}</span>'
-            f'<span class="ma-pred">{pred_html}</span>'
-            f'<span class="ma-badge">{badge}</span>'
-            f'<span class="ma-fact">{html.escape(excerpt)}{sec_html}</span></div>'
+        if len(excerpt) > 160:
+            excerpt = excerpt[:157] + "…"
+        expanded = st.session_state.get(open_key) == name
+        marker = "▾ " if expanded else "▸ "
+        label = f"{marker}{badge} **{name}** · {pred or '—'}{sec_html} — {excerpt}"
+
+        def _toggle(model_name: str = name) -> None:
+            current = st.session_state.get(open_key)
+            st.session_state[open_key] = None if current == model_name else model_name
+
+        st.button(
+            label,
+            key=f"ma_btn_{q['question_id']}_{name}",
+            on_click=_toggle,
+            use_container_width=True,
         )
-    parts.append("</div></div>")
-    st.markdown("".join(parts), unsafe_allow_html=True)
-    with st.expander("Full model reasoning", expanded=False):
-        for name, rec in answers.items():
-            pred = rec.get("pred")
-            right = pred == correct
+        if expanded:
             verdict = "correct" if right else "incorrect"
             body = (rec.get("content") or "").strip() or "_(no answer text)_"
             reasoning = (rec.get("reasoning") or "").strip()
-            st.markdown(f"**{name}** — picked **{pred or '—'}** ({verdict})")
-            st.markdown(body)
-            if reasoning:
-                with st.expander("reasoning trace", expanded=False):
-                    st.markdown(reasoning)
-            st.divider()
+            with st.container(border=True):
+                st.markdown(f"**{name}** — picked **{pred or '—'}** ({verdict})")
+                st.markdown(body)
+                if reasoning:
+                    with st.expander("reasoning trace", expanded=True):
+                        st.markdown(reasoning)
 
 
 def _render_reference_analysis(bundle: QuestionBundle, q: dict[str, Any]) -> None:
