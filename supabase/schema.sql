@@ -263,6 +263,9 @@ begin
   values
     (v_user_id, p_question_id, p_pack, p_picked, p_correct, 1)
   on conflict (user_id, question_id) do update set
+    pack = excluded.pack,
+    picked = excluded.picked,
+    correct = excluded.correct,
     attempts = public.quiz_answers.attempts + 1,
     last_answered_at = now();
 
