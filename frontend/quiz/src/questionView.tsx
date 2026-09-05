@@ -145,10 +145,44 @@ export function fieldsForChoice(question: BakedQuestion, choice: Choice): CardFi
       variant.push(field);
     }
   }
+  // Older packs bake no activation row even when choices differ by it.
+  const activationLabel = "activation";
+  const hasActivationField = [...shared, ...variant].some(
+    (field) => field.label.toLowerCase().replace(/_/g, " ") === activationLabel
+  );
+  if (!hasActivationField) {
+    const activationValues = question.detail.choices.map((item) => choiceActivation(item));
+    const activationValue = choiceActivation(choice);
+    if (activationValue) {
+      const allEqual = activationValues.every((value) => value === activationValues[0]);
+      const field = { label: activationLabel, value: activationValue, varying: !allEqual };
+      if (allEqual) {
+        shared.push(field);
+      } else {
+        variant.push(field);
+      }
+    }
+  }
   // Keep a stable key order: shared keys first (as baked), then varying keys.
   const seen = new Set(shared.map((field) => field.label));
   const extra = variant.filter((field) => !seen.has(field.label));
   return [...shared, ...extra];
+}
+export function choiceActivation(choice: Choice): string | null {
+  const spec = parseCandidateSpecOrObject(choice);
+  const model = spec?.["model"] as Record<string, unknown> | undefined;
+  const activation = model?.["activation"];
+  return typeof activation === "string" && activation ? activation : null;
+}
+export function parseCandidateSpecOrObject(choice: Choice): Record<string, unknown> | null {
+  const raw = choice.files?.["candidate_spec.json"];
+  const spec =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : typeof raw === "string"
+        ? parseCandidateSpec(raw)
+        : null;
+  return spec;
 }
 export function trainableParameterCount(choice: Choice): string {
   const raw = choice.files?.["candidate_spec.json"];
