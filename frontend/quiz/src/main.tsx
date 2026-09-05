@@ -70,6 +70,10 @@ function App() {
   // Server-persisted answers for the signed-in user: refresh restores them.
   const answeredMapRef = useRef<Record<string, { picked: string; correct: boolean; attempts: number }>>({});
   const [answeredMapVersion, setAnsweredMapVersion] = useState(0);
+  // One-shot completion celebration: fires when every question in the pack
+  // has an answer (live or restored from the server).
+  const [celebrate, setCelebrate] = useState(false);
+  const celebratedRef = useRef(false);
 
   useEffect(() => {
     if (authRef.current) void drainQueue(authRef.current);
@@ -96,6 +100,8 @@ function App() {
       results.current = {};
       feedbackByQuestion.current = {};
       answeredMapRef.current = {};
+      celebratedRef.current = false;
+      setCelebrate(false);
       sessionId.current = newSessionId();
       setIndex(0);
       setSelected(null);
@@ -108,11 +114,14 @@ function App() {
 
   useEffect(() => {
     const current = authRef.current;
-    if (!current || !apiConfigured() || !packId) {
+    if (!current || !apiConfigured()) {
       return;
     }
     let cancelled = false;
-    listAnswers(current, packId)
+    // Fetch ALL answers for this user, not just the active pack: a stale
+    // link (e.g. an old ?question_pack= bookmark) must still restore and
+    // lock previously answered questions — records are per (user, question).
+    listAnswers(current)
       .then((records) => {
         if (cancelled) return;
         const map: typeof answeredMapRef.current = {};
@@ -133,7 +142,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [auth?.user_id, packId]);
+  }, [auth?.user_id]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -174,6 +183,15 @@ function App() {
     const correct = values.filter((item) => item.correct).length;
     return { correct, total };
   }, [answered, index, screen, bump]);
+
+  // Completion celebration: every question in the pack has an answer.
+  useEffect(() => {
+    if (!bake || !summaries.length || screen !== "quiz") return;
+    if (score.total < summaries.length || celebratedRef.current) return;
+    celebratedRef.current = true;
+    setCelebrate(true);
+    recorderRef.current?.mark("g", "complete");
+  }, [bake, score.total, summaries.length, screen]);
 
   useEffect(() => {
     if (screen !== "quiz" || !question) {
@@ -661,7 +679,80 @@ function App() {
           onClose={() => setInfo(null)}
         />
       ) : null}
+
+      {celebrate ? (
+        <CompletionOverlay
+          correct={score.correct}
+          total={score.total}
+          onExport={exportSession}
+          onClose={() => setCelebrate(false)}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function CompletionOverlay({
+  correct,
+  total,
+  onExport,
+  onClose
+}: {
+  correct: number;
+  total: number;
+  onExport: () => void;
+  onClose: () => void;
+}) {
+  const pieces = useRef(
+    Array.from({ length: 90 }, (_, i) => ({
+      left: (i * 37) % 100,
+      delay: ((i * 13) % 30) / 10,
+      duration: 2.6 + ((i * 7) % 20) / 10,
+      color: ["#ffd166", "#ef476f", "#06d6a0", "#118ab2", "#f78c6b", "#b388eb"][i % 6],
+      size: 6 + ((i * 5) % 8),
+      round: i % 3 === 0
+    }))
+  ).current;
+  const pct = total > 0 ? Math.round((100 * correct) / total) : 0;
+  return (
+    <div className="completion-overlay" role="dialog" aria-label="Quiz complete">
+      <div className="confetti" aria-hidden="true">
+        {pieces.map((p, i) => (
+          <i
+            key={i}
+            style={{
+              left: `${p.left}%`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+              background: p.color,
+              width: p.size,
+              height: p.round ? p.size : p.size * 1.8,
+              borderRadius: p.round ? "50%" : "2px"
+            }}
+          />
+        ))}
+      </div>
+      <div className="completion-card">
+        <div className="completion-trophy" aria-hidden="true">
+          🏆
+        </div>
+        <h2>All done!</h2>
+        <p className="completion-score">
+          You answered all {total} questions — score <strong>{correct}</strong>/{total} ({pct}%)
+        </p>
+        <p className="completion-note">
+          Your answers and session have been recorded. Thanks for taking the ArchitectureIQ quiz!
+        </p>
+        <div className="completion-actions">
+          <button type="button" className="completion-btn primary" onClick={onExport}>
+            Export my results
+          </button>
+          <button type="button" className="completion-btn" onClick={onClose}>
+            Back to questions
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

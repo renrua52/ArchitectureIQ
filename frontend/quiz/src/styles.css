@@ -1035,3 +1035,140 @@ a {
   display: grid;
   gap: 1.25rem;
 }
+
+/* completion celebration overlay */
+.completion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 18, 30, 0.62);
+  backdrop-filter: blur(3px);
+  overflow: hidden;
+  animation: completion-fade-in 0.35s ease-out;
+}
+
+@keyframes completion-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.confetti i {
+  position: absolute;
+  top: -4vh;
+  display: block;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  opacity: 0.9;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+  }
+}
+
+.completion-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  max-width: min(30rem, calc(100vw - 3rem));
+  padding: 2rem 2.25rem;
+  border-radius: 1rem;
+  background: #fff;
+  color: #1c2030;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  animation: completion-pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes completion-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.completion-trophy {
+  font-size: 2.6rem;
+  line-height: 1;
+  animation: trophy-bounce 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes trophy-bounce {
+  from {
+    transform: translateY(0) rotate(-4deg);
+  }
+  to {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
+.completion-card h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.completion-score {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.completion-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #5a6072;
+}
+
+.completion-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.completion-btn {
+  border: 1px solid #c9cdd8;
+  border-radius: 0.5rem;
+  background: #f2f3f7;
+  color: #1c2030;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.completion-btn:hover {
+  background: #e7e9f0;
+}
+
+.completion-btn.primary {
+  border-color: transparent;
+  background: #118ab2;
+  color: #fff;
+}
+
+.completion-btn.primary:hover {
+  background: #0e7799;
+}
