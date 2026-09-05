@@ -62,7 +62,8 @@ def main() -> int:
 
     sessions = conn.execute(
         f"""
-        select s.session_id, u.username, s.pack, s.score_correct, s.score_total,
+        select s.session_id, u.username, u.group_name, s.pack,
+               s.score_correct, s.score_total,
                s.started_at, s.last_seen, s.meta
         from quiz_sessions s
         join quiz_users u on u.id = s.user_id
@@ -77,7 +78,7 @@ def main() -> int:
         os.makedirs(args.replay_files, exist_ok=True)
 
     n = 0
-    for session_id, username, pack, sc, st, started, last_seen, meta in sessions:
+    for session_id, username, group_name, pack, sc, st, started, last_seen, meta in sessions:
         chunks = conn.execute(
             "select events from recording_chunks where session_id=%s order by seq",
             (session_id,),
@@ -86,6 +87,7 @@ def main() -> int:
         row = {
             "session_id": session_id,
             "username": username,
+            "group": group_name,
             "pack": pack,
             "score_correct": sc,
             "score_total": st,

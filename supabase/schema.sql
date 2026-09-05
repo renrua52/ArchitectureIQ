@@ -7,17 +7,39 @@
 --   * The only browser surface is three SECURITY DEFINER functions
 --     (quiz_register / quiz_ingest_chunk / quiz_upsert_session), which run
 --     as the owner and therefore bypass RLS.
---   * The shared access password lives inside quiz_register only.
+--   * Group access passwords live in quiz_groups only (one row per group;
+--     adding a group = one INSERT, no function edits).
 --   * Admins read data via a direct Postgres connection (service role).
 
 -- ---------------------------------------------------------------- tables
+
+create table if not exists public.quiz_groups (
+  group_name text primary key,
+  password text not null unique
+);
+
+-- Seed the original group. Adding another group is one INSERT here:
+--   insert into public.quiz_groups (group_name, password)
+--   values ('group-b', 'its-password')
+--   on conflict (group_name) do nothing;
+insert into public.quiz_groups (group_name, password)
+values ('main', 'tccrzrgsy')
+on conflict (group_name) do nothing;
 
 create table if not exists public.quiz_users (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,
   token uuid not null default gen_random_uuid(),
+  group_name text not null default 'main'
+    references public.quiz_groups (group_name),
   created_at timestamptz not null default now()
 );
+
+-- Deployments created before groups existed: add the column (existing
+-- users land in 'main', which was seeded above).
+alter table public.quiz_users
+  add column if not exists group_name text not null default 'main'
+    references public.quiz_groups (group_name);
 
 create table if not exists public.quiz_sessions (
   session_id text primary key,
@@ -47,10 +69,12 @@ create index if not exists idx_quiz_sessions_user
 -- ------------------------------------------------------------ RLS lockdown
 
 alter table public.quiz_users enable row level security;
+alter table public.quiz_groups enable row level security;
 alter table public.quiz_sessions enable row level security;
 alter table public.recording_chunks enable row level security;
 
 revoke all on public.quiz_users from anon, authenticated;
+revoke all on public.quiz_groups from anon, authenticated;
 revoke all on public.quiz_sessions from anon, authenticated;
 revoke all on public.recording_chunks from anon, authenticated;
 
@@ -67,9 +91,15 @@ set search_path = public
 as $$
 declare
   v_name text := btrim(coalesce(p_username, ''));
+  v_group text;
   v_user public.quiz_users%rowtype;
 begin
-  if p_password is null or p_password <> 'tccrzrgsy' then
+  -- Password selects the group: each row in quiz_groups admits its own
+  -- cohort, and the matched group is stamped on the user record.
+  select group_name into v_group
+  from public.quiz_groups
+  where password = p_password;
+  if v_group is null then
     raise exception 'invalid_password';
   end if;
   if char_length(v_name) < 1 or char_length(v_name) > 40 then
@@ -82,18 +112,20 @@ begin
       'user_id', v_user.id,
       'username', v_user.username,
       'token', v_user.token,
+      'group', v_user.group_name,
       'existed', true
     );
   end if;
 
-  insert into public.quiz_users (username)
-  values (v_name)
+  insert into public.quiz_users (username, group_name)
+  values (v_name, v_group)
   returning * into v_user;
 
   return json_build_object(
     'user_id', v_user.id,
     'username', v_user.username,
     'token', v_user.token,
+    'group', v_user.group_name,
     'existed', false
   );
 end;
