@@ -75,6 +75,29 @@ function App() {
     if (authRef.current) void drainQueue(authRef.current);
   }, []);
 
+  // On user switch: wipe in-memory state so the previous user's answers can
+  // not leak into the new session. Server rows (answers, sessions, recording
+  // chunks) stay untouched — they are the archive for the old user.
+  const lastAuthUserId = useRef<string | null>(auth?.user_id ?? null);
+  useEffect(() => {
+    const uid = auth?.user_id ?? null;
+    if (uid === lastAuthUserId.current) {
+      return;
+    }
+    lastAuthUserId.current = uid;
+    results.current = {};
+    feedbackByQuestion.current = {};
+    answeredMapRef.current = {};
+    sessionId.current = newSessionId();
+    recorderRef.current = null;
+    setIndex(0);
+    setSelected(null);
+    setAnswered(false);
+    setStage("observe");
+    setAnsweredMapVersion((v) => v + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.user_id]);
+
   useEffect(() => {
     const current = authRef.current;
     if (!current || !apiConfigured() || !packId) {
@@ -109,8 +132,8 @@ function App() {
     const packId = params.get("question_pack");
     const packUrl = packId
       ? `data/packs/${encodeURIComponent(packId)}.json`
-      : "data/packs/v15-launch50-seed42.json";
-    setPackId(packId ?? "v15-launch50-seed42");
+      : "data/packs/v15-launch50-seed20260905.json";
+    setPackId(packId ?? "v15-launch50-seed20260905");
     fetch(packUrl)
       .then((response) => {
         if (!response.ok) {
