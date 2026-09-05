@@ -68,10 +68,10 @@ with sync_playwright() as p:
     page.wait_for_selector(".verdict", timeout=5_000)
     print("ok: answered question 1")
 
-    # next question, answer again
-    page.click(".stage-footer .cta")
+    # next question, answer again (single-page: several .cta, match by text)
+    page.click("text=Next question")
     page.wait_for_timeout(1_000)
-    page.click(".cta")  # See choices
+    page.click("text=See choices")
     page.wait_for_selector(".choice-card", timeout=5_000)
     page.click(".choice-card >> nth=1")
     page.wait_for_selector(".verdict", timeout=5_000)

@@ -795,9 +795,39 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.replay-page {
-  padding: 1rem 1.2rem;
+/* The replica renders at the recorded viewport size (1px = 1px with the
+   recording) and is scaled to fit this box. transform-origin top left keeps
+   permille->px cursor math exact. */
+.replay-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  overflow: hidden;
+  background: var(--bg);
   will-change: transform;
+}
+
+.replay-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/* The replica must keep the desktop layout regardless of the viewer's
+   window size — media queries respond to the real viewport, not the stage. */
+.replay-stage .topnav {
+  grid-template-columns: auto 1fr auto;
+}
+
+.replay-stage .dataset-layout {
+  grid-template-columns: minmax(260px, 1fr) minmax(240px, 0.95fr);
+}
+
+.replay-stage .attr-list > div {
+  grid-template-columns: 8.5rem 1fr;
+  gap: 1rem;
 }
 
 .replay-empty {
@@ -851,6 +881,20 @@ a {
   font-weight: 600;
   letter-spacing: 0.02em;
   z-index: 25;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.replay-away.warn-tab {
+  color: #ff9d9d;
+}
+
+.replay-away.warn-focus {
+  color: #ffd479;
+}
+
+.replay-away.warn-pointer {
+  color: #9ecbff;
 }
 
 .replay-scrollhint {
@@ -898,6 +942,19 @@ a {
   color: var(--text);
 }
 
+/* attention events keep a warm tint even before "seen" */
+.replay-log-list button.v,
+.replay-log-list button.f,
+.replay-log-list button.o {
+  color: #b98a6a;
+}
+
+.replay-log-list button.v.seen,
+.replay-log-list button.f.seen,
+.replay-log-list button.o.seen {
+  color: #ffb4b4;
+}
+
 .replay-log-list button:hover {
   background: var(--bg-soft);
 }
@@ -936,8 +993,27 @@ a {
   padding: 0.4rem 0.5rem;
 }
 
-.replay-question .question-title {
-  font-size: 0.85rem;
+.replay-marks {
+  position: relative;
+  height: 14px;
+  margin-top: 0.25rem;
+}
+
+.replay-marks button {
+  position: absolute;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  border: 0;
+  background: #ff6b63;
+  cursor: pointer;
+  padding: 0;
+}
+
+.replay-marks button:hover {
+  transform: scale(1.3);
 }
 
 @media (max-width: 860px) {
@@ -948,4 +1024,14 @@ a {
   .replay-log-list {
     max-height: 180px;
   }
+}
+
+/* single-page question layout */
+#choices-anchor {
+  scroll-margin-top: 1rem;
+}
+
+.stage-screen {
+  display: grid;
+  gap: 1.25rem;
 }
