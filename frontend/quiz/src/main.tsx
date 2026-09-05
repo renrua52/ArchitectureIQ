@@ -139,12 +139,14 @@ function App() {
   function ensureRecorder(): SessionRecorder {
     if (!recorderRef.current) {
       const recorder = new SessionRecorder(sessionId.current);
-      recorder.onFlush = (seq, events) => {
+      recorder.onFlush = (seq, events, final) => {
         const current = authRef.current;
         if (!current) return;
-        void uploadChunk(current, { session_id: recorder.sessionId, seq, events }).then(() =>
-          drainQueue(current)
-        );
+        void uploadChunk(
+          current,
+          { session_id: recorder.sessionId, seq, events },
+          final
+        ).then(() => drainQueue(current));
       };
       recorderRef.current = recorder;
     }

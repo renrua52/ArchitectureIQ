@@ -8,7 +8,9 @@
  *   [dt, "m", x, y]            pointer move (throttled ~60ms, >=2px delta)
  *   [dt, "c", x, y, button]    pointer down (0=left 1=middle 2=right)
  *   [dt, "s", scrollY]         window scroll (throttled ~150ms), px
- *   [dt, "v", 0|1]             0 = tab hidden / window blurred, 1 = back
+ *   [dt, "v", 0|1]             tab hidden (0) / visible again (1)
+ *   [dt, "f", 0|1]             window blurred (0) / focused (1)
+ *   [dt, "o", 0|1]             pointer left (0) / re-entered (1) the page
  *   [dt, "q", questionId]      question view
  *   [dt, "g", stage]           stage change (observe|compare|reveal)
  *   [dt, "a", letter, 0|1]     answer submitted (1 = correct)
@@ -38,7 +40,7 @@ export type Recording = {
 const MOVE_MIN_MS = 60;
 const MOVE_MIN_PX = 2;
 const SCROLL_MIN_MS = 150;
-const FLUSH_INTERVAL_MS = 10_000;
+const FLUSH_INTERVAL_MS = 5_000;
 const FLUSH_MAX_EVENTS = 300;
 
 function permille(value: number, max: number): number {
@@ -60,9 +62,11 @@ export class SessionRecorder {
   private lastX = -1;
   private lastY = -1;
   private lastScrollAt = 0;
+  private pointerIn = true;
 
-  /** Called with (seq, chunk) for every batch; seq is 0-based and dense. */
-  onFlush: ((seq: number, events: RecEvent[]) => void) | null = null;
+  /** Called with (seq, chunk, final) for every batch; seq is 0-based and dense.
+   * final=true means the page is unloading — the upload must use keepalive. */
+  onFlush: ((seq: number, events: RecEvent[], final: boolean) => void) | null = null;
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
@@ -102,6 +106,8 @@ export class SessionRecorder {
     window.addEventListener("focus", this.onFocus);
     window.addEventListener("resize", this.onResize);
     window.addEventListener("pagehide", this.onPageHide);
+    document.addEventListener("mouseleave", this.onPointerLeave);
+    document.addEventListener("mouseenter", this.onPointerEnter);
     this.flushTimer = window.setInterval(() => this.flush(false), FLUSH_INTERVAL_MS);
   }
 
@@ -116,6 +122,8 @@ export class SessionRecorder {
     window.removeEventListener("focus", this.onFocus);
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("pagehide", this.onPageHide);
+    document.removeEventListener("mouseleave", this.onPointerLeave);
+    document.removeEventListener("mouseenter", this.onPointerEnter);
     if (this.flushTimer !== null) {
       window.clearInterval(this.flushTimer);
       this.flushTimer = null;
@@ -149,7 +157,7 @@ export class SessionRecorder {
 
   private flushedCount = 0; // events already handed to the uploader
 
-  private flush(_final: boolean): void {
+  private flush(final: boolean): void {
     if (!this.onFlush) return;
     const chunk = this.events.slice(this.flushedCount);
     if (!chunk.length) return;
@@ -157,7 +165,7 @@ export class SessionRecorder {
     this.seq += 1;
     this.flushedCount = this.events.length;
     this.buffered = 0;
-    this.onFlush(seq, chunk);
+    this.onFlush(seq, chunk, final);
   }
 
   private onPointerMove = (ev: PointerEvent): void => {
@@ -196,14 +204,29 @@ export class SessionRecorder {
 
   private onVisibility = (): void => {
     this.push([this.dt(), "v", document.hidden ? 0 : 1]);
+    // The page is still alive while hidden: this is the most reliable
+    // moment to ship everything pending (tab switch, app switch, close).
+    if (document.hidden) this.flush(false);
   };
 
   private onBlur = (): void => {
-    this.push([this.dt(), "v", 0]);
+    this.push([this.dt(), "f", 0]);
   };
 
   private onFocus = (): void => {
-    this.push([this.dt(), "v", 1]);
+    this.push([this.dt(), "f", 1]);
+  };
+
+  private onPointerLeave = (): void => {
+    if (!this.pointerIn) return;
+    this.pointerIn = false;
+    this.push([this.dt(), "o", 0]);
+  };
+
+  private onPointerEnter = (): void => {
+    if (this.pointerIn) return;
+    this.pointerIn = true;
+    this.push([this.dt(), "o", 1]);
   };
 
   private onResize = (): void => {
