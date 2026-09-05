@@ -184,14 +184,51 @@ function App() {
     return { correct, total };
   }, [answered, index, screen, bump]);
 
-  // Completion celebration: every question in the pack has an answer.
+  // Completion celebration: every question in the pack is answered — live
+  // this session OR restored from the server. A user who already finished
+  // in an earlier session sees the overlay again on return (dismissible).
+  const allAnswered = useMemo(() => {
+    if (!bake || !summaries.length) {
+      return false;
+    }
+    return summaries.every(
+      (q) =>
+        results.current[q.id] !== undefined ||
+        answeredMapRef.current[q.id] != null
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bake, summaries, answeredMapVersion, answered, index, screen, bump]);
+
+  // Final stats for the overlay: union of live results and server records,
+  // so a returning user sees their complete score, not just this session.
+  const finalScore = useMemo(() => {
+    if (!bake) {
+      return { correct: 0, total: 0 };
+    }
+    let total = 0;
+    let correct = 0;
+    for (const q of summaries) {
+      const live = results.current[q.id];
+      const persisted = answeredMapRef.current[q.id];
+      if (live === undefined && persisted == null) {
+        continue;
+      }
+      total += 1;
+      if ((live ?? persisted)?.correct) {
+        correct += 1;
+      }
+    }
+    return { correct, total };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bake, summaries, answeredMapVersion, answered, index, screen, bump]);
+
   useEffect(() => {
     if (!bake || !summaries.length || screen !== "quiz") return;
-    if (score.total < summaries.length || celebratedRef.current) return;
+    if (!allAnswered || celebratedRef.current) return;
     celebratedRef.current = true;
     setCelebrate(true);
     recorderRef.current?.mark("g", "complete");
-  }, [bake, score.total, summaries.length, screen]);
+  }, [bake, allAnswered, summaries.length, screen]);
 
   useEffect(() => {
     if (screen !== "quiz" || !question) {
@@ -682,8 +719,8 @@ function App() {
 
       {celebrate ? (
         <CompletionOverlay
-          correct={score.correct}
-          total={score.total}
+          correct={finalScore.correct}
+          total={finalScore.total}
           onExport={exportSession}
           onClose={() => setCelebrate(false)}
         />
