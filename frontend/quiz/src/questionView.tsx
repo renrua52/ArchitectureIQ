@@ -23,18 +23,66 @@ export type FeedbackDraft = {
 
 export type CardField = Field & { varying: boolean };
 
+/** Compact, fully-determining description of a classification label rule. */
+export function labelRuleText(params: Record<string, unknown>): string {
+  const rule = String(params.rule_family ?? "");
+  const threshold = params.decision_threshold;
+  const weight = (w: unknown): string => (Number(w) === -1 ? "−" : Number(w) === 1 ? "" : `${Number(w)}·`);
+  const activeList = Array.isArray(params.active_features)
+    ? (params.active_features as unknown[]).map((value) => `x_${String(value)}`)
+    : [];
+  if (rule === "xor" && activeList.length >= 2) {
+    const [left, right] = activeList as [string, string];
+    const w = Array.isArray(params.rule_weights) ? weight((params.rule_weights as unknown[])[0]) : "−";
+    return `score = ${w}${left}·${right}; y = 1 iff score > ${threshold ?? 0} (signs differ)`;
+  }
+  if (rule === "spiral") {
+    return `label = spiral arm (turns = ${params.spiral_turns ?? "—"}); no threshold`;
+  }
+  if (rule === "smooth_additive" && Array.isArray(params.rule_weights)) {
+    const terms = activeList.map(
+      (name, index) => `${weight((params.rule_weights as unknown[])[index])}(${name.replace("x_", "x_")})`
+    );
+    return `score = ${terms.join(" + ")} with term sin(x)+0.25·x²; y = 1 iff score > ${threshold ?? 0}`;
+  }
+  if (rule === "sparse_interaction" && Array.isArray(params.interaction_pairs)) {
+    const pairs = (params.interaction_pairs as number[][]).map(
+      (pair, index) =>
+        `${weight((params.rule_weights as unknown[])[index])}x_${pair[0]}·x_${pair[1]}`
+    );
+    return `score = ${pairs.join(" + ")}; y = 1 iff score > ${threshold ?? 0}`;
+  }
+  if (rule === "piecewise_boundary") {
+    return `two-branch linear rule (breakpoint x_${(params.active_features as number[])[0]} = ${params.piecewise_boundary ?? params.piecewise_breakpoint ?? "—"}); y = 1 iff score > ${threshold ?? 0}`;
+  }
+  return `${rule.replace(/_/g, " ")}`;
+}
+
+
 export function TaskDescription({ question }: { question: BakedQuestion }) {
   const params = question.detail.dataset.params ?? {};
   const metric = humanMetric(question.metric);
   const train = params.train_size != null ? String(params.train_size) : "—";
   const test = params.test_size != null ? String(params.test_size) : "—";
-  let summary: string;
-  if (question.family === "synthetic_tabular_classification") {
-    const rule = String(params.rule_family ?? "synthetic rule").replace(/_/g, " ");
-    const active = Array.isArray(params.active_features)
+  const active =
+    Array.isArray(params.active_features) && params.active_features.length
       ? params.active_features.map((value) => `x_${String(value)}`).join(", ")
       : "the active features";
-    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional tabular features. Labels follow a ${rule} rule using ${active}; the held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
+  let summary: string;
+  if (
+    question.family === "xor_classification" ||
+    question.family === "spiral_classification" ||
+    question.family === "synthetic_tabular_classification"
+  ) {
+    const rule = String(params.rule_family ?? "");
+    if (rule === "xor") {
+      summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional Gaussian features. The label is the XOR of the signs of ${active} (score −x_i·x_j thresholded at ${params.decision_threshold ?? 0}), so the two classes are not linearly separable: the hidden score depends only on the product of the two coordinates. Selection metric is ${metric} (lower is better) on ${train} train / ${test} test rows.`;
+    } else if (rule === "spiral") {
+      summary = `Classify points from two interleaved Archimedean spiral arms (${params.spiral_turns ?? "—"} turns) in 2-dimensional Gaussian noise; the label is which arm generated each point, with no threshold rule. Selection metric is ${metric} (lower is better) on ${train} train / ${test} test rows.`;
+    } else {
+      const ruleText = rule ? `${rule.replace(/_/g, " ")} rule using ${active}` : "synthetic rule";
+      summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional tabular features. Labels follow a ${ruleText}; the held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
+    }
   } else if (question.family === "bigram_lm") {
     summary = `Predict the next token in a synthetic bigram language model with vocabulary size ${params.vocab_size ?? "—"} and context length ${params.context_length ?? "—"}. Compare held-out ${metric} after the stated training budget (lower is better).`;
   } else if (question.family === "multivariate_regression") {
@@ -719,6 +767,21 @@ export function DatasetStage({
                 <dd className="mono">{String(params.expression)}</dd>
               </div>
             ) : null}
+            {params.rule_family != null ? (
+              <div>
+                <dt>Label rule</dt>
+                <dd className="mono">{labelRuleText(params)}</dd>
+              </div>
+            ) : null}
+            {(() => {
+              const calibration = params.calibration as { realized_positive_rate?: number } | null;
+              return calibration?.realized_positive_rate != null ? (
+                <div>
+                  <dt>Class balance (pos)</dt>
+                  <dd>{(calibration.realized_positive_rate * 100).toFixed(1)}%</dd>
+                </div>
+              ) : null;
+            })()}
             {params.input_dim != null ? (
               <div>
                 <dt>Input dim</dt>
