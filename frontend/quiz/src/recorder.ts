@@ -52,6 +52,9 @@ export class SessionRecorder {
   readonly sessionId: string;
   meta: RecordingMeta;
   events: RecEvent[] = [];
+  /** Auth user this recorder belongs to; lets the app detect stale recorders
+   * after a user switch instead of blindly nulling the current one. */
+  userId: string | null = null;
 
   private t0 = 0;
   private seq = 0;

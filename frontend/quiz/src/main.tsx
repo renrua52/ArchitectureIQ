@@ -75,26 +75,34 @@ function App() {
     if (authRef.current) void drainQueue(authRef.current);
   }, []);
 
-  // On user switch: wipe in-memory state so the previous user's answers can
-  // not leak into the new session. Server rows (answers, sessions, recording
-  // chunks) stay untouched — they are the archive for the old user.
+  // On user change: if the current session/recorder belongs to a different
+  // user, stop it and wipe in-memory state so answers can not leak across
+  // users. A recorder created for THIS user (fresh sign-in begins the quiz
+  // before this effect commits) is kept. Server rows stay untouched.
   const lastAuthUserId = useRef<string | null>(auth?.user_id ?? null);
+  const sessionUserId = useRef<string | null>(null);
+  // Lets the mount-time deep-link effect call the latest beginQuiz closure.
+  const beginQuizRef = useRef<((at: number) => void) | null>(null);
   useEffect(() => {
     const uid = auth?.user_id ?? null;
     if (uid === lastAuthUserId.current) {
       return;
     }
     lastAuthUserId.current = uid;
-    results.current = {};
-    feedbackByQuestion.current = {};
-    answeredMapRef.current = {};
-    sessionId.current = newSessionId();
-    recorderRef.current = null;
-    setIndex(0);
-    setSelected(null);
-    setAnswered(false);
-    setStage("observe");
-    setAnsweredMapVersion((v) => v + 1);
+    if (sessionUserId.current !== uid) {
+      recorderRef.current?.stop();
+      recorderRef.current = null;
+      sessionUserId.current = uid;
+      results.current = {};
+      feedbackByQuestion.current = {};
+      answeredMapRef.current = {};
+      sessionId.current = newSessionId();
+      setIndex(0);
+      setSelected(null);
+      setAnswered(false);
+      setStage("observe");
+      setAnsweredMapVersion((v) => v + 1);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.user_id]);
 
@@ -147,8 +155,9 @@ function App() {
         if (target) {
           const at = data.questions.findIndex((item) => item.id === target);
           if (at >= 0) {
-            setIndex(at);
-            setScreen("quiz");
+            // Enter through beginQuiz so sign-in and the session recorder
+            // are guaranteed (deep links used to bypass both).
+            beginQuizRef.current?.(at);
           }
         }
       })
@@ -268,10 +277,12 @@ function App() {
     }
     ensureSessionStart();
     const recorder = ensureRecorder();
+    recorder.userId = authRef.current?.user_id ?? null;
     if (!recorder.isRunning) {
       recorder.start({ username: authRef.current?.username, pack: packId ?? undefined });
     }
     const current = authRef.current;
+    sessionUserId.current = current?.user_id ?? null;
     if (current && apiConfigured()) {
       const scoreNow = currentScore();
       void upsertSession(current, {
@@ -285,6 +296,7 @@ function App() {
     setIndex(atIndex);
     setScreen("quiz");
   }
+  beginQuizRef.current = beginQuiz;
 
   function goHome() {
     setScreen("home");
@@ -456,8 +468,16 @@ function App() {
   function openReplayFile(file: File) {
     void file.text().then((text) => {
       try {
-        const rec = parseRecording(JSON.parse(text));
-        if (!rec) throw new Error("bad format");
+        const parsed = JSON.parse(text) as { recording?: unknown };
+        const rec = parseRecording(parsed);
+        if (!rec) {
+          window.alert(
+            parsed && typeof parsed === "object" && "recording" in parsed && parsed.recording === null
+              ? "This export contains your results but no trajectory: the session was played on a page that never started recording (e.g. opened via a direct question link before this fix)."
+              : "That file is not a valid session recording."
+          );
+          return;
+        }
         setReplay(rec);
       } catch {
         window.alert("That file is not a valid session recording.");
