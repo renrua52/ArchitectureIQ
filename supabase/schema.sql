@@ -207,9 +207,10 @@ grant execute on function public.quiz_ingest_chunk(uuid, text, integer, jsonb) t
 -- ------------------------------------------------- per-user answer records
 -- Authoritative per-user answer log: one row per (user, question).
 -- quiz_list_answers lets the signed-in user resume where they left off
--- (refresh keeps their locked answers); quiz_record_answer is idempotent
--- per (user, question) but counts attempts, so repeated tries from a
--- second device are visible for proctoring.
+-- (refresh keeps their locked answers); quiz_record_answer is insert-only
+-- per (user, question): the FIRST answer is permanent and can never be
+-- overwritten by a redo. A re-answer only bumps the attempts/last_answered_at
+-- audit fields (visible for proctoring) and returns the original answer.
 
 create table if not exists public.quiz_answers (
   user_id uuid not null references public.quiz_users (id),
@@ -243,7 +244,8 @@ set search_path = public
 as $$
 declare
   v_user_id uuid;
-  v_dupe boolean;
+  v_picked text;
+  v_correct boolean;
 begin
   select id into v_user_id from public.quiz_users where token = p_token;
   if v_user_id is null then
@@ -254,25 +256,22 @@ begin
     raise exception 'invalid_answer';
   end if;
 
-  select true into v_dupe
-  from public.quiz_answers
-  where user_id = v_user_id and question_id = p_question_id;
-
+  -- First answer wins: insert, or (if this user already answered this
+  -- question) keep the original row untouched except for the audit fields.
   insert into public.quiz_answers
     (user_id, question_id, pack, picked, correct, attempts)
   values
     (v_user_id, p_question_id, p_pack, p_picked, p_correct, 1)
   on conflict (user_id, question_id) do update set
-    pack = excluded.pack,
-    picked = excluded.picked,
-    correct = excluded.correct,
     attempts = public.quiz_answers.attempts + 1,
-    last_answered_at = now();
+    last_answered_at = now()
+  returning picked, correct into v_picked, v_correct;
 
   return json_build_object(
-    'duplicate', coalesce(v_dupe, false),
-    'picked', p_picked,
-    'correct', p_correct
+    'duplicate', v_picked is distinct from p_picked
+                 or v_correct is distinct from p_correct,
+    'picked', v_picked,
+    'correct', v_correct
   );
 end;
 $$;
