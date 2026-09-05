@@ -692,6 +692,23 @@ function App() {
   );
 }
 
+// Score ladder on the same 50-question launch set, mapped to each model's
+// accuracy on the full 500-question set (shown in the completion overlay).
+const LLM_LADDER: Array<{ min: number; models: string; full: string }> = [
+  { min: 33, models: "GPT-5.6 Sol", full: "76.4%" },
+  { min: 32, models: "Claude Opus 5", full: "76.0%" },
+  {
+    min: 30,
+    models: "Claude Sonnet 5 · Gemini 3.1 Pro Preview · GPT-5.6 Luna",
+    full: "65.4% – 67.8%"
+  },
+  { min: 28, models: "DeepSeek R1", full: "59.0%" },
+  { min: 25, models: "Gemini 2.5 Pro", full: "55.8%" },
+  { min: 23, models: "DeepSeek R1-Distill 32B", full: "46.0%" },
+  { min: 21, models: "Llama 3.1 70B", full: "42.0%" },
+  { min: 0, models: "You — a human", full: "—" }
+];
+
 function CompletionOverlay({
   correct,
   total,
@@ -714,6 +731,8 @@ function CompletionOverlay({
     }))
   ).current;
   const pct = total > 0 ? Math.round((100 * correct) / total) : 0;
+  const matchIndex = LLM_LADDER.findIndex((row) => correct >= row.min);
+  const match = LLM_LADDER[matchIndex];
   return (
     <div className="completion-overlay" role="dialog" aria-label="Quiz complete">
       <div className="confetti" aria-hidden="true">
@@ -743,6 +762,39 @@ function CompletionOverlay({
         <p className="completion-note">
           Your answers and session have been recorded. Thanks for taking the ArchitectureIQ quiz!
         </p>
+        <div className="completion-match">
+          <p className="completion-match-line">
+            {match.min > 0 ? (
+              <>
+                This score matches <strong>{match.models}</strong> — {match.full} on the full
+                500-question set
+              </>
+            ) : (
+              <>No LLM on our leaderboard scored this low — you are, in fact, a human.</>
+            )}
+          </p>
+          <table className="completion-ladder">
+            <thead>
+              <tr>
+                <th>Your score</th>
+                <th>Model</th>
+                <th>Acc (500)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {LLM_LADDER.map((row, i) => (
+                <tr
+                  key={row.min}
+                  className={i === matchIndex ? "is-you" : i > matchIndex ? "is-above" : ""}
+                >
+                  <td>{row.min > 0 ? `${row.min}+ / 50` : "< 21 / 50"}</td>
+                  <td>{row.models}</td>
+                  <td>{row.full}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <div className="completion-actions">
           <button type="button" className="completion-btn primary" onClick={onExport}>
             Export my results
