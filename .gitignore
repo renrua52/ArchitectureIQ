@@ -259,3 +259,5 @@ lark-im-resources/
 # Generated eval/audit HTML reports (regenerable via tools/)
 artifacts/llm_eval_400_vs_1000_report.html
 artifacts/new_question_quality_audit_1000.html
+.env.local
+.env.*.local

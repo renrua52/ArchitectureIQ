@@ -2,6 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { newSessionId, track } from "./telemetry";
+import { parseRecording, SessionRecorder, type Recording } from "./recorder";
+import {
+  apiConfigured,
+  clearAuth,
+  drainQueue,
+  loadAuth,
+  registerUser,
+  upsertSession,
+  uploadChunk,
+  type Auth
+} from "./api";
+import { ReplayPlayer } from "./replay";
 import type {
   AuditDecision,
   BakeFile,
@@ -47,6 +59,18 @@ function App() {
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
   const [, bump] = useState(0);
+  const [auth, setAuth] = useState<Auth | null>(() => loadAuth());
+  const [showAuth, setShowAuth] = useState(false);
+  const [replay, setReplay] = useState<Recording | null>(null);
+  const [packId, setPackId] = useState<string | null>(null);
+  const recorderRef = useRef<SessionRecorder | null>(null);
+  const authRef = useRef<Auth | null>(auth);
+  authRef.current = auth;
+  const pendingBegin = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (authRef.current) void drainQueue(authRef.current);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -54,6 +78,7 @@ function App() {
     const packUrl = packId
       ? `data/packs/${encodeURIComponent(packId)}.json`
       : "data/packs/v15-launch50-seed42.json";
+    setPackId(packId ?? "v15-launch50-seed42");
     fetch(packUrl)
       .then((response) => {
         if (!response.ok) {
@@ -98,12 +123,43 @@ function App() {
     setAnswered(already);
     setInfo(null);
     viewStartedAt.current = Date.now();
+    recorderRef.current?.mark("q", question.id);
     track({
       session_id: sessionId.current,
       event_type: "question_view",
       question_id: question.id
     });
   }, [screen, question?.id]);
+
+  useEffect(() => {
+    if (screen === "quiz" && question) {
+      recorderRef.current?.mark("g", stage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, screen, question?.id]);
+
+  function ensureRecorder(): SessionRecorder {
+    if (!recorderRef.current) {
+      const recorder = new SessionRecorder(sessionId.current);
+      recorder.onFlush = (seq, events) => {
+        const current = authRef.current;
+        if (!current) return;
+        void uploadChunk(current, { session_id: recorder.sessionId, seq, events }).then(() =>
+          drainQueue(current)
+        );
+      };
+      recorderRef.current = recorder;
+    }
+    return recorderRef.current;
+  }
+
+  function currentScore() {
+    const values = Object.values(results.current);
+    return {
+      correct: values.filter((item) => item.correct).length,
+      total: values.length
+    };
+  }
 
   function ensureSessionStart() {
     if (startedTracked.current) {
@@ -123,8 +179,10 @@ function App() {
       exported_at: new Date().toISOString(),
       session_id: sessionId.current,
       collection: bake?.collection ?? null,
+      username: authRef.current?.username ?? null,
       results: results.current,
-      audit_feedback: feedbackByQuestion.current
+      audit_feedback: feedbackByQuestion.current,
+      recording: recorderRef.current?.snapshot() ?? null
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -136,7 +194,27 @@ function App() {
   }
 
   function beginQuiz(atIndex = 0) {
+    if (apiConfigured() && !authRef.current) {
+      pendingBegin.current = atIndex;
+      setShowAuth(true);
+      return;
+    }
     ensureSessionStart();
+    const recorder = ensureRecorder();
+    if (!recorder.isRunning) {
+      recorder.start({ username: authRef.current?.username, pack: packId ?? undefined });
+    }
+    const current = authRef.current;
+    if (current && apiConfigured()) {
+      const scoreNow = currentScore();
+      void upsertSession(current, {
+        session_id: recorder.sessionId,
+        pack: packId ?? undefined,
+        score_correct: scoreNow.correct,
+        score_total: scoreNow.total,
+        meta: { user_agent: navigator.userAgent }
+      });
+    }
     setIndex(atIndex);
     setScreen("quiz");
   }
@@ -232,6 +310,17 @@ function App() {
     setSelected(letter);
     setAnswered(true);
     bump((n) => n + 1);
+    recorderRef.current?.mark("a", letter, correct ? 1 : 0);
+    const current = authRef.current;
+    if (current && apiConfigured()) {
+      const scoreNow = currentScore();
+      void upsertSession(current, {
+        session_id: sessionId.current,
+        pack: packId ?? undefined,
+        score_correct: scoreNow.correct,
+        score_total: scoreNow.total
+      });
+    }
     track({
       session_id: sessionId.current,
       event_type: "answer_submit",
@@ -260,6 +349,18 @@ function App() {
     setStage("compare");
   }
 
+  function openReplayFile(file: File) {
+    void file.text().then((text) => {
+      try {
+        const rec = parseRecording(JSON.parse(text));
+        if (!rec) throw new Error("bad format");
+        setReplay(rec);
+      } catch {
+        window.alert("That file is not a valid session recording.");
+      }
+    });
+  }
+
   if (error) {
     return (
       <main className="shell">
@@ -276,14 +377,41 @@ function App() {
     );
   }
 
+  if (replay) {
+    return <ReplayPlayer recording={replay} bake={bake} onBack={() => setReplay(null)} />;
+  }
+
   if (screen === "home") {
     return (
-      <HomeScreen
-        ready={Boolean(bake)}
-        onBegin={() => beginQuiz(0)}
-        onMenu={() => setScreen("menu")}
-        onContact={() => setScreen("contact")}
-      />
+      <>
+        <HomeScreen
+          ready={Boolean(bake)}
+          auth={auth}
+          onBegin={() => beginQuiz(0)}
+          onMenu={() => setScreen("menu")}
+          onContact={() => setScreen("contact")}
+          onSwitchUser={() => {
+            clearAuth();
+            setAuth(null);
+            setShowAuth(true);
+          }}
+          onReplayFile={openReplayFile}
+        />
+        {showAuth ? (
+          <AuthGate
+            allowCancel={Boolean(auth)}
+            onCancel={() => setShowAuth(false)}
+            onSuccess={(next) => {
+              authRef.current = next; // setAuth is async; beginQuiz reads the ref
+              setAuth(next);
+              setShowAuth(false);
+              const at = pendingBegin.current ?? 0;
+              pendingBegin.current = null;
+              beginQuiz(at);
+            }}
+          />
+        ) : null}
+      </>
     );
   }
 
@@ -418,15 +546,22 @@ function App() {
 
 function HomeScreen({
   ready,
+  auth,
   onBegin,
   onMenu,
-  onContact
+  onContact,
+  onSwitchUser,
+  onReplayFile
 }: {
   ready: boolean;
+  auth: Auth | null;
   onBegin: () => void;
   onMenu: () => void;
   onContact: () => void;
+  onSwitchUser: () => void;
+  onReplayFile: (file: File) => void;
 }) {
+  const fileInput = useRef<HTMLInputElement | null>(null);
   return (
     <main className="shell home">
       <div className="home-block">
@@ -444,9 +579,121 @@ function HomeScreen({
           <button type="button" className="menu-btn" onClick={onContact}>
             Contact us
           </button>
+          <button
+            type="button"
+            className="menu-btn"
+            disabled={!ready}
+            onClick={() => fileInput.current?.click()}
+          >
+            Replay a recording
+          </button>
         </div>
+        <p className="home-auth">
+          {auth
+            ? `Signed in as ${auth.username} · `
+            : "You will be asked for a username and the group password before you begin. "}
+          {auth ? (
+            <button type="button" className="linklike" onClick={onSwitchUser}>
+              Switch user
+            </button>
+          ) : null}
+        </p>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onReplayFile(file);
+            event.target.value = "";
+          }}
+        />
       </div>
     </main>
+  );
+}
+
+function AuthGate({
+  allowCancel,
+  onCancel,
+  onSuccess
+}: {
+  allowCancel: boolean;
+  onCancel: () => void;
+  onSuccess: (auth: Auth) => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    registerUser(username, password)
+      .then(onSuccess)
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === "invalid_password") setError("Wrong password.");
+        else if (message === "invalid_username_length") setError("Pick a username (1-40 characters).");
+        else setError("Could not reach the server — check your connection and try again.");
+        setBusy(false);
+      });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={allowCancel ? onCancel : undefined}>
+      <div className="modal auth-modal" onClick={(event) => event.stopPropagation()}>
+        <h2>Sign in to play</h2>
+        <p className="auth-note">
+          Pick any username and enter the group password. Your score and an anonymized mouse
+          trajectory (moves, clicks, tab switches — nothing outside this page) are recorded for
+          research. You can download your own recording any time via Export.
+        </p>
+        <label className="auth-field">
+          <span>Username</span>
+          <input
+            value={username}
+            autoFocus
+            maxLength={40}
+            placeholder="e.g. ada_lovelace"
+            onChange={(event) => setUsername(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") submit();
+            }}
+          />
+        </label>
+        <label className="auth-field">
+          <span>Group password</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") submit();
+            }}
+          />
+        </label>
+        {error ? <p className="auth-error">{error}</p> : null}
+        <div className="auth-actions">
+          {allowCancel ? (
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="cta"
+            disabled={busy || !username.trim() || !password}
+            onClick={submit}
+          >
+            {busy ? "Signing in…" : "Sign in & begin"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

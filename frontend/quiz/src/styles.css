@@ -703,3 +703,249 @@ a {
   line-height: 1.55;
   color: var(--fg);
 }
+
+/* ---- auth gate ---- */
+
+.home-auth {
+  margin: 0.9rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  max-width: 26rem;
+  text-align: center;
+}
+
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.auth-modal {
+  width: min(440px, 100%);
+}
+
+.auth-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.auth-field input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-soft);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  outline: none;
+}
+
+.auth-field input:focus {
+  border-color: var(--accent, #7aa2ff);
+}
+
+.auth-error {
+  margin: 0;
+  color: #ff8a8a;
+  font-size: 0.8rem;
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ---- replay ---- */
+
+.replay-panel {
+  width: min(1080px, 100%);
+}
+
+.replay-meta {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.replay-body {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 0.8rem;
+}
+
+.replay-viewport {
+  position: relative;
+  height: min(62vh, 620px);
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--bg-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.replay-page {
+  padding: 1rem 1.2rem;
+  will-change: transform;
+}
+
+.replay-empty {
+  color: var(--muted);
+  padding: 2rem 1rem;
+}
+
+.replay-cursor {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: rgba(255, 92, 92, 0.85);
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(255, 92, 92, 0.8);
+  pointer-events: none;
+  z-index: 30;
+}
+
+.replay-ripple {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 214, 90, 0.9);
+  animation: replay-ripple 0.7s ease-out forwards;
+  pointer-events: none;
+  z-index: 29;
+}
+
+@keyframes replay-ripple {
+  from {
+    transform: scale(0.25);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.replay-away {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 10, 14, 0.82);
+  color: #ffb4b4;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  z-index: 25;
+}
+
+.replay-scrollhint {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  z-index: 26;
+}
+
+.replay-log {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.replay-log-list {
+  overflow: auto;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  max-height: min(62vh, 620px);
+}
+
+.replay-log-list button {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: left;
+  padding: 0.25rem 0.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.replay-log-list button.seen {
+  color: var(--text);
+}
+
+.replay-log-list button:hover {
+  background: var(--bg-soft);
+}
+
+.replay-log-list button span {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, #7aa2ff);
+  min-width: 3.2em;
+}
+
+.replay-transport {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.replay-transport input[type="range"] {
+  flex: 1;
+}
+
+.replay-clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.78rem;
+  min-width: 7.5em;
+  text-align: right;
+}
+
+.replay-transport select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-soft);
+  border: 0;
+  border-radius: 10px;
+  padding: 0.4rem 0.5rem;
+}
+
+.replay-question .question-title {
+  font-size: 0.85rem;
+}
+
+@media (max-width: 860px) {
+  .replay-body {
+    grid-template-columns: 1fr;
+  }
+
+  .replay-log-list {
+    max-height: 180px;
+  }
+}
