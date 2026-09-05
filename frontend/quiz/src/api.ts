@@ -115,6 +115,39 @@ export async function upsertSession(auth: Auth, session: SessionUpsert, keepaliv
   }, keepalive);
 }
 
+export type AnswerRecord = {
+  question_id: string;
+  picked: string;
+  correct: boolean;
+  attempts: number;
+};
+
+/**
+ * Log one answer server-side. Returns duplicate=true when this user had
+ * already answered the question before (e.g. from another device) — used
+ * to flag repeated attempts for proctoring.
+ */
+export async function recordAnswer(
+  auth: Auth,
+  answer: { question_id: string; picked: string; correct: boolean; pack?: string }
+): Promise<{ duplicate: boolean; picked: string; correct: boolean }> {
+  return rpc("quiz_record_answer", {
+    p_token: auth.token,
+    p_question_id: answer.question_id,
+    p_picked: answer.picked,
+    p_correct: answer.correct,
+    p_pack: answer.pack ?? null
+  });
+}
+
+/** Questions the signed-in user has already answered (optionally per pack). */
+export async function listAnswers(auth: Auth, pack?: string): Promise<AnswerRecord[]> {
+  return rpc<AnswerRecord[]>("quiz_list_answers", {
+    p_token: auth.token,
+    p_pack: pack ?? null
+  });
+}
+
 // ------------------------------------------------------------ upload queue
 
 function loadQueue(): QueuedChunk[] {

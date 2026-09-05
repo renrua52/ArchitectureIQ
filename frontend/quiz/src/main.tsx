@@ -7,7 +7,9 @@ import {
   apiConfigured,
   clearAuth,
   drainQueue,
+  listAnswers,
   loadAuth,
+  recordAnswer,
   registerUser,
   upsertSession,
   uploadChunk,
@@ -53,7 +55,7 @@ function App() {
   const sessionId = useRef(newSessionId());
   const viewStartedAt = useRef(Date.now());
   const startedTracked = useRef(false);
-  const results = useRef<Record<string, { correct: boolean; picked: string }>>({});
+  const results = useRef<Record<string, { correct: boolean; picked: string; repeat?: boolean }>>({});
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
   const [, bump] = useState(0);
@@ -65,10 +67,42 @@ function App() {
   const authRef = useRef<Auth | null>(auth);
   authRef.current = auth;
   const pendingBegin = useRef<number | null>(null);
+  // Server-persisted answers for the signed-in user: refresh restores them.
+  const answeredMapRef = useRef<Record<string, { picked: string; correct: boolean; attempts: number }>>({});
+  const [answeredMapVersion, setAnsweredMapVersion] = useState(0);
 
   useEffect(() => {
     if (authRef.current) void drainQueue(authRef.current);
   }, []);
+
+  useEffect(() => {
+    const current = authRef.current;
+    if (!current || !apiConfigured() || !packId) {
+      return;
+    }
+    let cancelled = false;
+    listAnswers(current, packId)
+      .then((records) => {
+        if (cancelled) return;
+        const map: typeof answeredMapRef.current = {};
+        for (const record of records) {
+          map[record.question_id] = {
+            picked: record.picked,
+            correct: record.correct,
+            attempts: record.attempts
+          };
+        }
+        answeredMapRef.current = map;
+        setAnsweredMapVersion((v) => v + 1);
+      })
+      .catch(() => {
+        /* offline: keep whatever we have; re-answering remains blocked by
+           local results until the list arrives */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.user_id, packId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -113,6 +147,16 @@ function App() {
     if (screen !== "quiz" || !question) {
       return;
     }
+    const persisted = answeredMapRef.current[question.id];
+    if (persisted && results.current[question.id] === undefined) {
+      // Resume a previously submitted answer (page refresh / new device):
+      // locked, cannot be re-answered, flagged as a repeat in the export.
+      results.current[question.id] = {
+        correct: persisted.correct,
+        picked: persisted.picked,
+        repeat: true
+      };
+    }
     const prior = results.current[question.id];
     const already = prior !== undefined;
     setStage(already ? "reveal" : "observe");
@@ -127,7 +171,7 @@ function App() {
       event_type: "question_view",
       question_id: question.id
     });
-  }, [screen, question?.id]);
+  }, [screen, question?.id, answeredMapVersion]);
 
   useEffect(() => {
     if (screen === "quiz" && question) {
@@ -306,13 +350,50 @@ function App() {
       return;
     }
     const correct = letter === question.reveal.correctLetter;
-    results.current[question.id] = { correct, picked: letter };
+    const answeredMap = answeredMapRef.current;
+    results.current[question.id] = {
+      correct,
+      picked: letter,
+      repeat: answeredMap[question.id] != null
+    };
     setSelected(letter);
     setAnswered(true);
     bump((n) => n + 1);
     recorderRef.current?.mark("a", letter, correct ? 1 : 0);
     const current = authRef.current;
     if (current && apiConfigured()) {
+      void recordAnswer(current, {
+        question_id: question.id,
+        picked: letter,
+        correct,
+        pack: packId ?? undefined
+      })
+        .then((res) => {
+          answeredMapRef.current[question.id] = {
+            picked: res.picked,
+            correct: res.correct,
+            attempts: 1
+          };
+          if (res.duplicate) {
+            const entry = results.current[question.id];
+            if (entry) entry.repeat = true;
+            bump((n) => n + 1);
+          }
+        })
+        .catch(() => {
+          // offline / raced reload: one deferred retry, then give up — the
+          // trajectory chunks still carry the attempt for proctoring.
+          window.setTimeout(() => {
+            const retry = authRef.current;
+            if (!retry) return;
+            void recordAnswer(retry, {
+              question_id: question.id,
+              picked: letter,
+              correct,
+              pack: packId ?? undefined
+            }).catch(() => undefined);
+          }, 1_500);
+        });
       const scoreNow = currentScore();
       void upsertSession(current, {
         session_id: sessionId.current,

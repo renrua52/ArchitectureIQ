@@ -203,3 +203,108 @@ revoke all on function public.quiz_ingest_chunk(uuid, text, integer, jsonb) from
 grant execute on function public.quiz_register(text, text) to anon;
 grant execute on function public.quiz_upsert_session(uuid, text, text, integer, integer, jsonb) to anon;
 grant execute on function public.quiz_ingest_chunk(uuid, text, integer, jsonb) to anon;
+
+-- ------------------------------------------------- per-user answer records
+-- Authoritative per-user answer log: one row per (user, question).
+-- quiz_list_answers lets the signed-in user resume where they left off
+-- (refresh keeps their locked answers); quiz_record_answer is idempotent
+-- per (user, question) but counts attempts, so repeated tries from a
+-- second device are visible for proctoring.
+
+create table if not exists public.quiz_answers (
+  user_id uuid not null references public.quiz_users (id),
+  question_id text not null,
+  pack text,
+  picked text not null,
+  correct boolean not null,
+  attempts integer not null default 1,
+  first_answered_at timestamptz not null default now(),
+  last_answered_at timestamptz not null default now(),
+  primary key (user_id, question_id)
+);
+
+create index if not exists idx_quiz_answers_user_pack
+  on public.quiz_answers (user_id, pack);
+
+alter table public.quiz_answers enable row level security;
+revoke all on public.quiz_answers from anon, authenticated;
+
+create or replace function public.quiz_record_answer(
+  p_token uuid,
+  p_question_id text,
+  p_picked text,
+  p_correct boolean,
+  p_pack text default null
+)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_dupe boolean;
+begin
+  select id into v_user_id from public.quiz_users where token = p_token;
+  if v_user_id is null then
+    raise exception 'invalid_token';
+  end if;
+  if p_question_id is null or char_length(p_question_id) > 80
+     or p_picked is null or char_length(p_picked) > 4 then
+    raise exception 'invalid_answer';
+  end if;
+
+  select true into v_dupe
+  from public.quiz_answers
+  where user_id = v_user_id and question_id = p_question_id;
+
+  insert into public.quiz_answers
+    (user_id, question_id, pack, picked, correct, attempts)
+  values
+    (v_user_id, p_question_id, p_pack, p_picked, p_correct, 1)
+  on conflict (user_id, question_id) do update set
+    attempts = public.quiz_answers.attempts + 1,
+    last_answered_at = now();
+
+  return json_build_object(
+    'duplicate', coalesce(v_dupe, false),
+    'picked', p_picked,
+    'correct', p_correct
+  );
+end;
+$$;
+
+create or replace function public.quiz_list_answers(p_token uuid, p_pack text default null)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_rows json;
+begin
+  select id into v_user_id from public.quiz_users where token = p_token;
+  if v_user_id is null then
+    raise exception 'invalid_token';
+  end if;
+
+  select coalesce(json_agg(json_build_object(
+           'question_id', a.question_id,
+           'picked', a.picked,
+           'correct', a.correct,
+           'attempts', a.attempts
+         ) order by a.first_answered_at), '[]'::json)
+  into v_rows
+  from public.quiz_answers a
+  where a.user_id = v_user_id
+    and (p_pack is null or a.pack = p_pack);
+
+  return v_rows;
+end;
+$$;
+
+revoke all on function public.quiz_record_answer(uuid, text, text, boolean, text) from public;
+revoke all on function public.quiz_list_answers(uuid, text) from public;
+grant execute on function public.quiz_record_answer(uuid, text, text, boolean, text) to anon;
+grant execute on function public.quiz_list_answers(uuid, text) to anon;
