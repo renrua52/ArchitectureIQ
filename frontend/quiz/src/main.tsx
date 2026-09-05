@@ -49,14 +49,29 @@ function App() {
   const [, bump] = useState(0);
 
   useEffect(() => {
-    fetch("/data/questions.json")
+    const params = new URLSearchParams(window.location.search);
+    const packId = params.get("question_pack");
+    const packUrl = packId
+      ? `data/packs/${encodeURIComponent(packId)}.json`
+      : "data/packs/v15-launch50-seed42.json";
+    fetch(packUrl)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Missing baked questions. Run: python tools/export_quiz_static.py");
+          throw new Error(`Missing baked questions at ${packUrl}`);
         }
         return response.json();
       })
-      .then((data: BakeFile) => setBake(data))
+      .then((data: BakeFile) => {
+        setBake(data);
+        const target = params.get("q");
+        if (target) {
+          const at = data.questions.findIndex((item) => item.id === target);
+          if (at >= 0) {
+            setIndex(at);
+            setScreen("quiz");
+          }
+        }
+      })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
@@ -709,6 +724,7 @@ function AnswerStage({
         })}
       </div>
       <CurvesPlot question={question} />
+      <ModelTrajectories question={question} />
       <AuditFeedbackPanel feedback={feedback} onChange={onFeedbackChange} onSubmit={onSubmitFeedback} />
       <div className="stage-footer">
         <p className="hint">Continue when you are ready.</p>
@@ -717,6 +733,57 @@ function AnswerStage({
         </button>
       </div>
     </div>
+  );
+}
+
+function ModelTrajectories({ question }: { question: BakedQuestion }) {
+  const cot = question.llmCot;
+  const entries = useMemo(
+    () => (cot?.available ? (cot.entries ?? []).filter((e) => e.text) : []),
+    [cot]
+  );
+  const defaultModel = useMemo(() => {
+    if (!entries.length) return "";
+    if (cot?.defaultModel && entries.some((e) => e.model === cot.defaultModel)) {
+      return cot.defaultModel;
+    }
+    return entries[0].model;
+  }, [entries, cot]);
+  const [selected, setSelected] = useState(defaultModel);
+  const activeModel = entries.some((e) => e.model === selected) ? selected : defaultModel;
+  const entry = entries.find((e) => e.model === activeModel);
+
+  if (!entries.length || !entry) return null;
+  const consensus = question.llmConsensusAcc;
+  return (
+    <section className="model-traj panel" aria-label="Model trajectories">
+      <div className="panel-head">
+        <div>
+          <p className="stage-kicker">Model trajectories</p>
+          <p className="hint">
+            {typeof consensus === "number"
+              ? `LLM consensus accuracy on this question: ${(consensus * 100).toFixed(0)}%. `
+              : ""}
+            How each benchmarked model reasoned about this question.
+          </p>
+        </div>
+        <select
+          className="model-traj-select"
+          value={activeModel}
+          onChange={(ev) => setSelected(ev.target.value)}
+          aria-label="Choose model"
+        >
+          {entries.map((e) => (
+            <option key={e.model} value={e.model}>
+              {e.model}
+              {e.parsedLetter ? ` · picked ${e.parsedLetter}` : ""}
+              {e.correct === true ? " ✓" : e.correct === false ? " ✗" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <pre className="model-traj-text">{entry.text}</pre>
+    </section>
   );
 }
 
