@@ -59,17 +59,22 @@ async function fetchBakeDocument(path: string): Promise<BakeFile | null> {
   return parsed as BakeFile;
 }
 
+let packBasePath = "/data";
+
 async function loadBakeFile(packId?: string | null): Promise<BakeFile> {
   if (packId) {
-    const pack = await fetchBakeDocument(
-      `/data/packs/${encodeURIComponent(packId)}.json`
-    );
+    const base = `/data/packs/${encodeURIComponent(packId)}`;
+    const pack =
+      (await fetchBakeDocument(`${base}/index.json`)) ??
+      (await fetchBakeDocument(`${base}.json`));
     if (!pack) {
-      throw new Error(`Missing question pack at /data/packs/${packId}.json`);
+      throw new Error(`Missing question pack ${packId}`);
     }
+    packBasePath = base;
     return pack;
   }
 
+  packBasePath = "/data";
   const index = await fetchBakeDocument("/data/index.json");
   if (index) {
     return {
@@ -101,6 +106,7 @@ function App() {
   const [info, setInfo] = useState<InfoTarget>(null);
   const [error, setError] = useState<string | null>(null);
   const [questionLoading, setQuestionLoading] = useState(false);
+  const [packLoading, setPackLoading] = useState(true);
   const sessionId = useRef(newSessionId());
   const viewStartedAt = useRef(Date.now());
   const startedTracked = useRef(false);
@@ -113,6 +119,7 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setPackLoading(true);
     loadBakeFile(params.get("question_pack"))
       .then((data) => {
         setBake(data);
@@ -124,7 +131,8 @@ function App() {
           }
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setPackLoading(false));
   }, []);
 
   const summaries = bake?.questions ?? [];
@@ -141,7 +149,7 @@ function App() {
     const existing = questionLoads.current[currentId];
     const load =
       existing ??
-      fetch(`/data/by-id/${encodeURIComponent(currentId)}.json`).then(async (response) => {
+      fetch(`${packBasePath}/by-id/${encodeURIComponent(currentId)}.json`).then(async (response) => {
         if (!response.ok) {
           throw new Error(`Missing question payload for ${currentId}`);
         }
@@ -454,6 +462,13 @@ function App() {
   }
 
   if (screen === "menu") {
+    if (packLoading) {
+      return (
+        <main className="shell">
+          <p className="loading">Loading question pack…</p>
+        </main>
+      );
+    }
     return (
       <QuestionMenu
         summaries={summaries}
