@@ -59,7 +59,17 @@ async function fetchBakeDocument(path: string): Promise<BakeFile | null> {
   return parsed as BakeFile;
 }
 
-async function loadBakeFile(): Promise<BakeFile> {
+async function loadBakeFile(packId?: string | null): Promise<BakeFile> {
+  if (packId) {
+    const pack = await fetchBakeDocument(
+      `/data/packs/${encodeURIComponent(packId)}.json`
+    );
+    if (!pack) {
+      throw new Error(`Missing question pack at /data/packs/${packId}.json`);
+    }
+    return pack;
+  }
+
   const index = await fetchBakeDocument("/data/index.json");
   if (index) {
     return {
@@ -102,8 +112,18 @@ function App() {
   const [, bump] = useState(0);
 
   useEffect(() => {
-    loadBakeFile()
-      .then((data) => setBake(data))
+    const params = new URLSearchParams(window.location.search);
+    loadBakeFile(params.get("question_pack"))
+      .then((data) => {
+        setBake(data);
+        const target = params.get("q");
+        if (target) {
+          const at = data.questions.findIndex((item) => item.id === target);
+          if (at >= 0) {
+            openQuestion(at);
+          }
+        }
+      })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
