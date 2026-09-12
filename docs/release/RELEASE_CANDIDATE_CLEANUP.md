@@ -8,9 +8,9 @@
 |---|---|---|
 | 发布代码与配置 | `src/`、`tools/`、`profiles/`、`tests/`、`frontend/quiz/` | 跟踪 |
 | 正式前端数据 | `frontend/quiz/public/data/questions.json` | 暂时跟踪；它是当前静态 demo 的交付输入 |
-| 发布证明 | `outputs/demo_release_integration/RELEASE_FREEZE_MANIFEST.json`、最终报告 | 跟踪；只存轻量 manifest 和说明 |
+| 发布证明 | `docs/release/demo_release_integration/RELEASE_FREEZE_MANIFEST.json`、最终报告 | 跟踪；只存轻量 manifest 和说明 |
 | 训练数据和 GT | `data/`、`llm_runs/` | 忽略；由外部数据包或本机生成提供 |
-| 运行与测试临时物 | `.pytest-audit*/`、`.pytest-tmp-*/`、`.tmp/`、`outputs/` 其余内容 | 忽略 |
+| 运行与测试临时物 | `.pytest-audit*/`、`.pytest-tmp-*/`、`.tmp/`、`outputs/`（全部为构建输出，不入 Git） | 忽略 |
 | 人工审计要求 | `../reports/AUDIT_REQUIREMENTS_2026-07-23.md` | 应作为需求文档跟踪，不可忽略 |
 
 `AGENTS.md` 的 worktree 边界修改同样属于应审阅、应跟踪的工作，不应以 ignore 掩盖。

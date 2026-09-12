@@ -195,6 +195,14 @@
             "items": { "type": ["number", "null"] }
           }
         },
+        "labelGrid": {
+          "type": "array",
+          "description": "Optional true-rule region grid aligned with xEdges/yEdges: labelGrid[x][y] is 0 (class 0) or 1 (class 1) for the cell (x, y). Present only when the displayed feature pair fully determines the label rule.",
+          "items": {
+            "type": "array",
+            "items": { "type": "integer", "enum": [0, 1] }
+          }
+        },
         "featurePair": {
           "type": "array",
           "minItems": 2,

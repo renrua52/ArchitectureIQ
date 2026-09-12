@@ -10,7 +10,6 @@ pools:
   model_types:
     - mlp
     - transformer_lm
-    - kan
   optimizers:
     - SGD
     - Adam
@@ -93,16 +92,6 @@ mlp:
   activations: [relu, leaky_relu, gelu, silu]
   leaky_relu_slope: 0.01
 
-kan:
-  variant: efficient_spline_v1
-  depth: [1, 2]
-  width: [8]
-  grid_size: [5]
-  spline_order: [3]
-  grid_range:
-    - [-1.0, 1.0]
-  base_activation: [silu]
-
 transformer_lm:
   d_model: [32, 64, 128]
   num_layers: [1, 2, 3]
@@ -146,11 +135,3 @@ question_generation:
 prompts:
   use_llm_paraphrase: false
   template_version: "1.0"
-
-# Profile-aware compatibility gates. The family keeps its conservative default;
-# this opt-in gate enables the calibrated KAN classification path only in v2.1.
-model_gates:
-  synthetic_tabular_classification:
-    compatible_model_types:
-      - mlp
-      - kan

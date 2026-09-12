@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import random
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -109,10 +111,14 @@ class LLMClient:
         base_url: str | None = None,
         api_key: str | None = None,
         timeout_s: float = 120.0,
+        max_retries: int = 4,
     ) -> None:
+        if timeout_s <= 0:
+            raise ValueError("timeout_s must be positive")
         self.base_url = (base_url or _env("OPENAI_API_BASE")).rstrip("/")
         self.api_key = api_key or _env("OPENAI_API_KEY")
         self.timeout_s = timeout_s
+        self.max_retries = max(0, max_retries)
 
     def complete(self, prompt: str, config: ModelConfig) -> LLMCompletion:
         return self.complete_conversation([{"role": "user", "content": prompt}], config)
@@ -144,14 +150,21 @@ class LLMClient:
             },
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
-                raw = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            raise LLMClientError(f"LLM API HTTP {exc.code}: {detail}") from exc
-        except urllib.error.URLError as exc:
-            raise LLMClientError(f"LLM API request failed: {exc}") from exc
+        for attempt in range(self.max_retries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+                    raw = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")
+                retryable = exc.code == 429 or exc.code >= 500
+                if not retryable or attempt >= self.max_retries:
+                    raise LLMClientError(f"LLM API HTTP {exc.code}: {detail}") from exc
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+                if attempt >= self.max_retries:
+                    raise LLMClientError(f"LLM API request failed: {exc}") from exc
+            if attempt < self.max_retries:
+                time.sleep(min(30.0, 1.5 * (2**attempt) + random.random()))
 
         try:
             choice = raw["choices"][0]

@@ -10,7 +10,6 @@ pools:
   model_types:
     - mlp
     - transformer_lm
-    - kan
   optimizers:
     - SGD
     - Adam
@@ -92,16 +91,6 @@ mlp:
   residual: [false, true]
   activations: [relu, leaky_relu, gelu, silu]
   leaky_relu_slope: 0.01
-
-kan:
-  variant: efficient_spline_v1
-  depth: [1, 2, 3]
-  width: [4, 8, 16, 32]
-  grid_size: [3, 5, 8]
-  spline_order: [3]
-  grid_range:
-    - [-1.0, 1.0]
-  base_activation: [silu]
 
 transformer_lm:
   d_model: [32, 64, 128]

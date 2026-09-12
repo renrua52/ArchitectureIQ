@@ -10,6 +10,17 @@ from architecture_iq.profile import Profile
 class DatasetFamily(ABC):
     name: str
 
+    #: Which generated ``train.py`` template this family needs. The template
+    #: decides what ``train_and_eval`` returns, so it has to agree with
+    #: ``selection_metric_name()``; see ``candidates.generator._TRAIN_PY_BY_KIND``.
+    train_loop_kind: str = "regression"
+
+    #: Names of the optional keyword arguments ``create_instance`` accepts
+    #: beyond ``profile`` and ``seed`` (CLI ``--input-dim`` / ``--rule-family``
+    #: and friends). Generic code validates user options against this instead
+    #: of hard-coding which family takes what.
+    instance_option_names: tuple[str, ...] = ()
+
     @abstractmethod
     def create_instance(
         self,

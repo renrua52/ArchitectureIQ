@@ -29,6 +29,14 @@ export type Choice = {
   files: Record<string, unknown>;
 };
 
+export type LlmCotEntry = {
+  model: string;
+  correct: boolean | null;
+  parsedLetter: string | null;
+  source?: string;
+  text: string;
+};
+
 export type BakedQuestion = {
   id: string;
   title: string;
@@ -62,6 +70,7 @@ export type BakedQuestion = {
         xEdges?: number[];
         yEdges?: number[];
         probability?: number[][];
+        labelGrid?: number[][];
         featurePair?: [number, number];
         selectionNote?: string;
         xLabel?: string;
@@ -97,6 +106,12 @@ export type BakedQuestion = {
     }>;
     files?: Record<string, Record<string, unknown>>;
   };
+  llmCot?: {
+    available: boolean;
+    defaultModel?: string;
+    entries: LlmCotEntry[];
+  };
+  llmConsensusAcc?: number | null;
 };
 
 export type BakeFile = {

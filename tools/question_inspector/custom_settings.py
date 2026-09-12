@@ -70,7 +70,7 @@ def build_model_spec(
             raise ValueError("Depth must be greater than zero.")
         if width <= 0:
             raise ValueError("Width must be greater than zero.")
-        activations = [str(value) for value in params["activations"]]
+        activation = str(params["activation"])
         layer_norm = [bool(value) for value in params["layer_norm"]]
         spec = {
             "type": "mlp",
@@ -78,31 +78,9 @@ def build_model_spec(
             "width": width,
             "residual": bool(params.get("residual", False)),
             "layer_norm": layer_norm,
-            "activations": activations,
+            "activation": activation,
             "input_dim": int(dataset_params.get("input_dim", 1)),
             "output_dim": int(dataset_params.get("num_classes", 1)),
-        }
-    elif model_type == "kan":
-        depth = int(params["depth"])
-        width = int(params["width"])
-        grid_size = int(params["grid_size"])
-        spline_order = int(params["spline_order"])
-        if min(depth, width, grid_size, spline_order) <= 0:
-            raise ValueError("KAN depth, width, grid size, and spline order must be positive.")
-        grid_range = [float(value) for value in params["grid_range"]]
-        if len(grid_range) != 2 or grid_range[0] >= grid_range[1]:
-            raise ValueError("KAN grid range must be [low, high] with low < high.")
-        spec = {
-            "type": "kan",
-            "variant": str(params.get("variant", "efficient_spline_v1")),
-            "input_dim": int(dataset_params.get("input_dim", 1)),
-            "output_dim": int(dataset_params.get("num_classes", 1)),
-            "depth": depth,
-            "width": width,
-            "grid_size": grid_size,
-            "spline_order": spline_order,
-            "grid_range": grid_range,
-            "base_activation": str(params["base_activation"]),
         }
     elif model_type == "transformer_lm":
         d_model = int(params["d_model"])
@@ -227,8 +205,10 @@ def form_values_from_candidate_spec(
                 "mlp_residual": bool(model.get("residual", False)),
             }
         )
-        for index, activation in enumerate(model["activations"]):
-            values[f"mlp_activation_{index}"] = activation
+        legacy_acts = model.get("activations") or []
+        values["mlp_activation"] = str(
+            model.get("activation") or (legacy_acts[0] if legacy_acts else "relu")
+        )
         for index, use_norm in enumerate(model["layer_norm"]):
             values[f"mlp_norm_{index}"] = bool(use_norm)
     elif model["type"] == "transformer_lm":
@@ -249,20 +229,6 @@ def form_values_from_candidate_spec(
                 "gru_d_model": int(model["d_model"]),
                 "gru_layers": int(model["num_layers"]),
                 "gru_layer_residual": bool(model.get("layer_residual", False)),
-            }
-        )
-    elif model["type"] == "kan":
-        values.update(
-            {
-                "kan_variant": str(model.get("variant", "efficient_spline_v1")),
-                "kan_depth": int(model["depth"]),
-                "kan_width": int(model["width"]),
-                "kan_grid_size": int(model["grid_size"]),
-                "kan_spline_order": int(model["spline_order"]),
-                "kan_grid_range": list(model["grid_range"]),
-                "kan_grid_low": float(model["grid_range"][0]),
-                "kan_grid_high": float(model["grid_range"][1]),
-                "kan_base_activation": str(model["base_activation"]),
             }
         )
     if optimizer["type"] == "SGD":

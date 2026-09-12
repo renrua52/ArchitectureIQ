@@ -27,5 +27,6 @@ class ModelFamily(ABC):
         profile: Any,
         rng: Any,
         dataset_params: dict[str, Any] | None = None,
+        shared: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         ...

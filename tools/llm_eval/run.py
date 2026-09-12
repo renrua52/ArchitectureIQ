@@ -35,6 +35,12 @@ def main() -> None:
     parser.add_argument("--model", required=True, help="Model name passed to the chat API")
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--max-tokens", type=int, default=16384)
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="Read timeout in seconds for each API attempt (default: 120)",
+    )
     parser.add_argument("--top-p", type=float, default=None)
     parser.add_argument(
         "--runs-root",
@@ -61,9 +67,18 @@ def main() -> None:
     parser.add_argument(
         "--skip-existing",
         action="store_true",
-        help="Reuse cached per-question results already present in the run dir",
+        help="Reuse valid cached results already present in the run dir",
+    )
+    parser.add_argument(
+        "--reuse-results-from",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="Reuse valid results from a run directory or results directory; repeatable",
     )
     args = parser.parse_args()
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
 
     questions_root = Path(args.questions_root).expanduser().resolve()
     runs_root = Path(args.runs_root).expanduser().resolve()
@@ -78,7 +93,7 @@ def main() -> None:
         max_tokens=args.max_tokens,
         top_p=args.top_p,
     )
-    client = LLMClient()
+    client = LLMClient(timeout_s=args.timeout)
 
     manifest = run_evaluation(
         questions_root=questions_root,
@@ -88,6 +103,10 @@ def main() -> None:
         limit=args.limit,
         skip_existing=args.skip_existing,
         workers=args.workers,
+        timeout_s=args.timeout,
+        reuse_results_from=[
+            Path(path).expanduser().resolve() for path in args.reuse_results_from
+        ],
     )
 
     summary = manifest["summary"]

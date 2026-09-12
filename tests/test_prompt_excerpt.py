@@ -8,6 +8,7 @@ from architecture_iq.prompts.code_excerpt import (
     excerpt_optimizer_py,
     excerpt_synthesize_py,
 )
+from architecture_iq.models.mlp import MlpModelFamily
 from architecture_iq.prompts.renderer import render_prompt
 
 
@@ -27,6 +28,17 @@ class Model(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
 '''
+
+MLP_SPEC = {
+    "type": "mlp",
+    "depth": 2,
+    "width": 16,
+    "residual": True,
+    "activation": "gelu",
+    "layer_norm": [True, False],
+    "input_dim": 1,
+    "output_dim": 1,
+}
 
 SAMPLE_LOSS = '''import torch
 import torch.nn as nn
@@ -60,6 +72,18 @@ def test_excerpt_model_py() -> None:
     assert "def _activation" in out
     assert "class MLPBlock(nn.Module):" in out
     assert "class Model(nn.Module):" in out
+
+
+def test_excerpt_model_py_is_self_contained_without_module_constants() -> None:
+    # The MLP renderer writes the activation and the skip into the class bodies,
+    # so the excerpt needs no hoisted constant to be runnable -- and must not
+    # reintroduce one.
+    source = excerpt_model_py(MlpModelFamily().render_model_py(MLP_SPEC))
+    assert "ACTIVATION" not in source
+    assert "USE_RESIDUAL" not in source
+    assert "def _activation" not in source
+    assert "self.act = nn.GELU()" in source
+    compile(source, "<excerpt>", "exec")
 
 
 def test_excerpt_loss_py() -> None:

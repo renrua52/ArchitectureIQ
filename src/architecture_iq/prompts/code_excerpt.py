@@ -34,9 +34,31 @@ def extract_function_definitions(source: str, names: set[str]) -> str:
     return "\n\n\n".join(parts)
 
 
+def extract_module_constants(source: str) -> str:
+    """Return top-level constant assignments, in source order.
+
+    No current renderer emits module constants -- the MLP writes its activation
+    and its skip directly into the class bodies -- but artifacts generated
+    before that (and any future renderer that hoists a shared value) do, and a
+    class body referencing a dropped constant would be an excerpt that cannot
+    run.
+    """
+    tree = ast.parse(source)
+    parts: list[str] = []
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            parts.append(_source_segment(source, node))
+    return "\n".join(parts)
+
+
 def excerpt_model_py(source: str) -> str:
     parts: list[str] = []
+    constants = extract_module_constants(source)
+    if constants:
+        parts.append(constants)
     try:
+        # Helper names only legacy artifacts carry; the current MLP renderer has
+        # no _activation indirection, so this simply finds nothing.
         parts.append(extract_function_definitions(source, {"_activation", "_make_grid", "_bspline_bases"}))
     except ValueError:
         pass

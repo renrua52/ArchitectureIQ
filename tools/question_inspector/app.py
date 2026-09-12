@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import html
+import json
 import random
 import secrets
-import shutil
 import sys
 import tempfile
 import time
@@ -60,13 +61,13 @@ from custom_settings import (  # noqa: E402
     run_custom_setting,
 )
 from expression_latex import expression_to_latex  # noqa: E402
-from architecture_iq.models.kan import BASE_ACTIVATIONS  # noqa: E402
 from architecture_iq.profile import load_profile  # noqa: E402
 
 
 QUESTION_PACKS_ROOT = (
     Path(__file__).resolve().parents[2] / "benchmark_releases" / "question_packs"
 )
+REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_QUESTION_PACK = "local"
 
 st.set_page_config(
@@ -154,6 +155,187 @@ CUSTOM_CSS = """
         color: #047857;
         font-size: 0.82rem;
         font-weight: 600;
+    }
+    .qc-scroll {
+        overflow-x: auto;
+        margin: 0.2rem 0 0.6rem 0;
+    }
+    .qc-grid {
+        display: grid;
+        gap: 0;
+        min-width: 42rem;
+        align-items: center;
+    }
+    .qc-axis {
+        min-width: 8.5rem;
+        padding: 0.22rem 0.6rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.35;
+        text-align: left;
+    }
+    .ma-grid {
+        display: grid;
+        gap: 0.35rem;
+        margin-bottom: 0.5rem;
+    }
+    .ma-row {
+        display: grid;
+        grid-template-columns: 12rem 2.2rem 1.8rem 1fr;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.32rem 0.7rem;
+        border-radius: 10px;
+        border: 1px solid rgba(100, 116, 139, 0.18);
+        background: #ffffff;
+    }
+    .ma-row.right {
+        border-left: 3px solid #059669;
+    }
+    .ma-row.wrong {
+        border-left: 3px solid #dc2626;
+    }
+    .ma-row.miss {
+        border-left: 3px solid #94a3b8;
+    }
+    .ma-model {
+        font-weight: 640;
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
+    }
+    .ma-pred {
+        font-weight: 780;
+        font-size: 1.05rem;
+        text-align: center;
+    }
+    .ma-badge {
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    .ma-row.right .ma-badge {
+        color: #059669;
+    }
+    .ma-row.wrong .ma-badge {
+        color: #dc2626;
+    }
+    .ma-fact {
+        color: #475569;
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
+    .qc-axis.group-start {
+        margin-top: 0.3rem;
+        padding-top: 0.38rem;
+        border-top: 1px solid rgba(100, 116, 139, 0.16);
+    }
+    .qc-col {
+        z-index: 0;
+        align-self: stretch;
+        border-radius: 14px;
+        margin: 0 0.28rem;
+        padding: 0;
+        background: color-mix(in srgb, var(--cc) 7%, #f8fafc 93%);
+        border: 1.5px solid color-mix(in srgb, var(--cc) 28%, #cbd5e1 72%);
+        border-top: 3px solid var(--cc);
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+    .qc-col.picked {
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc) 70%, white);
+    }
+    .qc-col.correct {
+        box-shadow:
+            0 0 0 2px var(--cc),
+            0 0 18px color-mix(in srgb, var(--cc) 28%, transparent);
+    }
+    .qc-col.wrong {
+        opacity: 0.72;
+        filter: saturate(0.7);
+    }
+    .qc-head {
+        position: relative;
+        z-index: 1;
+        padding: 0.55rem 0.55rem 0.3rem;
+        font-size: 1.3rem;
+        font-weight: 780;
+        text-align: center;
+        color: var(--cc);
+        line-height: 1.1;
+    }
+    .qc-head-metric {
+        font-family: "Source Code Pro", monospace;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #475569;
+        margin-top: 0.1rem;
+    }
+    .qc-cell {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: baseline;
+        gap: 0.5rem;
+        padding: 0.22rem 0.6rem;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        min-width: 0;
+    }
+    .qc-val {
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+    .qc-cell.vary .qc-val {
+        color: #0f172a;
+        font-weight: 700;
+    }
+    .qc-cell.same .qc-name,
+    .qc-cell.same .qc-val {
+        color: #94a3b8;
+        font-weight: 500;
+    }
+    .qc-cell.group-start {
+        margin-top: 0.3rem;
+        padding-top: 0.38rem;
+        border-top: 1px solid rgba(100, 116, 139, 0.16);
+    }
+    .qc-cell.same {
+        color: #94a3b8;
+    }
+    .qc-flags {
+        display: inline-flex;
+        gap: 0.2rem;
+    }
+    .qc-flag {
+        display: inline-grid;
+        place-items: center;
+        width: 1.05rem;
+        height: 1.05rem;
+        border-radius: 5px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .qc-flag.on {
+        color: #0d2b21;
+        background: #10b981;
+    }
+    .qc-flag.off {
+        color: #94a3b8;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+    .qc-cell.same .qc-flag.on {
+        color: #f8fafc;
+        background: #94a3b8;
+    }
+    @media (max-width: 720px) {
+        .qc-grid {
+            min-width: 42rem;
+        }
+        .qc-axis {
+            min-width: 7.5rem;
+        }
     }
 </style>
 """
@@ -287,13 +469,42 @@ def _resolve_data_root(data_root: str) -> Path:
     return Path(data_root).expanduser().resolve()
 
 
+def _resolve_pack_data_root(
+    pack_root: Path,
+    value: str,
+    repo_root: Path,
+) -> Path | None:
+    """Resolve a pack's data root.
+
+    A data root may live inside the pack itself (self-contained pack) or, for
+    packs that reference live generation output, at a clean relative path
+    inside the repository (e.g. "data" or "benchmarks/v1_llm"). Absolute
+    values and traversal outside both roots are rejected.
+    """
+    raw = Path(value)
+    if raw.is_absolute():
+        return None
+    inside_pack = (pack_root / raw).resolve()
+    if inside_pack.is_relative_to(pack_root) and inside_pack.is_dir():
+        return inside_pack
+    if ".." in raw.parts:
+        return None
+    in_repo = (repo_root / raw).resolve()
+    if in_repo.is_relative_to(repo_root) and in_repo.is_dir():
+        return in_repo
+    return None
+
+
 def _question_pack_registry(
     packs_root: Path | None = None,
+    *,
+    repo_root: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Return valid tracked question packs keyed by their stable pack ID."""
     root = (packs_root or QUESTION_PACKS_ROOT).resolve()
     if not root.is_dir():
         return {}
+    repo = repo_root.resolve() if repo_root is not None else REPO_ROOT
 
     packs: dict[str, dict[str, Any]] = {}
     for manifest_path in sorted(root.glob("*/pack.json")):
@@ -314,12 +525,11 @@ def _question_pack_registry(
         if pack_id != pack_root.name or pack_id in packs:
             continue
         collection_path = (pack_root / collection_value).resolve()
-        pack_data_root = (pack_root / data_root_value).resolve()
+        pack_data_root = _resolve_pack_data_root(pack_root, data_root_value, repo)
         if (
             not collection_path.is_relative_to(pack_root)
-            or not pack_data_root.is_relative_to(pack_root)
             or not collection_path.is_file()
-            or not pack_data_root.is_dir()
+            or pack_data_root is None
         ):
             continue
         packs[pack_id] = {
@@ -356,7 +566,10 @@ def _render_question_pack_selector(
             return "Local data root"
         return str(packs[pack_id]["display_name"])
 
-    query_value = st.query_params.get("question_pack", LOCAL_QUESTION_PACK)
+    query_value = st.query_params.get(
+        "question_pack",
+        next((pid for pid, m in packs.items() if m.get("default")), LOCAL_QUESTION_PACK),
+    )
     query_selected = (
         query_value if query_value in options else LOCAL_QUESTION_PACK
     )
@@ -383,7 +596,10 @@ def _render_question_pack_selector(
 
     _reset_for_question_pack(selected)
     if selected == LOCAL_QUESTION_PACK:
-        if st.session_state.data_root.startswith(str(QUESTION_PACKS_ROOT.resolve())):
+        pack_data_roots = {str(pack["data_root"]) for pack in packs.values()}
+        if st.session_state.data_root in pack_data_roots or st.session_state.data_root.startswith(
+            str(QUESTION_PACKS_ROOT.resolve())
+        ):
             st.session_state.data_root = "data"
         return None
 
@@ -427,18 +643,31 @@ def _startup_question_collection(
         return []
 
     root = _resolve_data_root(data_root)
+    collection_root = manifest_path.parent.resolve()
     questions: list[Path] = []
     seen: set[Path] = set()
     for value in values:
         if not isinstance(value, str):
             continue
         path = Path(value)
-        resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
-        if (
-            resolved in seen
-            or not resolved.is_relative_to(root)
-            or not (resolved / "question.json").is_file()
-        ):
+        if path.is_absolute():
+            candidates = ((path.resolve(), (root,)),)
+        else:
+            candidates = (
+                ((root / path).resolve(), (root,)),
+                ((collection_root / path).resolve(), (collection_root,)),
+            )
+        resolved = next(
+            (
+                candidate
+                for candidate, allowed_roots in candidates
+                if candidate not in seen
+                and any(candidate.is_relative_to(allowed_root) for allowed_root in allowed_roots)
+                and (candidate / "question.json").is_file()
+            ),
+            None,
+        )
+        if resolved is None:
             continue
         seen.add(resolved)
         questions.append(resolved)
@@ -539,11 +768,31 @@ def _render_question_picker(
         current_index = 0
         st.session_state.question_path = str(pool[0])
 
+    deep_link_q = st.query_params.get("q")
+    if deep_link_q and st.session_state.get("_deep_link_applied") != deep_link_q:
+        st.session_state["_deep_link_applied"] = deep_link_q
+        match = next((p for p in pool if p.name == deep_link_q), None)
+        if match is None:
+            st.warning(
+                f"Deep-linked question `{deep_link_q}` is not in the current question pack."
+            )
+        elif match.resolve() != Path(st.session_state.question_path).resolve():
+            _switch_question(match, data_root)
+            current_path = Path(st.session_state.question_path)
+            try:
+                current_index = pool.index(current_path.resolve())
+            except ValueError:
+                current_index = 0
+            st.session_state["_deep_link_pending_index"] = current_index
+
     if collection_mode:
         picker_key = (
             "review_question_picker_"
             + hashlib.sha256(collection_identity.encode("utf-8")).hexdigest()[:12]
         )
+        pending_index = st.session_state.pop("_deep_link_pending_index", None)
+        if pending_index is not None:
+            st.session_state[picker_key] = pending_index
         if current_index < len(pool) - 1:
             if st.button(
                 f"Next question ({current_index + 2}/{len(pool)})",
@@ -611,6 +860,10 @@ def _render_question_picker(
         st.caption(f"Question {current_index + 1} / {len(pool)} · `{picked_path.name}`")
     else:
         st.caption(f"{len(pool)} question(s) · `{picked_path.name}`")
+
+    if st.session_state.get("_deep_link_synced") != picked_path.name:
+        st.session_state["_deep_link_synced"] = picked_path.name
+        st.query_params["q"] = picked_path.name
 
 
 def _selection_metric(bundle: QuestionBundle, q: dict[str, Any]) -> str:
@@ -1095,7 +1348,7 @@ def _plot_dataset(bundle: QuestionBundle) -> None:
             test_y,
             input_dim=int(params.get("input_dim", train_x.shape[1])),
         )
-    elif family == "synthetic_tabular_classification":
+    elif family in prompt_format.TABULAR_CLASSIFICATION_FAMILIES:
         _render_synthetic_tabular_classification_plot(
             train_x,
             train_y,
@@ -1448,6 +1701,227 @@ def _render_candidate_spec_html(spec: dict[str, Any]) -> str:
     return "".join(blocks)
 
 
+QC_COLORS = {"A": "#2563eb", "B": "#ea580c", "C": "#7c3aed", "D": "#0d9488", "E": "#db2777"}
+
+
+def _fmt_lr(value: Any) -> str:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if 0 < abs(v) < 0.01:
+        return f"{v:.0e}"
+    return f"{v:g}"
+
+
+def _fmt_num(value: Any) -> str:
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, int):
+        return f"{value:,}"
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value)
+
+
+def _compare_field_rows(spec: dict[str, Any]) -> list[tuple[str, str, Any]]:
+    """(label, group, value) triples per choice, in the quiz-frontend group order."""
+    model = spec.get("model", {})
+    opt = spec.get("optimizer", {})
+    budget = spec.get("budget") or {}
+    loss = spec.get("loss") or {}
+    rows: list[tuple[str, str, Any]] = []
+    mtype = model.get("type", "mlp")
+    if mtype == "mlp":
+        acts = prompt_format._mlp_activations(model)
+        act_label = acts[0] if len(acts) == 1 else "/".join(acts)
+        if "leaky_relu" in acts:
+            slope = float(model.get("leaky_relu_slope", prompt_format.LEGACY_LEAKY_RELU_SLOPE))
+            act_label = f"LeakyReLU({slope:g})"
+        rows += [
+            ("Type", "model", "MLP"),
+            ("Depth", "model", f"{model.get('depth')} × {model.get('width')}"),
+            ("Residual", "model", bool(model.get("residual"))),
+            ("LayerNorm", "model", [bool(v) for v in model.get("layer_norm", [])]),
+            ("Activation", "model", act_label),
+        ]
+    elif mtype == "transformer_lm":
+        d_model, d_ff = prompt_format._transformer_dims(model)
+        rows += [
+            ("Type", "model", "Transformer"),
+            ("d_model", "model", d_model),
+            ("Layers", "model", model.get("num_layers")),
+            ("Heads", "model", model.get("num_heads")),
+            ("d_ff", "model", d_ff),
+            ("Pos encoding", "model", "learned"),
+            ("Vocab", "model", model.get("vocab_size")),
+            ("Context", "model", model.get("context_length")),
+        ]
+    elif mtype == "gru_lm":
+        rows += [
+            ("Type", "model", "GRU LM"),
+            ("d_model", "model", model.get("d_model")),
+            ("Layers", "model", model.get("num_layers")),
+            ("Residual", "model", bool(model.get("layer_residual", False))),
+            ("Vocab", "model", model.get("vocab_size")),
+            ("Context", "model", model.get("context_length")),
+        ]
+    params = spec.get("trainable_parameter_count")
+    rows.append(("Parameters", "model", f"{int(params):,}" if params is not None else "—"))
+
+    rows.append(("Optimizer", "optimizer", opt.get("type", "?")))
+    rows.append(("LR", "optimizer", _fmt_lr(opt.get("lr"))))
+    rows.append(("WD", "optimizer", _fmt_num(opt.get("weight_decay", 0))))
+    if opt.get("type") == "SGD" and "momentum" in opt:
+        rows.append(("Momentum", "optimizer", _fmt_num(opt["momentum"])))
+    if opt.get("type") in {"Adam", "AdamW"} and "betas" in opt:
+        rows.append(("Betas", "optimizer", str(opt["betas"])))
+
+    loss_id = loss.get("loss_id", "?")
+    rows.append(("Loss", "loss", {"mse": "MSE", "cross_entropy": "CE"}.get(loss_id, loss_id)))
+
+    rows += [
+        ("Steps", "budget", _fmt_num(budget.get("training_steps"))),
+        ("Batch", "budget", _fmt_num(budget.get("batch_size"))),
+        ("Samples", "budget", _fmt_num(budget.get("total_samples_seen"))),
+    ]
+    return rows
+
+
+def _compare_rows(
+    choices: list[dict[str, Any]],
+) -> list[tuple[str, str, list[Any], bool]]:
+    """Union of field rows across choices: (label, group, values, varying)."""
+    per_choice = [_compare_field_rows(read_json_file(c["candidate_dir"] / "candidate_spec.json"))
+                  for c in choices]
+    labels: list[tuple[str, str]] = []
+    for rows in per_choice:
+        for label, group, _ in rows:
+            if (label, group) not in labels:
+                labels.append((label, group))
+    out: list[tuple[str, str, list[Any], bool]] = []
+    for label, group in labels:
+        values = [next((v for l, g, v in rows if l == label and g == group), None)
+                  for rows in per_choice]
+        out.append((label, group, values, len({json.dumps(v, sort_keys=True, default=str) for v in values}) > 1))
+    return out
+
+
+def _qc_value_html(value: Any, *, varying: bool) -> str:
+    flags: list[bool] | None = None
+    if isinstance(value, bool):
+        flags = [value]
+    elif isinstance(value, list) and value and all(isinstance(v, bool) for v in value):
+        flags = value
+    if flags is not None:
+        spans = "".join(
+            f'<span class="qc-flag {"on" if f else "off"}">{"✓" if f else "✗"}</span>'
+            for f in flags
+        )
+        return f'<span class="qc-flags">{spans}</span>'
+    if value is None:
+        return "—"
+    return html.escape(str(value))
+
+
+def _render_choice_comparison(
+    bundle: QuestionBundle,
+    q: dict[str, Any],
+    *,
+    committed: bool,
+    committed_letter: str | None,
+    correct_letter: str,
+) -> None:
+    choices = bundle.choices
+    n = len(choices)
+    rows = _compare_rows(choices)
+    colors = [QC_COLORS.get(c["letter"], "#64748b") for c in choices]
+    summaries = []
+    for c in choices:
+        sp = c["candidate_dir"] / "results" / "summary.json"
+        summaries.append(read_json_file(sp) if sp.is_file() else {})
+
+    parts = [
+        f'<div class="qc-scroll"><div class="qc-grid" '
+        f'style="grid-template-columns:minmax(8.5rem, 0.9fr) '
+        f'repeat({n}, minmax(0, 1fr));'
+        f'grid-template-rows:auto repeat({len(rows)}, auto)">'
+    ]
+    for i, choice in enumerate(choices):
+        letter = choice["letter"]
+        state = ""
+        if committed:
+            if letter == correct_letter:
+                state = " correct"
+            elif letter == committed_letter:
+                state = " wrong"
+        parts.append(
+            f'<div class="qc-col{state}" style="--cc:{colors[i]};'
+            f'grid-column:{i + 2};grid-row:1 / -1"></div>'
+        )
+    for i, choice in enumerate(choices):
+        metric_html = ""
+        if committed and summaries[i] and "error" not in summaries[i]:
+            metric_html = f'<div class="qc-head-metric">{format_metrics(summaries[i])}</div>'
+        parts.append(
+            f'<div class="qc-head" style="--cc:{colors[i]};'
+            f'grid-column:{i + 2};grid-row:1">'
+            f"{choice['letter']}{metric_html}</div>"
+        )
+    row_index = 2
+    prev_group = None
+    for label, group, values, varying in rows:
+        group_start = group != prev_group
+        parts.append(
+            f'<div class="qc-axis{" group-start" if group_start else ""}" '
+            f'style="grid-column:1;grid-row:{row_index}">'
+            f'{html.escape(label)}</div>'
+        )
+        for i, value in enumerate(values):
+            parts.append(
+                f'<div class="qc-cell{" vary" if varying else " same"}'
+                f'{" group-start" if group_start else ""}" '
+                f'style="grid-column:{i + 2};grid-row:{row_index}">'
+                f'<span class="qc-val">{_qc_value_html(value, varying=varying)}</span></div>'
+            )
+        prev_group = group
+        row_index += 1
+    parts.append("</div></div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
+    btn_cols = st.columns([1.1] + [1] * n)
+    btn_cols = btn_cols[1:]
+    for col, choice in zip(btn_cols, choices, strict=True):
+        letter = choice["letter"]
+        with col:
+            main_b, info_b = st.columns([4, 1])
+            if committed and letter == committed_letter:
+                button_label, button_type, disabled = "Your pick", "primary", True
+            elif committed:
+                button_label, button_type, disabled = "View", "secondary", False
+            else:
+                button_label = "Select"
+                button_type = "primary"
+                disabled = False
+            if main_b.button(
+                button_label,
+                key=f"select_{letter}",
+                use_container_width=True,
+                type=button_type,
+                disabled=disabled,
+            ):
+                if not committed:
+                    _commit_selection(q, letter)
+                else:
+                    st.session_state.focus_letter = letter
+                    st.session_state.info_letter = None
+                st.rerun()
+            if info_b.button("i", key=f"info_{letter}", help="View candidate files"):
+                st.session_state.info_letter = letter
+                st.session_state.focus_letter = letter
+                st.rerun()
+
+
 def _question_budget(q: dict[str, Any]) -> int:
     budget = q["budget"]
     if isinstance(budget, dict):
@@ -1519,28 +1993,19 @@ def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
             key=_ensure_setting_value(q, "mlp_residual", False),
         )
 
-    st.caption("Choose the activation and layer norm independently for each hidden block.")
-    activations: list[str] = []
+    activation = st.selectbox(
+        "Activation (shared by every layer)",
+        list(profile.mlp["activations"]),
+        key=_ensure_setting_value(q, "mlp_activation", profile.mlp["activations"][0]),
+    )
+    st.caption("Layer norm is chosen independently for each hidden block.")
     layer_norm: list[bool] = []
     layer_columns = st.columns(min(depth, 4))
     for index in range(depth):
         with layer_columns[index % len(layer_columns)]:
-            st.markdown(f"Layer {index + 1}")
-            activations.append(
-                st.selectbox(
-                    "Activation",
-                    list(profile.mlp["activations"]),
-                    key=_ensure_setting_value(
-                        q,
-                        f"mlp_activation_{index}",
-                        profile.mlp["activations"][0],
-                    ),
-                    label_visibility="collapsed",
-                )
-            )
             layer_norm.append(
                 st.checkbox(
-                    "Layer norm",
+                    f"Layer {index + 1} layer norm",
                     key=_ensure_setting_value(q, f"mlp_norm_{index}", False),
                 )
             )
@@ -1548,7 +2013,7 @@ def _render_mlp_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
         "depth": depth,
         "width": width,
         "residual": residual,
-        "activations": activations,
+        "activation": activation,
         "layer_norm": layer_norm,
     }
 
@@ -1668,90 +2133,6 @@ def _render_gru_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any
         "num_layers": num_layers,
         "layer_residual": bool(layer_residual),
     }
-
-
-def _kan_defaults(profile: Any) -> dict[str, Any]:
-    """Resolve editable KAN defaults from the active profile, not a fixed pool."""
-    config = profile.kan
-
-    def pick(name: str, fallback: Any) -> Any:
-        values = config.get(name)
-        if not isinstance(values, list) or not values:
-            return fallback
-        return values[min(1, len(values) - 1)]
-
-    grid_range = pick("grid_range", [-1.0, 1.0])
-    if not isinstance(grid_range, list) or len(grid_range) != 2:
-        grid_range = [-1.0, 1.0]
-    # ``base_activation`` describes the legacy sampled pool. v2.2's broader
-    # KAN pool is recorded as explicit, auditable archetypes, so include its
-    # activations as editable choices too. Otherwise a valid inherited KAN
-    # candidate such as ``relu`` could not be represented by the UI.
-    activations = [str(value) for value in config.get("base_activation") or []]
-    archetypes = config.get("archetypes", {})
-    if isinstance(archetypes, dict):
-        for family_archetypes in archetypes.values():
-            if not isinstance(family_archetypes, list):
-                continue
-            for archetype in family_archetypes:
-                if isinstance(archetype, dict) and archetype.get("base_activation"):
-                    activations.append(str(archetype["base_activation"]))
-    activations = list(dict.fromkeys(activations)) or ["silu"]
-    return {
-        "variant": str(config.get("variant", "efficient_spline_v1")),
-        "depth": int(pick("depth", 1)), "width": int(pick("width", 8)),
-        "grid_size": int(pick("grid_size", 5)), "spline_order": int(pick("spline_order", 3)),
-        "grid_low": float(grid_range[0]), "grid_high": float(grid_range[1]),
-        "base_activations": activations,
-    }
-
-
-def _kan_activation_options(options: list[str], current: str) -> list[str]:
-    """Keep a valid inherited activation editable under a narrower profile."""
-    result = list(options)
-    if current in BASE_ACTIVATIONS and current not in result:
-        result.append(current)
-    return result
-
-
-def _render_kan_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
-    """Render all KAN fields supported by ``build_model_spec``."""
-    defaults = _kan_defaults(profile)
-    st.markdown("**Architecture parameters**")
-    variant = st.text_input("KAN variant", key=_ensure_setting_value(q, "kan_variant", defaults["variant"]))
-    columns = st.columns(4)
-    values: dict[str, int] = {}
-    for column, label, name, maximum in zip(
-        columns, ("Depth", "Width", "Grid size", "Spline order"),
-        ("depth", "width", "grid_size", "spline_order"), (12, 2048, 64, 16), strict=True,
-    ):
-        with column:
-            values[name] = int(st.number_input(label, min_value=1, max_value=maximum, step=1,
-                key=_ensure_setting_value(q, f"kan_{name}", defaults[name])))
-    low_col, high_col, activation_col = st.columns(3)
-    with low_col:
-        grid_low = float(st.number_input("Grid lower bound", step=0.1, format="%.6g",
-            key=_ensure_setting_value(q, "kan_grid_low", defaults["grid_low"])))
-    with high_col:
-        grid_high = float(st.number_input("Grid upper bound", step=0.1, format="%.6g",
-            key=_ensure_setting_value(q, "kan_grid_high", defaults["grid_high"])))
-    with activation_col:
-        activation_key = _ensure_setting_value(
-            q, "kan_base_activation", defaults["base_activations"][0]
-        )
-        current_activation = str(st.session_state[activation_key])
-        activation_options = _kan_activation_options(
-            defaults["base_activations"], current_activation
-        )
-        if current_activation not in activation_options:
-            st.session_state[activation_key] = activation_options[0]
-        base_activation = st.selectbox(
-            "Base activation", activation_options, key=activation_key
-        )
-    return {"variant": variant, **values, "grid_range": [grid_low, grid_high], "base_activation": base_activation}
-
-
-
 
 
 def _render_optimizer_setting_fields(profile: Any, q: dict[str, Any]) -> dict[str, Any]:
@@ -1961,12 +2342,14 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
     family = str(dataset_spec["family"])
     runs = enforce_custom_setting_retention(_custom_settings_storage_for(q))
 
-    notice = st.session_state.setting_notice
-    if notice:
-        st.success(notice)
-        st.session_state.setting_notice = None
-
     with st.expander("＋ Add custom setting", expanded=False):
+        # The notice renders INSIDE the expander: as a conditional sibling
+        # above, it would shift the expander's element identity and snap the
+        # panel shut on every notice-triggering rerun.
+        notice = st.session_state.setting_notice
+        if notice:
+            st.success(notice)
+            st.session_state.setting_notice = None
         st.caption(
             "Train a setting on this question's dataset. Its curve is added without "
             "changing the original choices or score."
@@ -2034,8 +2417,6 @@ def _render_custom_setting_builder(bundle: QuestionBundle, q: dict[str, Any]) ->
         )
         if model_type == "mlp":
             model_params = _render_mlp_setting_fields(profile, q)
-        elif model_type == "kan":
-            model_params = _render_kan_setting_fields(profile, q)
         elif model_type == "transformer_lm":
             model_params = _render_transformer_setting_fields(profile, q)
         elif model_type == "gru_lm":
@@ -2220,103 +2601,6 @@ def _render_metadata(
         unsafe_allow_html=True,
     )
 
-def _card_border_style(
-    letter: str,
-    *,
-    committed: bool,
-    committed_letter: str | None,
-    correct_letter: str,
-    focused: bool,
-) -> str:
-    if not committed:
-        return "2px solid #2563eb" if focused else "2px solid #e2e8f0"
-    if letter == correct_letter:
-        return "2px solid #16a34a"
-    if letter == committed_letter and letter != correct_letter:
-        return "2px solid #dc2626"
-    return "2px solid #e2e8f0"
-
-
-def _render_candidate_card(
-    choice: dict[str, Any],
-    q: dict[str, Any],
-    *,
-    committed: bool,
-    committed_letter: str | None,
-    correct_letter: str,
-    focus_letter: str | None,
-) -> None:
-    letter = choice["letter"]
-    spec = read_json_file(choice["candidate_dir"] / "candidate_spec.json")
-    summary_path = choice["candidate_dir"] / "results" / "summary.json"
-    summary = read_json_file(summary_path) if summary_path.is_file() else {}
-
-    border = _card_border_style(
-        letter,
-        committed=committed,
-        committed_letter=committed_letter,
-        correct_letter=correct_letter,
-        focused=focus_letter == letter,
-    )
-    bg = "#f8fafc" if focus_letter == letter else "#ffffff"
-
-    st.markdown('<div class="candidate-card-marker"></div>', unsafe_allow_html=True)
-
-    header_left, header_right = st.columns([5, 1])
-    with header_left:
-        st.markdown(
-            f'<p class="candidate-letter">{letter}</p>'
-            f'<p class="candidate-id">{choice["candidate_id"]}</p>',
-            unsafe_allow_html=True,
-        )
-    with header_right:
-        st.markdown('<div class="info-btn-slot"></div>', unsafe_allow_html=True)
-        if st.button("i", key=f"info_{letter}", help="View candidate files"):
-            st.session_state.info_letter = letter
-            st.session_state.focus_letter = letter
-            st.rerun()
-
-    metric_pill = ""
-    if committed and summary and "error" not in summary:
-        metric_pill = f'<span class="metric-pill">{format_metrics(summary)}</span>'
-
-    st.markdown(
-        f'<div style="border: {border}; border-radius: 12px; padding: 0.85rem 1rem; '
-        f'background: {bg}; min-height: 18rem;">'
-        f"{_render_candidate_spec_html(spec)}"
-        f"{metric_pill}"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-
-    if committed and letter == committed_letter:
-        button_label = "Your pick"
-        button_type = "primary"
-        disabled = True
-    elif committed:
-        button_label = "View"
-        button_type = "secondary"
-        disabled = False
-    else:
-        button_label = "Select"
-        button_type = "primary" if focus_letter == letter else "secondary"
-        disabled = False
-
-    if st.button(
-        button_label,
-        key=f"select_{letter}",
-        use_container_width=True,
-        type=button_type,
-        disabled=disabled,
-    ):
-        if not committed:
-            _commit_selection(q, letter)
-        else:
-            st.session_state.focus_letter = letter
-            st.session_state.info_letter = None
-        st.rerun()
-
-
 def _render_answer_banner(q: dict[str, Any], committed_letter: str, *, metric: str) -> None:
     correct = q["correct_letter"]
     metric_label = _metric_display_name(metric)
@@ -2358,6 +2642,110 @@ def _render_ranked_metrics(bundle: QuestionBundle, q: dict[str, Any]) -> None:
             st.write(f"**{row['letter']}** `{row['candidate_id']}` — no metrics")
 
 
+def _load_sidecar(question_root: Path, name: str) -> dict[str, Any]:
+    path = question_root / name
+    if not path.is_file():
+        return {}
+    try:
+        return read_json_file(path)
+    except ValueError:
+        return {}
+
+
+def _render_model_answers(bundle: QuestionBundle, q: dict[str, Any]) -> None:
+    data = _load_sidecar(bundle.question_root, "model_answers.json")
+    answers = data.get("answers") or {}
+    if not answers:
+        return
+    st.divider()
+    st.markdown("#### Model answers")
+    leaderboard = data.get("leaderboard") or []
+    if leaderboard:
+        chips = " · ".join(
+            f"`{entry['name']}` {entry['correct']}/{entry['n']}"
+            for entry in leaderboard
+        )
+        st.caption(f"Bank accuracy — {chips}")
+    st.caption("Click a model card to expand its full trajectory; click again to collapse.")
+    correct = q["correct_letter"]
+    open_key = f"ma_open_{q['question_id']}"
+    for name, rec in answers.items():
+        pred = rec.get("pred")
+        right = pred == correct
+        badge = "✅" if right else ("❌" if pred else "➖")
+        sec = rec.get("sec")
+        sec_html = f" · {sec:.0f}s" if isinstance(sec, (int, float)) else ""
+        excerpt = (rec.get("excerpt") or "").strip().replace("\n", " ")
+        if len(excerpt) > 160:
+            excerpt = excerpt[:157] + "…"
+        expanded = st.session_state.get(open_key) == name
+        marker = "▾ " if expanded else "▸ "
+        label = f"{marker}{badge} **{name}** · {pred or '—'}{sec_html} — {excerpt}"
+
+        def _toggle(model_name: str = name) -> None:
+            current = st.session_state.get(open_key)
+            st.session_state[open_key] = None if current == model_name else model_name
+
+        st.button(
+            label,
+            key=f"ma_btn_{q['question_id']}_{name}",
+            on_click=_toggle,
+            use_container_width=True,
+        )
+        if expanded:
+            verdict = "correct" if right else "incorrect"
+            body = (rec.get("content") or "").strip() or "_(no answer text)_"
+            reasoning = (rec.get("reasoning") or "").strip()
+            with st.container(border=True):
+                st.markdown(f"**{name}** — picked **{pred or '—'}** ({verdict})")
+                st.markdown(body)
+                if reasoning:
+                    with st.expander("reasoning trace", expanded=True):
+                        st.markdown(reasoning)
+
+
+def _render_reference_analysis(bundle: QuestionBundle, q: dict[str, Any]) -> None:
+    data = _load_sidecar(bundle.question_root, "analysis.json")
+    if not data:
+        return
+    st.divider()
+    st.markdown("#### Reference analyses")
+    claude = data.get("claude") or {}
+    verdent = data.get("verdent") or {}
+    experiments = claude.get("experiments") or []
+    if experiments:
+        st.markdown("**Claude's experiments** (trained on this question's dataset)")
+        rows = []
+        for exp in experiments:
+            if not exp.get("ok"):
+                rows.append({
+                    "hypothesis": exp.get("rationale") or exp.get("exp_id"),
+                    "change": json.dumps(exp.get("overrides") or {}, ensure_ascii=False)[:120],
+                    "result": f"failed: {exp.get('error', '')[:60]}",
+                })
+                continue
+            rows.append({
+                "hypothesis": exp.get("rationale") or exp.get("exp_id"),
+                "change": json.dumps(exp.get("overrides") or {}, ensure_ascii=False)[:120],
+                "result": f"{exp.get('mean'):.6g} ± {exp.get('std'):.2g} "
+                          f"({exp.get('n_seeds')} seeds)",
+            })
+        st.table(rows)
+    if claude.get("text"):
+        st.markdown(f"**Claude (claude-opus-5)**")
+        st.markdown(claude["text"])
+    claude_v1 = data.get("claude_v1") or {}
+    if claude_v1.get("text"):
+        with st.expander("Claude v1 (summary-only review, kept for comparison)"):
+            st.markdown(claude_v1["text"])
+            v1_exps = claude_v1.get("experiments") or []
+            if v1_exps:
+                st.markdown(f"*{len(v1_exps)} experiments — see sidecar JSON for details.*")
+    if verdent.get("text"):
+        st.markdown("**Verdent (reference)**")
+        st.markdown(verdent["text"])
+
+
 def _signed_latex_sum(terms: list[tuple[float, str]]) -> str:
     rendered: list[str] = []
     for index, (weight, expression) in enumerate(terms):
@@ -2391,6 +2779,12 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
     if family == "xor" and len(features) >= 2:
         left, right = features[:2]
         return rf"s(\mathbf{{x}}) = -x_{{{left}}} \cdot x_{{{right}}}"
+    if family == "spiral" and len(features) >= 2:
+        left, right = features[:2]
+        return (
+            rf"s(\mathbf{{x}}) = \sin\!\left(\operatorname{{atan2}}\!\left(x_{{{right}}}, x_{{{left}}}\right)"
+            rf" - \left\lVert (x_{{{left}}}, x_{{{right}}}) \right\rVert_2\right)"
+        )
     if family == "piecewise_boundary" and len(features) >= 2 and len(weights) >= 3:
         primary, secondary = features[:2]
         below_weight, above_weight, offset_weight = weights[:3]
@@ -2411,8 +2805,34 @@ def _classification_score_latex(params: dict[str, Any]) -> str:
 
 
 def _classification_label_latex(params: dict[str, Any]) -> str:
+    if str(params.get("rule_family")) == "spiral":
+        turns = float(params.get("spiral_turns", 1.0) or 1.0)
+        noise_std = float(params.get("noise_std", 0.0) or 0.0)
+        noise_term = (
+            rf" + \varepsilon"
+            if noise_std > 0.0
+            else ""
+        )
+        noise_def = (
+            rf",\ \varepsilon \sim \mathcal{{N}}(0, {noise_std:.4g}^2)"
+            if noise_std > 0.0
+            else ""
+        )
+        # KaTeX never wraps; keep each aligned row short enough for the
+        # narrow left column beside the projection plot.
+        return (
+            r"\begin{aligned}"
+            r"y &= \text{spiral arm } k \in \{0,1\} \\"
+            rf" \mathbf{{x}} &= t \cdot (\cos(t + k\pi),\ \sin(t + k\pi)){noise_term} \\"
+            rf" &\quad t \in (0.5,\ {turns:.4g} \cdot 2\pi + 0.5]{noise_def}"
+            r"\end{aligned}"
+        )
     threshold = float(params.get("decision_threshold", 0.0))
-    noise_std = float(params.get("noise_std", 0.0))
+    # Absent (v1.4 onwards) means the label is an exact function of the score,
+    # so the epsilon term would describe a perturbation that never happened.
+    noise_std = float(params.get("noise_std", 0.0) or 0.0)
+    if noise_std <= 0.0:
+        return rf"y = \mathbf{{1}}\{{s(\mathbf{{x}}) > {threshold:.4g}\}}"
     return (
         rf"y = \mathbf{{1}}\{{s(\mathbf{{x}}) + \varepsilon > {threshold:.4g}\}}, "
         rf"\qquad \varepsilon \sim \mathcal{{N}}(0, {noise_std:.4g}^2)"
@@ -2433,13 +2853,14 @@ def _render_dataset_info(spec: dict[str, Any], dataset_id: str) -> None:
         )
         return
 
-    if family == "synthetic_tabular_classification":
+    if family in prompt_format.TABULAR_CLASSIFICATION_FAMILIES:
         st.markdown(f"**Input dimension:** {params.get('input_dim', '—')}")
         st.markdown(f"**Classes:** {params.get('num_classes', '—')}")
         st.markdown(f"**Decision rule:** {params.get('rule_family', '—')}")
         active = ", ".join(f"x_{value}" for value in params.get("active_features", []))
         st.markdown(f"**Active features:** {active or '—'}")
-        st.markdown(f"**Noise std:** {params.get('noise_std', '—')}")
+        if params.get("noise_std"):
+            st.markdown(f"**Noise std:** {params['noise_std']}")
         st.markdown("**Latent classification rule:**")
         st.latex(_classification_score_latex(params))
         st.latex(_classification_label_latex(params))
@@ -2492,17 +2913,13 @@ def _render_question_page(
     _render_dataset_panel(bundle)
     st.markdown("#### Choices")
 
-    cols = st.columns(len(bundle.choices))
-    for col, choice in zip(cols, bundle.choices, strict=True):
-        with col:
-            _render_candidate_card(
-                choice,
-                q,
-                committed=committed,
-                committed_letter=st.session_state.committed_letter,
-                correct_letter=q["correct_letter"],
-                focus_letter=focus_letter,
-            )
+    _render_choice_comparison(
+        bundle,
+        q,
+        committed=committed,
+        committed_letter=st.session_state.committed_letter,
+        correct_letter=q["correct_letter"],
+    )
 
     _render_custom_setting_builder(bundle, q)
     custom_runs = list_custom_setting_runs(_custom_settings_storage_for(q))
@@ -2518,6 +2935,8 @@ def _render_question_page(
         )
     if committed:
         _render_ranked_metrics(bundle, q)
+        _render_model_answers(bundle, q)
+        _render_reference_analysis(bundle, q)
 
     inspect_letter = st.session_state.info_letter or st.session_state.focus_letter
     if inspect_letter:
@@ -2532,21 +2951,49 @@ def _render_question_page(
         )
 
 
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+def _load_kb() -> list[dict[str, Any]]:
+    root = Path(__file__).resolve().parents[2]
+    candidates = sorted(root.glob("data/kb/knowledge_base*.json"))
+    if not candidates:
+        return []
+    try:
+        data = json.loads(candidates[-1].read_text())
+        return data.get("kb") or []
+    except Exception:
+        return []
 
 
-def _ensure_demo_data(data_root: str) -> None:
-    """Copy bundled demo questions into data/ when deploying without a local snapshot."""
-    root = _repo_root()
-    resolved = _resolve_data_root(data_root)
-    if _discover_questions(str(resolved)):
+def _render_kb_page() -> None:
+    rules = _load_kb()
+    st.markdown("#### Distilled Knowledge Base")
+    if not rules:
+        st.info("No knowledge base found at data/kb/knowledge_base*.json.")
         return
-    bundled = root / "examples" / "quiz_demo" / "bundle"
-    if not bundled.is_dir():
-        return
-    shutil.copytree(bundled, resolved, dirs_exist_ok=True)
-    _cached_question_dirs.clear()
+    st.caption(
+        f"{len(rules)} scoped rules distilled from solved questions "
+        "(single-delta experiment paths + full-info post-mortems). "
+        "Each rule predicts a direction only inside its stated scope."
+    )
+    themes: dict[str, list[dict[str, Any]]] = {}
+    for r in rules:
+        themes.setdefault(str(r.get("theme") or "其他"), []).append(r)
+    for theme, items in themes.items():
+        with st.expander(f"{theme} · {len(items)}", expanded=False):
+            for r in items:
+                st.markdown(f"**{r.get('id','')} · {r.get('rule_zh','')}**")
+                if r.get("mechanism_zh"):
+                    st.markdown(f"机制：{r['mechanism_zh']}")
+                if r.get("scope"):
+                    st.markdown(f"适用范围：{r['scope']}")
+                meta = []
+                if r.get("confidence") is not None:
+                    meta.append(f"confidence {r['confidence']}")
+                src = r.get("source_qids") or []
+                if src:
+                    meta.append("source: " + ", ".join(f"`{s}`" for s in src[:6]))
+                if meta:
+                    st.caption(" · ".join(meta))
+                st.divider()
 
 
 def main() -> None:
@@ -2560,8 +3007,6 @@ def main() -> None:
         collection_path = (
             active_pack["collection_path"] if active_pack is not None else None
         )
-        if active_pack is None:
-            _ensure_demo_data(st.session_state.data_root)
         _render_score_panel()
         st.divider()
         data_root = st.text_input(
@@ -2583,7 +3028,7 @@ def main() -> None:
     committed = st.session_state.committed_letter is not None
     focus_letter = st.session_state.focus_letter
 
-    tab_question, tab_prompt = st.tabs(["Question", "Prompt"])
+    tab_question, tab_prompt, tab_kb = st.tabs(["Question", "Prompt", "Knowledge Base"])
     with tab_question:
         _render_question_page(
             bundle,
@@ -2593,6 +3038,8 @@ def main() -> None:
         )
     with tab_prompt:
         _render_prompt_page(bundle)
+    with tab_kb:
+        _render_kb_page()
 
 
 if __name__ == "__main__":

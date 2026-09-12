@@ -10,7 +10,6 @@ pools:
   model_types:
     - mlp
     - transformer_lm
-    - kan
   optimizers:
     - SGD
     - Adam
@@ -93,58 +92,6 @@ mlp:
   activations: [relu, leaky_relu, gelu, silu]
   leaky_relu_slope: 0.01
 
-kan:
-  variant: efficient_spline_v1
-  depth: [1, 2]
-  width: [8]
-  grid_size: [5]
-  spline_order: [3]
-  grid_range:
-    - [-1.0, 1.0]
-  base_activation: [silu]
-  # Explicit classification pool consumed by KanModelFamily.sample_spec().
-  # Keys are input dimensions; each dimension has 12 auditable archetypes.
-  archetypes:
-    "4":
-      - {depth: 1, width: 4, grid_size: 5, spline_order: 2, base_activation: silu}
-      - {depth: 2, width: 4, grid_size: 3, spline_order: 2, base_activation: relu}
-      - {depth: 1, width: 4, grid_size: 5, spline_order: 3, base_activation: silu}
-      - {depth: 2, width: 4, grid_size: 3, spline_order: 3, base_activation: gelu}
-      - {depth: 1, width: 8, grid_size: 3, spline_order: 2, base_activation: tanh}
-      - {depth: 3, width: 4, grid_size: 7, spline_order: 2, base_activation: silu}
-      - {depth: 1, width: 8, grid_size: 5, spline_order: 3, base_activation: relu}
-      - {depth: 2, width: 8, grid_size: 3, spline_order: 2, base_activation: gelu}
-      - {depth: 1, width: 12, grid_size: 3, spline_order: 2, base_activation: silu}
-      - {depth: 3, width: 8, grid_size: 3, spline_order: 2, base_activation: tanh}
-      - {depth: 1, width: 16, grid_size: 3, spline_order: 2, base_activation: gelu}
-      - {depth: 2, width: 12, grid_size: 3, spline_order: 2, base_activation: relu}
-    "8":
-      - {depth: 1, width: 4, grid_size: 5, spline_order: 2, base_activation: silu}
-      - {depth: 2, width: 4, grid_size: 3, spline_order: 2, base_activation: relu}
-      - {depth: 1, width: 4, grid_size: 5, spline_order: 3, base_activation: silu}
-      - {depth: 2, width: 4, grid_size: 3, spline_order: 3, base_activation: gelu}
-      - {depth: 1, width: 8, grid_size: 3, spline_order: 2, base_activation: tanh}
-      - {depth: 3, width: 4, grid_size: 7, spline_order: 2, base_activation: silu}
-      - {depth: 1, width: 8, grid_size: 5, spline_order: 3, base_activation: relu}
-      - {depth: 2, width: 8, grid_size: 3, spline_order: 2, base_activation: gelu}
-      - {depth: 1, width: 12, grid_size: 3, spline_order: 2, base_activation: silu}
-      - {depth: 3, width: 8, grid_size: 3, spline_order: 2, base_activation: tanh}
-      - {depth: 1, width: 16, grid_size: 3, spline_order: 2, base_activation: gelu}
-      - {depth: 2, width: 12, grid_size: 3, spline_order: 2, base_activation: relu}
-    "16":
-      - {depth: 1, width: 4, grid_size: 5, spline_order: 2, base_activation: silu}
-      - {depth: 2, width: 4, grid_size: 3, spline_order: 2, base_activation: relu}
-      - {depth: 1, width: 4, grid_size: 5, spline_order: 3, base_activation: silu}
-      - {depth: 2, width: 4, grid_size: 3, spline_order: 3, base_activation: gelu}
-      - {depth: 1, width: 8, grid_size: 3, spline_order: 2, base_activation: tanh}
-      - {depth: 3, width: 4, grid_size: 7, spline_order: 2, base_activation: silu}
-      - {depth: 1, width: 8, grid_size: 5, spline_order: 3, base_activation: relu}
-      - {depth: 2, width: 8, grid_size: 3, spline_order: 2, base_activation: gelu}
-      - {depth: 1, width: 12, grid_size: 3, spline_order: 2, base_activation: silu}
-      - {depth: 3, width: 8, grid_size: 3, spline_order: 2, base_activation: tanh}
-      - {depth: 1, width: 16, grid_size: 3, spline_order: 2, base_activation: gelu}
-      - {depth: 2, width: 12, grid_size: 3, spline_order: 2, base_activation: relu}
-
 transformer_lm:
   d_model: [32, 64, 128]
   num_layers: [1, 2, 3]
@@ -188,14 +135,6 @@ question_generation:
 prompts:
   use_llm_paraphrase: false
   template_version: "1.0"
-
-# Profile-aware compatibility gates. The family keeps its conservative default;
-# this opt-in gate enables the calibrated KAN classification path in v2.2.
-model_gates:
-  synthetic_tabular_classification:
-    compatible_model_types:
-      - mlp
-      - kan
 
 
 # Pilot metadata only. Existing significance validation continues to use

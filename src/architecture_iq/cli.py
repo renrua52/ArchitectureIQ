@@ -25,7 +25,11 @@ from architecture_iq.interactive import (
 from architecture_iq.profile import load_profile
 from architecture_iq.prompts.renderer import write_prompt
 from architecture_iq.questions.generator import generate_questions
-from architecture_iq.registry import ensure_registries
+from architecture_iq.registry import (
+    ensure_registries,
+    get_dataset_family,
+    list_dataset_families,
+)
 
 app = typer.Typer(help="ArchitectureIQ benchmark CLI")
 ensure_registries()
@@ -39,6 +43,38 @@ def _reject_interactive_flags(interactive: bool, **flags: bool) -> None:
         raise typer.BadParameter(
             "Interactive mode does not accept other arguments; use only -i/--interactive "
             f"(got: {', '.join('--' + name for name in bad)})"
+        )
+
+
+def _reject_unsupported_family_options(
+    family_name: str,
+    requested: dict[str, object],
+    *,
+    random_pick: bool = False,
+) -> None:
+    """Reject --input-dim / --rule-family for a family that does not take them.
+
+    The accepted set comes from the family plugin
+    (``DatasetFamily.instance_option_names``), so a new family needs no edit here.
+    """
+    ensure_registries()
+    try:
+        accepted = set(get_dataset_family(family_name).instance_option_names)
+    except KeyError:
+        return  # resolve_dataset_family reports the unknown name with better context.
+    for name, value in requested.items():
+        if value is None or name in accepted:
+            continue
+        flag = "--" + name.replace("_", "-")
+        suffix = f" (got random family {family_name!r})" if random_pick else ""
+        allowed = sorted(
+            other
+            for other in list_dataset_families()
+            if name in get_dataset_family(other).instance_option_names
+        )
+        raise typer.BadParameter(
+            f"{flag} is not accepted by {family_name!r}{suffix}; "
+            f"families that accept it: {allowed}"
         )
 
 
@@ -61,7 +97,14 @@ def create_dataset_cmd(
     input_dim: Optional[int] = typer.Option(
         None,
         "--input-dim",
-        help="Input dimension n for multivariate_regression (must be in profile input_dims pool)",
+        help="Input dimension, for families that accept one "
+        "(must be in that family's profile input_dims pool)",
+    ),
+    rule_family: Optional[str] = typer.Option(
+        None,
+        "--rule-family",
+        help="Decision rule, for families that sample one "
+        "(must be in that family's profile rule_families)",
     ),
     interactive: bool = typer.Option(
         False,
@@ -80,6 +123,7 @@ def create_dataset_cmd(
         random_family=random_family,
         seed=seed is not None,
         input_dim=input_dim is not None,
+        rule_family=rule_family is not None,
     )
 
     if interactive:
@@ -99,8 +143,9 @@ def create_dataset_cmd(
         )
     if family is not None and random_family:
         raise typer.BadParameter("Use only one of --family and --random-family")
-    if input_dim is not None and family not in (None, "multivariate_regression"):
-        raise typer.BadParameter("--input-dim is only valid with --family multivariate_regression")
+    requested = {"input_dim": input_dim, "rule_family": rule_family}
+    if family is not None:
+        _reject_unsupported_family_options(family, requested)
 
     instance_seed = seed if seed is not None else 0
     family_name = resolve_dataset_family(
@@ -109,19 +154,19 @@ def create_dataset_cmd(
         random_pick=random_family,
         rng=rng,
     )
-    if input_dim is not None and family_name != "multivariate_regression":
-        raise typer.BadParameter(
-            "--input-dim requires multivariate_regression (got random family "
-            f"{family_name!r})"
-        )
+    if family_name != family:
+        # --random-family: the flags were checked against nothing above.
+        _reject_unsupported_family_options(family_name, requested, random_pick=True)
 
-    family_options = {"input_dim": input_dim} if input_dim is not None else None
+    family_options: dict = {
+        name: value for name, value in requested.items() if value is not None
+    }
     try:
         spec, path = create_dataset(
             prof,
             instance_seed,
             family_name=family_name,
-            family_options=family_options,
+            family_options=family_options or None,
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
@@ -152,6 +197,14 @@ def generate_candidates_cmd(
         help="Exact model quota as model_type=count; repeat for each type (requires --vary model)",
     ),
     profile: str = typer.Option("v1"),
+    param_ratio_max: Optional[float] = typer.Option(
+        None,
+        "--param-ratio-max",
+        help=(
+            "Override candidate_generation.parameter_ratio_max: all models in "
+            "the set fall inside one band of this max/min parameter ratio"
+        ),
+    ),
     device: Optional[str] = typer.Option(
         None,
         "--device",
@@ -232,6 +285,7 @@ def generate_candidates_cmd(
         seed=seed,
         on_progress=lambda i, total, cid: typer.echo(f"[{i}/{total}] {cid}"),
         execution_device=device,
+        parameter_ratio_max=param_ratio_max,
     )
     typer.echo(f"Candidate set written to {set_path}")
 
@@ -276,6 +330,47 @@ def generate_question_cmd(
         "--required-model-type",
         help="Repeat once per required model type (for example: gru_lm and transformer_lm)",
     ),
+    gap_max: Optional[float] = typer.Option(
+        None,
+        "--gap-max",
+        help="Optional: reject subsets whose winner–runner-up metric gap exceeds this "
+        "(overrides profile question_generation.quality.gap_max when passed)",
+    ),
+    gap_worst_max: Optional[float] = typer.Option(
+        None,
+        "--gap-worst-max",
+        help="Optional: reject subsets whose winner–worst metric gap exceeds this "
+        "(overrides profile question_generation.quality.gap_worst_max when passed)",
+    ),
+    require_finite_mean: Optional[bool] = typer.Option(
+        None,
+        "--require-finite-mean/--allow-nonfinite-mean",
+        help="Optional pool wash: drop candidates with non-finite selection mean",
+    ),
+    max_failed_seeds: Optional[int] = typer.Option(
+        None,
+        "--max-failed-seeds",
+        help="Optional pool wash: drop candidates with more failed seeds than N "
+        "(overrides profile; use 0 for no failed seeds)",
+    ),
+    param_ratio_max: Optional[float] = typer.Option(
+        None,
+        "--param-ratio-max",
+        help="Optional: reject subsets whose largest/smallest trainable parameter "
+        "count ratio exceeds this (overrides profile quality.param_ratio_max)",
+    ),
+    max_questions_per_dataset: Optional[int] = typer.Option(
+        None,
+        "--max-questions-per-dataset",
+        help="Optional: refuse runs requesting more questions than N for one "
+        "dataset instance (overrides profile quality.max_questions_per_dataset)",
+    ),
+    question_type: Optional[str] = typer.Option(
+        None,
+        "--question-type",
+        help="Optional target question type: architecture_only, optimizer_only, "
+        "loss_only, or mixed. When set, subsets must match it.",
+    ),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -284,6 +379,8 @@ def generate_question_cmd(
     ),
 ) -> None:
     """Assemble questions from one or more candidate sets."""
+    from architecture_iq.questions.quality import QuestionQualityFilters
+
     prof = load_profile(profile)
 
     _reject_interactive_flags(
@@ -297,6 +394,11 @@ def generate_question_cmd(
         max_candidate_uses=max_candidate_uses is not None,
         winner_type_max_fraction=winner_type_max_fraction is not None,
         required_model_types=bool(required_model_types),
+        gap_max=gap_max is not None,
+        gap_worst_max=gap_worst_max is not None,
+        require_finite_mean=require_finite_mean is not None,
+        max_failed_seeds=max_failed_seeds is not None,
+        question_type=question_type is not None,
     )
 
     if interactive:
@@ -319,10 +421,34 @@ def generate_question_cmd(
         raise typer.BadParameter("num_choices must be at least 2")
     if num_questions < 1:
         raise typer.BadParameter("num_questions must be at least 1")
+    if gap_max is not None and gap_max < 0:
+        raise typer.BadParameter("--gap-max must be non-negative")
+    if gap_worst_max is not None and gap_worst_max < 0:
+        raise typer.BadParameter("--gap-worst-max must be non-negative")
+    if max_failed_seeds is not None and max_failed_seeds < 0:
+        raise typer.BadParameter("--max-failed-seeds must be non-negative")
+    if question_type is not None and question_type not in (
+        "architecture_only", "optimizer_only", "loss_only", "mixed"
+    ):
+        raise typer.BadParameter("--question-type must be one of architecture_only, optimizer_only, loss_only, mixed")
 
     for set_path in candidate_sets:
         if not set_path.is_dir():
             raise typer.BadParameter(f"Candidate set not found: {set_path}")
+
+    quality = QuestionQualityFilters.from_profile(prof).overlay(
+        gap_max=gap_max,
+        gap_worst_max=gap_worst_max,
+        require_finite_mean=require_finite_mean,
+        max_failed_seeds=max_failed_seeds,
+        param_ratio_max=param_ratio_max,
+        max_questions_per_dataset=max_questions_per_dataset,
+        gap_max_provided=gap_max is not None,
+        gap_worst_max_provided=gap_worst_max is not None,
+        max_failed_seeds_provided=max_failed_seeds is not None,
+        param_ratio_max_provided=param_ratio_max is not None,
+        max_questions_per_dataset_provided=max_questions_per_dataset is not None,
+    )
 
     rng = random.Random(seed)
     run_path, results = generate_questions(
@@ -337,15 +463,20 @@ def generate_question_cmd(
         candidate_reuse_policy=candidate_reuse_policy,
         max_candidate_uses=max_candidate_uses,
         winner_type_max_fraction=winner_type_max_fraction,
+        quality=quality,
+        question_type=question_type,
     )
 
     typer.echo(f"Question run written to {run_path}")
+    if quality.any_enabled:
+        typer.echo(f"Quality filters: {quality.as_dict()}")
     for record, out in results:
         write_prompt(out)
         typer.echo(
             f"Question {record['question_id']} type={record['type']} "
             f"varying={record['varying_axes']} correct={record['correct_letter']} at {out}"
         )
+
 
 
 if __name__ == "__main__":

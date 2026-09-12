@@ -16,6 +16,7 @@ from architecture_iq.candidates.axes import (
 from architecture_iq.candidates.sets import list_candidates_in_set
 from architecture_iq.paths import DATA_DIR
 from architecture_iq.profile import Profile
+from architecture_iq.questions.quality import QuestionQualityFilters
 from architecture_iq.questions.runs import (
     CANDIDATE_REUSE_POLICIES,
     DEFAULT_CANDIDATE_REUSE_POLICY,
@@ -24,7 +25,11 @@ from architecture_iq.questions.runs import (
     question_run_dir,
     write_run_manifest,
 )
-from architecture_iq.significance.validator import load_summary, validate_significance
+from architecture_iq.significance.validator import (
+    load_summary,
+    mean_metric_key,
+    validate_significance,
+)
 from architecture_iq.util import read_json, short_hash, write_json
 
 CandidateProgress = Callable[[int, int, str], None]
@@ -34,15 +39,67 @@ def _letters(n: int) -> list[str]:
     return [chr(ord("A") + i) for i in range(n)]
 
 
-def eligible_candidate_paths(paths: list[Path]) -> list[Path]:
-    return [p for p in paths if not load_summary(p).get("excluded")]
+def _failed_seed_count(summary: dict[str, Any]) -> int:
+    if "failed_seeds" in summary:
+        return int(summary["failed_seeds"])
+    return sum(1 for row in summary.get("seed_results", []) if row.get("failed"))
 
 
-def load_candidate_pool_from_sets(set_paths: list[Path]) -> list[Path]:
+def candidate_admitted(
+    summary: dict[str, Any],
+    *,
+    filters: QuestionQualityFilters,
+    selection_metric: str = "test_mse",
+) -> bool:
+    """Return whether a candidate may enter the question pool."""
+    if summary.get("excluded"):
+        return False
+    if filters.require_finite_mean:
+        mean = summary.get(mean_metric_key(selection_metric))
+        try:
+            mean_f = float(mean)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(mean_f):
+            return False
+    if filters.max_failed_seeds is not None:
+        if _failed_seed_count(summary) > int(filters.max_failed_seeds):
+            return False
+    return True
+
+
+def eligible_candidate_paths(
+    paths: list[Path],
+    *,
+    filters: QuestionQualityFilters | None = None,
+    selection_metric: str = "test_mse",
+) -> list[Path]:
+    quality = filters if filters is not None else QuestionQualityFilters.disabled()
+    return [
+        path
+        for path in paths
+        if candidate_admitted(
+            load_summary(path),
+            filters=quality,
+            selection_metric=selection_metric,
+        )
+    ]
+
+
+def load_candidate_pool_from_sets(
+    set_paths: list[Path],
+    *,
+    filters: QuestionQualityFilters | None = None,
+    selection_metric: str = "test_mse",
+) -> list[Path]:
     pool: list[Path] = []
     for set_path in set_paths:
         pool.extend(list_candidates_in_set(set_path))
-    return eligible_candidate_paths(pool)
+    return eligible_candidate_paths(
+        pool,
+        filters=filters,
+        selection_metric=selection_metric,
+    )
 
 
 def _cross_profile_candidate_allowed(profile: Profile, spec: dict[str, Any]) -> bool:
@@ -85,12 +142,20 @@ def find_significant_subsets(
     max_attempts: int | None = None,
     question_type: str | None = None,
     selection_metric: str = "test_mse",
+    quality: QuestionQualityFilters | None = None,
+    rejection_stats: Counter[str] | None = None,
 ) -> list[list[Path]]:
-    """Return significant candidate subsets; exhaustive when feasible."""
+    """Return significant candidate subsets; exhaustive when feasible.
+
+    When ``rejection_stats`` is given, each scanned subset that fails is
+    bucketed under ``incompatible_axes`` / ``param_ratio`` / ``significance``
+    so callers can explain why a pool produced no (or few) questions.
+    """
     num_choices = num_choices if num_choices is not None else profile.num_choices
     if len(pool) < num_choices:
         return []
 
+    filters = quality if quality is not None else QuestionQualityFilters.disabled()
     summary_map = {p: load_summary(p) for p in pool}
     n_combos = math.comb(len(pool), num_choices)
     max_exhaustive = int(
@@ -99,16 +164,34 @@ def find_significant_subsets(
 
     passing: list[list[Path]] = []
 
+    def _reject(bucket: str) -> bool:
+        if rejection_stats is not None:
+            rejection_stats[bucket] += 1
+        return False
+
     def _subset_ok(combo: tuple[Path, ...]) -> bool:
         specs = [read_json(p / "candidate_spec.json") for p in combo]
         if not choices_compatible(specs, question_type):
-            return False
+            return _reject("incompatible_axes")
+        if filters.param_ratio_max is not None:
+            counts = [
+                int(spec.get("trainable_parameter_count") or 0) for spec in specs
+            ]
+            smallest = min(counts)
+            largest = max(counts)
+            ratio = float("inf") if smallest <= 0 else largest / smallest
+            if ratio > float(filters.param_ratio_max):
+                return _reject("param_ratio")
         sig = validate_significance(
             [summary_map[p] for p in combo],
             profile,
             metric=selection_metric,
+            gap_max=filters.gap_max,
+            gap_worst_max=filters.gap_worst_max,
         )
-        return sig.passed
+        if not sig.passed:
+            return _reject("significance")
+        return True
 
     if n_combos <= max_exhaustive:
         for combo in combinations(pool, num_choices):
@@ -144,6 +227,7 @@ def select_significant_candidates(
     *,
     num_choices: int | None = None,
     max_attempts: int | None = None,
+    quality: QuestionQualityFilters | None = None,
 ) -> list[Path] | None:
     subsets = find_significant_subsets(
         pool,
@@ -152,6 +236,7 @@ def select_significant_candidates(
         num_choices=num_choices,
         limit=1,
         max_attempts=max_attempts,
+        quality=quality,
     )
     return subsets[0] if subsets else None
 
@@ -437,8 +522,11 @@ def build_question_record(
     candidate_paths: list[Path],
     candidate_set_paths: list[Path],
     rng: random.Random,
+    quality: QuestionQualityFilters | None = None,
     artifact_root: Path | None = None,
+    benchmark_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    filters = quality if quality is not None else QuestionQualityFilters.disabled()
     summaries = [load_summary(p) for p in candidate_paths]
     specs = [read_json(p / "candidate_spec.json") for p in candidate_paths]
     if not choices_compatible(specs):
@@ -452,7 +540,13 @@ def build_question_record(
     invariant_axes, varying_axes = infer_axes(specs)
     execution_device = str(specs[0].get("execution", {}).get("device", "cpu"))
 
-    sig = validate_significance(summaries, profile, metric=dataset_spec["selection_metric"])
+    sig = validate_significance(
+        summaries,
+        profile,
+        metric=dataset_spec["selection_metric"],
+        gap_max=filters.gap_max,
+        gap_worst_max=filters.gap_worst_max,
+    )
     if not sig.passed:
         raise ValueError(f"Significance failed: {sig.reason}")
 
@@ -512,8 +606,13 @@ def build_question_record(
             "passed": sig.passed,
             "gap": sig.gap,
             "win_rate": sig.win_rate,
+            # Positive means the winner's whole seed range clears every rival's;
+            # recorded whether or not the profile gates on it, so an audit can
+            # see how much headroom a shipped question actually had.
+            "separation_margin": sig.separation_margin,
             "metric": sig.metric,
         },
+        "quality_filters": filters.as_dict(),
         "evaluation": {
             "selection_metric": dataset_spec["selection_metric"],
             "n_seeds": profile.n_seeds,
@@ -525,6 +624,8 @@ def build_question_record(
             "rendered_path": "prompt.txt",
         },
     }
+    if benchmark_metadata is not None:
+        body["benchmark"] = dict(benchmark_metadata)
     qid = f"q_{short_hash(body)}"
     body["question_id"] = qid
     body["profile"] = profile.name
@@ -541,7 +642,9 @@ def _write_question(
     run_path: Path,
     run_name: str,
     rng: random.Random,
+    quality: QuestionQualityFilters | None = None,
     artifact_root: Path | None = None,
+    benchmark_metadata: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], Path]:
     record = build_question_record(
         profile,
@@ -550,7 +653,9 @@ def _write_question(
         candidate_paths=candidate_paths,
         candidate_set_paths=candidate_set_paths,
         rng=rng,
+        quality=quality,
         artifact_root=artifact_root,
+        benchmark_metadata=benchmark_metadata,
     )
     data_root = (artifact_root or DATA_DIR).resolve()
     record["question_run_id"] = run_name
@@ -571,12 +676,15 @@ def generate_questions(
     num_questions: int = 1,
     num_choices: int | None = None,
     seed: int = 0,
+    quality: QuestionQualityFilters | None = None,
+    question_type: str | None = None,
     require_distinct_model_types: bool = False,
     required_model_types: frozenset[str] | None = None,
     candidate_reuse_policy: str = DEFAULT_CANDIDATE_REUSE_POLICY,
     max_candidate_uses: int | None = None,
     winner_type_max_fraction: float | None = None,
     artifact_root: Path | None = None,
+    benchmark_metadata: dict[str, Any] | None = None,
 ) -> tuple[Path, list[tuple[dict[str, Any], Path]]]:
     if num_questions < 1:
         raise ValueError("num_questions must be at least 1")
@@ -584,13 +692,36 @@ def generate_questions(
         raise ValueError("At least one candidate set path is required")
     if candidate_reuse_policy not in CANDIDATE_REUSE_POLICIES:
         raise ValueError(f"Unknown candidate reuse policy: {candidate_reuse_policy}")
+    if question_type is not None and question_type not in (
+        "architecture_only", "optimizer_only", "loss_only", "mixed"
+    ):
+        raise ValueError(f"Unknown question_type: {question_type}")
 
+    filters = quality if quality is not None else QuestionQualityFilters.from_profile(profile)
+    if (
+        filters.max_questions_per_dataset is not None
+        and num_questions > int(filters.max_questions_per_dataset)
+    ):
+        raise ValueError(
+            f"num_questions={num_questions} exceeds "
+            f"max_questions_per_dataset={filters.max_questions_per_dataset}; "
+            "a single dataset instance may not carry this many questions"
+        )
     resolved_sets = [p.resolve() for p in candidate_set_paths]
-    pool = load_candidate_pool_from_sets(resolved_sets)
-    pool = [path for path in pool if _cross_profile_candidate_allowed(profile, read_json(path / "candidate_spec.json"))]
+    dataset_spec = read_json(dataset_path / "dataset_spec.json")
+    selection_metric = str(dataset_spec["selection_metric"])
+    pool = load_candidate_pool_from_sets(
+        resolved_sets,
+        filters=filters,
+        selection_metric=selection_metric,
+    )
+    pool = [
+        path
+        for path in pool
+        if _cross_profile_candidate_allowed(profile, read_json(path / "candidate_spec.json"))
+    ]
     _validate_pool_dataset(pool, dataset_path)
 
-    dataset_spec = read_json(dataset_path / "dataset_spec.json")
     n_choices = num_choices if num_choices is not None else profile.num_choices
     if len(pool) < n_choices:
         raise RuntimeError(
@@ -617,12 +748,16 @@ def generate_questions(
     ):
         raise ValueError("winner_type_max_fraction must be in [0.5, 1.0]")
 
+    rejection_stats: Counter[str] = Counter()
     subsets = find_significant_subsets(
         pool,
         profile,
         rng,
         num_choices=n_choices,
-        selection_metric=dataset_spec["selection_metric"],
+        selection_metric=selection_metric,
+        question_type=question_type,
+        quality=filters,
+        rejection_stats=rejection_stats,
     )
     model_types = {
         candidate_path: read_json(candidate_path / "candidate_spec.json")["model"]["type"]
@@ -642,8 +777,16 @@ def generate_questions(
             if len({model_types[candidate_path] for candidate_path in subset}) == n_choices
         ]
     if not subsets:
+        scanned = sum(rejection_stats.values())
+        breakdown = (
+            ", ".join(
+                f"{bucket}={count}" for bucket, count in rejection_stats.most_common()
+            )
+            or "no subset was scanned"
+        )
         raise RuntimeError(
-            f"Failed to find significant {n_choices}-candidate subsets in pool of {len(pool)}"
+            f"Failed to find significant {n_choices}-candidate subsets in pool "
+            f"of {len(pool)} (scanned={scanned}; rejections: {breakdown})"
         )
 
     if candidate_reuse_policy == DEFAULT_CANDIDATE_REUSE_POLICY:
@@ -680,7 +823,6 @@ def generate_questions(
             "more candidates or request fewer questions."
         )
 
-    dataset_spec = read_json(dataset_path / "dataset_spec.json")
     dataset_id = dataset_spec["dataset_id"]
     family = dataset_spec["family"]
 
@@ -705,7 +847,9 @@ def generate_questions(
                 run_path=run_path,
                 run_name=run_name,
                 rng=rng,
+                quality=filters,
                 artifact_root=artifact_root,
+                benchmark_metadata=benchmark_metadata,
             )
         )
 

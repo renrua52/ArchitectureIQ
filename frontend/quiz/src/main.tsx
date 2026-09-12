@@ -2,31 +2,43 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { newSessionId, track } from "./telemetry";
+import { parseRecording, SessionRecorder, type Recording } from "./recorder";
+import {
+  apiConfigured,
+  clearAuth,
+  drainQueue,
+  listAnswers,
+  loadAuth,
+  recordAnswer,
+  registerUser,
+  upsertSession,
+  uploadChunk,
+  type Auth
+} from "./api";
+import { ReplayPlayer } from "./replay";
 import type {
-  AuditDecision,
   BakeFile,
   BakedQuestion,
-  Choice,
-  ConfidenceRating,
-  Field,
-  Point,
   Stage
 } from "./types";
+
+import {
+  AnswerStage,
+  DatasetStage,
+  ChoicesStage,
+  humanFamily,
+  humanMetric,
+  humanMetricByFamily,
+  humanType,
+  type FeedbackDraft
+} from "./questionView";
+
 
 type Screen = "home" | "quiz" | "menu" | "contact";
 type InfoTarget =
   | { kind: "dataset" }
   | { kind: "choice"; letter: string }
   | null;
-
-type CardField = Field & { varying: boolean };
-
-type FeedbackDraft = {
-  confidence: ConfidenceRating | null;
-  decision: AuditDecision | null;
-  comment: string;
-  submitted: boolean;
-};
 
 const EMPTY_FEEDBACK: FeedbackDraft = { confidence: null, decision: null, comment: "", submitted: false };
 
@@ -43,20 +55,121 @@ function App() {
   const sessionId = useRef(newSessionId());
   const viewStartedAt = useRef(Date.now());
   const startedTracked = useRef(false);
-  const results = useRef<Record<string, { correct: boolean; picked: string }>>({});
+  const results = useRef<Record<string, { correct: boolean; picked: string; repeat?: boolean }>>({});
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
   const [, bump] = useState(0);
+  const [auth, setAuth] = useState<Auth | null>(() => loadAuth());
+  const [showAuth, setShowAuth] = useState(false);
+  const [replay, setReplay] = useState<Recording | null>(null);
+  const [packId, setPackId] = useState<string | null>(null);
+  const recorderRef = useRef<SessionRecorder | null>(null);
+  const authRef = useRef<Auth | null>(auth);
+  authRef.current = auth;
+  const pendingBegin = useRef<number | null>(null);
+  // Server-persisted answers for the signed-in user: refresh restores them.
+  const answeredMapRef = useRef<Record<string, { picked: string; correct: boolean; attempts: number }>>({});
+  const [answeredMapVersion, setAnsweredMapVersion] = useState(0);
+  // One-shot completion celebration: fires when every question in the pack
+  // has an answer (live or restored from the server).
+  const [celebrate, setCelebrate] = useState(false);
+  const celebratedRef = useRef(false);
 
   useEffect(() => {
-    fetch("/data/questions.json")
+    if (authRef.current) void drainQueue(authRef.current);
+  }, []);
+
+  // On user change: if the current session/recorder belongs to a different
+  // user, stop it and wipe in-memory state so answers can not leak across
+  // users. A recorder created for THIS user (fresh sign-in begins the quiz
+  // before this effect commits) is kept. Server rows stay untouched.
+  const lastAuthUserId = useRef<string | null>(auth?.user_id ?? null);
+  const sessionUserId = useRef<string | null>(null);
+  // Lets the mount-time deep-link effect call the latest beginQuiz closure.
+  const beginQuizRef = useRef<((at: number) => void) | null>(null);
+  useEffect(() => {
+    const uid = auth?.user_id ?? null;
+    if (uid === lastAuthUserId.current) {
+      return;
+    }
+    lastAuthUserId.current = uid;
+    if (sessionUserId.current !== uid) {
+      recorderRef.current?.stop();
+      recorderRef.current = null;
+      sessionUserId.current = uid;
+      results.current = {};
+      feedbackByQuestion.current = {};
+      answeredMapRef.current = {};
+      celebratedRef.current = false;
+      setCelebrate(false);
+      sessionId.current = newSessionId();
+      setIndex(0);
+      setSelected(null);
+      setAnswered(false);
+      setStage("observe");
+      setAnsweredMapVersion((v) => v + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.user_id]);
+
+  useEffect(() => {
+    const current = authRef.current;
+    if (!current || !apiConfigured()) {
+      return;
+    }
+    let cancelled = false;
+    // Fetch ALL answers for this user, not just the active pack: a stale
+    // link (e.g. an old ?question_pack= bookmark) must still restore and
+    // lock previously answered questions — records are per (user, question).
+    listAnswers(current)
+      .then((records) => {
+        if (cancelled) return;
+        const map: typeof answeredMapRef.current = {};
+        for (const record of records) {
+          map[record.question_id] = {
+            picked: record.picked,
+            correct: record.correct,
+            attempts: record.attempts
+          };
+        }
+        answeredMapRef.current = map;
+        setAnsweredMapVersion((v) => v + 1);
+      })
+      .catch(() => {
+        /* offline: keep whatever we have; re-answering remains blocked by
+           local results until the list arrives */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.user_id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const packId = params.get("question_pack");
+    const packUrl = packId
+      ? `data/packs/${encodeURIComponent(packId)}.json`
+      : "data/packs/v15-launch50-seed20260905.json";
+    setPackId(packId ?? "v15-launch50-seed20260905");
+    fetch(packUrl)
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Missing baked questions. Run: python tools/export_quiz_static.py");
+          throw new Error(`Missing baked questions at ${packUrl}`);
         }
         return response.json();
       })
-      .then((data: BakeFile) => setBake(data))
+      .then((data: BakeFile) => {
+        setBake(data);
+        const target = params.get("q");
+        if (target) {
+          const at = data.questions.findIndex((item) => item.id === target);
+          if (at >= 0) {
+            // Enter through beginQuiz so sign-in and the session recorder
+            // are guaranteed (deep links used to bypass both).
+            beginQuizRef.current?.(at);
+          }
+        }
+      })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
@@ -71,9 +184,65 @@ function App() {
     return { correct, total };
   }, [answered, index, screen, bump]);
 
+  // Completion celebration: every question in the pack is answered — live
+  // this session OR restored from the server. A user who already finished
+  // in an earlier session sees the overlay again on return (dismissible).
+  const allAnswered = useMemo(() => {
+    if (!bake || !summaries.length) {
+      return false;
+    }
+    return summaries.every(
+      (q) =>
+        results.current[q.id] !== undefined ||
+        answeredMapRef.current[q.id] != null
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bake, summaries, answeredMapVersion, answered, index, screen, bump]);
+
+  // Final stats for the overlay: union of live results and server records,
+  // so a returning user sees their complete score, not just this session.
+  const finalScore = useMemo(() => {
+    if (!bake) {
+      return { correct: 0, total: 0 };
+    }
+    let total = 0;
+    let correct = 0;
+    for (const q of summaries) {
+      const live = results.current[q.id];
+      const persisted = answeredMapRef.current[q.id];
+      if (live === undefined && persisted == null) {
+        continue;
+      }
+      total += 1;
+      if ((live ?? persisted)?.correct) {
+        correct += 1;
+      }
+    }
+    return { correct, total };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bake, summaries, answeredMapVersion, answered, index, screen, bump]);
+
+  useEffect(() => {
+    if (!bake || !summaries.length || screen !== "quiz") return;
+    if (!allAnswered || celebratedRef.current) return;
+    celebratedRef.current = true;
+    setCelebrate(true);
+    recorderRef.current?.mark("g", "complete");
+  }, [bake, allAnswered, summaries.length, screen]);
+
   useEffect(() => {
     if (screen !== "quiz" || !question) {
       return;
+    }
+    const persisted = answeredMapRef.current[question.id];
+    if (persisted && results.current[question.id] === undefined) {
+      // Resume a previously submitted answer (page refresh / new device):
+      // locked, cannot be re-answered, flagged as a repeat in the export.
+      results.current[question.id] = {
+        correct: persisted.correct,
+        picked: persisted.picked,
+        repeat: true
+      };
     }
     const prior = results.current[question.id];
     const already = prior !== undefined;
@@ -83,12 +252,45 @@ function App() {
     setAnswered(already);
     setInfo(null);
     viewStartedAt.current = Date.now();
+    recorderRef.current?.mark("q", question.id);
     track({
       session_id: sessionId.current,
       event_type: "question_view",
       question_id: question.id
     });
-  }, [screen, question?.id]);
+  }, [screen, question?.id, answeredMapVersion]);
+
+  useEffect(() => {
+    if (screen === "quiz" && question) {
+      recorderRef.current?.mark("g", stage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, screen, question?.id]);
+
+  function ensureRecorder(): SessionRecorder {
+    if (!recorderRef.current) {
+      const recorder = new SessionRecorder(sessionId.current);
+      recorder.onFlush = (seq, events, final) => {
+        const current = authRef.current;
+        if (!current) return;
+        void uploadChunk(
+          current,
+          { session_id: recorder.sessionId, seq, events },
+          final
+        ).then(() => drainQueue(current));
+      };
+      recorderRef.current = recorder;
+    }
+    return recorderRef.current;
+  }
+
+  function currentScore() {
+    const values = Object.values(results.current);
+    return {
+      correct: values.filter((item) => item.correct).length,
+      total: values.length
+    };
+  }
 
   function ensureSessionStart() {
     if (startedTracked.current) {
@@ -108,8 +310,10 @@ function App() {
       exported_at: new Date().toISOString(),
       session_id: sessionId.current,
       collection: bake?.collection ?? null,
+      username: authRef.current?.username ?? null,
       results: results.current,
-      audit_feedback: feedbackByQuestion.current
+      audit_feedback: feedbackByQuestion.current,
+      recording: recorderRef.current?.snapshot() ?? null
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -121,10 +325,33 @@ function App() {
   }
 
   function beginQuiz(atIndex = 0) {
+    if (apiConfigured() && !authRef.current) {
+      pendingBegin.current = atIndex;
+      setShowAuth(true);
+      return;
+    }
     ensureSessionStart();
+    const recorder = ensureRecorder();
+    recorder.userId = authRef.current?.user_id ?? null;
+    if (!recorder.isRunning) {
+      recorder.start({ username: authRef.current?.username, pack: packId ?? undefined });
+    }
+    const current = authRef.current;
+    sessionUserId.current = current?.user_id ?? null;
+    if (current && apiConfigured()) {
+      const scoreNow = currentScore();
+      void upsertSession(current, {
+        session_id: recorder.sessionId,
+        pack: packId ?? undefined,
+        score_correct: scoreNow.correct,
+        score_total: scoreNow.total,
+        meta: { user_agent: navigator.userAgent }
+      });
+    }
     setIndex(atIndex);
     setScreen("quiz");
   }
+  beginQuizRef.current = beginQuiz;
 
   function goHome() {
     setScreen("home");
@@ -213,10 +440,58 @@ function App() {
       return;
     }
     const correct = letter === question.reveal.correctLetter;
-    results.current[question.id] = { correct, picked: letter };
+    const answeredMap = answeredMapRef.current;
+    results.current[question.id] = {
+      correct,
+      picked: letter,
+      repeat: answeredMap[question.id] != null
+    };
     setSelected(letter);
     setAnswered(true);
     bump((n) => n + 1);
+    recorderRef.current?.mark("a", letter, correct ? 1 : 0);
+    const current = authRef.current;
+    if (current && apiConfigured()) {
+      void recordAnswer(current, {
+        question_id: question.id,
+        picked: letter,
+        correct,
+        pack: packId ?? undefined
+      })
+        .then((res) => {
+          answeredMapRef.current[question.id] = {
+            picked: res.picked,
+            correct: res.correct,
+            attempts: 1
+          };
+          if (res.duplicate) {
+            const entry = results.current[question.id];
+            if (entry) entry.repeat = true;
+            bump((n) => n + 1);
+          }
+        })
+        .catch(() => {
+          // offline / raced reload: one deferred retry, then give up — the
+          // trajectory chunks still carry the attempt for proctoring.
+          window.setTimeout(() => {
+            const retry = authRef.current;
+            if (!retry) return;
+            void recordAnswer(retry, {
+              question_id: question.id,
+              picked: letter,
+              correct,
+              pack: packId ?? undefined
+            }).catch(() => undefined);
+          }, 1_500);
+        });
+      const scoreNow = currentScore();
+      void upsertSession(current, {
+        session_id: sessionId.current,
+        pack: packId ?? undefined,
+        score_correct: scoreNow.correct,
+        score_total: scoreNow.total
+      });
+    }
     track({
       session_id: sessionId.current,
       event_type: "answer_submit",
@@ -228,7 +503,7 @@ function App() {
       session_id: sessionId.current,
       event_type: "stage_change",
       question_id: question.id,
-      payload: { from: "compare", to: "reveal" }
+      payload: { from: stage, to: "reveal" }
     });
     setStage("reveal");
   }
@@ -242,7 +517,27 @@ function App() {
       question_id: question.id,
       payload: { from: "observe", to: "compare" }
     });
-    setStage("compare");
+    document.getElementById("choices-anchor")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function openReplayFile(file: File) {
+    void file.text().then((text) => {
+      try {
+        const parsed = JSON.parse(text) as { recording?: unknown };
+        const rec = parseRecording(parsed);
+        if (!rec) {
+          window.alert(
+            parsed && typeof parsed === "object" && "recording" in parsed && parsed.recording === null
+              ? "This export contains your results but no trajectory: the session was played on a page that never started recording (e.g. opened via a direct question link before this fix)."
+              : "That file is not a valid session recording."
+          );
+          return;
+        }
+        setReplay(rec);
+      } catch {
+        window.alert("That file is not a valid session recording.");
+      }
+    });
   }
 
   if (error) {
@@ -261,14 +556,41 @@ function App() {
     );
   }
 
+  if (replay) {
+    return <ReplayPlayer recording={replay} bake={bake} onBack={() => setReplay(null)} />;
+  }
+
   if (screen === "home") {
     return (
-      <HomeScreen
-        ready={Boolean(bake)}
-        onBegin={() => beginQuiz(0)}
-        onMenu={() => setScreen("menu")}
-        onContact={() => setScreen("contact")}
-      />
+      <>
+        <HomeScreen
+          ready={Boolean(bake)}
+          auth={auth}
+          onBegin={() => beginQuiz(0)}
+          onMenu={() => setScreen("menu")}
+          onContact={() => setScreen("contact")}
+          onSwitchUser={() => {
+            clearAuth();
+            setAuth(null);
+            setShowAuth(true);
+          }}
+          onReplayFile={openReplayFile}
+        />
+        {showAuth ? (
+          <AuthGate
+            allowCancel={Boolean(auth)}
+            onCancel={() => setShowAuth(false)}
+            onSuccess={(next) => {
+              authRef.current = next; // setAuth is async; beginQuiz reads the ref
+              setAuth(next);
+              setShowAuth(false);
+              const at = pendingBegin.current ?? 0;
+              pendingBegin.current = null;
+              beginQuiz(at);
+            }}
+          />
+        ) : null}
+      </>
     );
   }
 
@@ -355,27 +677,24 @@ function App() {
         <span>{question.detail.choices.length} choices</span>
       </h1>
 
-      <section className="stage-screen" key={`${question.id}-${stage}`}>
+      <section className="stage-screen" key={question.id}>
         <div className="provenance" aria-label="Question provenance">
           <span>Track: {question.track ?? "default"}</span>
           <span>Profile: {question.profile ?? "legacy/unknown"}</span>
           <span>Hash: {question.profileHash ?? "legacy/unknown"}</span>
         </div>
-        {stage === "observe" ? (
-          <DatasetStage
-            question={question}
-            onSeeChoices={goCompare}
-            onInfo={() => setInfo({ kind: "dataset" })}
-          />
-        ) : null}
-        {stage === "compare" ? (
+        <DatasetStage
+          question={question}
+          onSeeChoices={goCompare}
+          onInfo={() => setInfo({ kind: "dataset" })}
+        />
+        {stage !== "reveal" ? (
           <ChoicesStage
             question={question}
             onPick={pickChoice}
             onInfo={(letter) => setInfo({ kind: "choice", letter })}
           />
-        ) : null}
-        {stage === "reveal" ? (
+        ) : (
           <AnswerStage
             question={question}
             selected={selected}
@@ -386,7 +705,7 @@ function App() {
             onInfo={(letter) => setInfo({ kind: "choice", letter })}
             onDatasetInfo={() => setInfo({ kind: "dataset" })}
           />
-        ) : null}
+        )}
       </section>
 
       {info ? (
@@ -397,21 +716,153 @@ function App() {
           onClose={() => setInfo(null)}
         />
       ) : null}
+
+      {celebrate ? (
+        <CompletionOverlay
+          correct={finalScore.correct}
+          total={finalScore.total}
+          onExport={exportSession}
+          onClose={() => setCelebrate(false)}
+        />
+      ) : null}
     </main>
+  );
+}
+
+// Score ladder on the same 50-question launch set, mapped to each model's
+// accuracy on the full 500-question set (shown in the completion overlay).
+const LLM_LADDER: Array<{ min: number; models: string; full: string }> = [
+  { min: 33, models: "GPT-5.6 Sol", full: "76.4%" },
+  { min: 32, models: "Claude Opus 5", full: "76.0%" },
+  {
+    min: 30,
+    models: "Claude Sonnet 5 · Gemini 3.1 Pro Preview · GPT-5.6 Luna",
+    full: "65.4% – 67.8%"
+  },
+  { min: 28, models: "DeepSeek R1", full: "59.0%" },
+  { min: 25, models: "Gemini 2.5 Pro", full: "55.8%" },
+  { min: 23, models: "DeepSeek R1-Distill 32B", full: "46.0%" },
+  { min: 21, models: "Llama 3.1 70B", full: "42.0%" },
+  { min: 0, models: "You — a human", full: "—" }
+];
+
+function CompletionOverlay({
+  correct,
+  total,
+  onExport,
+  onClose
+}: {
+  correct: number;
+  total: number;
+  onExport: () => void;
+  onClose: () => void;
+}) {
+  const pieces = useRef(
+    Array.from({ length: 90 }, (_, i) => ({
+      left: (i * 37) % 100,
+      delay: ((i * 13) % 30) / 10,
+      duration: 2.6 + ((i * 7) % 20) / 10,
+      color: ["#ffd166", "#ef476f", "#06d6a0", "#118ab2", "#f78c6b", "#b388eb"][i % 6],
+      size: 6 + ((i * 5) % 8),
+      round: i % 3 === 0
+    }))
+  ).current;
+  const pct = total > 0 ? Math.round((100 * correct) / total) : 0;
+  const matchIndex = LLM_LADDER.findIndex((row) => correct >= row.min);
+  const match = LLM_LADDER[matchIndex];
+  return (
+    <div className="completion-overlay" role="dialog" aria-label="Quiz complete">
+      <div className="confetti" aria-hidden="true">
+        {pieces.map((p, i) => (
+          <i
+            key={i}
+            style={{
+              left: `${p.left}%`,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+              background: p.color,
+              width: p.size,
+              height: p.round ? p.size : p.size * 1.8,
+              borderRadius: p.round ? "50%" : "2px"
+            }}
+          />
+        ))}
+      </div>
+      <div className="completion-card">
+        <div className="completion-trophy" aria-hidden="true">
+          🏆
+        </div>
+        <h2>All done!</h2>
+        <p className="completion-score">
+          You answered all {total} questions — score <strong>{correct}</strong>/{total} ({pct}%)
+        </p>
+        <p className="completion-note">
+          Your answers and session have been recorded. Thanks for taking the ArchitectureIQ quiz!
+        </p>
+        <div className="completion-match">
+          <p className="completion-match-line">
+            {match.min > 0 ? (
+              <>
+                This score matches <strong>{match.models}</strong> — {match.full} on the full
+                500-question set
+              </>
+            ) : (
+              <>No LLM on our leaderboard scored this low — you are, in fact, a human.</>
+            )}
+          </p>
+          <table className="completion-ladder">
+            <thead>
+              <tr>
+                <th>Your score</th>
+                <th>Model</th>
+                <th>Acc (500)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {LLM_LADDER.map((row, i) => (
+                <tr
+                  key={row.min}
+                  className={i === matchIndex ? "is-you" : i > matchIndex ? "is-above" : ""}
+                >
+                  <td>{row.min > 0 ? `${row.min}+ / 50` : "< 21 / 50"}</td>
+                  <td>{row.models}</td>
+                  <td>{row.full}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="completion-actions">
+          <button type="button" className="completion-btn primary" onClick={onExport}>
+            Export my results
+          </button>
+          <button type="button" className="completion-btn" onClick={onClose}>
+            Back to questions
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function HomeScreen({
   ready,
+  auth,
   onBegin,
   onMenu,
-  onContact
+  onContact,
+  onSwitchUser,
+  onReplayFile
 }: {
   ready: boolean;
+  auth: Auth | null;
   onBegin: () => void;
   onMenu: () => void;
   onContact: () => void;
+  onSwitchUser: () => void;
+  onReplayFile: (file: File) => void;
 }) {
+  const fileInput = useRef<HTMLInputElement | null>(null);
   return (
     <main className="shell home">
       <div className="home-block">
@@ -429,9 +880,121 @@ function HomeScreen({
           <button type="button" className="menu-btn" onClick={onContact}>
             Contact us
           </button>
+          <button
+            type="button"
+            className="menu-btn"
+            disabled={!ready}
+            onClick={() => fileInput.current?.click()}
+          >
+            Replay a recording
+          </button>
         </div>
+        <p className="home-auth">
+          {auth
+            ? `Signed in as ${auth.username} · `
+            : "You will be asked for a username and the group password before you begin. "}
+          {auth ? (
+            <button type="button" className="linklike" onClick={onSwitchUser}>
+              Switch user
+            </button>
+          ) : null}
+        </p>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onReplayFile(file);
+            event.target.value = "";
+          }}
+        />
       </div>
     </main>
+  );
+}
+
+function AuthGate({
+  allowCancel,
+  onCancel,
+  onSuccess
+}: {
+  allowCancel: boolean;
+  onCancel: () => void;
+  onSuccess: (auth: Auth) => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function submit() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    registerUser(username, password)
+      .then(onSuccess)
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === "invalid_password") setError("Wrong password.");
+        else if (message === "invalid_username_length") setError("Pick a username (1-40 characters).");
+        else setError("Could not reach the server — check your connection and try again.");
+        setBusy(false);
+      });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={allowCancel ? onCancel : undefined}>
+      <div className="modal auth-modal" onClick={(event) => event.stopPropagation()}>
+        <h2>Sign in to play</h2>
+        <p className="auth-note">
+          Pick any username and enter the group password. Your score and an anonymized mouse
+          trajectory (moves, clicks, tab switches — nothing outside this page) are recorded for
+          research. You can download your own recording any time via Export.
+        </p>
+        <label className="auth-field">
+          <span>Username</span>
+          <input
+            value={username}
+            autoFocus
+            maxLength={40}
+            placeholder="e.g. ada_lovelace"
+            onChange={(event) => setUsername(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") submit();
+            }}
+          />
+        </label>
+        <label className="auth-field">
+          <span>Group password</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") submit();
+            }}
+          />
+        </label>
+        {error ? <p className="auth-error">{error}</p> : null}
+        <div className="auth-actions">
+          {allowCancel ? (
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="cta"
+            disabled={busy || !username.trim() || !password}
+            onClick={submit}
+          >
+            {busy ? "Signing in…" : "Sign in & begin"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -491,428 +1054,6 @@ function QuestionMenu({
   );
 }
 
-function TaskDescription({ question }: { question: BakedQuestion }) {
-  const params = question.detail.dataset.params ?? {};
-  const metric = humanMetric(question.metric);
-  const train = params.train_size != null ? String(params.train_size) : "—";
-  const test = params.test_size != null ? String(params.test_size) : "—";
-  let summary: string;
-  if (question.family === "synthetic_tabular_classification") {
-    const rule = String(params.rule_family ?? "synthetic rule").replace(/_/g, " ");
-    const active = Array.isArray(params.active_features)
-      ? params.active_features.map((value) => `x_${String(value)}`).join(", ")
-      : "the active features";
-    summary = `Predict one of ${params.num_classes ?? 2} classes from ${params.input_dim ?? "N"}-dimensional tabular features. Labels follow a ${rule} rule using ${active}; the held-out selection metric is ${metric} (lower is better). The dataset has ${train} training rows and ${test} test rows.`;
-  } else if (question.family === "bigram_lm") {
-    summary = `Predict the next token in a synthetic bigram language model with vocabulary size ${params.vocab_size ?? "—"} and context length ${params.context_length ?? "—"}. Compare held-out ${metric} after the stated training budget (lower is better).`;
-  } else if (question.family === "multivariate_regression") {
-    summary = `Fit a scalar target from ${params.input_dim ?? "multiple"}-dimensional inputs. Compare held-out ${metric} after the stated training budget (lower is better); all choices use the same materialized dataset.`;
-  } else {
-    summary = `Fit a scalar regression target from one-dimensional inputs. Compare held-out ${metric} after the stated training budget (lower is better); all choices use the same materialized dataset.`;
-  }
-  return (
-    <div className="panel task-description">
-      <div className="panel-head"><p className="stage-kicker">Task description</p></div>
-      <p className="task-summary">{summary}</p>
-      <details>
-        <summary>Show full benchmark instructions</summary>
-        <pre className="prompt-copy">{question.detail.prompt}</pre>
-      </details>
-    </div>
-  );
-}
-
-function DatasetStage({
-  question,
-  onSeeChoices,
-  onInfo
-}: {
-  question: BakedQuestion;
-  onSeeChoices: () => void;
-  onInfo: () => void;
-}) {
-  const params = question.detail.dataset.params ?? {};
-  return (
-    <div className="stage-inner">
-      <TaskDescription question={question} />
-      <div className="panel dataset-panel">
-        <div className="panel-head">
-          <p className="stage-kicker">Dataset</p>
-          <button type="button" className="ghost-info" onClick={onInfo} aria-label="Dataset files">
-            i
-          </button>
-        </div>
-        <div className="dataset-layout">
-          <dl className="attr-list">
-            <div>
-              <dt>Family</dt>
-              <dd>{humanFamily(question.family)}</dd>
-            </div>
-            {params.expression != null ? (
-              <div>
-                <dt>Target expression</dt>
-                <dd className="mono">{String(params.expression)}</dd>
-              </div>
-            ) : null}
-            {params.input_dim != null ? (
-              <div>
-                <dt>Input dim</dt>
-                <dd>{String(params.input_dim)}</dd>
-              </div>
-            ) : null}
-            {params.domain != null ? (
-              <div>
-                <dt>Domain</dt>
-                <dd className="mono">{formatParam(params.domain)}</dd>
-              </div>
-            ) : null}
-            {params.vocab_size != null ? (
-              <div>
-                <dt>Vocab size</dt>
-                <dd>{String(params.vocab_size)}</dd>
-              </div>
-            ) : null}
-            {params.context_length != null ? (
-              <div>
-                <dt>Context length</dt>
-                <dd>{String(params.context_length)}</dd>
-              </div>
-            ) : null}
-            {params.train_size != null ? (
-              <div>
-                <dt>Train / test size</dt>
-                <dd>
-                  {String(params.train_size)} / {String(params.test_size ?? "—")}
-                </dd>
-              </div>
-            ) : null}
-            {params.noise != null ? (
-              <div>
-                <dt>Noise</dt>
-                <dd className="mono">{formatParam(params.noise)}</dd>
-              </div>
-            ) : null}
-            {question.detail.dataset.example ? (
-              <div>
-                <dt>Example</dt>
-                <dd className="mono example-io">
-                  <div>
-                    <span className="io-label">in</span>{" "}
-                    {formatParam(question.detail.dataset.example.input)}
-                  </div>
-                  <div>
-                    <span className="io-label">out</span>{" "}
-                    {formatParam(question.detail.dataset.example.output)}
-                  </div>
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-          <DatasetVisual question={question} />
-        </div>
-      </div>
-      <div className="stage-footer">
-        <button type="button" className="cta" onClick={onSeeChoices}>
-          See choices →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ChoicesStage({
-  question,
-  onPick,
-  onInfo
-}: {
-  question: BakedQuestion;
-  onPick: (letter: string) => void;
-  onInfo: (letter: string) => void;
-}) {
-  return (
-    <div className="stage-inner">
-      <p className="stage-kicker">Choices</p>
-      <p className="hint">Tap a card to lock that answer. Emphasized rows differ across choices.</p>
-      <div className="choice-grid">
-        {question.detail.choices.map((choice) => (
-          <ChoiceCard
-            key={choice.letter}
-            choice={choice}
-            fields={fieldsForChoice(question, choice)}
-            interactive
-            onPick={() => onPick(choice.letter)}
-            onInfo={() => onInfo(choice.letter)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnswerStage({
-  question,
-  selected,
-  feedback,
-  onFeedbackChange,
-  onSubmitFeedback,
-  onNext,
-  onInfo,
-  onDatasetInfo
-}: {
-  question: BakedQuestion;
-  selected: string | null;
-  feedback: FeedbackDraft;
-  onFeedbackChange: (
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) => void;
-  onSubmitFeedback: () => void;
-  onNext: () => void;
-  onInfo: (letter: string) => void;
-  onDatasetInfo: () => void;
-}) {
-  const correct = question.reveal.correctLetter;
-  const pickedOk = selected === correct;
-  const byLetter = Object.fromEntries(question.reveal.ranked.map((row) => [row.letter, row]));
-
-  return (
-    <div className="stage-inner">
-      <div className="panel-head">
-        <p className="stage-kicker">Answer</p>
-        <button type="button" className="ghost-info" onClick={onDatasetInfo} aria-label="Dataset files">
-          i
-        </button>
-      </div>
-      <p className={`verdict ${pickedOk ? "ok" : "bad"}`}>
-        {selected
-          ? pickedOk
-            ? `Correct — ${correct} is best on ${humanMetric(question.metric)}.`
-            : `You picked ${selected}. Correct is ${correct}.`
-          : `Correct choice: ${correct}.`}
-      </p>
-      <div className="choice-grid">
-        {question.detail.choices.map((choice) => {
-          const row = byLetter[choice.letter];
-          return (
-            <ChoiceCard
-              key={choice.letter}
-              choice={choice}
-              fields={fieldsForChoice(question, choice)}
-              interactive={false}
-              correct={choice.letter === correct}
-              wrongPick={Boolean(selected && choice.letter === selected && choice.letter !== correct)}
-              metricText={
-                row ? formatMetric(row.mean, row.std, row.metric) : "unavailable"
-              }
-              onInfo={() => onInfo(choice.letter)}
-            />
-          );
-        })}
-      </div>
-      <CurvesPlot question={question} />
-      <AuditFeedbackPanel feedback={feedback} onChange={onFeedbackChange} onSubmit={onSubmitFeedback} />
-      <div className="stage-footer">
-        <p className="hint">Continue when you are ready.</p>
-        <button type="button" className="cta" onClick={onNext}>
-          Next question →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AuditFeedbackPanel({
-  feedback,
-  onChange,
-  onSubmit
-}: {
-  feedback: FeedbackDraft;
-  onChange: (
-    patch: Partial<Pick<FeedbackDraft, "confidence" | "decision" | "comment">>
-  ) => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <section className="audit-feedback panel" aria-label="Question audit feedback">
-      <div className="panel-head">
-        <div>
-          <p className="stage-kicker">Audit feedback</p>
-          <p className="hint">How confident are you, and should this question stay in the collection?</p>
-        </div>
-        {feedback.submitted ? <span className="feedback-saved">Saved</span> : null}
-      </div>
-      <div className="feedback-group">
-        <span className="feedback-label">Confidence</span>
-        <div className="feedback-options" role="group" aria-label="Confidence from 1 to 5">
-          {([1, 2, 3, 4, 5] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={feedback.confidence === value ? "selected" : ""}
-              aria-pressed={feedback.confidence === value}
-              disabled={feedback.submitted}
-              onClick={() => onChange({ confidence: value })}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="feedback-group">
-        <span className="feedback-label">Quality decision</span>
-        <div className="feedback-options disposition-options" role="group" aria-label="Question quality">
-          {(["keep", "revise", "reject"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={`${value}${feedback.decision === value ? " selected" : ""}`}
-              aria-pressed={feedback.decision === value}
-              disabled={feedback.submitted}
-              onClick={() => onChange({ decision: value })}
-            >
-              {value[0].toUpperCase() + value.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <label className="feedback-comment">
-        <span className="feedback-label">Comment</span>
-        <textarea
-          value={feedback.comment}
-          disabled={feedback.submitted}
-          maxLength={2000}
-          rows={3}
-          placeholder="What should be clarified or changed?"
-          onChange={(event) => onChange({ comment: event.target.value })}
-        />
-      </label>
-      <button
-        type="button"
-        className="feedback-save"
-        disabled={feedback.submitted || feedback.confidence === null || feedback.decision === null}
-        onClick={onSubmit}
-      >
-        Save feedback
-      </button>
-    </section>
-  );
-}
-
-function ChoiceCard({
-  choice,
-  fields,
-  interactive,
-  onPick,
-  onInfo,
-  correct,
-  wrongPick,
-  metricText
-}: {
-  choice: Choice;
-  fields: CardField[];
-  interactive: boolean;
-  onPick?: () => void;
-  onInfo: () => void;
-  correct?: boolean;
-  wrongPick?: boolean;
-  metricText?: string;
-}) {
-  const className = [
-    "choice-card",
-    correct ? "correct" : "",
-    wrongPick ? "wrong" : ""
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <div
-      className={className}
-      style={{ "--choice": choice.color } as React.CSSProperties}
-      role={interactive ? "button" : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      onClick={interactive ? onPick : undefined}
-      onKeyDown={
-        interactive
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onPick?.();
-              }
-            }
-          : undefined
-      }
-    >
-      <button
-        type="button"
-        className="ghost-info on-card"
-        aria-label={`Files for choice ${choice.letter}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onInfo();
-        }}
-      >
-        i
-      </button>
-      <span className="choice-letter">{choice.letter}</span>
-      {metricText ? <div className="choice-metric">{metricText}</div> : null}
-      <div className="choice-fields">
-        {fields.map((field) => (
-          <div key={field.label} className={field.varying ? "field vary" : "field same"}>
-            <span>{titleCase(field.label)}</span>
-            <strong>{formatFieldValue(field.label, field.value)}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function fieldsForChoice(question: BakedQuestion, choice: Choice): CardField[] {
-  const shared = question.detail.shared.map((field) => ({ ...field, varying: false }));
-  const variant = choice.variant.map((field) => ({ ...field, varying: true }));
-  const parameterLabel = "trainable parameter count";
-  const hasParameterField = [...shared, ...variant].some(
-    (field) => field.label.toLowerCase().replace(/_/g, " ") === parameterLabel
-  );
-  if (!hasParameterField) {
-    const parameterValues = question.detail.choices.map((item) => trainableParameterCount(item));
-    const parameterValue = trainableParameterCount(choice);
-    const allEqual = parameterValues.every((value) => value === parameterValues[0]);
-    const field = { label: parameterLabel, value: parameterValue, varying: !allEqual };
-    if (allEqual) {
-      shared.push(field);
-    } else {
-      variant.push(field);
-    }
-  }
-  // Keep a stable key order: shared keys first (as baked), then varying keys.
-  const seen = new Set(shared.map((field) => field.label));
-  const extra = variant.filter((field) => !seen.has(field.label));
-  return [...shared, ...extra];
-}
-
-function trainableParameterCount(choice: Choice): string {
-  const raw = choice.files?.["candidate_spec.json"];
-  const spec =
-    raw && typeof raw === "object" && !Array.isArray(raw)
-      ? (raw as Record<string, unknown>)
-      : typeof raw === "string"
-        ? parseCandidateSpec(raw)
-        : null;
-  const count = spec?.trainable_parameter_count;
-  return count == null || count === "" ? "—" : String(count);
-}
-
-function parseCandidateSpec(raw: string): Record<string, unknown> | null {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 function InfoModal({
   question,
@@ -967,556 +1108,6 @@ function InfoModal({
       </div>
     </div>
   );
-}
-
-function DatasetVisual({ question }: { question: BakedQuestion }) {
-  const plot = question.detail.dataset.plot;
-  if (!plot || plot.kind === "none") {
-    return null;
-  }
-  if (plot.kind === "classification") {
-    return <ClassificationPlot plot={plot} />;
-  }
-  if (plot.kind === "heatmap" && plot.matrix) {
-    return (
-      <Heatmap
-        matrix={plot.matrix}
-        xLabel={plot.xLabel ?? "next token"}
-        yLabel={plot.yLabel ?? "current token"}
-        legend={plot.legend ?? "probability"}
-        min={plot.min}
-        max={plot.max}
-      />
-    );
-  }
-  const params = question.detail.dataset.params ?? {};
-  const trainCount =
-    typeof params.train_size === "number" ? params.train_size : (plot.train?.length ?? 0);
-  const testCount =
-    typeof params.test_size === "number" ? params.test_size : (plot.test?.length ?? 0);
-  return (
-    <Scatter
-      train={plot.train ?? []}
-      test={plot.test ?? []}
-      trainCount={trainCount}
-      testCount={testCount}
-    />
-  );
-}
-
-function Scatter({
-  train,
-  test,
-  trainCount,
-  testCount
-}: {
-  train: Point[];
-  test: Point[];
-  trainCount: number;
-  testCount: number;
-}) {
-  const all = [...train, ...test];
-  if (!all.length) {
-    return null;
-  }
-  const width = 560;
-  const height = 260;
-  const plot = { x: 48, y: 18, width: 480, height: 190 };
-  const domain = pointDomain(all);
-  const xTicks = makeTicks(domain.xMin, domain.xMax, 6);
-  const yTicks = makeTicks(domain.yMin, domain.yMax, 5);
-  const pos = (point: Point) => ({
-    x: plot.x + ((point.x - domain.xMin) / (domain.xMax - domain.xMin || 1)) * plot.width,
-    y: plot.y + plot.height - ((point.y - domain.yMin) / (domain.yMax - domain.yMin || 1)) * plot.height
-  });
-  return (
-    <div className="viz">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Dataset scatter">
-        <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="#1a1d24" />
-        {xTicks.map((tick) => {
-          const x = plot.x + ((tick - domain.xMin) / (domain.xMax - domain.xMin || 1)) * plot.width;
-          return (
-            <g key={`x-${tick}`}>
-              <line x1={x} x2={x} y1={plot.y} y2={plot.y + plot.height} stroke="#2a2e38" />
-              <text x={x} y={plot.y + plot.height + 22} textAnchor="middle" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
-              </text>
-            </g>
-          );
-        })}
-        {yTicks.map((tick) => {
-          const y =
-            plot.y + plot.height - ((tick - domain.yMin) / (domain.yMax - domain.yMin || 1)) * plot.height;
-          return (
-            <g key={`y-${tick}`}>
-              <line x1={plot.x} x2={plot.x + plot.width} y1={y} y2={y} stroke="#2a2e38" />
-              <text x={plot.x - 10} y={y + 4} textAnchor="end" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
-              </text>
-            </g>
-          );
-        })}
-        <text x={plot.x} y={height - 8} fill="#8b919f" fontSize="12">
-          x · train {trainCount} · test {testCount}
-        </text>
-        <text
-          x={18}
-          y={plot.y + plot.height / 2}
-          fill="#8b919f"
-          fontSize="12"
-          transform={`rotate(-90 18 ${plot.y + plot.height / 2})`}
-        >
-          y
-        </text>
-        {train.map((point, i) => {
-          const p = pos(point);
-          return <circle key={`tr-${i}`} cx={p.x} cy={p.y} r="3.2" fill="#8b7cff" opacity="0.85" />;
-        })}
-        {test.map((point, i) => {
-          const p = pos(point);
-          return <circle key={`te-${i}`} cx={p.x} cy={p.y} r="3.2" fill="#3dcf9a" opacity="0.85" />;
-        })}
-      </svg>
-    </div>
-  );
-}
-
-function ClassificationPlot({
-  plot
-}: {
-  plot: NonNullable<BakedQuestion["detail"]["dataset"]["plot"]>;
-}) {
-  const train = (plot.train ?? []) as Array<Point & { label?: number }>;
-  const test = (plot.test ?? []) as Array<Point & { label?: number }>;
-  const all = [...train, ...test].filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
-  if (!all.length) {
-    return <p className="hint">Classification projection unavailable for this dataset.</p>;
-  }
-  const fallback = pointDomain(all);
-  const xEdges = plot.xEdges && plot.xEdges.length > 1 ? plot.xEdges : [fallback.xMin, fallback.xMax];
-  const yEdges = plot.yEdges && plot.yEdges.length > 1 ? plot.yEdges : [fallback.yMin, fallback.yMax];
-  const xMin = xEdges[0];
-  const xMax = xEdges[xEdges.length - 1];
-  const yMin = yEdges[0];
-  const yMax = yEdges[yEdges.length - 1];
-  const width = 560;
-  const height = 310;
-  const chart = { x: 52, y: 18, width: 470, height: 230 };
-  const mapX = (value: number) => chart.x + ((value - xMin) / (xMax - xMin || 1)) * chart.width;
-  const mapY = (value: number) => chart.y + chart.height - ((value - yMin) / (yMax - yMin || 1)) * chart.height;
-  const xTicks = makeTicks(xMin, xMax, 5);
-  const yTicks = makeTicks(yMin, yMax, 5);
-  const probability = plot.probability ?? [];
-  const observedLabels = Array.from(
-    new Set(
-      [...train, ...test]
-        .map((point) => point.label)
-        .filter((label): label is number => label != null && Number.isFinite(label))
-    )
-  ).sort((a, b) => a - b);
-  const legendLabels = observedLabels.length ? observedLabels : [0, 1];
-  const classPalette = ["#2563eb", "#dc2626", "#15803d", "#7e22ce", "#c2410c", "#0f766e"];
-  const classColor = (label: number | undefined) => {
-    if (label === 0) return classPalette[0];
-    if (label === 1) return classPalette[1];
-    const index = legendLabels.indexOf(label ?? legendLabels[0]);
-    return classPalette[(index < 0 ? 0 : index) % classPalette.length];
-  };
-  const probabilityFill = (value: number) => {
-    const bounded = Math.min(1, Math.max(0, value));
-    if (bounded === 0.5) return "rgba(148,163,184,0.12)";
-    const alpha = 0.1 + Math.min(0.72, Math.abs(bounded - 0.5) * 1.44);
-    return bounded < 0.5
-      ? `rgba(37,99,235,${alpha})`
-      : `rgba(220,38,38,${alpha})`;
-  };
-  const trainPoints = train.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
-  const testPoints = test.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
-  const legendY = height - 8;
-  const markerLegendX = chart.x + 8 + legendLabels.length * 100 + 8;
-  return (
-    <div className="viz">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Synthetic classification projection: background empirical P(class 1); filled train points; cross test points"
-      >
-        <rect x={chart.x} y={chart.y} width={chart.width} height={chart.height} fill="#1a1d24" />
-        {probability.map((row, x) => row.map((value, y) => {
-          const x0 = xEdges[x];
-          const x1 = xEdges[x + 1];
-          const y0 = yEdges[y];
-          const y1 = yEdges[y + 1];
-          if (
-            !Number.isFinite(value) ||
-            x0 == null || x1 == null || y0 == null || y1 == null ||
-            !Number.isFinite(x0) || !Number.isFinite(x1) ||
-            !Number.isFinite(y0) || !Number.isFinite(y1)
-          ) {
-            return null;
-          }
-          return (
-            <rect key={`prob-${x}-${y}`} x={mapX(x0)} y={mapY(y1)}
-              width={Math.max(0, mapX(x1) - mapX(x0))}
-              height={Math.max(0, mapY(y0) - mapY(y1))}
-              fill={probabilityFill(value)} />
-          );
-        }))}
-        {xTicks.map((tick) => <g key={`x-${tick}`}><line x1={mapX(tick)} x2={mapX(tick)} y1={chart.y} y2={chart.y + chart.height} stroke="#2a2e38" /><text x={mapX(tick)} y={chart.y + chart.height + 18} textAnchor="middle" fill="#8b919f" fontSize="10">{formatTick(tick)}</text></g>)}
-        {yTicks.map((tick) => <g key={`y-${tick}`}><line x1={chart.x} x2={chart.x + chart.width} y1={mapY(tick)} y2={mapY(tick)} stroke="#2a2e38" /><text x={chart.x - 8} y={mapY(tick) + 3} textAnchor="end" fill="#8b919f" fontSize="10">{formatTick(tick)}</text></g>)}
-        {trainPoints.map((point, i) => <circle key={`train-${i}`} cx={mapX(point.x)} cy={mapY(point.y)} r="3.1" fill={classColor(point.label)} opacity="0.7" />)}
-        {testPoints.map((point, i) => {
-          const x = mapX(point.x);
-          const y = mapY(point.y);
-          return <g key={`test-${i}`} stroke={classColor(point.label)} strokeWidth="1.7" strokeLinecap="round" opacity="0.95">
-            <line x1={x - 3.5} y1={y - 3.5} x2={x + 3.5} y2={y + 3.5} />
-            <line x1={x - 3.5} y1={y + 3.5} x2={x + 3.5} y2={y - 3.5} />
-          </g>;
-        })}
-        <text x={chart.x} y={chart.y - 6} fill="#c5c9d4" fontSize="10">background: blue = low P(class 1), red = high P(class 1)</text>
-        <text x={chart.x + chart.width} y={chart.y - 6} textAnchor="end" fill="#8b919f" fontSize="10">projection · {plot.selectionNote ?? "rule-aware feature pair"}</text>
-        <text x={chart.x + chart.width / 2} y={height - 25} textAnchor="middle" fill="#8b919f" fontSize="11">{plot.xLabel ?? "feature x"}</text>
-        <text x="14" y={chart.y + chart.height / 2} textAnchor="middle" fill="#8b919f" fontSize="11" transform={`rotate(-90 14 ${chart.y + chart.height / 2})`}>{plot.yLabel ?? "feature y"}</text>
-        {legendLabels.map((label, index) => {
-          const x = chart.x + 8 + index * 100;
-          return <g key={`legend-${label}`}><circle cx={x} cy={legendY} r="4" fill={classColor(label)} /><text x={x + 10} y={legendY + 4} fill="#c5c9d4" fontSize="10">{`class ${label}`}</text></g>;
-        })}
-        <circle cx={markerLegendX} cy={legendY} r="4" fill="#c5c9d4" />
-        <text x={markerLegendX + 10} y={legendY + 4} fill="#c5c9d4" fontSize="10">filled = train</text>
-        <g stroke="#c5c9d4" strokeWidth="1.5" strokeLinecap="round"><line x1={markerLegendX + 100} y1={legendY - 4} x2={markerLegendX + 108} y2={legendY + 4} /><line x1={markerLegendX + 100} y1={legendY + 4} x2={markerLegendX + 108} y2={legendY - 4} /></g>
-        <text x={markerLegendX + 114} y={legendY + 4} fill="#c5c9d4" fontSize="10">cross = test</text>
-      </svg>
-    </div>
-  );
-}
-
-function Heatmap({
-  matrix,
-  xLabel,
-  yLabel,
-  legend,
-  min,
-  max
-}: {
-  matrix: number[][];
-  xLabel: string;
-  yLabel: string;
-  legend: string;
-  min?: number;
-  max?: number;
-}) {
-  const rows = matrix.length;
-  const cols = matrix[0]?.length ?? 0;
-  if (!rows || !cols) {
-    return null;
-  }
-  const flat = matrix.flat().filter((value) => Number.isFinite(value));
-  const lo = min ?? Math.min(...flat, 0);
-  const hi = max ?? Math.max(...flat, 1);
-  const cell = rows > 24 ? 8 : 12;
-  const padL = 46;
-  const padT = 28;
-  const padR = 58;
-  const padB = 42;
-  const gridW = cols * cell;
-  const gridH = rows * cell;
-  const width = padL + gridW + padR;
-  const height = padT + gridH + padB;
-  const tickStep = Math.max(1, Math.floor(Math.max(rows, cols) / 4));
-  const norm = (value: number) => (hi === lo ? 0.5 : (value - lo) / (hi - lo));
-
-  return (
-    <div className="viz">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Transition matrix">
-        {matrix.map((row, y) =>
-          row.map((value, x) => {
-            const t = Math.min(1, Math.max(0, norm(value)));
-            return (
-              <rect
-                key={`${x}-${y}`}
-                x={padL + x * cell}
-                y={padT + y * cell}
-                width={cell - 0.6}
-                height={cell - 0.6}
-                fill={`rgba(139,124,255,${0.08 + t * 0.92})`}
-              />
-            );
-          })
-        )}
-        {Array.from({ length: Math.floor((cols - 1) / tickStep) + 1 }, (_, i) => i * tickStep).map(
-          (tick) => (
-            <text
-              key={`xt-${tick}`}
-              x={padL + tick * cell + cell / 2}
-              y={padT + gridH + 16}
-              textAnchor="middle"
-              fill="#8b919f"
-              fontSize="10"
-            >
-              {tick}
-            </text>
-          )
-        )}
-        {Array.from({ length: Math.floor((rows - 1) / tickStep) + 1 }, (_, i) => i * tickStep).map(
-          (tick) => (
-            <text
-              key={`yt-${tick}`}
-              x={padL - 8}
-              y={padT + tick * cell + cell / 2 + 3}
-              textAnchor="end"
-              fill="#8b919f"
-              fontSize="10"
-            >
-              {tick}
-            </text>
-          )
-        )}
-        <text
-          x={padL + gridW / 2}
-          y={height - 8}
-          textAnchor="middle"
-          fill="#8b919f"
-          fontSize="11"
-        >
-          {xLabel}
-        </text>
-        <text
-          x={14}
-          y={padT + gridH / 2}
-          textAnchor="middle"
-          fill="#8b919f"
-          fontSize="11"
-          transform={`rotate(-90 14 ${padT + gridH / 2})`}
-        >
-          {yLabel}
-        </text>
-        {/* color legend */}
-        {Array.from({ length: 48 }, (_, i) => {
-          const t = i / 47;
-          return (
-            <rect
-              key={`leg-${i}`}
-              x={padL + gridW + 14}
-              y={padT + (1 - t) * gridH}
-              width={10}
-              height={gridH / 47 + 0.5}
-              fill={`rgba(139,124,255,${0.08 + t * 0.92})`}
-            />
-          );
-        })}
-        <text x={padL + gridW + 28} y={padT + 8} fill="#8b919f" fontSize="10">
-          {formatTick(hi)}
-        </text>
-        <text x={padL + gridW + 28} y={padT + gridH} fill="#8b919f" fontSize="10">
-          {formatTick(lo)}
-        </text>
-        <text
-          x={padL + gridW + 18}
-          y={padT - 10}
-          textAnchor="middle"
-          fill="#8b919f"
-          fontSize="10"
-        >
-          {legend}
-        </text>
-      </svg>
-    </div>
-  );
-}
-
-function CurvesPlot({ question }: { question: BakedQuestion }) {
-  const curves = question.reveal.curves;
-  const width = 920;
-  const height = 380;
-  const plot = { x: 72, y: 40, width: 780, height: 280 };
-  const allY = curves.flatMap((series) =>
-    series.mean.filter((value): value is number => Number.isFinite(value))
-  );
-  const allX = curves.flatMap((series) => series.samples);
-  if (!curves.length || !allY.length || !allX.length) {
-    return <p className="hint">Learning curves unavailable for this question.</p>;
-  }
-  const xMin = Math.min(...allX);
-  const xMax = Math.max(...allX);
-  const yMin = Math.min(...allY);
-  const yMax = Math.max(...allY);
-  const yPad = Math.max((yMax - yMin) * 0.12, 1e-6);
-  const yLo = yMin - yPad;
-  const yHi = yMax + yPad;
-  const xTicks = makeTicks(xMin, xMax, 6);
-  const yTicks = makeTicks(yLo, yHi, 5);
-  const colorFor = (letter: string) =>
-    question.detail.choices.find((choice) => choice.letter === letter)?.color ?? "#ccc";
-  const mapX = (x: number) => plot.x + ((x - xMin) / (xMax - xMin || 1)) * plot.width;
-  const mapY = (y: number) => plot.y + plot.height - ((y - yLo) / (yHi - yLo || 1)) * plot.height;
-  const metric = humanMetric(question.metric);
-
-  return (
-    <div className="viz">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Ground-truth learning curves">
-        <rect x={plot.x} y={plot.y} width={plot.width} height={plot.height} fill="#1a1d24" />
-        {xTicks.map((tick) => {
-          const x = mapX(tick);
-          return (
-            <g key={`cx-${tick}`}>
-              <line x1={x} x2={x} y1={plot.y} y2={plot.y + plot.height} stroke="#2a2e38" />
-              <text x={x} y={plot.y + plot.height + 22} textAnchor="middle" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
-              </text>
-            </g>
-          );
-        })}
-        {yTicks.map((tick) => {
-          const y = mapY(tick);
-          return (
-            <g key={`cy-${tick}`}>
-              <line x1={plot.x} x2={plot.x + plot.width} y1={y} y2={y} stroke="#2a2e38" />
-              <text x={plot.x - 10} y={y + 4} textAnchor="end" fill="#8b919f" fontSize="11">
-                {formatTick(tick)}
-              </text>
-            </g>
-          );
-        })}
-        <text x={plot.x + plot.width / 2} y={height - 8} textAnchor="middle" fill="#8b919f" fontSize="12">
-          samples seen
-        </text>
-        <text
-          x={18}
-          y={plot.y + plot.height / 2}
-          fill="#8b919f"
-          fontSize="12"
-          transform={`rotate(-90 18 ${plot.y + plot.height / 2})`}
-        >
-          {metric}
-        </text>
-        {curves.map((series) => {
-          const coords = series.samples
-            .map((sample, i) => ({ sample, value: series.mean[i] }))
-            .filter((point) => Number.isFinite(point.value));
-          if (!coords.length) {
-            return null;
-          }
-          const path = coords
-            .map((point, i) => `${i === 0 ? "M" : "L"} ${mapX(point.sample)} ${mapY(point.value)}`)
-            .join(" ");
-          return (
-            <path
-              key={series.letter}
-              d={path}
-              fill="none"
-              stroke={colorFor(series.letter)}
-              strokeWidth="2.75"
-            />
-          );
-        })}
-        {question.detail.choices.map((choice, i) => (
-          <g key={choice.letter} transform={`translate(${80 + i * 72} 24)`}>
-            <circle cx="0" cy="0" r="5" fill={choice.color} />
-            <text x="10" y="4" fill="#c5c9d4" fontSize="13" fontWeight="700">
-              {choice.letter}
-            </text>
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-}
-
-function formatNumber(value: number, digits = 2): string {
-  if (!Number.isFinite(value)) return "—";
-  const abs = Math.abs(value);
-  if (abs !== 0 && abs < 10 ** -digits) {
-    return value.toExponential(Math.max(0, digits - 1)).replace(/\.?0+e/, "e");
-  }
-  return value.toFixed(digits).replace(/\.?0+$/, "");
-}
-
-function formatParam(value: unknown): string {
-  if (value == null) return "—";
-  if (typeof value === "number") return formatNumber(value);
-  if (typeof value === "boolean" || typeof value === "string") return String(value);
-  if (Array.isArray(value)) return `[${value.map(formatParam).join(", ")}]`;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function formatFieldValue(label: string, value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === "—") return value;
-  const numeric = Number(trimmed);
-  if (!Number.isFinite(numeric) || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(trimmed)) {
-    return value;
-  }
-  const lower = label.toLowerCase();
-  if (Number.isInteger(numeric) || /count|steps|samples|size|width|depth|layers|heads|grid|order/.test(lower)) {
-    return Number.isInteger(numeric) ? numeric.toLocaleString() : formatNumber(numeric);
-  }
-  return formatNumber(numeric);
-}
-
-function humanFamily(family?: string) {
-  if (!family) return "Dataset";
-  return family.replace(/_/g, " ");
-}
-
-function humanMetric(metric?: string) {
-  if (!metric) return "selection metric";
-  if (metric === "test_mse") return "test MSE";
-  if (metric === "test_ce") return "test cross-entropy";
-  return metric.replace(/_/g, " ");
-}
-
-function humanMetricByFamily(family?: string, metric?: string) {
-  if (metric) return humanMetric(metric);
-  if (family === "bigram_lm") return "test CE";
-  return "test MSE";
-}
-
-function humanType(type?: string) {
-  if (!type) return "mixed";
-  return type.replace(/_/g, " ");
-}
-
-function titleCase(text: string) {
-  return text.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatMetric(mean: number | null, std: number | null, metric: string) {
-  if (mean == null || !Number.isFinite(mean)) {
-    return "unavailable";
-  }
-  const unit = humanMetric(metric);
-  if (std == null || !Number.isFinite(std)) {
-    return `${formatNumber(mean)} (${unit})`;
-  }
-  return `${formatNumber(mean)} ± ${formatNumber(std)}`;
-}
-
-function pointDomain(points: Point[]) {
-  const xs = points.map((p) => p.x).filter(Number.isFinite);
-  const ys = points.map((p) => p.y).filter(Number.isFinite);
-  const xMin = Math.min(...xs, 0);
-  const xMax = Math.max(...xs, 1);
-  const yMin = Math.min(...ys, 0);
-  const yMax = Math.max(...ys, 1);
-  const xPad = Math.max((xMax - xMin) * 0.08, 0.1);
-  const yPad = Math.max((yMax - yMin) * 0.12, 0.1);
-  return { xMin: xMin - xPad, xMax: xMax + xPad, yMin: yMin - yPad, yMax: yMax + yPad };
-}
-
-function makeTicks(min: number, max: number, count: number) {
-  if (count <= 1) return [min];
-  return Array.from({ length: count }, (_, i) => min + ((max - min) * i) / (count - 1));
-}
-
-function formatTick(value: number) {
-  const abs = Math.abs(value);
-  if (abs >= 100 || abs === 0) return value.toFixed(0);
-  if (abs >= 10) return value.toFixed(1);
-  return value.toFixed(2).replace(/\.?0+$/, "");
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, Sequence
 
 from completion import ModelExchange, fetch_model_response
 from prompt_wrapper import format_eval_prompt
@@ -155,6 +155,21 @@ def _load_cached_result(cached: dict[str, Any]) -> QuestionResult:
     )
 
 
+def _result_path(root: Path, question_id: str) -> Path:
+    if root.name == "results":
+        return root / f"{question_id}.json"
+    return root / "results" / f"{question_id}.json"
+
+
+def _load_valid_cached_result(path: Path) -> QuestionResult | None:
+    if not path.is_file():
+        return None
+    cached = json.loads(path.read_text(encoding="utf-8"))
+    if cached.get("parsed_letter") is None:
+        return None
+    return _load_cached_result(cached)
+
+
 def _evaluate_one(
     item: QuestionItem,
     run_dir: Path,
@@ -168,6 +183,37 @@ def _evaluate_one(
     return result
 
 
+def _failed_result(item: QuestionItem, eval_prompt: str, error: Exception) -> QuestionResult:
+    return QuestionResult(
+        question_id=item.question_id,
+        prompt_hash=item.prompt_hash,
+        ground_truth_letter=item.correct_letter,
+        parsed_letter=None,
+        correct=False,
+        model_response=f"[evaluation error] {type(error).__name__}: {error}",
+        chain_of_thought=None,
+        question_type=str(item.question.get("type", "?")),
+        family=str(item.question.get("family", "?")),
+        eval_prompt=eval_prompt,
+    )
+
+
+def _evaluate_one_safe(
+    item: QuestionItem,
+    run_dir: Path,
+    model_config: Any,
+    client: LLMBackend,
+) -> QuestionResult:
+    eval_prompt = format_eval_prompt(item.prompt_text, item.valid_letters)
+    try:
+        exchange = fetch_model_response(client, eval_prompt, model_config, item.valid_letters)
+        result = evaluate_question(item, exchange, eval_prompt)
+    except Exception as error:
+        result = _failed_result(item, eval_prompt, error)
+    write_question_result(run_dir, result)
+    return result
+
+
 def run_evaluation(
     *,
     questions_root: Path,
@@ -177,6 +223,8 @@ def run_evaluation(
     limit: int | None = None,
     skip_existing: bool = False,
     workers: int = 4,
+    timeout_s: float | None = None,
+    reuse_results_from: Sequence[Path] = (),
 ) -> dict[str, Any]:
     items = list_questions(questions_root)
     if limit is not None:
@@ -188,20 +236,34 @@ def run_evaluation(
 
     for item in items:
         result_path = run_dir / "results" / f"{item.question_id}.json"
-        if skip_existing and result_path.is_file():
-            cached = json.loads(result_path.read_text(encoding="utf-8"))
-            results.append(_load_cached_result(cached))
+        cached_result = _load_valid_cached_result(result_path) if skip_existing else None
+        cached_path = result_path if cached_result is not None else None
+        if cached_result is None:
+            for source_root in reuse_results_from:
+                source_path = _result_path(source_root, item.question_id)
+                cached_result = _load_valid_cached_result(source_path)
+                if cached_result is not None:
+                    cached_path = source_path
+                    break
+        if cached_result is not None:
+            if cached_path != result_path:
+                result_path.parent.mkdir(parents=True, exist_ok=True)
+                result_path.write_text(
+                    json.dumps(cached_result.to_dict(), indent=2) + "\n",
+                    encoding="utf-8",
+                )
+            results.append(cached_result)
         else:
             pending.append(item)
 
     if pending:
         if workers <= 1:
             for item in pending:
-                results.append(_evaluate_one(item, run_dir, model_config, client))
+                results.append(_evaluate_one_safe(item, run_dir, model_config, client))
         else:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = [
-                    pool.submit(_evaluate_one, item, run_dir, model_config, client)
+                    pool.submit(_evaluate_one_safe, item, run_dir, model_config, client)
                     for item in pending
                 ]
                 for future in as_completed(futures):
@@ -216,5 +278,9 @@ def run_evaluation(
         "workers": workers,
         "summary": summary,
     }
+    if timeout_s is not None:
+        manifest["timeout_s"] = timeout_s
+    if reuse_results_from:
+        manifest["reuse_results_from"] = [str(path.resolve()) for path in reuse_results_from]
     (run_dir / "run.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest

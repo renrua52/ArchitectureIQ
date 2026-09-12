@@ -216,6 +216,7 @@ __marimo__/
 
 # Benchmark generated artifacts
 data/
+benchmarks/
 # Immutable benchmark question-pack payloads are intentionally tracked.
 # This exception does not alter the top-level data/ ignore rule.
 !benchmark_releases/
@@ -233,6 +234,7 @@ artifacts/order_parameter_analysis/
 artifacts/q_b24cf4_extended_training/
 artifacts/quiz_attempt_60/
 artifacts/ranking_questions/
+artifacts/v1_llm_bundle/
 
 # Finder metadata from imported templates
 templates/**/__MACOSX/
@@ -246,10 +248,16 @@ node_modules/
 pytest-*/
 .prepush-tmp/
 
-# Generated release/smoke outputs. Keep only the selected v2 release record.
-outputs/*
-!outputs/
-!outputs/demo_release_integration/
-outputs/demo_release_integration/*
-!outputs/demo_release_integration/DEMO_RELEASE_INTEGRATION_FINAL_REPORT.md
-!outputs/demo_release_integration/RELEASE_FREEZE_MANIFEST.json
+# Build outputs are never tracked; curated release records live in docs/release/.
+outputs/
+
+# Agent-tool uploads and local runtime scratch (untracked 2026-08 cleanup)
+.verdent/
+backend/
+lark-im-resources/
+
+# Generated eval/audit HTML reports (regenerable via tools/)
+artifacts/llm_eval_400_vs_1000_report.html
+artifacts/new_question_quality_audit_1000.html
+.env.local
+.env.*.local

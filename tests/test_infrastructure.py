@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
-import shutil
 from pathlib import Path
+
+import pytest
 
 import architecture_iq.manifest as manifest
 from architecture_iq.candidates.axes import choices_compatible
@@ -77,25 +78,24 @@ def test_write_json_round_trip_creates_parent_dirs(tmp_path: Path) -> None:
     assert read_json(target) == payload
 
 
-def test_start_quiz_materializes_bundled_demo(tmp_path: Path, monkeypatch) -> None:
-    repo = Path(__file__).resolve().parents[1]
-    demo_root = tmp_path / "demo"
-    question_relative = Path(_START_QUIZ.DEFAULT_RUN).relative_to("data")
-    shutil.copytree(
-        repo / _START_QUIZ.BUNDLED_DEMO_DATA / "datasets" / "univariate_regression"
-        / "sym_62678b" / "questions" / "run_20q_3c_b09206" / "q_79e34e",
-        demo_root / question_relative,
-    )
-    monkeypatch.setattr(_START_QUIZ, "BUNDLED_DEMO_DATA", "demo")
+def test_start_quiz_resolves_a_requested_question_run(tmp_path: Path) -> None:
+    requested = "data/datasets/fam/ds_abc/questions/run_1q_3c_abc123/q_abcdef"
+    (tmp_path / requested).mkdir(parents=True)
 
-    question_run, installed = _START_QUIZ.resolve_question_run(
-        tmp_path,
-        _START_QUIZ.DEFAULT_RUN,
-    )
+    assert _START_QUIZ.resolve_question_run(tmp_path, requested) == (
+        tmp_path / requested
+    ).resolve()
 
-    assert installed is True
-    assert (question_run / "question.json").is_file()
-    assert (tmp_path / "data" / "datasets").is_dir()
+
+def test_start_quiz_lets_the_inspector_pick_when_nothing_is_requested() -> None:
+    # No bundled demo exists to materialize: questions live only in gitignored
+    # data/, so an unspecified run means "open whatever is there".
+    assert _START_QUIZ.resolve_question_run(Path("/nonexistent"), None) is None
+
+
+def test_start_quiz_rejects_a_missing_question_run(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        _START_QUIZ.resolve_question_run(tmp_path, "data/datasets/gone/q_000000")
 
 
 def test_start_quiz_treats_keyboard_interrupt_as_clean_shutdown() -> None:

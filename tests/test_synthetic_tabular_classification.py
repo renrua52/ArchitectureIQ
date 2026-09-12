@@ -10,6 +10,7 @@ import torch
 from architecture_iq.candidates.generator import build_candidate_spec, write_candidate
 from architecture_iq.candidates.sets import sample_candidate_set_pool
 from architecture_iq.families import synthetic_tabular_classification as classification_module
+from architecture_iq.families.symbolic_expr import CONST_QUANTUM
 from architecture_iq.families.synthetic_tabular_classification import RULE_FAMILIES, balanced_rule_family_schedule
 from architecture_iq.ground_truth.runner import run_ground_truth
 from architecture_iq.profile import load_profile
@@ -40,6 +41,34 @@ def test_rule_family_schedule_is_balanced() -> None:
     assert Counter(schedule) == {name: 4 for name in RULE_FAMILIES}
     counts = Counter(balanced_rule_family_schedule(14, seed=7)).values()
     assert max(counts) - min(counts) <= 1
+
+
+def test_piecewise_active_features_match_renderer(small_profile, tmp_path: Path) -> None:
+    # B5: the piecewise renderer consumes exactly two active features, so a
+    # sampled instance must claim exactly two — no silent truncation — and
+    # each claimed feature must really influence the target.
+    ensure_registries()
+    family = get_dataset_family("synthetic_tabular_classification")
+    for seed in range(6):
+        partial = family.create_instance(
+            small_profile, seed, input_dim=8, rule_family="piecewise_boundary"
+        )
+        assert len(partial["params"]["active_features"]) == 2
+
+    partial = family.create_instance(small_profile, 0, input_dim=8, rule_family="piecewise_boundary")
+    spec = family.build_spec_with_id(partial)
+    out = tmp_path / "piecewise_0"
+    family.materialize({**partial, **spec}, out)
+    syn = load_synthesize_module(out / "synthesize.py")
+    data = torch.load(out / "train.pt", weights_only=True)
+    x = data["x"]
+    base = syn.target(x)
+    for feature in partial["params"]["active_features"]:
+        shifted = x.clone()
+        shifted[:, feature] = torch.roll(shifted[:, feature], shifts=1)
+        assert not torch.equal(base, syn.target(shifted)), (
+            f"claimed feature {feature} does not influence the target"
+        )
 
 
 def test_classification_default_training_setting() -> None:
@@ -125,7 +154,7 @@ def synthesize():
 
 def test_classification_candidate_executes_and_reports_auxiliary_accuracy(small_profile, tmp_path: Path) -> None:
     family, dataset_spec, dataset_path = _materialize(small_profile, tmp_path, seed=5, rule_family="sparse_interaction")
-    model = {"type": "mlp", "input_dim": 8, "output_dim": 2, "depth": 2, "width": 16, "residual": False, "layer_norm": [False, False], "activations": ["relu", "relu"]}
+    model = {"type": "mlp", "input_dim": 8, "output_dim": 2, "depth": 2, "width": 16, "residual": False, "layer_norm": [False, False], "activation": "relu"}
     candidate_spec = build_candidate_spec(
         small_profile, dataset_id=dataset_spec["dataset_id"], family="synthetic_tabular_classification", budget=128, batch_size=16,
         model=model, optimizer={"type": "Adam", "lr": 0.001, "weight_decay": 0.0, "betas": [0.9, 0.999]}, loss={"loss_id": "cross_entropy"},
@@ -136,53 +165,6 @@ def test_classification_candidate_executes_and_reports_auxiliary_accuracy(small_
     train_x, _, _, _ = family.load_tensors(dataset_path)
     assert train_module.Model()(train_x).shape == (1024, 2)
     summary = run_ground_truth(candidate_path, small_profile, dataset_path)
-    assert summary["execution"] == "candidate_py_files"
-    assert summary["selection_metric"] == "test_ce"
-    assert "mean_test_ce" in summary and "std_test_ce" in summary
-    assert "mean_test_accuracy" in summary and "std_test_accuracy" in summary
-    assert all("final_test_accuracy" in row for row in summary["seed_results"])
-
-
-def test_classification_kan_candidate_executes_and_reports_logits(tmp_path: Path) -> None:
-    profile = load_profile("v2.1")
-    profile.ground_truth["n_seeds"] = 2
-    family, dataset_spec, dataset_path = _materialize(
-        profile, tmp_path, seed=17, rule_family="sparse_interaction"
-    )
-    model = {
-        "type": "kan",
-        "input_dim": 8,
-        "output_dim": 2,
-        "depth": 1,
-        "width": 8,
-        "grid_size": 5,
-        "spline_order": 3,
-        "grid_range": [-1.0, 1.0],
-        "base_activation": "silu",
-    }
-    candidate_spec = build_candidate_spec(
-        profile,
-        dataset_id=dataset_spec["dataset_id"],
-        family="synthetic_tabular_classification",
-        budget=128,
-        batch_size=16,
-        model=model,
-        optimizer={
-            "type": "Adam",
-            "lr": 0.001,
-            "weight_decay": 0.0,
-            "betas": [0.9, 0.999],
-        },
-        loss={"loss_id": "cross_entropy"},
-    )
-    candidate_path = tmp_path / "kan_candidate"
-    write_candidate(candidate_spec, candidate_path, get_model_type("kan"))
-    train_module = load_candidate_train(candidate_path)
-    train_x, _, _, _ = family.load_tensors(dataset_path)
-    logits = train_module.Model()(train_x)
-    assert logits.shape == (1024, 2)
-
-    summary = run_ground_truth(candidate_path, profile, dataset_path)
     assert summary["execution"] == "candidate_py_files"
     assert summary["selection_metric"] == "test_ce"
     assert "mean_test_ce" in summary and "std_test_ce" in summary
@@ -205,7 +187,7 @@ def test_xor_pilot_profile_contract() -> None:
     assert cfg["target_positive_rate"] == 0.5
     ensure_registries()
     family = get_dataset_family("synthetic_tabular_classification")
-    assert profile.model_types_for_family(family.name, family.compatible_model_types()) == ["mlp", "kan"]
+    assert profile.model_types_for_family(family.name, family.compatible_model_types()) == ["mlp"]
 
     for name in ("v2", "v2.1", "v2.2"):
         legacy = load_profile(name)
@@ -255,10 +237,10 @@ def test_xor_rendered_target_has_negative_product_semantics(tmp_path: Path) -> N
     assert torch.equal(target(points), torch.tensor([-1.0, 1.0, 1.0, -1.0]))
 
 
-def test_xor_pilot_mlp_and_kan_forward() -> None:
+def test_xor_pilot_mlp_forward() -> None:
     profile = load_profile("v2.3-xor-pilot")
     ensure_registries()
-    for model_type in ("mlp", "kan"):
+    for model_type in ("mlp",):
         model_family = get_model_type(model_type)
         model = model_family.sample_spec(profile, random.Random(3), dataset_params={"input_dim": 2, "num_classes": 2})
         assert model["input_dim"] == 2 and model["output_dim"] == 2
@@ -274,7 +256,7 @@ def test_xor_pilot_candidate_ground_truth_smoke(tmp_path: Path) -> None:
     dataset_spec = family.build_spec_with_id(partial)
     dataset_path = tmp_path / "xor_dataset"
     family.materialize({**partial, **dataset_spec}, dataset_path)
-    model = {"type": "mlp", "input_dim": 2, "output_dim": 2, "depth": 1, "width": 16, "residual": False, "layer_norm": [False], "activations": ["relu"]}
+    model = {"type": "mlp", "input_dim": 2, "output_dim": 2, "depth": 1, "width": 16, "residual": False, "layer_norm": [False], "activation": "relu"}
     candidate_spec = build_candidate_spec(profile, dataset_id=dataset_spec["dataset_id"], family="synthetic_tabular_classification", budget=128, batch_size=16, model=model, optimizer={"type": "Adam", "lr": 0.001, "weight_decay": 0.0, "betas": [0.9, 0.999]}, loss={"loss_id": "cross_entropy"})
     candidate_path = tmp_path / "xor_candidate"
     write_candidate(candidate_spec, candidate_path, get_model_type("mlp"))
@@ -283,3 +265,75 @@ def test_xor_pilot_candidate_ground_truth_smoke(tmp_path: Path) -> None:
     assert summary["selection_metric"] == "test_ce"
     assert len(summary["seed_results"]) == 1
     assert torch.isfinite(torch.tensor(float(summary["mean_test_ce"])))
+
+
+def _clean(value: float) -> bool:
+    """True when ``value`` sits exactly on the eighths grid the prompt shows."""
+    steps = float(value) / CONST_QUANTUM
+    return abs(steps - round(steps)) < 1e-9
+
+
+@pytest.mark.parametrize(
+    ("family_name", "rule_family"),
+    [
+        ("synthetic_tabular_classification", "smooth_additive"),
+        ("synthetic_tabular_classification", "sparse_interaction"),
+        ("synthetic_tabular_classification", "piecewise_boundary"),
+        ("xor_classification", "xor"),
+    ],
+)
+def test_classification_constants_stay_on_the_clean_grid(
+    family_name: str, rule_family: str
+) -> None:
+    """Nothing the rule card prints is a six-digit artefact of an rng.uniform draw.
+
+    Weights, the piecewise breakpoint and the calibrated cut-off all have to be
+    readable numbers, because the prompt states the label rule literally and a
+    solver has to reason about it. 24 seeds is enough to hit every grid entry
+    for the narrower pools.
+    """
+    ensure_registries()
+    profile = load_profile("v1.4")
+    family = get_dataset_family(family_name)
+    for seed in range(24):
+        params = family.create_instance(profile, seed, rule_family=rule_family)["params"]
+        for weight in params["rule_weights"]:
+            assert _clean(weight), (rule_family, seed, weight)
+        assert _clean(params["piecewise_breakpoint"]), (rule_family, seed)
+        assert _clean(params["decision_threshold"]), (rule_family, seed)
+        # The snapped cut-off has to stay near the median it approximates,
+        # otherwise the bucket quietly becomes a majority-class problem.
+        assert 0.4 <= params["calibration"]["realized_positive_rate"] <= 0.6
+
+
+def test_piecewise_branches_bend_the_boundary() -> None:
+    """The two branch slopes must differ in sign, not merely in magnitude.
+
+    Drawn independently they once came out at -1.52998 and -1.37105: a 10%
+    change in one coefficient, which a linear model fits about as well as the
+    true rule and leaves the bucket measuring nothing.
+    """
+    ensure_registries()
+    profile = load_profile("v1.4")
+    family = get_dataset_family("synthetic_tabular_classification")
+    for seed in range(24):
+        params = family.create_instance(
+            profile, seed, rule_family="piecewise_boundary"
+        )["params"]
+        below, above, _offset = params["rule_weights"]
+        assert below * above < 0, (seed, below, above)
+
+
+def test_xor_threshold_is_exactly_zero() -> None:
+    """XOR's cut-off lands on 0, so the quadrant rule *is* the label rule.
+
+    -x_l*x_r is sign-symmetric under standard normal features, so its median is
+    0 up to calibration sampling error; snapping removes that error rather than
+    printing it.
+    """
+    ensure_registries()
+    profile = load_profile("v1.4")
+    family = get_dataset_family("xor_classification")
+    for seed in range(12):
+        params = family.create_instance(profile, seed)["params"]
+        assert params["decision_threshold"] == 0.0, seed

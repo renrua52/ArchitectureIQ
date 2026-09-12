@@ -670,3 +670,505 @@ a {
   font-size: 0.78rem;
   font-family: var(--mono);
 }
+
+.model-traj {
+  margin: 1.1rem 0 0;
+}
+
+.model-traj .panel-head {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.model-traj-select {
+  flex-shrink: 0;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line, #333);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  max-width: 46%;
+}
+
+.model-traj-text {
+  margin: 0.6rem 0 0;
+  max-height: 380px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+/* ---- auth gate ---- */
+
+.home-auth {
+  margin: 0.9rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  max-width: 26rem;
+  text-align: center;
+}
+
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.auth-modal {
+  width: min(440px, 100%);
+}
+
+.auth-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.auth-field input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-soft);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  outline: none;
+}
+
+.auth-field input:focus {
+  border-color: var(--accent, #7aa2ff);
+}
+
+.auth-error {
+  margin: 0;
+  color: #ff8a8a;
+  font-size: 0.8rem;
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ---- replay ---- */
+
+.replay-panel {
+  width: min(1080px, 100%);
+}
+
+.replay-meta {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.replay-body {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 0.8rem;
+}
+
+.replay-viewport {
+  position: relative;
+  height: min(62vh, 620px);
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--bg-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* The replica renders at the recorded viewport size (1px = 1px with the
+   recording) and is scaled to fit this box. transform-origin top left keeps
+   permille->px cursor math exact. */
+.replay-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  overflow: hidden;
+  background: var(--bg);
+  will-change: transform;
+}
+
+.replay-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/* The replica must keep the desktop layout regardless of the viewer's
+   window size — media queries respond to the real viewport, not the stage. */
+.replay-stage .topnav {
+  grid-template-columns: auto 1fr auto;
+}
+
+.replay-stage .dataset-layout {
+  grid-template-columns: minmax(260px, 1fr) minmax(240px, 0.95fr);
+}
+
+.replay-stage .attr-list > div {
+  grid-template-columns: 8.5rem 1fr;
+  gap: 1rem;
+}
+
+.replay-empty {
+  color: var(--muted);
+  padding: 2rem 1rem;
+}
+
+.replay-cursor {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: rgba(255, 92, 92, 0.85);
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(255, 92, 92, 0.8);
+  pointer-events: none;
+  z-index: 30;
+}
+
+.replay-ripple {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 214, 90, 0.9);
+  animation: replay-ripple 0.7s ease-out forwards;
+  pointer-events: none;
+  z-index: 29;
+}
+
+@keyframes replay-ripple {
+  from {
+    transform: scale(0.25);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.replay-away {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 10, 14, 0.82);
+  color: #ffb4b4;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  z-index: 25;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.replay-away.warn-tab {
+  color: #ff9d9d;
+}
+
+.replay-away.warn-focus {
+  color: #ffd479;
+}
+
+.replay-away.warn-pointer {
+  color: #9ecbff;
+}
+
+.replay-scrollhint {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  z-index: 26;
+}
+
+.replay-log {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.replay-log-list {
+  overflow: auto;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  max-height: min(62vh, 620px);
+}
+
+.replay-log-list button {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: left;
+  padding: 0.25rem 0.4rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.replay-log-list button.seen {
+  color: var(--text);
+}
+
+/* attention events keep a warm tint even before "seen" */
+.replay-log-list button.v,
+.replay-log-list button.f,
+.replay-log-list button.o {
+  color: #b98a6a;
+}
+
+.replay-log-list button.v.seen,
+.replay-log-list button.f.seen,
+.replay-log-list button.o.seen {
+  color: #ffb4b4;
+}
+
+.replay-log-list button:hover {
+  background: var(--bg-soft);
+}
+
+.replay-log-list button span {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, #7aa2ff);
+  min-width: 3.2em;
+}
+
+.replay-transport {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.replay-transport input[type="range"] {
+  flex: 1;
+}
+
+.replay-clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.78rem;
+  min-width: 7.5em;
+  text-align: right;
+}
+
+.replay-transport select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-soft);
+  border: 0;
+  border-radius: 10px;
+  padding: 0.4rem 0.5rem;
+}
+
+.replay-marks {
+  position: relative;
+  height: 14px;
+  margin-top: 0.25rem;
+}
+
+.replay-marks button {
+  position: absolute;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  border: 0;
+  background: #ff6b63;
+  cursor: pointer;
+  padding: 0;
+}
+
+.replay-marks button:hover {
+  transform: scale(1.3);
+}
+
+@media (max-width: 860px) {
+  .replay-body {
+    grid-template-columns: 1fr;
+  }
+
+  .replay-log-list {
+    max-height: 180px;
+  }
+}
+
+/* single-page question layout */
+#choices-anchor {
+  scroll-margin-top: 1rem;
+}
+
+.stage-screen {
+  display: grid;
+  gap: 1.25rem;
+}
+
+/* completion celebration overlay */
+.completion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 18, 30, 0.62);
+  backdrop-filter: blur(3px);
+  overflow: hidden;
+  animation: completion-fade-in 0.35s ease-out;
+}
+
+@keyframes completion-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.confetti i {
+  position: absolute;
+  top: -4vh;
+  display: block;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  opacity: 0.9;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+  }
+}
+
+.completion-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  max-width: min(30rem, calc(100vw - 3rem));
+  padding: 2rem 2.25rem;
+  border-radius: 1rem;
+  background: #fff;
+  color: #1c2030;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  animation: completion-pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes completion-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.completion-trophy {
+  font-size: 2.6rem;
+  line-height: 1;
+  animation: trophy-bounce 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes trophy-bounce {
+  from {
+    transform: translateY(0) rotate(-4deg);
+  }
+  to {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
+.completion-card h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.completion-score {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.completion-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #5a6072;
+}
+
+.completion-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.completion-btn {
+  border: 1px solid #c9cdd8;
+  border-radius: 0.5rem;
+  background: #f2f3f7;
+  color: #1c2030;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.completion-btn:hover {
+  background: #e7e9f0;
+}
+
+.completion-btn.primary {
+  border-color: transparent;
+  background: #118ab2;
+  color: #fff;
+}
+
+.completion-btn.primary:hover {
+  background: #0e7799;
+}

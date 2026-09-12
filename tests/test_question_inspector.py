@@ -18,6 +18,7 @@ import sys
 TOOLS = Path(__file__).resolve().parents[1] / "tools" / "question_inspector"
 sys.path.insert(0, str(TOOLS))
 
+import artifact_loader  # noqa: E402
 from artifact_loader import (  # noqa: E402
     format_metrics,
     list_question_dirs,
@@ -43,13 +44,21 @@ import app as inspector_app  # noqa: E402
 
 
 REPO = Path(__file__).resolve().parents[1]
-DATA = REPO / "examples" / "quiz_demo" / "bundle"
+# Questions are generated artifacts under gitignored data/; there is no tracked
+# demo bundle any more. The artifact-backed tests therefore read whatever the
+# local pipeline has produced, and skip on a checkout that has generated none.
+DATA = REPO / "data"
+
+
+def _local_question_dirs() -> list[Path]:
+    return list_question_dirs(DATA) if DATA.is_dir() else []
 
 
 @pytest.fixture
 def question_path() -> Path:
-    questions = list_question_dirs(DATA)
-    assert questions, "the bundled demo must contain at least one question"
+    questions = _local_question_dirs()
+    if not questions:
+        pytest.skip("no generated questions under data/")
     return questions[0]
 
 
@@ -84,19 +93,65 @@ def test_load_question_bundle(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     assert bundle.question["question_id"].startswith("q_")
     provenance = inspector_app._profile_provenance(bundle, bundle.question)
-    assert provenance == {"profile": "v1", "profile_hash": "legacy/unknown"}
+    # A locally generated question carries real provenance; the legacy fallback
+    # is asserted on its own below rather than through whichever artifact this
+    # checkout happens to hold.
+    assert set(provenance) == {"profile", "profile_hash"}
+    assert provenance["profile"] == bundle.question["profile"]
+    assert provenance["profile_hash"] != "legacy/unknown"
     assert len(bundle.choices) == bundle.question["num_choices"]
     for choice in bundle.choices:
         assert choice["candidate_dir"].is_dir()
         assert (choice["candidate_dir"] / "candidate_spec.json").is_file()
 
 
+def test_profile_provenance_falls_back_for_legacy_artifacts(tmp_path: Path) -> None:
+    question_root = tmp_path / "run_1q_3c_aaaaaa" / "q_aaaaaa"
+    question_root.mkdir(parents=True)
+    bundle = artifact_loader.QuestionBundle(
+        question_root=question_root,
+        data_root=tmp_path,
+        question={"question_id": "q_aaaaaa"},
+        prompt_text="",
+        dataset_dir=tmp_path,
+        choices=[],
+    )
+
+    assert inspector_app._profile_provenance(bundle, bundle.question) == {
+        "profile": "legacy/unknown",
+        "profile_hash": "legacy/unknown",
+    }
+
+
+def test_profile_provenance_reads_the_run_manifest(tmp_path: Path) -> None:
+    run_root = tmp_path / "run_1q_3c_aaaaaa"
+    question_root = run_root / "q_aaaaaa"
+    question_root.mkdir(parents=True)
+    (run_root / "run.json").write_text(
+        json.dumps({"profile": "v1.4", "profile_hash": "0123456789abcdef"}),
+        encoding="utf-8",
+    )
+    bundle = artifact_loader.QuestionBundle(
+        question_root=question_root,
+        data_root=tmp_path,
+        question={"question_id": "q_aaaaaa"},
+        prompt_text="",
+        dataset_dir=tmp_path,
+        choices=[],
+    )
+
+    assert inspector_app._profile_provenance(bundle, bundle.question) == {
+        "profile": "v1.4",
+        "profile_hash": "0123456789abcdef",
+    }
+
+
 def test_load_dataset_tensors(question_path: Path) -> None:
     bundle = load_question_bundle(question_path, DATA)
     tx, ty, vx, vy = load_dataset_tensors(bundle.dataset_dir)
-    # Train and test may intentionally have different sample counts (the
-    # bundled bigram demo uses 800/200). Validate each split independently
-    # and require matching non-batch dimensions.
+    # Train and test may intentionally have different sample counts (a bigram
+    # instance uses 800/200). Validate each split independently and require
+    # matching non-batch dimensions.
     assert tx.ndim == 2
     assert tx.shape[0] == ty.shape[0]
     assert vx.shape[0] == vy.shape[0]
@@ -190,7 +245,7 @@ def test_build_custom_setting_spec() -> None:
             "depth": 2,
             "width": 48,
             "residual": True,
-            "activations": ["relu", "gelu"],
+            "activation": "gelu",
             "layer_norm": [False, True],
         },
         dataset_spec["params"],
@@ -214,7 +269,7 @@ def test_build_custom_setting_spec() -> None:
 
     assert spec["budget"]["training_steps"] == 30
     assert spec["model"]["input_dim"] == 4
-    assert spec["model"]["activations"] == ["relu", "gelu"]
+    assert spec["model"]["activation"] == "gelu"
     assert spec["optimizer"]["betas"] == [0.8, 0.99]
     assert spec["loss"]["lambda"] == 5e-4
 
@@ -228,7 +283,7 @@ def test_inherited_form_values_rebuild_exact_candidate_spec() -> None:
             "depth": 3,
             "width": 128,
             "residual": True,
-            "activations": ["relu", "gelu", "silu"],
+            "activation": "silu",
             "layer_norm": [True, False, True],
         },
         dataset_spec["params"],
@@ -261,10 +316,7 @@ def test_inherited_form_values_rebuild_exact_candidate_spec() -> None:
             "depth": values["mlp_depth"],
             "width": values["mlp_width"],
             "residual": values["mlp_residual"],
-            "activations": [
-                values[f"mlp_activation_{index}"]
-                for index in range(values["mlp_depth"])
-            ],
+            "activation": values["mlp_activation"],
             "layer_norm": [
                 values[f"mlp_norm_{index}"]
                 for index in range(values["mlp_depth"])
@@ -303,7 +355,7 @@ def test_build_custom_setting_rejects_invalid_budget() -> None:
             "depth": 1,
             "width": 16,
             "residual": False,
-            "activations": ["relu"],
+            "activation": "relu",
             "layer_norm": [False],
         },
         dataset_spec["params"],
@@ -394,7 +446,7 @@ def test_run_custom_setting_is_isolated(tmp_path: Path, monkeypatch: pytest.Monk
             "depth": 1,
             "width": 16,
             "residual": False,
-            "activations": ["relu"],
+            "activation": "relu",
             "layer_norm": [False],
         },
         dataset_spec["params"],
@@ -477,7 +529,7 @@ def test_custom_settings_keep_latest_and_best_history(
             "depth": 1,
             "width": 16,
             "residual": False,
-            "activations": ["relu"],
+            "activation": "relu",
             "layer_norm": [False],
         },
         dataset_spec["params"],
@@ -600,8 +652,9 @@ def test_curve_series_exposes_positive_log_quantiles(
     assert np.allclose(series["log_median"], [3.0, 100.0, 1000.0])
 
 def test_list_question_dirs() -> None:
-    pool = list_question_dirs(DATA)
-    assert pool
+    pool = _local_question_dirs()
+    if not pool:
+        pytest.skip("no generated questions under data/")
     assert all(p.name.startswith("q_") for p in pool)
     assert all((p / "question.json").is_file() for p in pool)
 
@@ -720,21 +773,51 @@ def test_question_pack_registry_rejects_path_traversal(tmp_path: Path) -> None:
     ).resolve()
 
 
-def test_tracked_question_packs_load_100_questions() -> None:
-    registry = inspector_app._question_pack_registry()
+def test_question_pack_registry_allows_repo_relative_data_root(
+    tmp_path: Path,
+) -> None:
+    packs_root = tmp_path / "question_packs"
+    repo_root = tmp_path / "repo"
+    live = packs_root / "live-pack"
+    live.mkdir(parents=True)
+    (live / "collection.json").write_text(
+        json.dumps({"question_paths": []}),
+        encoding="utf-8",
+    )
+    (live / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "live-pack",
+                "display_name": "Live pack",
+                "collection_path": "collection.json",
+                "data_root": "data",
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    repo_data = repo_root / "data"
+    repo_data.mkdir(parents=True)
 
-    assert set(registry) == {
-        "xor-v2.5-100q-37b9da",
-        "gru-v2.5-100q-a48abc",
-    }
-    for pack in registry.values():
-        questions = inspector_app._startup_question_collection(
-            str(pack["data_root"]),
-            pack["collection_path"],
-        )
-        assert questions is not None
-        assert len(questions) == 100
-        assert all((path / "prompt.txt").is_file() for path in questions)
+    registry = inspector_app._question_pack_registry(packs_root, repo_root=repo_root)
+
+    assert list(registry) == ["live-pack"]
+    assert registry["live-pack"]["data_root"] == repo_data.resolve()
+
+    # Absolute data roots and traversal stay rejected even with a repo root.
+    (live / "pack.json").write_text(
+        json.dumps(
+            {
+                "pack_id": "live-pack",
+                "display_name": "Live pack",
+                "collection_path": "collection.json",
+                "data_root": str(repo_data),
+                "question_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert inspector_app._question_pack_registry(packs_root, repo_root=repo_root) == {}
 
 
 def test_startup_question_collection_rejects_paths_outside_data_root(
@@ -858,27 +941,6 @@ def test_select_observed_classification_pair_finds_high_contrast_pair() -> None:
     assert {first, second} == {0, 1}
     assert 0.0 <= score <= 1.0
     assert score > 0.2
-
-
-def test_kan_custom_setting_defaults_include_profile_archetype_activations() -> None:
-    """The KAN editor must expose all activations valid in a v2.2 pool."""
-    defaults = inspector_app._kan_defaults(load_profile("v2.2"))
-
-    assert {"silu", "relu", "gelu", "tanh"}.issubset(
-        set(defaults["base_activations"])
-    )
-
-
-def test_kan_activation_options_include_valid_inherited_value() -> None:
-    """A valid inherited candidate remains selectable under a narrow profile."""
-    options = inspector_app._kan_activation_options(["silu"], "tanh")
-
-    assert options == ["silu", "tanh"]
-
-
-def test_kan_activation_options_do_not_duplicate_or_admit_unknown_values() -> None:
-    assert inspector_app._kan_activation_options(["silu"], "silu") == ["silu"]
-    assert inspector_app._kan_activation_options(["silu"], "unknown") == ["silu"]
 
 
 def test_inspector_prefers_local_profile_source_over_stale_editable_install() -> None:

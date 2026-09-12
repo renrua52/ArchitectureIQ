@@ -24,11 +24,13 @@ Optional flags:
 
 - `--temperature 0.0`
 - `--max-tokens 16384` (raise if reasoning models stop early)
+- `--timeout 120` — per-attempt API read timeout in seconds
 - `--limit 10` — evaluate first N questions only
 - `--workers 4` — concurrent API requests (default 4; use 1 for sequential)
 - `--run-dir path/to/run` — explicit output directory
 - `--runs-root llm_runs` — parent for auto-named runs
-- `--skip-existing` — resume a partial run
+- `--skip-existing` — reuse valid results already present in the run dir
+- `--reuse-results-from path/to/run` — reuse valid results from another run; repeatable
 
 ## Context-protocol boundary
 

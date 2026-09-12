@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -13,13 +12,6 @@ import urllib.error
 import urllib.request
 import webbrowser
 from pathlib import Path
-
-
-DEFAULT_RUN = (
-    "data/datasets/univariate_regression/sym_62678b/"
-    "questions/run_20q_3c_b09206/q_79e34e"
-)
-BUNDLED_DEMO_DATA = "examples/quiz_demo/bundle"
 
 
 def repo_root() -> Path:
@@ -42,20 +34,19 @@ def is_running(port: int) -> bool:
         return False
 
 
-def resolve_question_run(root: Path, requested: str) -> tuple[Path, bool]:
-    """Resolve a question path, materializing the bundled demo when needed."""
+def resolve_question_run(root: Path, requested: str | None) -> Path | None:
+    """Resolve the question to open, or None to let the inspector pick one.
+
+    There is no bundled demo to fall back on: questions are generated artifacts
+    under gitignored data/, so with nothing requested the inspector opens the
+    first question it discovers there.
+    """
+    if requested is None:
+        return None
     question_run = (root / requested).resolve()
-    if question_run.exists():
-        return question_run, False
-
-    if Path(requested) == Path(DEFAULT_RUN):
-        bundled_data = root / BUNDLED_DEMO_DATA
-        if bundled_data.is_dir():
-            shutil.copytree(bundled_data, root / "data", dirs_exist_ok=True)
-            if question_run.exists():
-                return question_run, True
-
-    raise FileNotFoundError(question_run)
+    if not question_run.exists():
+        raise FileNotFoundError(question_run)
+    return question_run
 
 
 def wait_until_running(port: int, timeout: float) -> bool:
@@ -92,8 +83,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--question-run",
-        default=DEFAULT_RUN,
-        help="Question, run, or review-collection JSON to open.",
+        default=None,
+        help=(
+            "Question, run, or review-collection JSON to open "
+            "(default: the first question found under data/)."
+        ),
     )
     parser.add_argument(
         "--no-browser",
@@ -115,12 +109,10 @@ def main() -> int:
         return 0
 
     try:
-        question_run, installed_demo = resolve_question_run(root, args.question_run)
+        question_run = resolve_question_run(root, args.question_run)
     except FileNotFoundError as exc:
         print(f"Question run not found: {exc}", file=sys.stderr)
         return 1
-    if installed_demo:
-        print("Installed the bundled demo question under data/.")
 
     app = root / "tools" / "question_inspector" / "app.py"
     cmd = [
@@ -135,9 +127,9 @@ def main() -> int:
         "127.0.0.1",
         "--server.port",
         str(args.port),
-        "--",
-        str(question_run),
     ]
+    if question_run is not None:
+        cmd += ["--", str(question_run)]
 
     print(f"Starting ArchitectureIQ quiz on {url}")
     print("Press Ctrl-C in this terminal to stop it.")

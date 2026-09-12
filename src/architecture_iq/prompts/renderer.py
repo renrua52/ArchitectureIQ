@@ -13,6 +13,7 @@ from architecture_iq.prompts.code_excerpt import (
 )
 from architecture_iq.prompts.formatters import (
     SINGLE_AXIS_TYPES,
+    TABULAR_CLASSIFICATION_FAMILIES,
     format_dataset_protocol,
     format_loss_nl,
     format_synthetic_tabular_classification_rule,
@@ -68,7 +69,8 @@ def render_prompt(
     header = _read_template("header.md") or (
         "You are taking the ArchitectureIQ benchmark. "
         "Read each training setup and pick the choice that achieves the best "
-        f"**{selection_metric}** after the stated training budget. Reply with a single letter."
+        f"**{selection_metric}** after the stated training budget. Give the answer "
+        "as a single letter wrapped in <answer></answer> tags."
     )
 
     dataset_nl = _read_template(f"dataset/{q['family']}.md")
@@ -78,7 +80,7 @@ def render_prompt(
             f"Train size: {params['train_size']}, test size: {params['test_size']}."
         )
 
-    is_classification = q["family"] == "synthetic_tabular_classification"
+    is_classification = q["family"] in TABULAR_CLASSIFICATION_FAMILIES
     total_samples_seen = _question_total_samples_seen(q["budget"])
     single_axis = q["type"] in SINGLE_AXIS_TYPES and not (
         isinstance(q["budget"], dict) and q["budget"].get("mixed")
@@ -202,11 +204,22 @@ def render_prompt(
             ]
         )
 
+    letters = [c["letter"] for c in q["choices"]]
     parts.extend(
         [
             "",
             "## Your answer",
-            f"Reply with a single letter ({', '.join(c['letter'] for c in q['choices'])}).",
+            f"Choose exactly one of {', '.join(letters)}. End your reply with "
+            "exactly two tagged fields, in this order and with nothing after "
+            "them:",
+            "",
+            "<explanation>The mechanism that decides the winner, and why "
+            "each other choice loses.</explanation>",
+            "<answer>the letter of your chosen option</answer>",
+            "",
+            f"Rules: `<answer>` must contain exactly one letter from "
+            f"{{{', '.join(letters)}}}. The grader reads only the **final** "
+            "`<answer>` tag in your reply.",
         ]
     )
     return "\n".join(parts)

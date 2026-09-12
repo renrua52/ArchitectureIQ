@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+
 LEGACY_LEAKY_RELU_SLOPE = 0.1
 
 SINGLE_AXIS_TYPES = frozenset({"architecture_only", "optimizer_only", "loss_only"})
+
+# Mirrors architecture_iq.prompts.formatters.TABULAR_CLASSIFICATION_FAMILIES:
+# xor and spiral are their own dataset families but share this spec shape.
+TABULAR_CLASSIFICATION_FAMILIES = frozenset(
+    {
+        "synthetic_tabular_classification",
+        "xor_classification",
+        "spiral_classification",
+    }
+)
 
 
 def activation_nl(name: str) -> str:
@@ -19,8 +30,28 @@ def activation_nl(name: str) -> str:
     return name
 
 
+def _mlp_activations(model: dict) -> list[str]:
+    """Activations in layer order; a current spec has exactly one, shared.
+
+    The canonical field is the scalar ``activation``. Pre-v1.4 artifacts on
+    disk carry a per-layer ``activations`` list instead: a uniform one reads as
+    the single shared value, and a genuinely mixed one is still displayed
+    as-is so old bundles remain readable.
+    """
+    activation = model.get("activation")
+    if activation is not None:
+        return [str(activation)]
+    legacy = [str(value) for value in (model.get("activations") or [])]
+    if not legacy:
+        raise ValueError("MLP spec is missing 'activation'")
+    distinct = sorted(set(legacy))
+    return [distinct[0]] if len(distinct) == 1 else legacy
+
+
 def _format_activation_line(acts: list[str]) -> str:
-    return f"- Activations: [{', '.join(acts)}]"
+    if len(acts) == 1:
+        return f"- Activation: {acts[0]} (one activation, shared by every layer)"
+    return f"- Activations (per layer, legacy spec): [{', '.join(acts)}]"
 
 
 def format_mlp_nl(model: dict) -> str:
@@ -29,35 +60,23 @@ def format_mlp_nl(model: dict) -> str:
         lines.append(f"- Input dimension: {model['input_dim']}")
     if "output_dim" in model and int(model["output_dim"]) > 1:
         lines.append(f"- Output logits: {model['output_dim']}")
+    depth = int(model["depth"])
+    width = int(model["width"])
+    plural = "layer" if depth == 1 else "layers"
+    acts = _mlp_activations(model)
     lines.extend([
-        f"- Depth: {model['depth']} hidden layers",
-        f"- Width: {model['width']} (all hidden layers)",
+        f"- Depth: {depth} hidden Linear {plural} of width {width}, between the "
+        f"input projection and the output head "
+        f"({depth + 2} nn.Linear layers in total)",
+        f"- Width: {width} (all hidden layers)",
         f"- Residual connections: {model['residual']}",
         f"- Layer norm per layer: {model['layer_norm']}",
-        _format_activation_line(model["activations"]),
+        _format_activation_line(acts),
     ])
-    if "leaky_relu" in model.get("activations", []):
+    if "leaky_relu" in acts:
         slope = float(model.get("leaky_relu_slope", LEGACY_LEAKY_RELU_SLOPE))
         lines.append(f"- LeakyReLU negative slope: {slope:g}")
     lines.append("- Initialization: PyTorch Linear defaults")
-    return "\n".join(lines)
-
-
-def format_kan_nl(model: dict) -> str:
-    lines = ["- Type: spline KAN (efficient_spline_v1)"]
-    if "input_dim" in model and int(model["input_dim"]) > 1:
-        lines.append(f"- Input dimension: {model['input_dim']}")
-    if "output_dim" in model and int(model["output_dim"]) > 1:
-        lines.append(f"- Output logits: {model['output_dim']}")
-    lines.extend([
-        f"- Depth: {model['depth']} hidden layers",
-        f"- Width: {model['width']} (all hidden layers)",
-        f"- Grid size: {model['grid_size']}",
-        f"- Spline order: {model['spline_order']}",
-        f"- Fixed grid range: {model['grid_range']}",
-        f"- Base activation: {model['base_activation']}",
-        "- Grid updates: fixed; no train/test-data adaptation",
-    ])
     return "\n".join(lines)
 
 
@@ -65,8 +84,6 @@ def format_model_nl(model: dict) -> str:
     model_type = model.get("type", "mlp")
     if model_type == "mlp":
         return format_mlp_nl(model)
-    if model_type == "kan":
-        return format_kan_nl(model)
     if model_type == "transformer_lm":
         return format_transformer_lm_nl(model)
     if model_type == "gru_lm":
@@ -97,6 +114,7 @@ def format_transformer_lm_nl(model: dict) -> str:
             f"- num_layers: {model['num_layers']}",
             f"- num_heads: {model['num_heads']}",
             f"- d_ff: {d_ff}",
+            "- Positional encoding: learned embedding (nn.Embedding over positions)",
         ]
     )
 
@@ -194,11 +212,73 @@ def _signed_linear_combination(terms: list[tuple[float, str]]) -> str:
     return " ".join(rendered)
 
 
+def _turns_nl(turns: float) -> str:
+    """`1 full turn` / `2.5 full turns` -- the grader's model reads this prose."""
+    return f"{turns:.6g} full turn" + ("" if turns == 1.0 else "s")
+
+
+def _spiral_t_upper_nl(turns: float) -> str:
+    """`0.5 + 2π` -- the arm's parameter range, symbolically.
+
+    Printing the product gave `[0.5, 6.78319]`, a number that hides the one
+    fact the reader wants: the arm runs a whole number of half-turns. Every
+    profile turns value makes `2·turns` an integer, so the multiple of π is
+    exact; a non-integer multiple falls back to the decimal.
+    """
+    multiple = 2.0 * float(turns)
+    if abs(multiple - round(multiple)) > 1e-9:
+        return f"0.5 + {multiple:.6g}π"
+    whole = int(round(multiple))
+    return "0.5 + π" if whole == 1 else f"0.5 + {whole}π"
+
+
+def _positive_rate_nl(calibration: dict) -> str:
+    """What fraction of rows the stated cut-off actually labels class 1.
+
+    The cut-off is the clean value nearest the target quantile, not the
+    quantile, so it lands a couple of percent off 50%. Specs written before the
+    snapping have no realized rate recorded and keep the target wording.
+    """
+    realized = calibration.get("realized_positive_rate")
+    target = float(calibration["target_positive_rate"])
+    if realized is None:
+        return f"to target a positive-class rate of {target:.0%}"
+    return (
+        f"as the closest round value to the {target:.0%} quantile of `s(x)`; "
+        f"on those {calibration['size']} rows it labels {float(realized):.1%} of them class 1"
+    )
+
+
 def format_synthetic_tabular_classification_rule(params: dict) -> str:
     rule_family = params["rule_family"]
     active_features = [int(feature) for feature in params["active_features"]]
     weights = [float(weight) for weight in params["rule_weights"]]
     active = ", ".join(f"`x_{feature}`" for feature in active_features)
+
+    if rule_family == "spiral":
+        turns = float(params.get("spiral_turns", 2.0))
+        # Absent (v1.4 onwards) means the points sit exactly on their arm, so
+        # neither the jitter clause nor the "noiseless arms" wording applies.
+        noise_std = float(params.get("noise_std", 0.0) or 0.0)
+        jitter_clause = (
+            f"; independent Gaussian noise `ε ~ Normal(0, {noise_std:.6g}²)` is then added to each coordinate"
+            if noise_std > 0.0
+            else ""
+        )
+        arms_phrase = "the two noiseless arms" if noise_std > 0.0 else "the two arms"
+        seed_label = "point/noise seed" if noise_std > 0.0 else "point seed"
+        sampling = params["point_sampling"]
+        left, right = active_features[:2]
+        return "\n".join(
+            [
+                f"- Rule family: `spiral`; active coordinates: `x_{left}`, `x_{right}` (input is 2-dimensional).",
+                f"- Point distribution: classic interleaved two-spirals. Each point is drawn along one of two Archimedean arms: with `t` uniform on `[0.5, {_spiral_t_upper_nl(turns)}]` ({_turns_nl(turns)}), radius `r = t`, coordinates `(r·cos(t + phase), r·sin(t + phase))` with `phase ∈ {{0, π}}`{jitter_clause}.",
+                "- Label rule: `y = 0` for points drawn from the `phase = 0` arm and `y = 1` for points from the `phase = π` arm; both arms are equally likely, so classes are balanced.",
+                "- Nominal soft score (intuition only): `s(x) = sin(atan2(x_1, x_0) − ‖x‖₂)`; its zero level sets trace the two arms, but labels come from the generative arm, not from thresholding `s(x)`.",
+                f"- Bayes decision boundary: assign each point to the nearer of {arms_phrase} (up to label-flip symmetry); with {_turns_nl(turns)} the arms interleave, so the boundary is highly non-linear.",
+                f"- Reproducibility: {seed_label} `{sampling['seed']}`, spiral turns `{turns:.6g}`.",
+            ]
+        )
 
     if rule_family == "smooth_additive":
         terms = [
@@ -233,7 +313,9 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
     else:
         raise ValueError(f"Unknown classification rule family: {rule_family!r}")
 
-    noise_std = float(params["noise_std"])
+    # Absent (v1.4 onwards) means labels are an exact function of the features.
+    noise_std = float(params.get("noise_std", 0.0) or 0.0)
+    noisy = noise_std > 0.0
     threshold = float(params["decision_threshold"])
     calibration = params["calibration"]
     return "\n".join(
@@ -242,25 +324,63 @@ def format_synthetic_tabular_classification_rule(params: dict) -> str:
             "- Feature distribution: every coordinate is sampled independently from `Normal(0, 1)`.",
             "- Latent score:",
             *score_lines,
-            f"- Label noise: `ε ~ Normal(0, {noise_std:.6g}²)`.",
-            f"- Label rule: `y = 1` exactly when `s(x) + ε > {threshold:.6g}`; otherwise `y = 0`.",
             *(
+                [f"- Label noise: `ε ~ Normal(0, {noise_std:.6g}²)`."]
+                if noisy
+                else []
+            ),
+            f"- Label rule: `y = 1` exactly when "
+            f"`{'s(x) + ε' if noisy else 's(x)'} > {threshold:.6g}`; otherwise `y = 0`.",
+            *(
+                # The cut-off snaps to a round value, and for XOR the calibrated
+                # quantile is within a rounding step of 0 -- so the quadrant rule
+                # is the label rule, exactly, and the prompt can say so instead
+                # of stating it and then walking it back. A non-zero threshold
+                # (or label noise) still needs the caveat.
                 [
-                    "- XOR interpretation (nominal only): with `ε = 0` and threshold `0`, opposite-sign active coordinates are class 1 and same-sign active coordinates are class 0.",
-                    "- With the calibrated threshold and label noise above, individual labels (especially near either axis) need not follow that nominal quadrant interpretation.",
+                    "- XOR interpretation: `x` is class 1 exactly when its two active coordinates have opposite signs, and class 0 when they share a sign."
+                ]
+                if rule_family == "xor" and threshold == 0.0 and not noisy
+                else [
+                    "- XOR interpretation (nominal only): with threshold `0`"
+                    + (" and `ε = 0`" if noisy else "")
+                    + ", opposite-sign active coordinates are class 1 and same-sign active coordinates are class 0.",
+                    "- With the calibrated threshold"
+                    + (" and label noise" if noisy else "")
+                    + " above, individual labels (especially near either axis) need not follow that nominal quadrant interpretation.",
                 ]
                 if rule_family == "xor"
                 else []
             ),
-            f"- Bayes decision boundary: without observing ε, predict class 1 when `s(x) > {threshold:.6g}`.",
-            f"- Threshold calibration: `{threshold:.6g}` was estimated from {calibration['size']} independent calibration rows to target a positive-class rate of {float(calibration['target_positive_rate']):.0%}.",
-            f"- Reproducibility: point/noise seed `{params['point_sampling']['seed']}`, calibration seed `{calibration['seed']}`.",
+            (
+                f"- Bayes decision boundary: without observing ε, predict class 1 when `s(x) > {threshold:.6g}`."
+                if noisy
+                else f"- Bayes decision boundary: `s(x) = {threshold:.6g}`; labels are an exact function of `x`, so this boundary is attainable."
+            ),
+            f"- Threshold calibration: `{threshold:.6g}` was chosen from {calibration['size']} independent calibration rows {_positive_rate_nl(calibration)}.",
+            f"- Reproducibility: {'point/noise seed' if noisy else 'point seed'} `{params['point_sampling']['seed']}`, calibration seed `{calibration['seed']}`.",
         ]
     )
 
 
+def _format_noise_line(params: dict) -> str | None:
+    """Observation-noise line, or ``None`` when the spec carries no noise.
+
+    Datasets generated from v1.4 onwards have no noise anywhere: ``y`` is the
+    exact evaluation of the target, and the prompt simply says nothing about
+    noise rather than announcing its absence. Older artifacts that really do
+    carry noise keep describing it -- the prompt has to match the data that was
+    materialised.
+    """
+    noise = params.get("noise") or {}
+    if not noise.get("enabled"):
+        return None
+    sigma = noise.get("sigma", noise.get("std", "—"))
+    return f"- Noise: Gaussian observation noise with sigma={sigma} added to `y`"
+
+
 def format_dataset_protocol(params: dict, *, family: str | None = None, device: str = "cpu") -> str:
-    if family == "synthetic_tabular_classification":
+    if family in TABULAR_CLASSIFICATION_FAMILIES:
         return "\n".join(
             [
                 "- Task: binary classification on one fixed synthetic tabular train/test split.",
@@ -274,12 +394,14 @@ def format_dataset_protocol(params: dict, *, family: str | None = None, device: 
     point_seed = params.get("point_sampling", {}).get("seed", "—")
     domain = params.get("domain", [0.0, 1.0])
     expression = params.get("expression", "—")
+    noise_line = _format_noise_line(params)
     lines = [
         f"- Target expression (canonical): `{expression}`",
         f"- Train split size: {params['train_size']} fixed `(x, y)` pairs",
         f"- Test split size: {params['test_size']} fixed `(x, y)` pairs (held out)",
         f"- Input domain: [{domain[0]}, {domain[1]}], uniform sampling",
         f"- Point-sampling seed: {point_seed} (materializes the fixed train/test splits)",
+        *([noise_line] if noise_line else []),
         "- Minibatch construction: each step draws `batch_size` train indices uniformly at random **with replacement**",
         "- Evaluation: **test MSE** is mean squared error on the entire fixed test split",
         "- Randomness: `torch.manual_seed(seed)` once before model init and the training loop",

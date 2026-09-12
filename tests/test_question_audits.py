@@ -34,7 +34,7 @@ def _spec(profile_hash: str, candidate_id: str, *, depth: int, mean: float) -> t
             "width": 16,
             "residual": False,
             "layer_norm": [False] * depth,
-            "activations": ["relu"] * depth,
+            "activation": "relu",
             "input_dim": 1,
         },
         "optimizer": {"type": "Adam", "lr": 0.001, "weight_decay": 0.0, "betas": [0.9, 0.999]},

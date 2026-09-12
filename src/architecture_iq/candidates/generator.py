@@ -10,7 +10,11 @@ from architecture_iq.models.base import ModelFamily
 from architecture_iq.candidates.axes import choices_compatible as choices_compatible
 from architecture_iq.optimizers.factory import render_optimizer_py
 from architecture_iq.profile import Profile, validate_execution_device
-from architecture_iq.registry import ensure_registries, get_model_type
+from architecture_iq.registry import (
+    ensure_registries,
+    get_dataset_family,
+    get_model_type,
+)
 from architecture_iq.util import short_hash, write_json
 
 REGRESSION_TRAIN_PY = '''"""Training loop for this candidate — executed by the ground-truth runner."""
@@ -357,13 +361,29 @@ def train_and_eval(
 '''
 
 
-def _train_py_for_family(family: str) -> str:
-    if family == "bigram_lm":
-        return LM_TRAIN_PY
+_TRAIN_PY_BY_KIND = {
+    "regression": REGRESSION_TRAIN_PY,
+    "language_model": LM_TRAIN_PY,
+    "classification": CLASSIFICATION_TRAIN_PY,
+}
 
-    if family == "synthetic_tabular_classification":
-        return CLASSIFICATION_TRAIN_PY
-    return REGRESSION_TRAIN_PY
+
+def _train_py_for_family(family: str) -> str:
+    """Generated train.py for a family, keyed by its declared train_loop_kind.
+
+    Registry lookup rather than a name branch: a new family declares its kind on
+    the plugin, so it cannot silently fall through to the regression loop and
+    return a metric key its selection_metric_name() never asked for.
+    """
+    ensure_registries()
+    kind = get_dataset_family(family).train_loop_kind
+    try:
+        return _TRAIN_PY_BY_KIND[kind]
+    except KeyError:
+        raise ValueError(
+            f"Family {family!r} declares train_loop_kind {kind!r}; "
+            f"known kinds are {sorted(_TRAIN_PY_BY_KIND)}"
+        ) from None
 
 def _spec_json(spec: dict[str, Any], key: str) -> str:
     return json.dumps(spec[key], sort_keys=True)
@@ -395,10 +415,11 @@ def candidate_matches_fixed(spec: dict[str, Any], fixed_shared: dict[str, Any]) 
 
 
 def valid_batch_sizes(profile: Profile, budget: int) -> list[int]:
+    min_steps = profile.min_training_steps()
     return [
         b
         for b in profile.optimizer_grids["batch_size"]
-        if budget % b == 0
+        if budget % b == 0 and (min_steps is None or budget // b >= min_steps)
     ]
 
 
@@ -419,17 +440,42 @@ def sample_optimizer(profile: Profile, rng: random.Random) -> dict[str, Any]:
     if opt_type == "SGD":
         spec["momentum"] = rng.choice(profile.optimizer_grids["sgd_momentum"])
     if opt_type in {"Adam", "AdamW"}:
-        betas = profile.optimizer_grids["adam_betas"]
-        spec["betas"] = [float(betas[0]), float(betas[1])]
+        # Only consume RNG when the pool holds a real choice: a profile with one
+        # fixed pair must keep the sampling stream it had before this was a pool,
+        # so its candidate ids stay reproducible.
+        pool = profile.adam_betas_pool()
+        beta1, beta2 = pool[0] if len(pool) == 1 else rng.choice(pool)
+        spec["betas"] = [float(beta1), float(beta2)]
     return spec
+
+
+# The only losses that are ever sampled: plain MSE for regression, plain
+# cross-entropy for classification / LM. An allowlist rather than a blocklist,
+# so a profile cannot reintroduce an exotic loss just by naming it in a pool.
+SAMPLEABLE_LOSS_IDS = frozenset({"mse", "cross_entropy"})
+
+REGULARIZED_LOSS_IDS = frozenset(
+    {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"}
+)
 
 
 def sample_loss(profile: Profile, family: str, rng: random.Random) -> dict[str, Any]:
-    loss_id = rng.choice(profile.pools["losses"][family])
-    spec: dict[str, Any] = {"loss_id": loss_id}
-    if loss_id in {"mse_l1", "mse_l2", "cross_entropy_l1", "cross_entropy_l2"}:
-        spec["lambda"] = rng.choice(profile.loss_grids["lambda"])
-    return spec
+    # Regularisation lives solely in optimizer weight_decay: stacking a
+    # parameter-wide loss penalty on top of it made the criterion an ambiguous
+    # double-regularisation comparison, and a lambda-weighted penalty changes
+    # the objective the reported test metric no longer measures. Renderer and
+    # formatter branches for the L1/L2 variants stay for legacy artifacts.
+    pool = [
+        loss_id
+        for loss_id in profile.pools["losses"][family]
+        if loss_id in SAMPLEABLE_LOSS_IDS
+    ]
+    if not pool:
+        raise ValueError(
+            f"loss pool for {family} has no sampleable loss; "
+            f"expected at least one of {sorted(SAMPLEABLE_LOSS_IDS)}"
+        )
+    return {"loss_id": rng.choice(pool)}
 
 
 def sample_model(
@@ -439,6 +485,7 @@ def sample_model(
     family: str,
     dataset_params: dict[str, Any] | None = None,
     model_type: str | None = None,
+    shared: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from architecture_iq.registry import get_dataset_family
 
@@ -456,7 +503,9 @@ def sample_model(
             f"Model type {model_type!r} is not compatible with family {family!r} "
             f"under profile {profile.name!r}"
         )
-    return get_model_type(model_type).sample_spec(profile, rng, dataset_params=dataset_params)
+    return get_model_type(model_type).sample_spec(
+        profile, rng, dataset_params=dataset_params, shared=shared
+    )
 
 
 def trainable_parameter_count(model_spec: dict[str, Any]) -> int:
@@ -483,6 +532,17 @@ def build_candidate_spec(
 ) -> dict[str, Any]:
     steps = profile.training_steps(budget, batch_size)
     device = validate_execution_device(execution_device or profile.execution_device)
+    # Double-regularisation guard: a loss-side L1/L2 penalty already applies
+    # a parameter-wide penalty, so optimizer weight_decay is zeroed to keep
+    # the comparison criterion unambiguous (legacy specs may still carry
+    # lambda losses; new sampling never produces them). Zeroed as float so
+    # the value survives inspector form roundtrips without changing the
+    # candidate id hash.
+    if (
+        str(loss.get("loss_id")) in REGULARIZED_LOSS_IDS
+        and float(optimizer.get("weight_decay") or 0.0) != 0.0
+    ):
+        optimizer = {**optimizer, "weight_decay": 0.0}
     body = {
         "schema_version": profile.schema_version,
         "profile": profile.name,

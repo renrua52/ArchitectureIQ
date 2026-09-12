@@ -1,0 +1,84 @@
+{
+  "schema_version": "architectureiq_v1_llm_bundle_v1",
+  "bundle_id": "v1_llm_bundle",
+  "uploaded_at": "2026-08-07T08:32:49Z",
+  "repo_paths": {
+    "v1_llm": "benchmarks/v1_llm",
+    "v1_human": "benchmarks/v1_human",
+    "datasets": "data/datasets"
+  },
+  "github_release": {
+    "tag": "v1-llm-bundle",
+    "repo": "renrua52/ArchitectureIQ",
+    "assets": {
+      "v1_llm": {
+        "filename": "v1_llm.tar.gz",
+        "bytes": 59761664,
+        "sha256": "296459ba4ac0ed6491141ae67cf186dedd4730db7ba4918907358efe4eb47919",
+        "description": "1000-question LLM pack: questions/, llm_runs/, reports"
+      },
+      "v1_human": {
+        "filename": "v1_human.tar.gz",
+        "bytes": 7506833,
+        "sha256": "aae35a3d770704a3b842617720134da87a466302f67182d35f251689af7b51ba",
+        "description": "250-question human pre-review pack (manifest + BakeFile)"
+      },
+      "datasets": {
+        "filename": "datasets.tar.gz",
+        "bytes": 146427584,
+        "sha256": "db09249be6a068e880fff034025b987a14ade694bb6c52bdd40272eefb4f730c",
+        "description": "data/datasets roots (full candidates + GT) referenced by V1 questions",
+        "dataset_roots": [
+          "datasets/bigram_lm/bg_12e206",
+          "datasets/bigram_lm/bg_4e71f8",
+          "datasets/bigram_lm/bg_86a39a",
+          "datasets/bigram_lm/bg_945e4f",
+          "datasets/bigram_lm/bg_b7cb17",
+          "datasets/bigram_lm/bg_b86703",
+          "datasets/bigram_lm/bg_ef0122",
+          "datasets/bigram_lm/bg_fba2cb",
+          "datasets/multivariate_regression/mvar_04cb2b",
+          "datasets/multivariate_regression/mvar_0fc6d7",
+          "datasets/multivariate_regression/mvar_2413b5",
+          "datasets/multivariate_regression/mvar_3ec2d5",
+          "datasets/multivariate_regression/mvar_cbacc7",
+          "datasets/multivariate_regression/mvar_d7a713",
+          "datasets/multivariate_regression/mvar_fc7da1",
+          "datasets/synthetic_tabular_classification/stabcls_221513",
+          "datasets/synthetic_tabular_classification/stabcls_2481ca",
+          "datasets/synthetic_tabular_classification/stabcls_3e152b",
+          "datasets/synthetic_tabular_classification/stabcls_47c60c",
+          "datasets/synthetic_tabular_classification/stabcls_4834c1",
+          "datasets/synthetic_tabular_classification/stabcls_5e386c",
+          "datasets/synthetic_tabular_classification/stabcls_5fd6dd",
+          "datasets/synthetic_tabular_classification/stabcls_66d88d",
+          "datasets/synthetic_tabular_classification/stabcls_67eccb",
+          "datasets/synthetic_tabular_classification/stabcls_75d7a3",
+          "datasets/synthetic_tabular_classification/stabcls_7e78d7",
+          "datasets/synthetic_tabular_classification/stabcls_81f2bd",
+          "datasets/synthetic_tabular_classification/stabcls_bb5314",
+          "datasets/synthetic_tabular_classification/stabcls_c28771",
+          "datasets/synthetic_tabular_classification/stabcls_cce390",
+          "datasets/synthetic_tabular_classification/stabcls_e2b23d",
+          "datasets/synthetic_tabular_classification/stabcls_ebc9e8",
+          "datasets/synthetic_tabular_classification/stabcls_f5a953",
+          "datasets/synthetic_tabular_classification/stabcls_fab295",
+          "datasets/synthetic_tabular_classification/stabcls_fe430e",
+          "datasets/univariate_regression/sym_0f37fb",
+          "datasets/univariate_regression/sym_246f37",
+          "datasets/univariate_regression/sym_732c72",
+          "datasets/univariate_regression/sym_7d3ae1",
+          "datasets/univariate_regression/sym_b2a2ca",
+          "datasets/univariate_regression/sym_b3589d",
+          "datasets/univariate_regression/sym_cce43f",
+          "datasets/univariate_regression/sym_cfc6d7"
+        ]
+      }
+    }
+  },
+  "notes": [
+    "Raw archives are not tracked in git; they live on the GitHub Release.",
+    "Run: python tools/benchmark_v1_bundle.py download",
+    "Extracted paths match the maintainer worktree; bake_root symlinks are recreated."
+  ]
+}
