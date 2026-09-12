@@ -9,16 +9,17 @@
 
 ## 在哪个分支开发
 
-从 `main` 已开好两条分支（请拉最新再开发）：
+从现在起统一在 `main` 开发。开始工作前先同步：
 
-| 谁 | 分支 | 主要改这些目录 |
-|----|------|----------------|
-| 前端同学 | `quiz-frontend` | `frontend/quiz/` |
-| 后端同学 | `quiz-backend` | `src/architecture_iq/`、`profiles/`、`tools/export_quiz_static.py`、`examples/` 等 |
+```bash
+git fetch origin --prune
+git switch main
+git pull --ff-only origin main
+```
 
-两边都可能改到的约定放在 `contracts/`：改 schema 前先说一声，前后端都看过再合。
-
-> 注：不能叫分支 `frontend`，因为仓库里已有 `frontend/vanilla`，Git 不允许再建同名层级。
+前端主要改 `frontend/quiz/`；后端主要改 `src/architecture_iq/`、
+`profiles/`、`tools/export_quiz_static.py` 和 `examples/`。前后端共同依赖的
+约定放在 `contracts/`，修改 schema 前要同时运行 BakeFile 校验和前端构建。
 
 ## 本地怎么跑
 
