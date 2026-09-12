@@ -1801,7 +1801,7 @@ def _compare_rows(
                 labels.append((label, group))
     out: list[tuple[str, str, list[Any], bool]] = []
     for label, group in labels:
-        values = [next((v for l, g, v in rows if l == label and g == group), None)
+        values = [next((value for row_label, row_group, value in rows if row_label == label and row_group == group), None)
                   for rows in per_choice]
         out.append((label, group, values, len({json.dumps(v, sort_keys=True, default=str) for v in values}) > 1))
     return out
@@ -2732,7 +2732,7 @@ def _render_reference_analysis(bundle: QuestionBundle, q: dict[str, Any]) -> Non
             })
         st.table(rows)
     if claude.get("text"):
-        st.markdown(f"**Claude (claude-opus-5)**")
+        st.markdown("**Claude (claude-opus-5)**")
         st.markdown(claude["text"])
     claude_v1 = data.get("claude_v1") or {}
     if claude_v1.get("text"):
@@ -2809,7 +2809,7 @@ def _classification_label_latex(params: dict[str, Any]) -> str:
         turns = float(params.get("spiral_turns", 1.0) or 1.0)
         noise_std = float(params.get("noise_std", 0.0) or 0.0)
         noise_term = (
-            rf" + \varepsilon"
+            r" + \varepsilon"
             if noise_std > 0.0
             else ""
         )

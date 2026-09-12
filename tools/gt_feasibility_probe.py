@@ -209,7 +209,7 @@ def run_worker(args) -> None:
 
     profile = _load_profile(n_seeds=args.n_seeds)
     started = time.monotonic()
-    summary = run_ground_truth(Path(args.candidate_path), profile, Path(args.dataset_path))
+    run_ground_truth(Path(args.candidate_path), profile, Path(args.dataset_path))
     wall = time.monotonic() - started
     out = {
         "candidate_path": args.candidate_path,

@@ -2,7 +2,6 @@
 
 Also verifies the cross-pack restore fetch (list without pack filter).
 """
-import json
 import subprocess
 import sys
 import time

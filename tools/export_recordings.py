@@ -22,7 +22,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import timezone
 
 
 def main() -> int:

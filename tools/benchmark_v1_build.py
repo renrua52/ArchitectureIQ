@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 from architecture_iq.candidates.axes import choices_compatible, infer_axes
-from architecture_iq.paths import ROOT
 from architecture_iq.profile import load_profile
 from architecture_iq.prompts.renderer import write_prompt
 from architecture_iq.questions.generator import (
