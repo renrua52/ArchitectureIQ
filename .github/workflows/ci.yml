@@ -58,6 +58,8 @@ jobs:
         run: ruff check .
 
       - name: Smoke test quiz API
+        env:
+          QUIZ_BAKE_FILE: contracts/examples/mini_bake.json
         run: python -m tools.quiz_api_smoke
 
       - name: Run tests
