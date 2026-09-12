@@ -48,6 +48,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -118,8 +119,6 @@ def list_questions(questions_root: Path, ledger_path: Path | None) -> list[Quest
 # --------------------------------------------------------------------------
 # Response parsing (mirrors tools/llm_eval/response_parser.py semantics)
 # --------------------------------------------------------------------------
-
-import re
 
 _ANSWER_RE = re.compile(r"<answer>\s*([A-Za-z])\s*</answer>", re.IGNORECASE)
 _EXPL_RE = re.compile(r"<explanation>(.*?)</explanation>", re.IGNORECASE | re.DOTALL)

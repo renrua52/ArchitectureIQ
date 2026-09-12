@@ -14,7 +14,6 @@ from architecture_iq.significance.validator import validate_significance
 
 
 def _summary(mean: float, std: float, finals: list[float], *, failed_seeds: int = 0) -> dict:
-    n = len(finals)
     seed_results = []
     for i, value in enumerate(finals):
         failed = i < failed_seeds

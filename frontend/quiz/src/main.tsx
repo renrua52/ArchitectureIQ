@@ -150,13 +150,21 @@ function App() {
     const packUrl = packId
       ? `data/packs/${encodeURIComponent(packId)}.json`
       : "data/packs/v15-launch50-seed20260905.json";
+    const fallbackUrl = "data/questions.json";
     setPackId(packId ?? "v15-launch50-seed20260905");
-    fetch(packUrl)
-      .then((response) => {
+    const loadBake = (url: string) => fetch(url).then((response) => {
         if (!response.ok) {
-          throw new Error(`Missing baked questions at ${packUrl}`);
+          throw new Error(`Missing baked questions at ${url}`);
         }
         return response.json();
+      });
+    loadBake(packUrl)
+      .catch((err) => {
+        // The large v15 pack is generated and may be omitted from a clean
+        // source checkout. Keep the published app runnable with the tracked
+        // demo bake unless the user explicitly requested a missing pack.
+        if (packId) throw err;
+        return loadBake(fallbackUrl);
       })
       .then((data: BakeFile) => {
         setBake(data);
