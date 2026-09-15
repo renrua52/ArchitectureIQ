@@ -8,27 +8,25 @@ training path: every answer is checked only against the stored
 ## Data flow
 
 1. An epoch starts from a frozen snapshot in `snapshots/kb_NNNN.json`.
-2. A small, lexically relevant claim slice is added to each benchmark prompt.
-3. The solver returns one answer, one primary claim, and an explanation. The
+2. PUCT selects one frozen set of at most 20 claims for the whole epoch. Claims
+   are shown with only their Laplace-smoothed credibility.
+3. The solver returns one answer, one to four weighted evidence claims, and an explanation. The
    response is written to `solver_locked.json` before GT is opened.
-4. The answer is checked against GT. A cited existing claim gains one credit
-   for a correct answer and loses one credit for a wrong answer. Claims are not
-   deleted. A wrong new claim is recorded but never enters the KB.
-5. For a correct answer, a new claim goes to the curator, which either maps it
-   to an existing ID or returns one canonical proposition. Existing claims gain
-   one successful-use count and one credit.
-6. At epoch end, a new frozen snapshot and its added/reinforced/rejected delta
-   are written. New claims are visible to
-   the solver only in the next epoch.
+4. The answer is checked against GT. Its normalized evidence weights are added
+   to `support_count` for a correct answer or `failure_count` for a wrong one.
+5. At epoch end, every new claim (including claims from wrong answers) goes to
+   the curator, which normalizes it and deduplicates it against the evolving KB.
+6. The whole batch is committed once, then a new frozen snapshot and delta are
+   written. New claims are visible to the solver only in the next epoch.
 
 The solver and curator configurations are locked by the first epoch, so KB
 context is the only model input that evolves. A question ID can be used for
 learning only once in a KB, preventing answer leakage across epochs.
 
-Each stored claim has `support_count`, `failure_count`, and
-`credit = support_count - failure_count`. Existing claims remain in later
-snapshots even when their credit reaches zero or becomes negative. Wrong new
-claims remain auditable in `events.jsonl` but do not enter the KB.
+`support_count` and `failure_count` are weighted evidence totals. The solver
+sees only `(support_count + 1) / (support_count + failure_count + 2)`. PUCT uses
+that credibility plus its capped exploration bonus. Existing claims remain in
+later snapshots even when their net credit reaches zero or becomes negative.
 
 ## Run
 
@@ -42,10 +40,21 @@ python tools/kb_pipeline.py run-epoch \
   --questions-root benchmarks/v1_llm/questions \
   --solver-model claude-opus-5 \
   --curator-model gemini-3.6-flash \
-  --workers 5 \
+  --workers 6 \
   --skip-seen \
-  --limit 20
+  --limit 50 \
+  --injection-limit 20
 python tools/kb_pipeline.py show --kb-dir data/kb/my_run
+```
+
+To generate fresh v1.5 questions and run successive 50-question epochs until
+interrupted:
+
+```bash
+python tools/run_kb_learning_forever.py \
+  --kb-dir data/kb/my_run \
+  --solver-model claude-opus-5 \
+  --solver-workers 6
 ```
 
 To preserve an existing hard-reject run while rebuilding its saved evidence

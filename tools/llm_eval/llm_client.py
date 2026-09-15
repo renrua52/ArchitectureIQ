@@ -184,7 +184,16 @@ class LLMClient:
             try:
                 with opener.open(request, timeout=self.timeout_s) as response:
                     raw = json.loads(response.read().decode("utf-8"))
-                break
+                error = raw.get("error") if isinstance(raw, dict) else None
+                if not isinstance(error, dict):
+                    break
+                try:
+                    error_code = int(error.get("code", 0))
+                except (TypeError, ValueError):
+                    error_code = 0
+                retryable = error_code == 429 or error_code >= 500
+                if not retryable or attempt >= self.max_retries:
+                    raise LLMClientError(f"LLM API error response: {error!r}")
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", errors="replace")
                 retryable = exc.code == 429 or exc.code >= 500
