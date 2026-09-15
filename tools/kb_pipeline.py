@@ -626,8 +626,9 @@ New proposals:
 {proposal_text}
 
 Return exactly one resolution for every proposal, in input order. A proposal
-may map to an existing K ID, duplicate an earlier proposal in this same batch,
-or become a new canonical rule. Return only this JSON shape:
+may map to an existing K ID, duplicate another proposal in this same batch, or
+become a new canonical rule. Duplicate links must not form cycles. Return only
+this JSON shape:
 {{"resolutions":[
   {{"proposal_id":"P0001","existing_id":"K0001","duplicate_of":null,"canonical_text":null}},
   {{"proposal_id":"P0002","existing_id":null,"duplicate_of":"P0001","canonical_text":null}},
@@ -691,9 +692,9 @@ def parse_batch_curator(
             resolution = {"proposal_id": proposal_id, "existing_id": existing_id}
         elif duplicate_of not in (None, ""):
             duplicate_of = str(duplicate_of).strip()
-            if duplicate_of not in by_id:
+            if duplicate_of not in proposal_ids or duplicate_of == proposal_id:
                 raise ValueError(
-                    f"Proposal {proposal_id} duplicates non-earlier proposal {duplicate_of!r}"
+                    f"Proposal {proposal_id} has invalid duplicate target {duplicate_of!r}"
                 )
             resolution = {"proposal_id": proposal_id, "duplicate_of": duplicate_of}
         else:
@@ -702,6 +703,15 @@ def parse_batch_curator(
                 raise ValueError(f"Proposal {proposal_id} has empty canonical text")
             resolution = {"proposal_id": proposal_id, "canonical_text": text}
         by_id[proposal_id] = resolution
+    def check_cycle(proposal_id: str, path: set[str]) -> None:
+        if proposal_id in path:
+            raise ValueError(f"Curator duplicate links form a cycle at {proposal_id}")
+        duplicate_of = by_id[proposal_id].get("duplicate_of")
+        if duplicate_of:
+            check_cycle(str(duplicate_of), path | {proposal_id})
+
+    for proposal_id in proposal_ids:
+        check_cycle(proposal_id, set())
     return [by_id[proposal_id] for proposal_id in proposal_ids]
 
 
@@ -861,12 +871,19 @@ def finalize_epoch(
                 curator_client=curator_client,
                 curator_config=curator_config,
             )
-            for record, resolution in zip(batch_records, resolutions, strict=True):
-                proposal_id = str(record["proposal_id"])
+            resolutions_by_id = {
+                str(resolution["proposal_id"]): resolution
+                for resolution in resolutions
+            }
+
+            def resolve_claim(proposal_id: str) -> dict[str, Any]:
+                if proposal_id in resolved_new_claims:
+                    return resolved_new_claims[proposal_id]
+                resolution = resolutions_by_id[proposal_id]
                 if resolution.get("existing_id"):
                     claim = claims_by_id[str(resolution["existing_id"])]
                 elif resolution.get("duplicate_of"):
-                    claim = resolved_new_claims[str(resolution["duplicate_of"])]
+                    claim = resolve_claim(str(resolution["duplicate_of"]))
                 else:
                     text = str(resolution["canonical_text"]).strip()
                     claim = claims_by_text.get(_canonical_key(text))
@@ -877,6 +894,10 @@ def finalize_epoch(
                         claims_by_text[_canonical_key(text)] = claim
                         added_ids.add(str(claim["id"]))
                 resolved_new_claims[proposal_id] = claim
+                return claim
+
+            for record in batch_records:
+                resolve_claim(str(record["proposal_id"]))
 
         for record in evidence_records:
             result_path = record["result_path"]

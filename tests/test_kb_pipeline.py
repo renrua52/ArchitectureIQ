@@ -542,11 +542,11 @@ def test_parse_batch_curator_preserves_proposal_order() -> None:
                 "resolutions": [
                     {
                         "proposal_id": "P0001",
-                        "existing_id": "K0003",
+                        "duplicate_of": "P0002",
                     },
                     {
                         "proposal_id": "P0002",
-                        "duplicate_of": "P0001",
+                        "existing_id": "K0003",
                     },
                 ]
             }
@@ -560,8 +560,8 @@ def test_parse_batch_curator_preserves_proposal_order() -> None:
     )
 
     assert parsed == [
-        {"proposal_id": "P0001", "existing_id": "K0003"},
-        {"proposal_id": "P0002", "duplicate_of": "P0001"},
+        {"proposal_id": "P0001", "duplicate_of": "P0002"},
+        {"proposal_id": "P0002", "existing_id": "K0003"},
     ]
 
 
