@@ -49,6 +49,7 @@ def main() -> int:
     parser.add_argument("--epoch-size", type=int, default=50)
     parser.add_argument("--retry-delay", type=float, default=30.0)
     parser.add_argument("--timeout", type=float, default=600.0)
+    parser.add_argument("--curator-max-tokens", type=int, default=16384)
     args = parser.parse_args()
 
     if args.epoch_size != 50:
@@ -115,6 +116,8 @@ def main() -> int:
                     "--no-show",
                     "--timeout",
                     str(args.timeout),
+                    "--curator-max-tokens",
+                    str(args.curator_max_tokens),
                 ]
             )
         except subprocess.CalledProcessError as exc:
