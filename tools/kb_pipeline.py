@@ -1474,7 +1474,7 @@ def run_epoch(
             and existing["curator_batch_size"] != curator_batch_size
         ):
             raise ValueError(f"Existing epoch run has different configuration: {manifest_path}")
-        manifest.setdefault("curator_batch_size", curator_batch_size)
+        existing.setdefault("curator_batch_size", curator_batch_size)
         if existing.get("status") == "complete":
             return read_json(kb_dir / "snapshots" / f"kb_{epoch:04d}.json")
         manifest = existing
