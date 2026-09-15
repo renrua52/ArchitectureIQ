@@ -639,25 +639,19 @@ or become a new canonical rule. Return only this JSON shape:
 def batch_curator_repair_prompt(
     original_response: str,
     *,
-    proposal_ids: list[str],
-    candidate_ids: set[str],
+    proposals: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
 ) -> str:
-    return f"""Convert the curator response below to the required JSON schema.
-Do not change its deduplication decisions or canonical rule text. Return exactly
-one resolution for each proposal in this order: {json.dumps(proposal_ids)}.
-An existing_id must be one of: {json.dumps(sorted(candidate_ids))}.
-A duplicate_of must name an earlier proposal in the same batch. Each resolution
-must choose exactly one of existing_id, duplicate_of, or canonical_text.
-Return only this JSON shape:
-{{"resolutions":[
-  {{"proposal_id":"P0001","existing_id":"K0001","duplicate_of":null,"canonical_text":null}},
-  {{"proposal_id":"P0002","existing_id":null,"duplicate_of":"P0001","canonical_text":null}},
-  {{"proposal_id":"P0003","existing_id":null,"duplicate_of":null,"canonical_text":"..."}}
-]}}
+    original_prompt = batch_curator_prompt(proposals, candidates)
+    return f"""{original_prompt}
 
-<curator_response>
+Your previous response below was incomplete or invalid. Redo the entire batch
+from the original proposals above. Do not infer missing resolutions from the
+partial response. Return a complete JSON object and nothing else.
+
+<invalid_curator_response>
 {original_response}
-</curator_response>
+</invalid_curator_response>
 """
 
 
@@ -754,8 +748,8 @@ def _curate_batch(
                 completion = curator_client.complete(
                     batch_curator_repair_prompt(
                         original_content,
-                        proposal_ids=proposal_ids,
-                        candidate_ids=candidate_ids,
+                        proposals=proposals,
+                        candidates=candidates,
                     ),
                     curator_config,
                 )
@@ -1475,7 +1469,10 @@ def run_epoch(
         )
         if any(existing.get(key) != manifest.get(key) for key in comparable):
             raise ValueError(f"Existing epoch run has different configuration: {manifest_path}")
-        if existing.get("curator_batch_size", 16) != curator_batch_size:
+        if (
+            "curator_batch_size" in existing
+            and existing["curator_batch_size"] != curator_batch_size
+        ):
             raise ValueError(f"Existing epoch run has different configuration: {manifest_path}")
         manifest.setdefault("curator_batch_size", curator_batch_size)
         if existing.get("status") == "complete":

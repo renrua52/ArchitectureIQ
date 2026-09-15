@@ -485,6 +485,12 @@ def test_invalid_curator_format_is_saved_and_repaired(tmp_path: Path) -> None:
     init_kb(kb_dir)
     write_question(questions, "q_1", correct="A")
     solver_config, curator_config = configs()
+    curator = FakeClient(
+        [
+            "Canonical claim: Adam adapts coordinate scales.",
+            curator_batch(canonical_text="Adam adapts coordinate scales."),
+        ]
+    )
 
     run_epoch(
         kb_dir=kb_dir,
@@ -498,12 +504,7 @@ def test_invalid_curator_format_is_saved_and_repaired(tmp_path: Path) -> None:
                 }
             ]
         ),
-        curator_client=FakeClient(
-            [
-                "Canonical claim: Adam adapts coordinate scales.",
-                curator_batch(canonical_text="Adam adapts coordinate scales."),
-            ]
-        ),
+        curator_client=curator,
         solver_config=solver_config,
         curator_config=curator_config,
     )
@@ -512,6 +513,7 @@ def test_invalid_curator_format_is_saved_and_repaired(tmp_path: Path) -> None:
     assert (curation_dir / "batch_0001_raw.json").is_file()
     assert (curation_dir / "batch_0001_repair_01.json").is_file()
     assert read_json(curation_dir / "batch_0001.json")["format_repaired"] is True
+    assert '"text": "Adam adapts scales."' in curator.prompts[1]
 
 
 def test_weighted_solver_normalizes_multiple_evidence_items() -> None:
