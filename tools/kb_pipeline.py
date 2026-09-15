@@ -32,7 +32,7 @@ from llm_client import (  # noqa: E402
 )
 
 
-SCHEMA_VERSION = "architectureiq_kb_v2"
+SCHEMA_VERSION = "architectureiq_kb_v3"
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}|[\u4e00-\u9fff]{2,}")
 
 
@@ -106,7 +106,7 @@ def init_kb(kb_dir: Path) -> dict[str, Any]:
         "epoch": 0,
         "created_at": utc_now(),
         "claims": [],
-        "delta": {"added": [], "reinforced": [], "rejected": []},
+        "delta": {"added": [], "reinforced": [], "penalized": [], "rejected": []},
     }
     atomic_write_json(claims_path, state)
     atomic_write_json(kb_dir / "snapshots" / "kb_0000.json", snapshot)
@@ -149,10 +149,15 @@ def retrieve_claims(snapshot: dict[str, Any], question_prompt: str, limit: int) 
         return []
     prompt_tokens = tokenize(question_prompt)
 
-    def rank(claim: dict[str, Any]) -> tuple[float, int, str]:
+    def rank(claim: dict[str, Any]) -> tuple[float, int, int, str]:
         claim_tokens = tokenize(str(claim["text"]))
         overlap = len(prompt_tokens & claim_tokens) / max(1, len(claim_tokens))
-        return (-overlap, -int(claim["support_count"]), str(claim["id"]))
+        return (
+            -overlap,
+            -int(claim.get("credit", claim.get("support_count", 0))),
+            -int(claim.get("support_count", 0)),
+            str(claim["id"]),
+        )
 
     return sorted(snapshot.get("claims", []), key=rank)[:limit]
 
@@ -165,7 +170,9 @@ def solver_prompt(question_prompt: str, claims: list[dict[str, Any]]) -> str:
     if claims:
         kb_text = "\n".join(
             f'- {claim["id"]}: {claim["text"]} '
-            f'(successful uses={claim["support_count"]})'
+            f'(credit={claim.get("credit", claim.get("support_count", 0))}, '
+            f'successful uses={claim.get("support_count", 0)}, '
+            f'failed uses={claim.get("failure_count", 0)})'
             for claim in claims
         )
     else:
@@ -373,25 +380,42 @@ def _next_claim_id(state: dict[str, Any]) -> str:
     return f"K{number:04d}"
 
 
+def _upgrade_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Add credit fields to v2 states without rewriting immutable snapshots."""
+    for claim in state.get("claims", []):
+        support_count = int(claim.get("support_count", 0))
+        failure_count = int(claim.get("failure_count", 0))
+        claim["support_count"] = support_count
+        claim["failure_count"] = failure_count
+        claim["credit"] = support_count - failure_count
+        claim.setdefault("last_evaluated_epoch", claim.get("last_supported_epoch"))
+    state["schema_version"] = SCHEMA_VERSION
+    return state
+
+
 def _claim_view(claim: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": claim["id"],
         "text": claim["text"],
         "support_count": claim["support_count"],
+        "failure_count": claim.get("failure_count", 0),
+        "credit": claim.get("credit", claim["support_count"]),
         "created_epoch": claim["created_epoch"],
         "last_supported_epoch": claim["last_supported_epoch"],
+        "last_evaluated_epoch": claim.get(
+            "last_evaluated_epoch", claim["last_supported_epoch"]
+        ),
     }
 
 
 def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
-    state = read_json(kb_dir / "claims.json")
+    state = _upgrade_state(read_json(kb_dir / "claims.json"))
     if int(state["last_epoch"]) not in {epoch - 1, epoch}:
         raise ValueError("KB state and epoch run are out of sequence")
     claims_by_id = {claim["id"]: claim for claim in state["claims"]}
     claims_by_text = {_canonical_key(claim["text"]): claim for claim in state["claims"]}
     processed = set(state.get("processed_event_ids", []))
     events: list[dict[str, Any]] = []
-    rejected_ids: set[str] = set()
 
     result_paths = sorted((run_dir / "questions").glob("*/result.json"))
     for result_path in result_paths:
@@ -407,13 +431,26 @@ def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
                 if claim_id in claims_by_id
                 else primary.get("text")
             )
-            update = {
-                "action": "rejected",
-                "claim_id": claim_id,
-                "claim_text": claim_text,
-            }
             if claim_id:
-                rejected_ids.add(claim_id)
+                claim = claims_by_id[claim_id]
+                claim["failure_count"] += 1
+                claim["credit"] -= 1
+                claim["last_evaluated_epoch"] = epoch
+                update = {
+                    "action": "penalized",
+                    "claim_id": claim_id,
+                    "claim_text": claim_text,
+                    "credit_delta": -1,
+                    "credit_after": claim["credit"],
+                }
+            else:
+                update = {
+                    "action": "rejected",
+                    "claim_id": None,
+                    "claim_text": claim_text,
+                    "credit_delta": 0,
+                    "credit_after": None,
+                }
         else:
             resolution = result["claim_resolution"]
             claim: dict[str, Any] | None = None
@@ -428,8 +465,11 @@ def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
                     "id": claim_id,
                     "text": text,
                     "support_count": 0,
+                    "failure_count": 0,
+                    "credit": 0,
                     "created_epoch": epoch,
                     "last_supported_epoch": epoch,
+                    "last_evaluated_epoch": epoch,
                 }
                 state["claims"].append(claim)
                 claims_by_id[claim_id] = claim
@@ -438,11 +478,15 @@ def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
             else:
                 action = "reinforced"
             claim["support_count"] += 1
+            claim["credit"] += 1
             claim["last_supported_epoch"] = epoch
+            claim["last_evaluated_epoch"] = epoch
             update = {
                 "action": action,
                 "claim_id": claim["id"],
                 "claim_text": claim["text"],
+                "credit_delta": 1,
+                "credit_after": claim["credit"],
             }
         result["resolved_claim_id"] = update["claim_id"]
         result["kb_update"] = update
@@ -460,15 +504,13 @@ def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
                 "claim_id": update["claim_id"],
                 "claim_text": update["claim_text"],
                 "claim_source": result["solver"]["primary_claim"]["type"],
+                "credit_delta": update["credit_delta"],
+                "credit_after": update["credit_after"],
                 "retrieved_claim_ids": result["retrieved_claim_ids"],
                 "result_path": str(result_path),
             }
         )
 
-    if rejected_ids:
-        state["claims"] = [
-            claim for claim in state["claims"] if claim["id"] not in rejected_ids
-        ]
     state["processed_event_ids"] = sorted(processed)
     state["seen_question_ids"] = sorted(
         set(state.get("seen_question_ids", []))
@@ -495,6 +537,9 @@ def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
             "reinforced": [
                 update for update in updates if update["action"] == "reinforced"
             ],
+            "penalized": [
+                update for update in updates if update["action"] == "penalized"
+            ],
             "rejected": [
                 update for update in updates if update["action"] == "rejected"
             ],
@@ -504,6 +549,210 @@ def finalize_epoch(kb_dir: Path, run_dir: Path, epoch: int) -> dict[str, Any]:
     append_jsonl_once(kb_dir / "events.jsonl", events)
     atomic_write_json(kb_dir / "snapshots" / f"kb_{epoch:04d}.json", snapshot)
     return snapshot
+
+
+def rebuild_credit_history(source_dir: Path, output_dir: Path) -> dict[str, Any]:
+    """Replay saved question results into a non-destructive credit-based KB."""
+    if (output_dir / "claims.json").exists():
+        raise FileExistsError(f"Credit KB already exists: {output_dir / 'claims.json'}")
+    source_state = read_json(source_dir / "claims.json")
+    claim_catalog: dict[str, dict[str, Any]] = {}
+    for snapshot_path in sorted((source_dir / "snapshots").glob("kb_*.json")):
+        snapshot = read_json(snapshot_path)
+        for claim in snapshot.get("claims", []):
+            claim_catalog[str(claim["id"])] = claim
+        for delta_name in ("added", "reinforced", "penalized", "rejected"):
+            for update in snapshot.get("delta", {}).get(delta_name, []):
+                if update.get("claim_id") and update.get("claim_text"):
+                    claim_catalog.setdefault(
+                        str(update["claim_id"]),
+                        {"id": update["claim_id"], "text": update["claim_text"]},
+                    )
+
+    state = {
+        "schema_version": SCHEMA_VERSION,
+        "last_epoch": 0,
+        "next_claim_number": 1,
+        "processed_event_ids": [],
+        "seen_question_ids": [],
+        "solver_model": source_state.get("solver_model"),
+        "curator_model": source_state.get("curator_model"),
+        "claims": [],
+        "replayed_from": str(source_dir),
+    }
+    snapshot_zero = {
+        "schema_version": SCHEMA_VERSION,
+        "epoch": 0,
+        "created_at": utc_now(),
+        "claims": [],
+        "delta": {"added": [], "reinforced": [], "penalized": [], "rejected": []},
+        "replayed_from": str(source_dir),
+    }
+    atomic_write_json(output_dir / "snapshots" / "kb_0000.json", snapshot_zero)
+    claims_by_id: dict[str, dict[str, Any]] = {}
+    processed: set[str] = set()
+    seen_questions: set[str] = set()
+    run_dirs = sorted((source_dir / "runs").glob("epoch_*"))
+    for run_dir in run_dirs:
+        match = re.fullmatch(r"epoch_(\d+)", run_dir.name)
+        if match is None:
+            continue
+        epoch = int(match.group(1))
+        updates: list[dict[str, Any]] = []
+        events: list[dict[str, Any]] = []
+        for result_path in sorted((run_dir / "questions").glob("*/result.json")):
+            result = read_json(result_path)
+            question_id = str(result["question_id"])
+            event_id = f"epoch_{epoch:04d}:{question_id}"
+            primary = result["solver"]["primary_claim"]
+            old_update = result.get("kb_update", {})
+            if result["is_correct"]:
+                raw_claim_id = (
+                    result.get("resolved_claim_id")
+                    or old_update.get("claim_id")
+                    or result.get("claim_resolution", {}).get("existing_id")
+                )
+                if not raw_claim_id:
+                    raise ValueError(f"Correct result has no resolved claim: {result_path}")
+                claim_id = str(raw_claim_id)
+                claim = claims_by_id.get(claim_id)
+                action = "reinforced"
+                if claim is None:
+                    metadata = claim_catalog.get(claim_id, {})
+                    claim_text = str(
+                        old_update.get("claim_text")
+                        or metadata.get("text")
+                        or primary.get("text")
+                        or ""
+                    ).strip()
+                    if not claim_text:
+                        raise ValueError(f"Cannot recover text for {claim_id}: {result_path}")
+                    claim = {
+                        "id": claim_id,
+                        "text": claim_text,
+                        "support_count": 0,
+                        "failure_count": 0,
+                        "credit": 0,
+                        "created_epoch": int(metadata.get("created_epoch", epoch)),
+                        "last_supported_epoch": epoch,
+                        "last_evaluated_epoch": epoch,
+                    }
+                    state["claims"].append(claim)
+                    claims_by_id[claim_id] = claim
+                    action = "added"
+                claim["support_count"] += 1
+                claim["credit"] += 1
+                claim["last_supported_epoch"] = epoch
+                claim["last_evaluated_epoch"] = epoch
+                update = {
+                    "action": action,
+                    "claim_id": claim_id,
+                    "claim_text": claim["text"],
+                    "credit_delta": 1,
+                    "credit_after": claim["credit"],
+                }
+            elif primary["type"] == "kb":
+                claim_id = str(primary["id"])
+                claim = claims_by_id.get(claim_id)
+                if claim is None:
+                    metadata = claim_catalog.get(claim_id, {})
+                    claim_text = str(
+                        old_update.get("claim_text") or metadata.get("text") or ""
+                    ).strip()
+                    if not claim_text:
+                        raise ValueError(f"Cannot recover text for {claim_id}: {result_path}")
+                    claim = {
+                        "id": claim_id,
+                        "text": claim_text,
+                        "support_count": 0,
+                        "failure_count": 0,
+                        "credit": 0,
+                        "created_epoch": int(metadata.get("created_epoch", epoch)),
+                        "last_supported_epoch": int(
+                            metadata.get("last_supported_epoch", epoch)
+                        ),
+                        "last_evaluated_epoch": epoch,
+                    }
+                    state["claims"].append(claim)
+                    claims_by_id[claim_id] = claim
+                claim["failure_count"] += 1
+                claim["credit"] -= 1
+                claim["last_evaluated_epoch"] = epoch
+                update = {
+                    "action": "penalized",
+                    "claim_id": claim_id,
+                    "claim_text": claim["text"],
+                    "credit_delta": -1,
+                    "credit_after": claim["credit"],
+                }
+            else:
+                update = {
+                    "action": "rejected",
+                    "claim_id": None,
+                    "claim_text": primary.get("text"),
+                    "credit_delta": 0,
+                    "credit_after": None,
+                }
+            updates.append(update)
+            processed.add(event_id)
+            seen_questions.add(question_id)
+            events.append(
+                {
+                    "event_id": event_id,
+                    "epoch": epoch,
+                    "question_id": question_id,
+                    "predicted_letter": result["solver"]["answer"],
+                    "correct_letter": result["correct_letter"],
+                    "is_correct": result["is_correct"],
+                    "kb_action": update["action"],
+                    "claim_id": update["claim_id"],
+                    "claim_text": update["claim_text"],
+                    "claim_source": primary["type"],
+                    "credit_delta": update["credit_delta"],
+                    "credit_after": update["credit_after"],
+                    "retrieved_claim_ids": result["retrieved_claim_ids"],
+                    "result_path": str(result_path),
+                }
+            )
+        state["claims"].sort(key=lambda claim: claim["id"])
+        state["last_epoch"] = epoch
+        state["processed_event_ids"] = sorted(processed)
+        state["seen_question_ids"] = sorted(seen_questions)
+        claim_numbers = [int(claim_id[1:]) for claim_id in claims_by_id]
+        state["next_claim_number"] = max(claim_numbers, default=0) + 1
+        added_ids = {
+            update["claim_id"] for update in updates if update["action"] == "added"
+        }
+        snapshot = {
+            "schema_version": SCHEMA_VERSION,
+            "epoch": epoch,
+            "created_at": utc_now(),
+            "solver_model": state["solver_model"],
+            "claims": [_claim_view(claim) for claim in state["claims"]],
+            "delta": {
+                "added": [
+                    _claim_view(claim)
+                    for claim in state["claims"]
+                    if claim["id"] in added_ids
+                ],
+                "reinforced": [
+                    update for update in updates if update["action"] == "reinforced"
+                ],
+                "penalized": [
+                    update for update in updates if update["action"] == "penalized"
+                ],
+                "rejected": [
+                    update for update in updates if update["action"] == "rejected"
+                ],
+            },
+            "replayed_from": str(source_dir),
+        }
+        append_jsonl_once(output_dir / "events.jsonl", events)
+        atomic_write_json(output_dir / "snapshots" / f"kb_{epoch:04d}.json", snapshot)
+        atomic_write_json(output_dir / "claims.json", state)
+    if not run_dirs:
+        atomic_write_json(output_dir / "claims.json", state)
+    return state
 
 
 def _process_question(
@@ -685,7 +934,7 @@ def run_epoch(
 ) -> dict[str, Any]:
     if workers < 1:
         raise ValueError("workers must be at least 1")
-    state = read_json(kb_dir / "claims.json")
+    state = _upgrade_state(read_json(kb_dir / "claims.json"))
     last_epoch = int(state["last_epoch"])
     active_manifest_path = kb_dir / "runs" / f"epoch_{last_epoch:04d}" / "manifest.json"
     if last_epoch > 0 and active_manifest_path.is_file():
@@ -805,10 +1054,11 @@ def _vapi_client(timeout_s: float) -> LLMClient:
 
 
 def _print_claims(kb_dir: Path) -> None:
-    state = read_json(kb_dir / "claims.json")
+    state = _upgrade_state(read_json(kb_dir / "claims.json"))
     for claim in state["claims"]:
         print(
-            f"{claim['id']} [active] support={claim['support_count']}  {claim['text']}"
+            f"{claim['id']} credit={claim['credit']} "
+            f"(+{claim['support_count']}/-{claim['failure_count']})  {claim['text']}"
         )
 
 
@@ -836,6 +1086,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     show_parser = subparsers.add_parser("show", help="print one claim per line")
     show_parser.add_argument("--kb-dir", type=Path, required=True)
+    migrate_parser = subparsers.add_parser(
+        "migrate-credit", help="replay a hard-reject KB into credit-based history"
+    )
+    migrate_parser.add_argument("--source-dir", type=Path, required=True)
+    migrate_parser.add_argument("--output-dir", type=Path, required=True)
     return parser
 
 
@@ -847,6 +1102,13 @@ def main() -> None:
         return
     if args.command == "show":
         _print_claims(args.kb_dir)
+        return
+    if args.command == "migrate-credit":
+        state = rebuild_credit_history(args.source_dir, args.output_dir)
+        print(
+            f"Rebuilt {len(state['claims'])} claims through epoch {state['last_epoch']} "
+            f"at {args.output_dir}"
+        )
         return
 
     client = _vapi_client(args.timeout)

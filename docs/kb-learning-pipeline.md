@@ -11,12 +11,12 @@ training path: every answer is checked only against the stored
 2. A small, lexically relevant claim slice is added to each benchmark prompt.
 3. The solver returns one answer, one primary claim, and an explanation. The
    response is written to `solver_locked.json` before GT is opened.
-4. The answer is checked against GT. If it is wrong, its primary claim is
-   rejected immediately: a new claim never enters the KB, while a cited claim
-   is removed from the next version.
+4. The answer is checked against GT. A cited existing claim gains one credit
+   for a correct answer and loses one credit for a wrong answer. Claims are not
+   deleted. A wrong new claim is recorded but never enters the KB.
 5. For a correct answer, a new claim goes to the curator, which either maps it
    to an existing ID or returns one canonical proposition. Existing claims gain
-   one successful-use count.
+   one successful-use count and one credit.
 6. At epoch end, a new frozen snapshot and its added/reinforced/rejected delta
    are written. New claims are visible to
    the solver only in the next epoch.
@@ -25,9 +25,10 @@ The solver and curator configurations are locked by the first epoch, so KB
 context is the only model input that evolves. A question ID can be used for
 learning only once in a KB, preventing answer leakage across epochs.
 
-`claims.json` contains only active claims. Rejected claims remain auditable in
-`events.jsonl` and in earlier immutable snapshots, but never appear in later
-solver context.
+Each stored claim has `support_count`, `failure_count`, and
+`credit = support_count - failure_count`. Existing claims remain in later
+snapshots even when their credit reaches zero or becomes negative. Wrong new
+claims remain auditable in `events.jsonl` but do not enter the KB.
 
 ## Run
 
@@ -46,6 +47,20 @@ python tools/kb_pipeline.py run-epoch \
   --limit 20
 python tools/kb_pipeline.py show --kb-dir data/kb/my_run
 ```
+
+To preserve an existing hard-reject run while rebuilding its saved evidence
+under the credit rule:
+
+```bash
+python tools/kb_pipeline.py migrate-credit \
+  --source-dir data/kb/old_run \
+  --output-dir data/kb/credit_run
+```
+
+This replays the immutable per-question results into new snapshots. It does
+not overwrite the source run. Because historical solver prompts came from the
+old snapshots, replay corrects the evidence accounting but does not claim to
+reconstruct the counterfactual answers a credit-based KB would have produced.
 
 The stable artifacts are:
 
