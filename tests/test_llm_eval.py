@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -12,7 +13,13 @@ LLM_EVAL = ROOT / "tools" / "llm_eval"
 sys.path.insert(0, str(LLM_EVAL))
 
 from completion import fetch_model_response  # noqa: E402
-from llm_client import LLMCompletion, ModelConfig, _token_limit_payload, message_text  # noqa: E402
+from llm_client import (  # noqa: E402
+    LLMCompletion,
+    ModelConfig,
+    _PostPreservingRedirectHandler,
+    _token_limit_payload,
+    message_text,
+)
 from prompt_wrapper import format_eval_prompt  # noqa: E402
 from question_loader import QuestionItem, load_question_item, prompt_hash  # noqa: E402
 from response_parser import parse_choice_letter, split_chain_of_thought  # noqa: E402
@@ -81,6 +88,30 @@ def test_token_limit_payload_sends_one_field() -> None:
     assert _token_limit_payload(
         ModelConfig(name="m", max_tokens=100, extra={"max_completion_tokens": 512})
     ) == {"max_completion_tokens": 512}
+
+
+def test_chat_completion_redirect_preserves_post() -> None:
+    request = urllib.request.Request(
+        "https://relay.example/v1/chat/completions",
+        data=b'{"model":"m"}',
+        headers={"Authorization": "Bearer secret", "Content-Type": "application/json"},
+        method="POST",
+    )
+
+    redirected = _PostPreservingRedirectHandler().redirect_request(
+        request,
+        None,
+        302,
+        "Found",
+        {},
+        "https://worker.example/v1/chat/completions",
+    )
+
+    assert redirected is not None
+    assert redirected.get_method() == "POST"
+    assert redirected.data == request.data
+    assert redirected.get_header("Authorization") == "Bearer secret"
+    assert redirected.get_header("Content-type") == "application/json"
 
 
 def test_format_eval_prompt_appends_answer_tags() -> None:

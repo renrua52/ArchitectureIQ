@@ -16,6 +16,35 @@ class LLMClientError(RuntimeError):
     pass
 
 
+class _PostPreservingRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Keep chat-completion requests as POST across relay redirects."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        if req.get_method() == "POST" and code in {301, 302, 307, 308}:
+            redirected_headers = {
+                key: value
+                for key, value in req.headers.items()
+                if key.lower() != "content-length"
+            }
+            return urllib.request.Request(
+                newurl,
+                data=req.data,
+                headers=redirected_headers,
+                origin_req_host=req.origin_req_host,
+                unverifiable=True,
+                method="POST",
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 @dataclass(frozen=True)
 class ModelConfig:
     name: str
@@ -150,9 +179,10 @@ class LLMClient:
             },
             method="POST",
         )
+        opener = urllib.request.build_opener(_PostPreservingRedirectHandler())
         for attempt in range(self.max_retries + 1):
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+                with opener.open(request, timeout=self.timeout_s) as response:
                     raw = json.loads(response.read().decode("utf-8"))
                 break
             except urllib.error.HTTPError as exc:
