@@ -45,6 +45,7 @@ def main() -> int:
     parser.add_argument("--solver-workers", type=int, default=6)
     parser.add_argument("--generation-workers", type=int, default=6)
     parser.add_argument("--injection-limit", type=int, default=20)
+    parser.add_argument("--curator-batch-size", type=int, default=16)
     parser.add_argument("--epoch-size", type=int, default=50)
     parser.add_argument("--retry-delay", type=float, default=30.0)
     parser.add_argument("--timeout", type=float, default=600.0)
@@ -106,6 +107,8 @@ def main() -> int:
                     str(args.epoch_size),
                     "--injection-limit",
                     str(args.injection_limit),
+                    "--curator-batch-size",
+                    str(args.curator_batch_size),
                     "--workers",
                     str(args.solver_workers),
                     "--skip-seen",

@@ -16,6 +16,7 @@ from kb_pipeline import (  # noqa: E402
     claim_puct_score,
     init_kb,
     list_questions,
+    parse_batch_curator,
     parse_weighted_solver,
     read_json,
     rebuild_credit_history,
@@ -61,6 +62,27 @@ def configs() -> tuple[ModelConfig, ModelConfig]:
     return ModelConfig("solver"), ModelConfig("curator")
 
 
+def curator_batch(
+    *actions: dict[str, Any], **single_action: Any
+) -> dict[str, Any]:
+    if single_action:
+        if actions:
+            raise ValueError("Use positional actions or one keyword action")
+        actions = (single_action,)
+    resolutions = []
+    for index, action in enumerate(actions, start=1):
+        resolutions.append(
+            {
+                "proposal_id": f"P{index:04d}",
+                "existing_id": None,
+                "duplicate_of": None,
+                "canonical_text": None,
+                **action,
+            }
+        )
+    return {"resolutions": resolutions}
+
+
 def test_list_questions_follows_direct_symlink_directories(tmp_path: Path) -> None:
     source = tmp_path / "source"
     root = tmp_path / "questions"
@@ -86,7 +108,7 @@ def test_correct_new_claim_is_added(tmp_path: Path) -> None:
         ]
     )
     curator = FakeClient(
-        [{"existing_id": None, "canonical_text": "Adam can handle noisy gradients well."}]
+        [curator_batch(canonical_text="Adam can handle noisy gradients well.")]
     )
     solver_config, curator_config = configs()
 
@@ -112,7 +134,7 @@ def test_correct_new_claim_is_added(tmp_path: Path) -> None:
             "last_evaluated_epoch": 1,
         }
     ]
-    assert "Ground-truth answer: A" in curator.prompts[0]
+    assert '"source_answer_correct": true' in curator.prompts[0]
 
 
 def test_frozen_snapshot_and_existing_claim_updates(tmp_path: Path) -> None:
@@ -134,7 +156,7 @@ def test_frozen_snapshot_and_existing_claim_updates(tmp_path: Path) -> None:
             ]
         ),
         curator_client=FakeClient(
-            [{"existing_id": None, "canonical_text": "Momentum smooths noisy gradients."}]
+            [curator_batch(canonical_text="Momentum smooths noisy gradients.")]
         ),
         solver_config=solver_config,
         curator_config=curator_config,
@@ -204,7 +226,7 @@ def test_curator_can_deduplicate_new_text_to_existing_claim(tmp_path: Path) -> N
             ]
         ),
         curator_client=FakeClient(
-            [{"existing_id": None, "canonical_text": "Adam adapts learning rates per parameter."}]
+            [curator_batch(canonical_text="Adam adapts learning rates per parameter.")]
         ),
         solver_config=solver_config,
         curator_config=curator_config,
@@ -223,7 +245,7 @@ def test_curator_can_deduplicate_new_text_to_existing_claim(tmp_path: Path) -> N
                 }
             ]
         ),
-        curator_client=FakeClient([{"existing_id": "K0001", "canonical_text": None}]),
+        curator_client=FakeClient([curator_batch(existing_id="K0001")]),
         solver_config=solver_config,
         curator_config=curator_config,
     )
@@ -241,9 +263,7 @@ def test_wrong_new_claim_enters_kb_with_negative_evidence(tmp_path: Path) -> Non
     questions = tmp_path / "questions"
     init_kb(kb_dir)
     write_question(questions, "q_1", correct="B")
-    curator = FakeClient(
-        [{"existing_id": None, "canonical_text": "A false proposition."}]
-    )
+    curator = FakeClient([curator_batch(canonical_text="A false proposition.")])
     solver_config, curator_config = configs()
 
     run_epoch(
@@ -292,7 +312,7 @@ def test_positive_and_negative_credit_are_aggregated_within_epoch(tmp_path: Path
             ]
         ),
         curator_client=FakeClient(
-            [{"existing_id": None, "canonical_text": "Momentum smooths gradients."}]
+            [curator_batch(canonical_text="Momentum smooths gradients.")]
         ),
         solver_config=solver_config,
         curator_config=curator_config,
@@ -372,7 +392,7 @@ def test_rebuild_credit_history_restores_hard_deleted_claim(tmp_path: Path) -> N
             ]
         ),
         curator_client=FakeClient(
-            [{"existing_id": None, "canonical_text": "Momentum smooths gradients."}]
+            [curator_batch(canonical_text="Momentum smooths gradients.")]
         ),
         solver_config=solver_config,
         curator_config=curator_config,
@@ -447,7 +467,7 @@ def test_invalid_solver_format_is_saved_and_repaired_before_gt(tmp_path: Path) -
         questions_root=questions,
         solver_client=solver,
         curator_client=FakeClient(
-            [{"existing_id": None, "canonical_text": "Adam adapts coordinate scales."}]
+            [curator_batch(canonical_text="Adam adapts coordinate scales.")]
         ),
         solver_config=solver_config,
         curator_config=curator_config,
@@ -481,20 +501,17 @@ def test_invalid_curator_format_is_saved_and_repaired(tmp_path: Path) -> None:
         curator_client=FakeClient(
             [
                 "Canonical claim: Adam adapts coordinate scales.",
-                {
-                    "existing_id": None,
-                    "canonical_text": "Adam adapts coordinate scales.",
-                },
+                curator_batch(canonical_text="Adam adapts coordinate scales."),
             ]
         ),
         solver_config=solver_config,
         curator_config=curator_config,
     )
 
-    qdir = kb_dir / "runs" / "epoch_0001" / "questions" / "q_1"
-    assert (qdir / "curator_raw_response_01.json").is_file()
-    assert (qdir / "curator_repair_response_01_01.json").is_file()
-    assert read_json(qdir / "curator_response_01.json")["format_repaired"] is True
+    curation_dir = kb_dir / "runs" / "epoch_0001" / "curation"
+    assert (curation_dir / "batch_0001_raw.json").is_file()
+    assert (curation_dir / "batch_0001_repair_01.json").is_file()
+    assert read_json(curation_dir / "batch_0001.json")["format_repaired"] is True
 
 
 def test_weighted_solver_normalizes_multiple_evidence_items() -> None:
@@ -513,6 +530,36 @@ def test_weighted_solver_normalizes_multiple_evidence_items() -> None:
     assert parsed["evidence"] == [
         {"type": "kb", "id": "K0002", "credit": 0.75},
         {"type": "new", "text": "Use an approximate update integral.", "credit": 0.25},
+    ]
+
+
+def test_parse_batch_curator_preserves_proposal_order() -> None:
+    completion = FakeClient(
+        [
+            {
+                "resolutions": [
+                    {
+                        "proposal_id": "P0001",
+                        "existing_id": "K0003",
+                    },
+                    {
+                        "proposal_id": "P0002",
+                        "duplicate_of": "P0001",
+                    },
+                ]
+            }
+        ]
+    ).complete("", ModelConfig("curator"))
+
+    parsed = parse_batch_curator(
+        completion,
+        proposal_ids=["P0001", "P0002"],
+        candidate_ids={"K0003"},
+    )
+
+    assert parsed == [
+        {"proposal_id": "P0001", "existing_id": "K0003"},
+        {"proposal_id": "P0002", "duplicate_of": "P0001"},
     ]
 
 
@@ -556,8 +603,10 @@ def test_multiple_evidence_updates_are_weighted(tmp_path: Path) -> None:
         ),
         curator_client=FakeClient(
             [
-                {"existing_id": None, "canonical_text": "First rule."},
-                {"existing_id": None, "canonical_text": "Second rule."},
+                curator_batch(
+                    {"canonical_text": "First rule."},
+                    {"canonical_text": "Second rule."},
+                )
             ]
         ),
         solver_config=solver_config,
@@ -571,6 +620,90 @@ def test_multiple_evidence_updates_are_weighted(tmp_path: Path) -> None:
         for line in (kb_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert [event["assigned_credit"] for event in events] == [0.75, 0.25]
+
+
+def test_batch_curator_deduplicates_within_batch(tmp_path: Path) -> None:
+    kb_dir = tmp_path / "kb"
+    questions = tmp_path / "questions"
+    init_kb(kb_dir)
+    write_question(questions, "q_1", correct="A")
+    solver_config, curator_config = configs()
+
+    run_epoch(
+        kb_dir=kb_dir,
+        questions_root=questions,
+        solver_client=FakeClient(
+            [
+                {
+                    "answer": "A",
+                    "evidence": [
+                        {"type": "new", "text": "First wording.", "credit": 3},
+                        {"type": "new", "text": "Equivalent wording.", "credit": 1},
+                    ],
+                    "explanation": "Both descriptions express one rule.",
+                }
+            ]
+        ),
+        curator_client=FakeClient(
+            [
+                curator_batch(
+                    {"canonical_text": "One canonical rule."},
+                    {"duplicate_of": "P0001"},
+                )
+            ]
+        ),
+        solver_config=solver_config,
+        curator_config=curator_config,
+    )
+
+    claims = read_json(kb_dir / "claims.json")["claims"]
+    assert len(claims) == 1
+    assert claims[0]["support_count"] == 1
+    assert len(read_json(kb_dir / "runs/epoch_0001/curation/batch_0001.json")["resolutions"]) == 2
+
+
+def test_interrupted_batch_curation_resumes_without_solver_call(tmp_path: Path) -> None:
+    kb_dir = tmp_path / "kb"
+    questions = tmp_path / "questions"
+    init_kb(kb_dir)
+    write_question(questions, "q_1", correct="A")
+    solver_config, curator_config = configs()
+    solver = FakeClient(
+        [
+            {
+                "answer": "A",
+                "evidence": [{"type": "new", "text": "A rule.", "credit": 1}],
+                "explanation": "The rule applies.",
+            }
+        ]
+    )
+
+    try:
+        run_epoch(
+            kb_dir=kb_dir,
+            questions_root=questions,
+            solver_client=solver,
+            curator_client=FakeClient(["not json"]),
+            solver_config=solver_config,
+            curator_config=curator_config,
+        )
+    except IndexError:
+        pass
+    else:
+        raise AssertionError("The fake curator should interrupt during repair")
+
+    snapshot = run_epoch(
+        kb_dir=kb_dir,
+        questions_root=questions,
+        solver_client=FakeClient([]),
+        curator_client=FakeClient([curator_batch(canonical_text="A canonical rule.")]),
+        solver_config=solver_config,
+        curator_config=curator_config,
+    )
+
+    assert len(solver.prompts) == 1
+    assert snapshot["claims"][0]["text"] == "A canonical rule."
+    assert read_json(kb_dir / "runs/epoch_0001/manifest.json")["status"] == "complete"
 
 
 def test_completed_aggregation_can_finish_a_running_manifest(tmp_path: Path) -> None:
@@ -594,7 +727,7 @@ def test_completed_aggregation_can_finish_a_running_manifest(tmp_path: Path) -> 
             ]
         ),
         curator_client=FakeClient(
-            [{"existing_id": None, "canonical_text": "A reusable rule."}]
+            [curator_batch(canonical_text="A reusable rule.")]
         ),
         solver_config=solver_config,
         curator_config=curator_config,

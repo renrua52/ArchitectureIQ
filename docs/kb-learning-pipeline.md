@@ -15,7 +15,8 @@ training path: every answer is checked only against the stored
 4. The answer is checked against GT. Its normalized evidence weights are added
    to `support_count` for a correct answer or `failure_count` for a wrong one.
 5. At epoch end, every new claim (including claims from wrong answers) goes to
-   the curator, which normalizes it and deduplicates it against the evolving KB.
+   the curator in persisted batches of 16. It normalizes each claim and
+   deduplicates it against the evolving KB and earlier proposals in the batch.
 6. The whole batch is committed once, then a new frozen snapshot and delta are
    written. New claims are visible to the solver only in the next epoch.
 

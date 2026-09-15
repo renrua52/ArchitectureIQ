@@ -604,83 +604,185 @@ def _claim_view(claim: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _curate_new_evidence(
+def batch_curator_prompt(
+    proposals: list[dict[str, Any]], candidates: list[dict[str, Any]]
+) -> str:
+    proposal_text = json.dumps(proposals, ensure_ascii=False, indent=2)
+    candidate_text = "\n".join(
+        f'- {claim["id"]}: {claim["text"]}' for claim in candidates
+    ) or "(none)"
+    return f"""Deduplicate and normalize this batch of proposed ArchitectureIQ rules.
+
+Preserve each proposition's meaning even when its source answer was wrong. Do
+not repair it into a different proposition. Prefer self-contained,
+soft-quantitative wording with justified approximate formulas, scale/range
+conditions, comparison criteria, or failure boundaries. Keep each rule as one
+plain text string; do not split it into structured condition fields.
+
+Existing candidate rules:
+{candidate_text}
+
+New proposals:
+{proposal_text}
+
+Return exactly one resolution for every proposal, in input order. A proposal
+may map to an existing K ID, duplicate an earlier proposal in this same batch,
+or become a new canonical rule. Return only this JSON shape:
+{{"resolutions":[
+  {{"proposal_id":"P0001","existing_id":"K0001","duplicate_of":null,"canonical_text":null}},
+  {{"proposal_id":"P0002","existing_id":null,"duplicate_of":"P0001","canonical_text":null}},
+  {{"proposal_id":"P0003","existing_id":null,"duplicate_of":null,"canonical_text":"..."}}
+]}}
+"""
+
+
+def batch_curator_repair_prompt(
+    original_response: str,
     *,
-    result: dict[str, Any],
-    evidence: dict[str, Any],
-    evidence_index: int,
-    catalog: list[dict[str, Any]],
-    result_dir: Path,
+    proposal_ids: list[str],
+    candidate_ids: set[str],
+) -> str:
+    return f"""Convert the curator response below to the required JSON schema.
+Do not change its deduplication decisions or canonical rule text. Return exactly
+one resolution for each proposal in this order: {json.dumps(proposal_ids)}.
+An existing_id must be one of: {json.dumps(sorted(candidate_ids))}.
+A duplicate_of must name an earlier proposal in the same batch. Each resolution
+must choose exactly one of existing_id, duplicate_of, or canonical_text.
+Return only this JSON shape:
+{{"resolutions":[
+  {{"proposal_id":"P0001","existing_id":"K0001","duplicate_of":null,"canonical_text":null}},
+  {{"proposal_id":"P0002","existing_id":null,"duplicate_of":"P0001","canonical_text":null}},
+  {{"proposal_id":"P0003","existing_id":null,"duplicate_of":null,"canonical_text":"..."}}
+]}}
+
+<curator_response>
+{original_response}
+</curator_response>
+"""
+
+
+def parse_batch_curator(
+    completion: LLMCompletion,
+    *,
+    proposal_ids: list[str],
+    candidate_ids: set[str],
+) -> list[dict[str, Any]]:
+    parts = message_parts(completion.assistant_message)
+    parsed = extract_json_object(
+        parts.get("content") or completion.content, frozenset({"resolutions"})
+    )
+    raw_resolutions = parsed.get("resolutions")
+    if not isinstance(raw_resolutions, list) or len(raw_resolutions) != len(proposal_ids):
+        raise ValueError("Curator must return one resolution per proposal")
+    by_id: dict[str, dict[str, Any]] = {}
+    for raw in raw_resolutions:
+        if not isinstance(raw, dict):
+            raise ValueError("Each curator resolution must be an object")
+        proposal_id = str(raw.get("proposal_id", "")).strip()
+        if proposal_id not in proposal_ids or proposal_id in by_id:
+            raise ValueError(f"Invalid or duplicate proposal ID {proposal_id!r}")
+        existing_id = raw.get("existing_id")
+        duplicate_of = raw.get("duplicate_of")
+        canonical_text = raw.get("canonical_text")
+        choices = sum(
+            value not in (None, "")
+            for value in (existing_id, duplicate_of, canonical_text)
+        )
+        if choices != 1:
+            raise ValueError(f"Resolution {proposal_id} must choose exactly one action")
+        if existing_id not in (None, ""):
+            existing_id = str(existing_id).strip()
+            if existing_id not in candidate_ids:
+                raise ValueError(f"Curator selected unavailable KB claim {existing_id!r}")
+            resolution = {"proposal_id": proposal_id, "existing_id": existing_id}
+        elif duplicate_of not in (None, ""):
+            duplicate_of = str(duplicate_of).strip()
+            if duplicate_of not in by_id:
+                raise ValueError(
+                    f"Proposal {proposal_id} duplicates non-earlier proposal {duplicate_of!r}"
+                )
+            resolution = {"proposal_id": proposal_id, "duplicate_of": duplicate_of}
+        else:
+            text = str(canonical_text).strip()
+            if not text:
+                raise ValueError(f"Proposal {proposal_id} has empty canonical text")
+            resolution = {"proposal_id": proposal_id, "canonical_text": text}
+        by_id[proposal_id] = resolution
+    return [by_id[proposal_id] for proposal_id in proposal_ids]
+
+
+def _curate_batch(
+    *,
+    proposals: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    run_dir: Path,
+    batch_index: int,
     curator_client: CompletionClient,
     curator_config: ModelConfig,
-    curator_limit: int,
-) -> dict[str, Any]:
-    candidates = curator_candidates(
-        {"claims": catalog}, str(evidence["text"]), curator_limit
-    )
-    response_path = result_dir / f"curator_response_{evidence_index:02d}.json"
+) -> list[dict[str, Any]]:
+    response_path = run_dir / "curation" / f"batch_{batch_index:04d}.json"
     if response_path.exists():
-        record = read_json(response_path)
-        return record["resolution"]
-
-    question_prompt = Path(result["question_path"]).joinpath("prompt.txt").read_text(
-        encoding="utf-8"
-    )
-    prompt = weighted_curator_prompt(
-        claim_text=str(evidence["text"]),
-        question_prompt=question_prompt,
-        solver=result["solver"],
-        correct_letter=str(result["correct_letter"]),
-        candidates=candidates,
-    )
-    (result_dir / f"curator_prompt_{evidence_index:02d}.txt").write_text(
-        prompt, encoding="utf-8"
-    )
-    raw_path = result_dir / f"curator_raw_response_{evidence_index:02d}.json"
+        return read_json(response_path)["resolutions"]
+    prompt = batch_curator_prompt(proposals, candidates)
+    prompt_path = run_dir / "curation" / f"batch_{batch_index:04d}_prompt.txt"
+    prompt_path.parent.mkdir(parents=True, exist_ok=True)
+    prompt_path.write_text(prompt, encoding="utf-8")
+    raw_path = run_dir / "curation" / f"batch_{batch_index:04d}_raw.json"
     if raw_path.exists():
         completion = completion_from_payload(read_json(raw_path))
     else:
         completion = curator_client.complete(prompt, curator_config)
         atomic_write_json(raw_path, completion_payload(completion))
-
+    proposal_ids = [str(item["proposal_id"]) for item in proposals]
+    candidate_ids = {str(claim["id"]) for claim in candidates}
     repaired = False
     try:
-        resolution = parse_curator(completion, {str(claim["id"]) for claim in candidates})
+        resolutions = parse_batch_curator(
+            completion, proposal_ids=proposal_ids, candidate_ids=candidate_ids
+        )
     except ValueError as original_error:
         last_error = original_error
         original_content = completion.content
-        resolution = None
+        resolutions = None
         for attempt in range(1, 4):
-            repair_path = result_dir / (
-                f"curator_repair_response_{evidence_index:02d}_{attempt:02d}.json"
+            repair_path = (
+                run_dir / "curation" / f"batch_{batch_index:04d}_repair_{attempt:02d}.json"
             )
             if repair_path.exists():
                 completion = completion_from_payload(read_json(repair_path))
             else:
                 completion = curator_client.complete(
-                    curator_repair_prompt(original_content), curator_config
+                    batch_curator_repair_prompt(
+                        original_content,
+                        proposal_ids=proposal_ids,
+                        candidate_ids=candidate_ids,
+                    ),
+                    curator_config,
                 )
                 atomic_write_json(repair_path, completion_payload(completion))
             try:
-                resolution = parse_curator(
-                    completion, {str(claim["id"]) for claim in candidates}
+                resolutions = parse_batch_curator(
+                    completion,
+                    proposal_ids=proposal_ids,
+                    candidate_ids=candidate_ids,
                 )
                 repaired = True
                 break
             except ValueError as exc:
                 last_error = exc
-        if resolution is None:
+        if resolutions is None:
             raise last_error
     atomic_write_json(
         response_path,
         {
-            "resolution": resolution,
+            "resolutions": resolutions,
             "response": completion_payload(completion),
             "format_repaired": repaired,
-            "candidate_claim_ids": [claim["id"] for claim in candidates],
+            "proposal_ids": proposal_ids,
+            "candidate_claim_ids": sorted(candidate_ids),
         },
     )
-    return resolution
+    return resolutions
 
 
 def _new_claim(state: dict[str, Any], text: str, epoch: int) -> dict[str, Any]:
@@ -704,6 +806,7 @@ def finalize_epoch(
     curator_client: CompletionClient,
     curator_config: ModelConfig,
     curator_limit: int,
+    curator_batch_size: int,
 ) -> dict[str, Any]:
     aggregation_path = run_dir / "aggregation.json"
     if aggregation_path.exists():
@@ -722,81 +825,120 @@ def finalize_epoch(
         result_updates: dict[str, list[dict[str, Any]]] = {}
         result_paths = sorted((run_dir / "questions").glob("*/result.json"))
 
+        evidence_records: list[dict[str, Any]] = []
+        new_records: list[dict[str, Any]] = []
         for result_path in result_paths:
             result = read_json(result_path)
-            question_updates: list[dict[str, Any]] = []
             for index, evidence in enumerate(result["solver"]["evidence"], start=1):
-                if evidence["type"] == "kb":
-                    claim = claims_by_id[str(evidence["id"])]
-                    action = "reinforced" if result["is_correct"] else "penalized"
+                record = {
+                    "result_path": result_path,
+                    "result": result,
+                    "evidence_index": index,
+                    "evidence": evidence,
+                }
+                evidence_records.append(record)
+                if evidence["type"] == "new":
+                    record["proposal_id"] = f"P{len(new_records) + 1:04d}"
+                    new_records.append(record)
+
+        resolved_new_claims: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(new_records), curator_batch_size):
+            batch_records = new_records[start : start + curator_batch_size]
+            proposals = [
+                {
+                    "proposal_id": record["proposal_id"],
+                    "text": record["evidence"]["text"],
+                    "source_answer_correct": record["result"]["is_correct"],
+                    "solver_explanation": record["result"]["solver"]["explanation"],
+                }
+                for record in batch_records
+            ]
+            search_text = "\n".join(str(item["text"]) for item in proposals)
+            candidates = curator_candidates(
+                {"claims": list(claims_by_id.values())},
+                search_text,
+                curator_limit,
+            )
+            resolutions = _curate_batch(
+                proposals=proposals,
+                candidates=candidates,
+                run_dir=run_dir,
+                batch_index=start // curator_batch_size + 1,
+                curator_client=curator_client,
+                curator_config=curator_config,
+            )
+            for record, resolution in zip(batch_records, resolutions, strict=True):
+                proposal_id = str(record["proposal_id"])
+                if resolution.get("existing_id"):
+                    claim = claims_by_id[str(resolution["existing_id"])]
+                elif resolution.get("duplicate_of"):
+                    claim = resolved_new_claims[str(resolution["duplicate_of"])]
                 else:
-                    resolution = _curate_new_evidence(
-                        result=result,
-                        evidence=evidence,
-                        evidence_index=index,
-                        catalog=list(claims_by_id.values()),
-                        result_dir=result_path.parent,
-                        curator_client=curator_client,
-                        curator_config=curator_config,
-                        curator_limit=curator_limit,
-                    )
-                    claim = None
-                    if resolution.get("existing_id"):
-                        claim = claims_by_id[str(resolution["existing_id"])]
-                    else:
-                        text = str(resolution["canonical_text"]).strip()
-                        claim = claims_by_text.get(_canonical_key(text))
+                    text = str(resolution["canonical_text"]).strip()
+                    claim = claims_by_text.get(_canonical_key(text))
                     if claim is None:
                         claim = _new_claim(state, text, epoch)
                         state["claims"].append(claim)
                         claims_by_id[str(claim["id"])] = claim
                         claims_by_text[_canonical_key(text)] = claim
                         added_ids.add(str(claim["id"]))
-                        action = "added"
-                    else:
-                        action = "reinforced" if result["is_correct"] else "penalized"
+                resolved_new_claims[proposal_id] = claim
 
-                weight = float(evidence["credit"])
-                if result["is_correct"]:
-                    claim["support_count"] = float(claim["support_count"]) + weight
-                    claim["last_supported_epoch"] = epoch
-                    reward = weight
-                else:
-                    claim["failure_count"] = float(claim["failure_count"]) + weight
-                    reward = -weight
-                claim["credit"] = float(claim["support_count"]) - float(
-                    claim["failure_count"]
-                )
-                claim["last_evaluated_epoch"] = epoch
-                update = {
-                    "evidence_index": index,
-                    "action": action,
-                    "claim_id": claim["id"],
-                    "claim_text": claim["text"],
-                    "claim_source": evidence["type"],
-                    "assigned_credit": weight,
-                    "reward": reward,
-                    "credit_after": claim["credit"],
-                    "credibility_after": claim_credibility(claim),
+        for record in evidence_records:
+            result_path = record["result_path"]
+            result = record["result"]
+            index = int(record["evidence_index"])
+            evidence = record["evidence"]
+            question_updates = result_updates.setdefault(str(result_path), [])
+            if evidence["type"] == "kb":
+                claim = claims_by_id[str(evidence["id"])]
+            else:
+                claim = resolved_new_claims[str(record["proposal_id"])]
+            if str(claim["id"]) in added_ids and not any(
+                update["claim_id"] == claim["id"] for update in updates
+            ):
+                action = "added"
+            else:
+                action = "reinforced" if result["is_correct"] else "penalized"
+
+            weight = float(evidence["credit"])
+            if result["is_correct"]:
+                claim["support_count"] = float(claim["support_count"]) + weight
+                claim["last_supported_epoch"] = epoch
+                reward = weight
+            else:
+                claim["failure_count"] = float(claim["failure_count"]) + weight
+                reward = -weight
+            claim["credit"] = float(claim["support_count"]) - float(
+                claim["failure_count"]
+            )
+            claim["last_evaluated_epoch"] = epoch
+            update = {
+                "evidence_index": index,
+                "action": action,
+                "claim_id": claim["id"],
+                "claim_text": claim["text"],
+                "claim_source": evidence["type"],
+                "assigned_credit": weight,
+                "reward": reward,
+                "credit_after": claim["credit"],
+                "credibility_after": claim_credibility(claim),
+            }
+            question_updates.append(update)
+            updates.append(update)
+            events.append(
+                {
+                    "event_id": f"epoch_{epoch:04d}:{result['question_id']}:e{index:02d}",
+                    "epoch": epoch,
+                    "question_id": result["question_id"],
+                    "predicted_letter": result["solver"]["answer"],
+                    "correct_letter": result["correct_letter"],
+                    "is_correct": result["is_correct"],
+                    **update,
+                    "selected_claim_ids": result["selected_claim_ids"],
+                    "result_path": str(result_path),
                 }
-                question_updates.append(update)
-                updates.append(update)
-                events.append(
-                    {
-                        "event_id": (
-                            f"epoch_{epoch:04d}:{result['question_id']}:e{index:02d}"
-                        ),
-                        "epoch": epoch,
-                        "question_id": result["question_id"],
-                        "predicted_letter": result["solver"]["answer"],
-                        "correct_letter": result["correct_letter"],
-                        "is_correct": result["is_correct"],
-                        **update,
-                        "selected_claim_ids": result["selected_claim_ids"],
-                        "result_path": str(result_path),
-                    }
-                )
-            result_updates[str(result_path)] = question_updates
+            )
 
         state["processed_event_ids"] = sorted(
             set(state.get("processed_event_ids", []))
@@ -1214,11 +1356,14 @@ def run_epoch(
     offset: int = 0,
     injection_limit: int = 20,
     curator_limit: int = 20,
+    curator_batch_size: int = 16,
     workers: int = 1,
     skip_seen: bool = False,
 ) -> dict[str, Any]:
     if workers < 1:
         raise ValueError("workers must be at least 1")
+    if curator_batch_size < 1:
+        raise ValueError("curator_batch_size must be at least 1")
     state = _upgrade_state(read_json(kb_dir / "claims.json"))
     last_epoch = int(state["last_epoch"])
     running_epochs: list[int] = []
@@ -1241,6 +1386,7 @@ def run_epoch(
             curator_client=curator_client,
             curator_config=curator_config,
             curator_limit=curator_limit,
+            curator_batch_size=curator_batch_size,
         )
         manifest = read_json(manifest_path)
         manifest.update(
@@ -1313,6 +1459,7 @@ def run_epoch(
             for claim in selected_claims
         ],
         "curator_limit": curator_limit,
+        "curator_batch_size": curator_batch_size,
         "workers": workers,
     }
     if manifest_path.exists():
@@ -1328,6 +1475,9 @@ def run_epoch(
         )
         if any(existing.get(key) != manifest.get(key) for key in comparable):
             raise ValueError(f"Existing epoch run has different configuration: {manifest_path}")
+        if existing.get("curator_batch_size", 16) != curator_batch_size:
+            raise ValueError(f"Existing epoch run has different configuration: {manifest_path}")
+        manifest.setdefault("curator_batch_size", curator_batch_size)
         if existing.get("status") == "complete":
             return read_json(kb_dir / "snapshots" / f"kb_{epoch:04d}.json")
         manifest = existing
@@ -1366,6 +1516,7 @@ def run_epoch(
         curator_client=curator_client,
         curator_config=curator_config,
         curator_limit=curator_limit,
+        curator_batch_size=curator_batch_size,
     )
     manifest.update(
         {
@@ -1425,6 +1576,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=20,
     )
     run_parser.add_argument("--curator-limit", type=int, default=20)
+    run_parser.add_argument("--curator-batch-size", type=int, default=16)
     run_parser.add_argument("--workers", type=int, default=1)
     run_parser.add_argument("--skip-seen", action="store_true")
     run_parser.add_argument("--no-show", action="store_true")
@@ -1483,6 +1635,7 @@ def main() -> None:
         offset=args.offset,
         injection_limit=args.injection_limit,
         curator_limit=args.curator_limit,
+        curator_batch_size=args.curator_batch_size,
         workers=args.workers,
         skip_seen=args.skip_seen,
     )
