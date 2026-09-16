@@ -150,10 +150,15 @@ def _read_streaming_response(response: Any) -> dict[str, Any]:
     finish_reason: str | None = None
     usage: dict[str, Any] | None = None
     saw_choice = False
+    plain_lines: list[str] = []
 
     for raw_line in response:
         line = raw_line.decode("utf-8").strip()
-        if not line or line.startswith(":") or not line.startswith("data:"):
+        if not line or line.startswith(":"):
+            continue
+        if not line.startswith("data:"):
+            if not line.startswith("event:"):
+                plain_lines.append(line)
             continue
         data = line.removeprefix("data:").strip()
         if data == "[DONE]":
@@ -194,6 +199,13 @@ def _read_streaming_response(response: Any) -> dict[str, Any]:
                 message[key] = message.get(key, "") + str(piece)
 
     if not saw_choice:
+        if plain_lines:
+            try:
+                raw = json.loads("\n".join(plain_lines))
+            except json.JSONDecodeError as exc:
+                raise LLMClientError("Streaming response contained no choices") from exc
+            if isinstance(raw, dict):
+                return raw
         raise LLMClientError("Streaming response contained no choices")
     raw = {
         **metadata,

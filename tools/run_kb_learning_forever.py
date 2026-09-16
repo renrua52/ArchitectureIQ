@@ -44,6 +44,9 @@ def main() -> int:
     parser.add_argument("--curator-model", default="gemini-3.6-flash")
     parser.add_argument("--solver-workers", type=int, default=6)
     parser.add_argument("--generation-workers", type=int, default=6)
+    parser.add_argument("--remote-generation-host")
+    parser.add_argument("--remote-generation-port", type=int, default=22)
+    parser.add_argument("--remote-generation-root")
     parser.add_argument("--injection-limit", type=int, default=20)
     parser.add_argument("--curator-batch-size", type=int, default=16)
     parser.add_argument("--epoch-size", type=int, default=50)
@@ -78,17 +81,40 @@ def main() -> int:
             return 0
         epoch_root = DEFAULT_EPOCHS_DIR / f"epoch_{epoch:04d}"
         try:
-            run_checked(
-                [
-                    sys.executable,
-                    "tools/build_kb_learning_v15.py",
-                    "--epoch",
-                    str(epoch),
-                    "--workers",
-                    str(args.generation_workers),
-                    "--retry-failed",
-                ]
-            )
+            if args.remote_generation_host:
+                if not args.remote_generation_root:
+                    raise ValueError(
+                        "--remote-generation-root is required with "
+                        "--remote-generation-host"
+                    )
+                run_checked(
+                    [
+                        sys.executable,
+                        "tools/run_remote_kb_generation.py",
+                        "--host",
+                        args.remote_generation_host,
+                        "--port",
+                        str(args.remote_generation_port),
+                        "--remote-root",
+                        args.remote_generation_root,
+                        "--epoch",
+                        str(epoch),
+                        "--workers",
+                        str(args.generation_workers),
+                    ]
+                )
+            else:
+                run_checked(
+                    [
+                        sys.executable,
+                        "tools/build_kb_learning_v15.py",
+                        "--epoch",
+                        str(epoch),
+                        "--workers",
+                        str(args.generation_workers),
+                        "--retry-failed",
+                    ]
+                )
             question_count = sum(
                 1
                 for path in epoch_root.iterdir()

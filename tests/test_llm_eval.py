@@ -117,6 +117,20 @@ def test_read_streaming_response_rebuilds_chat_completion() -> None:
     assert raw["usage"] == {"completion_tokens": 3}
 
 
+def test_read_streaming_response_accepts_non_streaming_fallback() -> None:
+    expected = {
+        "choices": [
+            {
+                "message": {"role": "assistant", "content": "answer"},
+                "finish_reason": "stop",
+            }
+        ]
+    }
+    response = io.BytesIO(json.dumps(expected).encode("utf-8"))
+
+    assert _read_streaming_response(response) == expected
+
+
 def test_chat_completion_redirect_preserves_post() -> None:
     request = urllib.request.Request(
         "https://relay.example/v1/chat/completions",
