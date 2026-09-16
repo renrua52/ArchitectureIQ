@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import sys
 import urllib.request
@@ -17,6 +18,7 @@ from llm_client import (  # noqa: E402
     LLMCompletion,
     ModelConfig,
     _PostPreservingRedirectHandler,
+    _read_streaming_response,
     _token_limit_payload,
     message_text,
 )
@@ -88,6 +90,31 @@ def test_token_limit_payload_sends_one_field() -> None:
     assert _token_limit_payload(
         ModelConfig(name="m", max_tokens=100, extra={"max_completion_tokens": 512})
     ) == {"max_completion_tokens": 512}
+
+
+def test_read_streaming_response_rebuilds_chat_completion() -> None:
+    response = io.BytesIO(
+        b'data: {"id":"r1","model":"m","choices":[{"index":0,'
+        b'"delta":{"role":"assistant","reasoning_content":"think "},'
+        b'"finish_reason":null}]}\n\n'
+        b'data: {"id":"r1","model":"m","choices":[{"index":0,'
+        b'"delta":{"reasoning_content":"more","content":"answer"},'
+        b'"finish_reason":"stop"}]}\n\n'
+        b'data: {"id":"r1","model":"m","choices":[],"usage":'
+        b'{"completion_tokens":3}}\n\n'
+        b'data: [DONE]\n\n'
+    )
+
+    raw = _read_streaming_response(response)
+
+    choice = raw["choices"][0]
+    assert choice["finish_reason"] == "stop"
+    assert choice["message"] == {
+        "role": "assistant",
+        "reasoning_content": "think more",
+        "content": "answer",
+    }
+    assert raw["usage"] == {"completion_tokens": 3}
 
 
 def test_chat_completion_redirect_preserves_post() -> None:

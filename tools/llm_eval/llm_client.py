@@ -113,6 +113,18 @@ def _env(name: str) -> str:
     return value
 
 
+def _bool_env(name: str, *, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise LLMClientError(f"{name} must be a boolean value, got {value!r}")
+
+
 def _token_limit_payload(config: ModelConfig) -> dict[str, int]:
     """Return a single token-limit field (APIs reject both at once)."""
     if "max_completion_tokens" in config.extra:
@@ -131,6 +143,73 @@ def _token_limit_payload(config: ModelConfig) -> dict[str, int]:
     return {"max_tokens": config.max_tokens}
 
 
+def _read_streaming_response(response: Any) -> dict[str, Any]:
+    """Collect an OpenAI-compatible SSE response into the non-streaming shape."""
+    metadata: dict[str, Any] = {}
+    message: dict[str, Any] = {"role": "assistant"}
+    finish_reason: str | None = None
+    usage: dict[str, Any] | None = None
+    saw_choice = False
+
+    for raw_line in response:
+        line = raw_line.decode("utf-8").strip()
+        if not line or line.startswith(":") or not line.startswith("data:"):
+            continue
+        data = line.removeprefix("data:").strip()
+        if data == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data)
+        except json.JSONDecodeError as exc:
+            raise LLMClientError(f"Invalid streaming JSON event: {data!r}") from exc
+        if not isinstance(chunk, dict):
+            raise LLMClientError(f"Unexpected streaming event shape: {chunk!r}")
+        error = chunk.get("error")
+        if error:
+            raise LLMClientError(f"LLM API error response: {error!r}")
+
+        for key, value in chunk.items():
+            if key not in {"choices", "usage"}:
+                metadata[key] = value
+        if isinstance(chunk.get("usage"), dict):
+            usage = chunk["usage"]
+
+        choices = chunk.get("choices")
+        if not choices:
+            continue
+        choice = choices[0]
+        if not isinstance(choice, dict):
+            raise LLMClientError(f"Unexpected streaming choice shape: {choice!r}")
+        saw_choice = True
+        if choice.get("finish_reason") is not None:
+            finish_reason = str(choice["finish_reason"])
+        delta = choice.get("delta") or choice.get("message") or {}
+        if not isinstance(delta, dict):
+            raise LLMClientError(f"Unexpected streaming delta shape: {delta!r}")
+        if delta.get("role"):
+            message["role"] = str(delta["role"])
+        for key in _MESSAGE_TEXT_KEYS:
+            piece = delta.get(key)
+            if piece:
+                message[key] = message.get(key, "") + str(piece)
+
+    if not saw_choice:
+        raise LLMClientError("Streaming response contained no choices")
+    raw = {
+        **metadata,
+        "choices": [
+            {
+                "index": 0,
+                "message": message,
+                "finish_reason": finish_reason,
+            }
+        ],
+    }
+    if usage is not None:
+        raw["usage"] = usage
+    return raw
+
+
 class LLMClient:
     """Minimal caller for ``POST /chat/completions`` compatible APIs."""
 
@@ -141,6 +220,7 @@ class LLMClient:
         api_key: str | None = None,
         timeout_s: float = 120.0,
         max_retries: int = 4,
+        stream: bool | None = None,
     ) -> None:
         if timeout_s <= 0:
             raise ValueError("timeout_s must be positive")
@@ -148,6 +228,7 @@ class LLMClient:
         self.api_key = api_key or _env("OPENAI_API_KEY")
         self.timeout_s = timeout_s
         self.max_retries = max(0, max_retries)
+        self.stream = _bool_env("OPENAI_STREAM") if stream is None else stream
 
     def complete(self, prompt: str, config: ModelConfig) -> LLMCompletion:
         return self.complete_conversation([{"role": "user", "content": prompt}], config)
@@ -168,6 +249,8 @@ class LLMClient:
         for key, value in config.extra.items():
             if key not in {"max_tokens", "max_completion_tokens"}:
                 payload[key] = value
+        if self.stream:
+            payload["stream"] = True
 
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
@@ -183,7 +266,10 @@ class LLMClient:
         for attempt in range(self.max_retries + 1):
             try:
                 with opener.open(request, timeout=self.timeout_s) as response:
-                    raw = json.loads(response.read().decode("utf-8"))
+                    if self.stream:
+                        raw = _read_streaming_response(response)
+                    else:
+                        raw = json.loads(response.read().decode("utf-8"))
                 error = raw.get("error") if isinstance(raw, dict) else None
                 if not isinstance(error, dict):
                     break
