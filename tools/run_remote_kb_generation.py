@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import subprocess
 from pathlib import Path, PurePosixPath
@@ -54,9 +55,12 @@ def sync_code(host: str, port: int, remote_repo: PurePosixPath) -> None:
         cwd=ROOT,
         check=True,
     )
+    pack_env = os.environ.copy()
+    pack_env["COPYFILE_DISABLE"] = "1"
     pack = subprocess.Popen(
         ["tar", "-czf", "-", *SYNC_PATHS],
         cwd=ROOT,
+        env=pack_env,
         stdout=subprocess.PIPE,
     )
     assert pack.stdout is not None
