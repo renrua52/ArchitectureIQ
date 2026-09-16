@@ -49,7 +49,13 @@ def main() -> int:
     parser.add_argument("--epoch-size", type=int, default=50)
     parser.add_argument("--retry-delay", type=float, default=30.0)
     parser.add_argument("--timeout", type=float, default=600.0)
+    parser.add_argument("--solver-max-tokens", type=int, default=16384)
     parser.add_argument("--curator-max-tokens", type=int, default=16384)
+    parser.add_argument(
+        "--max-epoch",
+        type=int,
+        help="Stop successfully after this epoch has completed (inclusive)",
+    )
     args = parser.parse_args()
 
     if args.epoch_size != 50:
@@ -67,6 +73,9 @@ def main() -> int:
 
     while True:
         epoch = next_epoch(args.kb_dir)
+        if args.max_epoch is not None and epoch > args.max_epoch:
+            print(f"Reached max epoch {args.max_epoch}; stopping.", flush=True)
+            return 0
         epoch_root = DEFAULT_EPOCHS_DIR / f"epoch_{epoch:04d}"
         try:
             run_checked(
@@ -116,6 +125,8 @@ def main() -> int:
                     "--no-show",
                     "--timeout",
                     str(args.timeout),
+                    "--solver-max-tokens",
+                    str(args.solver_max_tokens),
                     "--curator-max-tokens",
                     str(args.curator_max_tokens),
                 ]
