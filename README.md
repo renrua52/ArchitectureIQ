@@ -1,6 +1,6 @@
 <div align="center">
 
-# ArchitectureIQ: On the Measure of Model Intuition
+# ArchitectureIQ: On the Measure of Training Intuition
 
 **Do language models have as good intuition about model training as top AI researchers?**
 
@@ -74,7 +74,7 @@ AIQ-Hard50 is the **data-flip** companion suite: questions are constructed so th
 
 ```bibtex
 @misc{ren2026architectureiq,
-  title         = {ArchitectureIQ: On the Measure of Model Intuition},
+  title         = {ArchitectureIQ: On the Measure of Training Intuition},
   author        = {Ren, Zirui and Guo, Shaoyang and Tang, Chencheng and Wang, Jinxin
                    and Xiong, Chengyu and Yu, Shanbin and Li, Peihang and Wu, Yidi
                    and Huang, Bangzhe and Qu, Qingyu and Yang, Leqian and Liu, Ziming},
