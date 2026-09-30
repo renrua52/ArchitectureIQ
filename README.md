@@ -5,9 +5,8 @@
 **Do language models have as good intuition about model training as top AI researchers?**
 
 [![Paper](https://img.shields.io/badge/Paper-PDF-b31b1b?style=for-the-badge)](https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf)
-[![Code](https://img.shields.io/badge/Code-This%20Repository-181717?style=for-the-badge&logo=github)](https://github.com/renrua52/ArchitectureIQ)
+[![Code](https://img.shields.io/badge/Code-This%20Repo-181717?style=for-the-badge&logo=github)](https://github.com/renrua52/ArchitectureIQ)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
-[![Interactive Report](https://img.shields.io/badge/Interactive%20Report-中文-0284c7?style=for-the-badge)](./README.html)
 
 Zirui Ren<sup>1,3,\*</sup> · Shaoyang Guo<sup>2,3,\*</sup> · Chencheng Tang<sup>1,3,\*</sup> · Jinxin Wang<sup>3</sup> · Chengyu Xiong<sup>2,3</sup> · Shanbin Yu<sup>1,3</sup> · Peihang Li<sup>3,4</sup> · Yidi Wu<sup>2,3</sup> · Bangzhe Huang<sup>3,5</sup> · Qingyu Qu<sup>1,3</sup> · Leqian Yang<sup>3,6</sup> · Ziming Liu<sup>1,3,7</sup>
 
@@ -31,7 +30,7 @@ Each ArchitectureIQ question presents a synthetic dataset and several training r
 1. **Intuition is imperfect — sometimes sub-human.** Frontier models reach ~76% overall vs. 66.0% for the best human researcher, yet remain far from perfect; on architecture-only questions the best human scores 65% while GPT-6 Astra scores 38%.
 2. **Intuition is empirical, not structured.** More chain-of-thought compute yields no consistent accuracy gain — unlike math, there is no "Science of AI" language for structured reasoning about training.
 3. **Intuition is not maximally condensed.** Extracted propositions compress into a knowledge base: with only 20 items, GPT-4o almost matches Claude Opus 5.
-4. **Intuition is insensitive to dataset properties.** The "best model" should depend on the data; that models (and humans) fail to adapt suggests data is the real "dark matter" of AI.
+4. **Intuition is insensitive to dataset properties.** The "best model" should depend on the data; that models (and humans) fail to adapt suggests data is the real "dark matter" of AI. The [AIQ-Hard50 suite](#aiq-hard50-data-flip) makes this concrete: once the winner must depend on the data, the 50% data-blind bound becomes a hard barrier.
 
 ## Main results
 
@@ -42,41 +41,14 @@ Each ArchitectureIQ question presents a synthetic dataset and several training r
   <b>Figure 1 — Accuracy on the 500-question, three-choice benchmark.</b> Printed numbers are overall accuracy; the light cap marks optimizer-only accuracy and the horizontal rule architecture-only accuracy. The best human (†) is measured on a fixed 50-question subset. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 1 ↗</a>
 </p>
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="assets/figures/fig3_scaling_k.png" alt="Scaling k" width="95%"><br>
-      <b>Figure 3 — Choice scaling.</b> Accuracy as the number of candidates varies over k ∈ {1, 2, 3, 5, 10}; curves fit acc(k) = a + (1 − a)/k. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 3 ↗</a>
-    </td>
-    <td align="center" width="50%">
-      <img src="assets/figures/fig4_tts.png" alt="Test-time compute" width="95%"><br>
-      <b>Figure 4 — Test-time compute.</b> Accuracy versus total output tokens: extra inference-time computation brings no consistent gain beyond the initial reasoning budget. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 4 ↗</a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="assets/figures/fig5_predictor_comparison.png" alt="Structured predictors" width="72%"><br>
-      <b>Figure 5 — Structured predictors.</b> Accuracy of rule-based and supervised structured predictors on ArchitectureIQ; the analytical decision policy of Fig. 8 is evaluated separately. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 5 ↗</a>
-    </td>
-  </tr>
-</table>
-
 ## Knowledge accumulation
 
-<table>
-  <tr>
-    <td align="center" width="60%">
-      <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
-        <img src="assets/figures/fig6_kb_samples.png" alt="Knowledge base samples" width="98%">
-      </a><br>
-      <b>Figure 6 — Knowledge-base snapshot.</b> Six entries from the final accumulated knowledge base of transferable training principles. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 6 ↗</a>
-    </td>
-    <td align="center" width="40%">
-      <img src="assets/figures/fig7_kb_ablation.png" alt="Knowledge base ablation" width="92%"><br>
-      <b>Figure 7 — KB ablation.</b> Accuracy with no injected propositions (KB0) and with successive snapshots (KB1–KB8), injecting at most the 20 highest-scoring propositions each, on a 50-question subset. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 7 ↗</a>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
+    <img src="assets/figures/fig6_kb_samples.png" alt="Knowledge base samples" width="92%">
+  </a><br>
+  <b>Figure 6 — Knowledge-base snapshot.</b> Six entries from the final accumulated knowledge base of transferable training principles. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 6 ↗</a>
+</p>
 
 ## Analytical policy
 
@@ -87,12 +59,16 @@ Each ArchitectureIQ question presents a synthetic dataset and several training r
   <b>Figure 8 — Analytical decision tree.</b> A hand-readable update-regime policy distilled from the benchmark; the underlying development-stage policy reaches 78.2% dataset-grouped out-of-fold top-1 accuracy (391/500). <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 8 ↗</a>
 </p>
 
-## Hard50 appendix
+## AIQ-Hard50: data flip
 
 <p align="center">
-  <img src="assets/figures/fig9_hard50_leaderboard.png" alt="Hard50 leaderboard" width="70%"><br>
+  <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
+    <img src="assets/figures/fig9_hard50_leaderboard.png" alt="Hard50 leaderboard" width="70%">
+  </a><br>
   <b>Figure 9 — AIQ-Hard50 accuracy.</b> Dashed line: decision tree trained on the main benchmark (48.0%). Chance 33.3%; data-blind bound 50%. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 9 ↗</a>
 </p>
+
+AIQ-Hard50 is the **data-flip** companion suite: questions are constructed so that the ground-truth winner **depends on the dataset itself**, not only on the training recipe. Once the answer is tied to data properties, recipe-level heuristics stop working and the questions become dramatically harder — **50% is the barrier**: it is the data-blind upper bound, the best accuracy achievable without using any dataset-specific information (chance is 33.3%). Even the decision tree trained on the main benchmark only reaches 48.0% here, below that bound.
 
 ## Citation
 
