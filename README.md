@@ -1,4 +1,116 @@
-# ArchitectureIQ
+<div align="center">
+
+# ArchitectureIQ: On the Measure of Model Intuition
+
+**Do language models have as good intuition about model training as top AI researchers?**
+
+[![Paper](https://img.shields.io/badge/Paper-PDF-b31b1b?style=for-the-badge)](https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf)
+[![Code](https://img.shields.io/badge/Code-This%20Repository-181717?style=for-the-badge&logo=github)](https://github.com/renrua52/ArchitectureIQ)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
+[![Interactive Report](https://img.shields.io/badge/Interactive%20Report-中文-0284c7?style=for-the-badge)](./README.html)
+
+Zirui Ren<sup>1,3,\*</sup> · Shaoyang Guo<sup>2,3,\*</sup> · Chencheng Tang<sup>1,3,\*</sup> · Jinxin Wang<sup>3</sup> · Chengyu Xiong<sup>2,3</sup> · Shanbin Yu<sup>1,3</sup> · Peihang Li<sup>3,4</sup> · Yidi Wu<sup>2,3</sup> · Bangzhe Huang<sup>3,5</sup> · Qingyu Qu<sup>1,3</sup> · Leqian Yang<sup>3,6</sup> · Ziming Liu<sup>1,3,7</sup>
+
+<sup>1</sup>Tsinghua University · <sup>2</sup>Peking University · <sup>3</sup>MetaCircle · <sup>4</sup>UC Berkeley · <sup>5</sup>Fudan University · <sup>6</sup>USTC · <sup>7</sup>Shanghai Qizhi Institute · <sup>\*</sup>equal contribution
+
+</div>
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
+    <img src="assets/figures/fig2_overview.png" alt="ArchitectureIQ overview" width="98%">
+  </a><br>
+  <b>Figure 2 — ArchitectureIQ overview.</b> A synthetic dataset and several candidate training recipes are rendered as executable programs; running them across random seeds establishes the ground-truth winner. The evaluated model receives the dataset and recipe descriptions and predicts which candidate will achieve the best test metric. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 2 ↗</a>
+</p>
+
+---
+
+## TL;DR — four findings
+
+Each ArchitectureIQ question presents a synthetic dataset and several training recipes (model + optimizer + loss + budget); the test-taker must predict which recipe yields the best test metric after its stated budget. On the 500-question, three-choice benchmark (chance 33.3%):
+
+1. **Intuition is imperfect — sometimes sub-human.** Frontier models reach ~76% overall vs. 66.0% for the best human researcher, yet remain far from perfect; on architecture-only questions the best human scores 65% while GPT-6 Astra scores 38%.
+2. **Intuition is empirical, not structured.** More chain-of-thought compute yields no consistent accuracy gain — unlike math, there is no "Science of AI" language for structured reasoning about training.
+3. **Intuition is not maximally condensed.** Extracted propositions compress into a knowledge base: with only 20 items, GPT-4o almost matches Claude Opus 5.
+4. **Intuition is insensitive to dataset properties.** The "best model" should depend on the data; that models (and humans) fail to adapt suggests data is the real "dark matter" of AI.
+
+## Main results
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
+    <img src="assets/figures/fig1_leaderboard.png" alt="Main leaderboard" width="88%">
+  </a><br>
+  <b>Figure 1 — Accuracy on the 500-question, three-choice benchmark.</b> Printed numbers are overall accuracy; the light cap marks optimizer-only accuracy and the horizontal rule architecture-only accuracy. The best human (†) is measured on a fixed 50-question subset. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 1 ↗</a>
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/figures/fig3_scaling_k.png" alt="Scaling k" width="95%"><br>
+      <b>Figure 3 — Choice scaling.</b> Accuracy as the number of candidates varies over k ∈ {1, 2, 3, 5, 10}; curves fit acc(k) = a + (1 − a)/k. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 3 ↗</a>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/figures/fig4_tts.png" alt="Test-time compute" width="95%"><br>
+      <b>Figure 4 — Test-time compute.</b> Accuracy versus total output tokens: extra inference-time computation brings no consistent gain beyond the initial reasoning budget. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 4 ↗</a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="assets/figures/fig5_predictor_comparison.png" alt="Structured predictors" width="72%"><br>
+      <b>Figure 5 — Structured predictors.</b> Accuracy of rule-based and supervised structured predictors on ArchitectureIQ; the analytical decision policy of Fig. 8 is evaluated separately. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 5 ↗</a>
+    </td>
+  </tr>
+</table>
+
+## Knowledge accumulation
+
+<table>
+  <tr>
+    <td align="center" width="60%">
+      <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
+        <img src="assets/figures/fig6_kb_samples.png" alt="Knowledge base samples" width="98%">
+      </a><br>
+      <b>Figure 6 — Knowledge-base snapshot.</b> Six entries from the final accumulated knowledge base of transferable training principles. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 6 ↗</a>
+    </td>
+    <td align="center" width="40%">
+      <img src="assets/figures/fig7_kb_ablation.png" alt="Knowledge base ablation" width="92%"><br>
+      <b>Figure 7 — KB ablation.</b> Accuracy with no injected propositions (KB0) and with successive snapshots (KB1–KB8), injecting at most the 20 highest-scoring propositions each, on a 50-question subset. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 7 ↗</a>
+    </td>
+  </tr>
+</table>
+
+## Analytical policy
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">
+    <img src="assets/figures/fig8_decision_trees.png" alt="Decision tree" width="72%">
+  </a><br>
+  <b>Figure 8 — Analytical decision tree.</b> A hand-readable update-regime policy distilled from the benchmark; the underlying development-stage policy reaches 78.2% dataset-grouped out-of-fold top-1 accuracy (391/500). <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 8 ↗</a>
+</p>
+
+## Hard50 appendix
+
+<p align="center">
+  <img src="assets/figures/fig9_hard50_leaderboard.png" alt="Hard50 leaderboard" width="70%"><br>
+  <b>Figure 9 — AIQ-Hard50 accuracy.</b> Dashed line: decision tree trained on the main benchmark (48.0%). Chance 33.3%; data-blind bound 50%. <a href="https://raw.githubusercontent.com/renrua52/ArchitectureIQ/main/assets/ArchitectureIQ_paper.pdf">Paper, Fig. 9 ↗</a>
+</p>
+
+## Citation
+
+```bibtex
+@misc{ren2026architectureiq,
+  title         = {ArchitectureIQ: On the Measure of Model Intuition},
+  author        = {Ren, Zirui and Guo, Shaoyang and Tang, Chencheng and Wang, Jinxin
+                   and Xiong, Chengyu and Yu, Shanbin and Li, Peihang and Wu, Yidi
+                   and Huang, Bangzhe and Qu, Qingyu and Yang, Leqian and Liu, Ziming},
+  year          = {2026},
+  publisher     = {MetaCircle},
+  howpublished  = {\url{https://github.com/renrua52/ArchitectureIQ}}
+}
+```
+
+---
+
+# Repository guide
 
 A prototype benchmark for the **modeling intuition** of LLMs (and humans): given a dataset instance and several **candidates** (model + optimizer + loss + budget), pick which **choice** achieves the best selection metric after its stated training budget.
 
@@ -414,3 +526,7 @@ the exact protocol and question scope when comparing results.
 ```bash
 pytest
 ```
+
+## License
+
+This project is released under the [MIT License](./LICENSE).
