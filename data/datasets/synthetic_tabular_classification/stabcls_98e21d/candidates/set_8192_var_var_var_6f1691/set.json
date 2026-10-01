@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "set_id": "set_8192_var_var_var_6f1691",
+  "dataset_id": "stabcls_98e21d",
+  "family": "synthetic_tabular_classification",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "count": 14,
+  "varying_axes": [
+    "loss",
+    "model",
+    "optimizer"
+  ],
+  "invariant_axes": [],
+  "fixed_shared": {
+    "batch_size": 32
+  },
+  "model_type_counts": null,
+  "parameter_band": {
+    "ratio_max": 2.0,
+    "realized_min": 2786,
+    "realized_max": 5234,
+    "realized_ratio": 1.878679
+  },
+  "seed": 4744,
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "created_at": "2026-08-31T08:15:56+00:00"
+}

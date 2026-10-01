@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "set_id": "set_8192_var_var_var_d4685d",
+  "dataset_id": "mvar_30617e",
+  "family": "multivariate_regression",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "count": 14,
+  "varying_axes": [
+    "loss",
+    "model",
+    "optimizer"
+  ],
+  "invariant_axes": [],
+  "fixed_shared": {
+    "batch_size": 16
+  },
+  "model_type_counts": null,
+  "parameter_band": {
+    "ratio_max": 2.0,
+    "realized_min": 1377,
+    "realized_max": 2433,
+    "realized_ratio": 1.766885
+  },
+  "seed": 4711,
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "created_at": "2026-08-31T08:11:08+00:00"
+}

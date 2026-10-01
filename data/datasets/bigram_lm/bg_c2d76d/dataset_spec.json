@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "family": "bigram_lm",
+  "params": {
+    "instance_seed": 4254,
+    "vocab_size": 48,
+    "context_length": 12,
+    "train_size": 800,
+    "test_size": 200,
+    "alpha": 1.0,
+    "layout": "lm",
+    "sequence_seed": 4254,
+    "table_seed": 14254
+  },
+  "selection_metric": "test_ce",
+  "significance": {
+    "gap_min": 0.0,
+    "fail_threshold": 4.0
+  },
+  "files": {
+    "synthesize": "synthesize.py",
+    "train": "train.pt",
+    "test": "test.pt",
+    "transition": "transition.npz"
+  },
+  "dataset_id": "bg_c2d76d"
+}

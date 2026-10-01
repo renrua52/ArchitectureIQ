@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "profile_hash": "9cfc98d50762627a",
+  "family": "spiral_classification",
+  "dataset_id": "spiralcls_9d5dde",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "candidate_sets": [
+    "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_7ccaea",
+      "candidate_path": "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb/c_7ccaea",
+      "candidate_set_path": "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_5f021e",
+      "candidate_path": "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb/c_5f021e",
+      "candidate_set_path": "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_2d9e9d",
+      "candidate_path": "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb/c_2d9e9d",
+      "candidate_set_path": "datasets/spiral_classification/spiralcls_9d5dde/candidates/set_8192_var_var_var_b877cb"
+    }
+  ],
+  "correct_letter": "B",
+  "significance": {
+    "passed": true,
+    "gap": 0.28689093291759493,
+    "win_rate": 1.0,
+    "separation_margin": 0.17749148607254028,
+    "metric": "test_ce"
+  },
+  "quality_filters": {
+    "gap_max": null,
+    "gap_worst_max": null,
+    "require_finite_mean": true,
+    "max_failed_seeds": 0,
+    "param_ratio_max": 2.0,
+    "max_questions_per_dataset": 25
+  },
+  "evaluation": {
+    "selection_metric": "test_ce",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cpu"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_8cdf9f",
+  "profile": "v1.4",
+  "question_run_id": "run_1q_3c_9b54a5",
+  "question_run_path": "datasets/spiral_classification/spiralcls_9d5dde/questions/run_1q_3c_9b54a5"
+}

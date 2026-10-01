@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "profile_hash": "9cfc98d50762627a",
+  "family": "bigram_lm",
+  "dataset_id": "bg_36d417",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "candidate_sets": [
+    "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_207c0b",
+      "candidate_path": "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1/c_207c0b",
+      "candidate_set_path": "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_d8e904",
+      "candidate_path": "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1/c_d8e904",
+      "candidate_set_path": "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_a0707c",
+      "candidate_path": "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1/c_a0707c",
+      "candidate_set_path": "datasets/bigram_lm/bg_36d417/candidates/set_8192_var_var_var_5457a1"
+    }
+  ],
+  "correct_letter": "A",
+  "significance": {
+    "passed": true,
+    "gap": 0.03514139652252224,
+    "win_rate": 1.0,
+    "separation_margin": 0.019843578338623047,
+    "metric": "test_ce"
+  },
+  "quality_filters": {
+    "gap_max": null,
+    "gap_worst_max": null,
+    "require_finite_mean": true,
+    "max_failed_seeds": 0,
+    "param_ratio_max": 2.0,
+    "max_questions_per_dataset": 25
+  },
+  "evaluation": {
+    "selection_metric": "test_ce",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cpu"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_5e5112",
+  "profile": "v1.4",
+  "question_run_id": "run_1q_3c_23df41",
+  "question_run_path": "datasets/bigram_lm/bg_36d417/questions/run_1q_3c_23df41"
+}

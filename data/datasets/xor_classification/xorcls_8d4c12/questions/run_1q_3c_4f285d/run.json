@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run_1q_3c_4f285d",
+  "dataset_id": "xorcls_8d4c12",
+  "family": "xor_classification",
+  "candidate_sets": [
+    "datasets/xor_classification/xorcls_8d4c12/candidates/set_8192_var_var_var_b1f3c9"
+  ],
+  "num_questions": 1,
+  "num_choices": 3,
+  "candidate_reuse_policy": "globally_disjoint_within_run",
+  "question_ids": [
+    "q_5bb1cd"
+  ],
+  "seed": 5122,
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "created_at": "2026-08-31T08:14:48+00:00",
+  "candidate_profile_provenance": [
+    {
+      "profile": "v1.4",
+      "profile_hash": "9cfc98d50762627a",
+      "candidate_ids": [
+        "c_54912b",
+        "c_cfda96",
+        "c_e3f07f"
+      ],
+      "model_types": [
+        "mlp"
+      ]
+    }
+  ]
+}

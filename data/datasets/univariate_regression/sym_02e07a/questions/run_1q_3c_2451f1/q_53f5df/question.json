@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "profile_hash": "9cfc98d50762627a",
+  "family": "univariate_regression",
+  "dataset_id": "sym_02e07a",
+  "budget": {
+    "total_samples_seen": 4096
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "candidate_sets": [
+    "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_ba12c1",
+      "candidate_path": "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84/c_ba12c1",
+      "candidate_set_path": "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_d90577",
+      "candidate_path": "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84/c_d90577",
+      "candidate_set_path": "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_38d964",
+      "candidate_path": "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84/c_38d964",
+      "candidate_set_path": "datasets/univariate_regression/sym_02e07a/candidates/set_4096_var_var_var_e8ff84"
+    }
+  ],
+  "correct_letter": "C",
+  "significance": {
+    "passed": true,
+    "gap": 0.19034203216433523,
+    "win_rate": 1.0,
+    "separation_margin": 0.1095837838947773,
+    "metric": "test_mse"
+  },
+  "quality_filters": {
+    "gap_max": null,
+    "gap_worst_max": null,
+    "require_finite_mean": true,
+    "max_failed_seeds": 0,
+    "param_ratio_max": 2.0,
+    "max_questions_per_dataset": 25
+  },
+  "evaluation": {
+    "selection_metric": "test_mse",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cpu"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_53f5df",
+  "profile": "v1.4",
+  "question_run_id": "run_1q_3c_2451f1",
+  "question_run_path": "datasets/univariate_regression/sym_02e07a/questions/run_1q_3c_2451f1"
+}

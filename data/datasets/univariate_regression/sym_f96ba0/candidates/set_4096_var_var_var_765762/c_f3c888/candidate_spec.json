@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "dataset_id": "sym_f96ba0",
+  "family": "univariate_regression",
+  "budget": {
+    "training_steps": 256,
+    "batch_size": 16,
+    "total_samples_seen": 4096
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 5,
+    "width": 64,
+    "residual": true,
+    "activation": "relu",
+    "layer_norm": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ],
+    "input_dim": 1,
+    "output_dim": 1
+  },
+  "trainable_parameter_count": 21121,
+  "optimizer": {
+    "type": "Adagrad",
+    "lr": 0.0003,
+    "weight_decay": 0.0001
+  },
+  "loss": {
+    "loss_id": "mse"
+  },
+  "execution": {
+    "device": "cpu"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_f3c888"
+}

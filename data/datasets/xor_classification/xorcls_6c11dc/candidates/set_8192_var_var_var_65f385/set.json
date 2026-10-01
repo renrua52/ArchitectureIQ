@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "set_id": "set_8192_var_var_var_65f385",
+  "dataset_id": "xorcls_6c11dc",
+  "family": "xor_classification",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "count": 14,
+  "varying_axes": [
+    "loss",
+    "model",
+    "optimizer"
+  ],
+  "invariant_axes": [],
+  "fixed_shared": {
+    "batch_size": 32
+  },
+  "model_type_counts": null,
+  "parameter_band": {
+    "ratio_max": 2.0,
+    "realized_min": 4962,
+    "realized_max": 8162,
+    "realized_ratio": 1.644901
+  },
+  "seed": 4723,
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "created_at": "2026-08-31T08:14:51+00:00"
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "dataset_id": "xorcls_457ab9",
+  "family": "xor_classification",
+  "budget": {
+    "training_steps": 256,
+    "batch_size": 32,
+    "total_samples_seen": 8192
+  },
+  "model": {
+    "type": "mlp",
+    "depth": 1,
+    "width": 48,
+    "residual": false,
+    "activation": "gelu",
+    "layer_norm": [
+      true
+    ],
+    "input_dim": 8,
+    "output_dim": 2
+  },
+  "trainable_parameter_count": 2978,
+  "optimizer": {
+    "type": "RMSprop",
+    "lr": 0.0003,
+    "weight_decay": 1e-05
+  },
+  "loss": {
+    "loss_id": "cross_entropy"
+  },
+  "execution": {
+    "device": "cpu"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_1caf4d"
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "family": "synthetic_tabular_classification",
+  "params": {
+    "instance_seed": 4242,
+    "input_dim": 16,
+    "num_classes": 2,
+    "rule_family": "smooth_additive",
+    "active_features": [
+      0,
+      9
+    ],
+    "interaction_order": 2,
+    "interaction_pairs": [],
+    "rule_weights": [
+      1.0,
+      0.875
+    ],
+    "piecewise_breakpoint": 0.0,
+    "spiral_turns": 2.0,
+    "decision_threshold": 0.375,
+    "train_size": 1024,
+    "test_size": 2048,
+    "point_sampling": {
+      "distribution": "standard_normal",
+      "seed": 5242
+    },
+    "calibration": {
+      "distribution": "standard_normal",
+      "seed": 6242,
+      "size": 4096,
+      "target_positive_rate": 0.5,
+      "realized_positive_rate": 0.4937
+    }
+  },
+  "selection_metric": "test_ce",
+  "significance": {
+    "gap_min": 0.0,
+    "fail_threshold": 2.0
+  },
+  "files": {
+    "synthesize": "synthesize.py",
+    "train": "train.pt",
+    "test": "test.pt"
+  },
+  "dataset_id": "stabcls_f7dd23"
+}

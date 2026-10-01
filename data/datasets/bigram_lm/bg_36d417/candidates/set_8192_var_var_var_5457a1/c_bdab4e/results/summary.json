@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_bdab4e",
+  "selection_metric": "test_ce",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_ce": 3.3091328859329225,
+  "std_test_ce": 0.015986400670176766,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_ce": 3.2870070934295654
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_ce": 3.3322792053222656
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_ce": 3.2994472980499268
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_ce": 3.334296464920044
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_ce": 3.3005568981170654
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_ce": 3.303546190261841
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_ce": 3.29665470123291
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_ce": 3.2980198860168457
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_ce": 3.309925079345703
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_ce": 3.3295960426330566
+    }
+  ],
+  "environment": {
+    "python": "3.10.18 (main, Jun  5 2025, 13:14:17) [GCC 11.2.0]",
+    "platform": "Linux-5.15.0-119-generic-x86_64-with-glibc2.27",
+    "torch": "2.6.0+cpu",
+    "requested_device": "cpu",
+    "device": "cpu",
+    "cuda_available": false,
+    "cuda_runtime": null,
+    "cuda_device_name": null,
+    "cuda_device_capability": null,
+    "deterministic_algorithms": false,
+    "seed_workers": 5,
+    "torch_threads_per_seed": 1,
+    "git_commit": "3d82f7a5339481dbe36ebea40dd6e1ed8688d86d"
+  }
+}

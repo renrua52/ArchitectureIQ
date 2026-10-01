@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "dataset_id": "bg_36d417",
+  "family": "bigram_lm",
+  "budget": {
+    "training_steps": 256,
+    "batch_size": 32,
+    "total_samples_seen": 8192
+  },
+  "model": {
+    "type": "transformer_lm",
+    "vocab_size": 24,
+    "context_length": 24,
+    "d_model": 64,
+    "num_layers": 3,
+    "num_heads": 4,
+    "d_ff": 128
+  },
+  "trainable_parameter_count": 105048,
+  "optimizer": {
+    "type": "AdamW",
+    "lr": 0.0003,
+    "weight_decay": 1e-05,
+    "betas": [
+      0.9,
+      0.999
+    ]
+  },
+  "loss": {
+    "loss_id": "cross_entropy"
+  },
+  "execution": {
+    "device": "cpu"
+  },
+  "files": {
+    "model": "model.py",
+    "train": "train.py",
+    "loss": "loss.py",
+    "optimizer": "optimizer.py"
+  },
+  "candidate_id": "c_d8e904"
+}

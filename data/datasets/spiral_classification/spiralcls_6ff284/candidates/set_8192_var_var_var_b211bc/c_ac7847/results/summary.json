@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "c_ac7847",
+  "selection_metric": "test_ce",
+  "execution": "candidate_py_files",
+  "n_seeds": 10,
+  "base_seed": 0,
+  "failed_seeds": 0,
+  "excluded": false,
+  "mean_test_ce": 0.41092658042907715,
+  "std_test_ce": 0.036525020649527014,
+  "mean_test_accuracy": 0.765625,
+  "std_test_accuracy": 0.04008667139018319,
+  "seed_results": [
+    {
+      "seed": 0,
+      "failed": false,
+      "final_test_ce": 0.41410747170448303,
+      "final_test_accuracy": 0.74853515625
+    },
+    {
+      "seed": 1,
+      "failed": false,
+      "final_test_ce": 0.40535667538642883,
+      "final_test_accuracy": 0.80615234375
+    },
+    {
+      "seed": 2,
+      "failed": false,
+      "final_test_ce": 0.40739864110946655,
+      "final_test_accuracy": 0.7783203125
+    },
+    {
+      "seed": 3,
+      "failed": false,
+      "final_test_ce": 0.37644141912460327,
+      "final_test_accuracy": 0.80517578125
+    },
+    {
+      "seed": 4,
+      "failed": false,
+      "final_test_ce": 0.3686628043651581,
+      "final_test_accuracy": 0.791015625
+    },
+    {
+      "seed": 5,
+      "failed": false,
+      "final_test_ce": 0.41524308919906616,
+      "final_test_accuracy": 0.7763671875
+    },
+    {
+      "seed": 6,
+      "failed": false,
+      "final_test_ce": 0.41716474294662476,
+      "final_test_accuracy": 0.775390625
+    },
+    {
+      "seed": 7,
+      "failed": false,
+      "final_test_ce": 0.4868825078010559,
+      "final_test_accuracy": 0.689453125
+    },
+    {
+      "seed": 8,
+      "failed": false,
+      "final_test_ce": 0.4563196003437042,
+      "final_test_accuracy": 0.6943359375
+    },
+    {
+      "seed": 9,
+      "failed": false,
+      "final_test_ce": 0.36168885231018066,
+      "final_test_accuracy": 0.79150390625
+    }
+  ],
+  "environment": {
+    "python": "3.10.18 (main, Jun  5 2025, 13:14:17) [GCC 11.2.0]",
+    "platform": "Linux-5.15.0-119-generic-x86_64-with-glibc2.27",
+    "torch": "2.6.0+cpu",
+    "requested_device": "cpu",
+    "device": "cpu",
+    "cuda_available": false,
+    "cuda_runtime": null,
+    "cuda_device_name": null,
+    "cuda_device_capability": null,
+    "deterministic_algorithms": false,
+    "seed_workers": 5,
+    "torch_threads_per_seed": 1,
+    "git_commit": "3d82f7a5339481dbe36ebea40dd6e1ed8688d86d"
+  }
+}

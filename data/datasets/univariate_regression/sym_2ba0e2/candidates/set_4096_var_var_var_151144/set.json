@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "set_id": "set_4096_var_var_var_151144",
+  "dataset_id": "sym_2ba0e2",
+  "family": "univariate_regression",
+  "budget": {
+    "total_samples_seen": 4096
+  },
+  "count": 14,
+  "varying_axes": [
+    "loss",
+    "model",
+    "optimizer"
+  ],
+  "invariant_axes": [],
+  "fixed_shared": {
+    "batch_size": 16
+  },
+  "model_type_counts": null,
+  "parameter_band": {
+    "ratio_max": 2.0,
+    "realized_min": 33921,
+    "realized_max": 66561,
+    "realized_ratio": 1.962236
+  },
+  "seed": 4700,
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "created_at": "2026-08-31T08:10:40+00:00"
+}

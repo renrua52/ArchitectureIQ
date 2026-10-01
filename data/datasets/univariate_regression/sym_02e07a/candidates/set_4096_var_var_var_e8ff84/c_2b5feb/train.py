@@ -1,0 +1,123 @@
+"""Training loop for this candidate — executed by the ground-truth runner."""
+from __future__ import annotations
+
+import math
+
+import torch
+
+from loss import loss_fn
+from model import Model
+from optimizer import build_optimizer
+
+
+def _resolve_device(device: str) -> torch.device:
+    if device not in {"cpu", "cuda"}:
+        raise ValueError(f"Unsupported execution device {device!r}; choose 'cpu' or 'cuda'")
+    if device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA was requested but is unavailable "
+            f"(torch={torch.__version__}, torch.version.cuda={torch.version.cuda!r})"
+        )
+    return torch.device(device)
+
+
+def _test_mse(model: torch.nn.Module, test_x: torch.Tensor, test_y: torch.Tensor) -> float:
+    model.eval()
+    with torch.inference_mode():
+        pred = model(test_x)
+        return float(torch.mean((pred - test_y) ** 2).item())
+
+
+def train_and_eval(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    test_x: torch.Tensor,
+    test_y: torch.Tensor,
+    *,
+    steps: int,
+    batch_size: int,
+    seed: int = 0,
+    fail_threshold: float = float("inf"),
+    device: str = "cpu",
+    progress_callback=None,
+) -> dict:
+    torch.manual_seed(seed)
+    run_device = _resolve_device(device)
+    if run_device.type == "cuda":
+        torch.cuda.manual_seed_all(seed)
+    model = Model().to(run_device)
+    optimizer = build_optimizer(model)
+    train_x = train_x.to(run_device)
+    train_y = train_y.to(run_device)
+    test_x = test_x.to(run_device)
+    test_y = test_y.to(run_device)
+    n = train_x.shape[0]
+    step_metrics: list[float] = []
+    eval_samples: list[int] = []
+    failed = False
+    progress_interval = max(1, steps // 100)
+
+    for step in range(1, steps + 1):
+        model.train()
+        idx = torch.randint(0, n, (batch_size,), device=run_device)
+        pred = model(train_x[idx])
+        loss = loss_fn(model, pred, train_y[idx])
+        if not torch.isfinite(loss):
+            failed = True
+            break
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+
+        metric = _test_mse(model, test_x, test_y)
+        if not math.isfinite(metric):
+            failed = True
+            break
+        eval_samples.append(step * batch_size)
+        step_metrics.append(metric)
+        if progress_callback is not None and (
+            step == 1 or step % progress_interval == 0 or step == steps
+        ):
+            progress_callback(
+                {
+                    "step": step,
+                    "training_steps": steps,
+                    "samples_seen": step * batch_size,
+                    "total_samples_seen": steps * batch_size,
+                    "metric": metric,
+                }
+            )
+
+    final_metric = step_metrics[-1] if step_metrics else float("inf")
+    if final_metric > fail_threshold:
+        failed = True
+
+    return {
+        "failed": failed,
+        "final_test_mse": final_metric,
+        "eval_samples": eval_samples,
+        "step_metrics": step_metrics,
+    }
+
+
+def train(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    *,
+    steps: int,
+    batch_size: int,
+    seed: int = 0,
+    device: str = "cpu",
+) -> None:
+    """Minimal training entrypoint (no evaluation)."""
+    train_and_eval(
+        train_x,
+        train_y,
+        test_x=train_x,
+        test_y=train_y,
+        steps=steps,
+        batch_size=batch_size,
+        seed=seed,
+        fail_threshold=float("inf"),
+        device=device,
+    )

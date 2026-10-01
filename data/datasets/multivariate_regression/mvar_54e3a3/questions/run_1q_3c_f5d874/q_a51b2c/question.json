@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "profile_hash": "9cfc98d50762627a",
+  "family": "multivariate_regression",
+  "dataset_id": "mvar_54e3a3",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "type": "mixed",
+  "invariant_axes": [
+    "loss",
+    "batch_size"
+  ],
+  "varying_axes": [
+    "model",
+    "optimizer"
+  ],
+  "candidate_sets": [
+    "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308"
+  ],
+  "num_choices": 3,
+  "choices": [
+    {
+      "letter": "A",
+      "candidate_id": "c_e04bb6",
+      "candidate_path": "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308/c_e04bb6",
+      "candidate_set_path": "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308"
+    },
+    {
+      "letter": "B",
+      "candidate_id": "c_355930",
+      "candidate_path": "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308/c_355930",
+      "candidate_set_path": "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308"
+    },
+    {
+      "letter": "C",
+      "candidate_id": "c_af1658",
+      "candidate_path": "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308/c_af1658",
+      "candidate_set_path": "datasets/multivariate_regression/mvar_54e3a3/candidates/set_8192_var_var_var_ac9308"
+    }
+  ],
+  "correct_letter": "B",
+  "significance": {
+    "passed": true,
+    "gap": 0.49928938150405877,
+    "win_rate": 1.0,
+    "separation_margin": 0.14612257480621338,
+    "metric": "test_mse"
+  },
+  "quality_filters": {
+    "gap_max": null,
+    "gap_worst_max": null,
+    "require_finite_mean": true,
+    "max_failed_seeds": 0,
+    "param_ratio_max": 2.0,
+    "max_questions_per_dataset": 25
+  },
+  "evaluation": {
+    "selection_metric": "test_mse",
+    "n_seeds": 10,
+    "base_seed": 0,
+    "device": "cpu"
+  },
+  "prompt": {
+    "template_version": "1.0",
+    "rendered_path": "prompt.txt"
+  },
+  "question_id": "q_a51b2c",
+  "profile": "v1.4",
+  "question_run_id": "run_1q_3c_f5d874",
+  "question_run_path": "datasets/multivariate_regression/mvar_54e3a3/questions/run_1q_3c_f5d874"
+}

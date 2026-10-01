@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "family": "multivariate_regression",
+  "params": {
+    "instance_seed": 4212,
+    "input_dim": 2,
+    "sampler": {
+      "id": "symbolic_expr_mv",
+      "seed": 4212,
+      "max_depth": 3,
+      "retry": 0
+    },
+    "expression": "cos(2*pi*x0)*x1 + (x0 - 2)**2 - x1",
+    "domain": [
+      0.0,
+      1.0
+    ],
+    "train_size": 256,
+    "test_size": 256,
+    "point_sampling": {
+      "distribution": "uniform",
+      "seed": 5212
+    }
+  },
+  "selection_metric": "test_mse",
+  "significance": {
+    "gap_min": 0.0,
+    "fail_threshold": 2.0
+  },
+  "files": {
+    "synthesize": "synthesize.py",
+    "train": "train.pt",
+    "test": "test.pt"
+  },
+  "dataset_id": "mvar_97a1c5"
+}

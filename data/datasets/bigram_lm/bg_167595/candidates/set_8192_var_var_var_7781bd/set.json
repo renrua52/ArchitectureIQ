@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "set_id": "set_8192_var_var_var_7781bd",
+  "dataset_id": "bg_167595",
+  "family": "bigram_lm",
+  "budget": {
+    "total_samples_seen": 8192
+  },
+  "count": 12,
+  "varying_axes": [
+    "loss",
+    "model",
+    "optimizer"
+  ],
+  "invariant_axes": [],
+  "fixed_shared": {
+    "batch_size": 32
+  },
+  "model_type_counts": null,
+  "parameter_band": {
+    "ratio_max": 2.0,
+    "realized_min": 54048,
+    "realized_max": 106528,
+    "realized_ratio": 1.970989
+  },
+  "seed": 4753,
+  "profile": "v1.4",
+  "profile_hash": "9cfc98d50762627a",
+  "created_at": "2026-08-31T08:20:20+00:00"
+}
