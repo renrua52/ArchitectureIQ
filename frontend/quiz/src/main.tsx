@@ -6,6 +6,8 @@ import { decisionField, regionBands } from "./regions";
 import { MathInline } from "./math";
 import { newSessionId, track } from "./telemetry";
 import { bundleFilename, canBuildBundle, downloadBundle } from "./bundle";
+import { buildLeaderboard } from "./leaderboard";
+import { LiveScoreboard, SettlementOverlay } from "./scoreboard";
 import type {
   BakeFile,
   BakedQuestion,
@@ -115,7 +117,9 @@ function App() {
   const feedbackByQuestion = useRef<Record<string, FeedbackDraft>>({});
   const questionLoads = useRef<Record<string, Promise<BakedQuestion>>>({});
   const [feedback, setFeedback] = useState<FeedbackDraft>(EMPTY_FEEDBACK);
-  const [, bump] = useState(0);
+  const [resultsVersion, bump] = useState(0);
+  const [showSettlement, setShowSettlement] = useState(false);
+  const autoSettled = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -190,7 +194,19 @@ function App() {
     const total = values.length;
     const correct = values.filter((item) => item.correct).length;
     return { correct, total };
-  }, [answered, index, screen, bump]);
+  }, [answered, index, screen, resultsVersion]);
+  const leaderboard = useMemo(
+    () => (bake ? buildLeaderboard(bake, results.current) : []),
+    [bake, resultsVersion]
+  );
+  const settleMinimum = Math.min(20, summaries.length);
+  const allAnswered = summaries.length > 0 && score.total === summaries.length;
+
+  useEffect(() => {
+    if (screen !== "quiz" || !allAnswered || autoSettled.current) return;
+    autoSettled.current = true;
+    setShowSettlement(true);
+  }, [allAnswered, screen]);
 
   useEffect(() => {
     if (screen !== "quiz" || !question) {
@@ -242,6 +258,8 @@ function App() {
     setAnswered(false);
     setStage("study");
     setInfo(null);
+    setShowSettlement(false);
+    autoSettled.current = false;
     bump((n) => n + 1);
   }
 
@@ -549,42 +567,52 @@ function App() {
         </div>
       </header>
 
-      <h1 className="question-title">
-        <span>{humanFamily(question.family)}</span>
-        <span className="dot">·</span>
-        <span>{humanType(question.type)}</span>
-        {difficulty ? (
-          <>
+      <div className="quiz-workspace">
+        <LiveScoreboard
+          entries={leaderboard}
+          answered={score.total}
+          settleMinimum={settleMinimum}
+          onSettle={() => setShowSettlement(true)}
+        />
+        <div className="quiz-main">
+          <h1 className="question-title">
+            <span>{humanFamily(question.family)}</span>
             <span className="dot">·</span>
-            <DifficultyBadge difficulty={difficulty} />
-          </>
-        ) : null}
-      </h1>
+            <span>{humanType(question.type)}</span>
+            {difficulty ? (
+              <>
+                <span className="dot">·</span>
+                <DifficultyBadge difficulty={difficulty} />
+              </>
+            ) : null}
+          </h1>
 
-      <section className="stage-screen" key={`${question.id}-${stage}`}>
-        {stage === "study" ? (
-          <StudyStage
-            question={question}
-            answered={answered}
-            selected={selected}
-            onPick={pickChoice}
-            onBackToAnswer={backToAnswer}
-            onChoiceInfo={(letter) => setInfo({ kind: "choice", letter })}
-            onInfo={() => setInfo({ kind: "dataset" })}
-          />
-        ) : null}
-        {stage === "reveal" ? (
-          <AnswerStage
-            question={question}
-            selected={selected}
-            feedback={feedback}
-            onVote={submitProblemVote}
-            onBack={backToStudy}
-            onInfo={(letter) => setInfo({ kind: "choice", letter })}
-            onDatasetInfo={() => setInfo({ kind: "dataset" })}
-          />
-        ) : null}
-      </section>
+          <section className="stage-screen" key={`${question.id}-${stage}`}>
+            {stage === "study" ? (
+              <StudyStage
+                question={question}
+                answered={answered}
+                selected={selected}
+                onPick={pickChoice}
+                onBackToAnswer={backToAnswer}
+                onChoiceInfo={(letter) => setInfo({ kind: "choice", letter })}
+                onInfo={() => setInfo({ kind: "dataset" })}
+              />
+            ) : null}
+            {stage === "reveal" ? (
+              <AnswerStage
+                question={question}
+                selected={selected}
+                feedback={feedback}
+                onVote={submitProblemVote}
+                onBack={backToStudy}
+                onInfo={(letter) => setInfo({ kind: "choice", letter })}
+                onDatasetInfo={() => setInfo({ kind: "dataset" })}
+              />
+            ) : null}
+          </section>
+        </div>
+      </div>
 
       {info ? (
         <InfoModal
@@ -592,6 +620,16 @@ function App() {
           target={info}
           answered={answered}
           onClose={() => setInfo(null)}
+        />
+      ) : null}
+
+      {showSettlement ? (
+        <SettlementOverlay
+          entries={leaderboard}
+          correct={score.correct}
+          total={score.total}
+          complete={allAnswered}
+          onClose={() => setShowSettlement(false)}
         />
       ) : null}
     </main>
