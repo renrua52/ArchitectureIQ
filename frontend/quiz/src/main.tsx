@@ -16,6 +16,8 @@ import {
   type Auth
 } from "./api";
 import { ReplayPlayer } from "./replay";
+import { buildLeaderboard } from "./leaderboard";
+import { LiveScoreboard, SettlementOverlay } from "./scoreboard";
 import type {
   BakeFile,
   BakedQuestion,
@@ -185,16 +187,8 @@ function App() {
   const currentId = summaries[index]?.id;
   const question = currentId && bake ? bake.byId[currentId] : null;
 
-  const score = useMemo(() => {
-    const values = Object.values(results.current);
-    const total = values.length;
-    const correct = values.filter((item) => item.correct).length;
-    return { correct, total };
-  }, [answered, index, screen, bump]);
-
-  // Completion celebration: every question in the pack is answered — live
-  // this session OR restored from the server. A user who already finished
-  // in an earlier session sees the overlay again on return (dismissible).
+  // Completion settlement: every question in the pack is answered live or
+  // restored from the server. Returning users see the dismissible result too.
   const allAnswered = useMemo(() => {
     if (!bake || !summaries.length) {
       return false;
@@ -207,7 +201,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bake, summaries, answeredMapVersion, answered, index, screen, bump]);
 
-  // Final stats for the overlay: union of live results and server records,
+  // Settlement stats: union of live results and server records,
   // so a returning user sees their complete score, not just this session.
   const finalScore = useMemo(() => {
     if (!bake) {
@@ -230,12 +224,18 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bake, summaries, answeredMapVersion, answered, index, screen, bump]);
 
+  const leaderboard = useMemo(
+    () => (bake ? buildLeaderboard(bake, finalScore, auth?.username ?? "You") : []),
+    [auth?.username, bake, finalScore.correct, finalScore.total]
+  );
+  const settleMinimum = Math.min(20, summaries.length);
+
   useEffect(() => {
     if (!bake || !summaries.length || screen !== "quiz") return;
     if (!allAnswered || celebratedRef.current) return;
     celebratedRef.current = true;
-    setCelebrate(true);
-    recorderRef.current?.mark("g", "complete");
+    openSettlement(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bake, allAnswered, summaries.length, screen]);
 
   useEffect(() => {
@@ -330,6 +330,26 @@ function App() {
     anchor.download = `architectureiq-session-${sessionId.current}.json`;
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  function openSettlement(complete = allAnswered) {
+    if (!bake || finalScore.total < settleMinimum) return;
+    setCelebrate(true);
+    recorderRef.current?.mark("g", complete ? "complete" : "settled");
+    const current = authRef.current;
+    if (current && apiConfigured()) {
+      void upsertSession(current, {
+        session_id: sessionId.current,
+        pack: packId ?? undefined,
+        score_correct: finalScore.correct,
+        score_total: finalScore.total,
+        meta: {
+          settled: true,
+          completed: complete,
+          settled_at: new Date().toISOString()
+        }
+      });
+    }
   }
 
   function beginQuiz(atIndex = 0) {
@@ -633,8 +653,9 @@ function App() {
   }
 
   const progress = summaries.length ? ((index + 1) / summaries.length) * 100 : 0;
-  const accuracy =
-    score.total > 0 ? `${Math.round((100 * score.correct) / score.total)}%` : "—";
+  const accuracy = finalScore.total > 0
+    ? `${Math.round((100 * finalScore.correct) / finalScore.total)}%`
+    : "-";
 
   return (
     <main className="shell quiz">
@@ -652,7 +673,7 @@ function App() {
         </div>
         <div className="top-actions">
           <span className="score-text" title="Session accuracy">
-            Score {score.correct}/{score.total} ({accuracy})
+            Score {finalScore.correct}/{finalScore.total} ({accuracy})
           </span>
           <button
             type="button"
@@ -673,48 +694,58 @@ function App() {
         </div>
       </header>
 
-      <h1 className="question-title">
-        <span>{humanFamily(question.family)}</span>
-        <span className="dot">·</span>
-        <span>{humanMetric(question.metric)}</span>
-        <span className="dot">·</span>
-        <span className="tag">{humanType(question.type)}</span>
-        <span className="dot">·</span>
-        <span className="tag">{question.track ?? "default"}</span>
-        <span className="dot">·</span>
-        <span>{question.detail.choices.length} choices</span>
-      </h1>
-
-      <section className="stage-screen" key={question.id}>
-        <div className="provenance" aria-label="Question provenance">
-          <span>Track: {question.track ?? "default"}</span>
-          <span>Profile: {question.profile ?? "legacy/unknown"}</span>
-          <span>Hash: {question.profileHash ?? "legacy/unknown"}</span>
-        </div>
-        <DatasetStage
-          question={question}
-          onSeeChoices={goCompare}
-          onInfo={() => setInfo({ kind: "dataset" })}
+      <div className="quiz-workspace">
+        <LiveScoreboard
+          entries={leaderboard}
+          answered={finalScore.total}
+          settleMinimum={settleMinimum}
+          onSettle={() => openSettlement(false)}
         />
-        {stage !== "reveal" ? (
-          <ChoicesStage
-            question={question}
-            onPick={pickChoice}
-            onInfo={(letter) => setInfo({ kind: "choice", letter })}
-          />
-        ) : (
-          <AnswerStage
-            question={question}
-            selected={selected}
-            feedback={feedback}
-            onFeedbackChange={updateFeedback}
-            onSubmitFeedback={submitAuditFeedback}
-            onNext={nextQuestion}
-            onInfo={(letter) => setInfo({ kind: "choice", letter })}
-            onDatasetInfo={() => setInfo({ kind: "dataset" })}
-          />
-        )}
-      </section>
+        <div className="quiz-question">
+          <h1 className="question-title">
+            <span>{humanFamily(question.family)}</span>
+            <span className="dot">·</span>
+            <span>{humanMetric(question.metric)}</span>
+            <span className="dot">·</span>
+            <span className="tag">{humanType(question.type)}</span>
+            <span className="dot">·</span>
+            <span className="tag">{question.track ?? "default"}</span>
+            <span className="dot">·</span>
+            <span>{question.detail.choices.length} choices</span>
+          </h1>
+
+          <section className="stage-screen" key={question.id}>
+            <div className="provenance" aria-label="Question provenance">
+              <span>Track: {question.track ?? "default"}</span>
+              <span>Profile: {question.profile ?? "legacy/unknown"}</span>
+              <span>Hash: {question.profileHash ?? "legacy/unknown"}</span>
+            </div>
+            <DatasetStage
+              question={question}
+              onSeeChoices={goCompare}
+              onInfo={() => setInfo({ kind: "dataset" })}
+            />
+            {stage !== "reveal" ? (
+              <ChoicesStage
+                question={question}
+                onPick={pickChoice}
+                onInfo={(letter) => setInfo({ kind: "choice", letter })}
+              />
+            ) : (
+              <AnswerStage
+                question={question}
+                selected={selected}
+                feedback={feedback}
+                onFeedbackChange={updateFeedback}
+                onSubmitFeedback={submitAuditFeedback}
+                onNext={nextQuestion}
+                onInfo={(letter) => setInfo({ kind: "choice", letter })}
+                onDatasetInfo={() => setInfo({ kind: "dataset" })}
+              />
+            )}
+          </section>
+        </div>
+      </div>
 
       {info ? (
         <InfoModal
@@ -726,130 +757,17 @@ function App() {
       ) : null}
 
       {celebrate ? (
-        <CompletionOverlay
+        <SettlementOverlay
+          entries={leaderboard}
+          username={auth?.username ?? "You"}
           correct={finalScore.correct}
           total={finalScore.total}
+          complete={allAnswered}
           onExport={exportSession}
           onClose={() => setCelebrate(false)}
         />
       ) : null}
     </main>
-  );
-}
-
-// Score ladder on the same 50-question launch set, mapped to each model's
-// accuracy on the full 500-question set (shown in the completion overlay).
-const LLM_LADDER: Array<{ min: number; models: string; full: string }> = [
-  { min: 33, models: "GPT-5.6 Sol", full: "76.4%" },
-  { min: 32, models: "Claude Opus 5", full: "76.0%" },
-  {
-    min: 30,
-    models: "Claude Sonnet 5 · Gemini 3.1 Pro Preview · GPT-5.6 Luna",
-    full: "65.4% – 67.8%"
-  },
-  { min: 28, models: "DeepSeek R1", full: "59.0%" },
-  { min: 25, models: "Gemini 2.5 Pro", full: "55.8%" },
-  { min: 23, models: "DeepSeek R1-Distill 32B", full: "46.0%" },
-  { min: 21, models: "Llama 3.1 70B", full: "42.0%" },
-  { min: 0, models: "You — a human", full: "—" }
-];
-
-function CompletionOverlay({
-  correct,
-  total,
-  onExport,
-  onClose
-}: {
-  correct: number;
-  total: number;
-  onExport: () => void;
-  onClose: () => void;
-}) {
-  const pieces = useRef(
-    Array.from({ length: 90 }, (_, i) => ({
-      left: (i * 37) % 100,
-      delay: ((i * 13) % 30) / 10,
-      duration: 2.6 + ((i * 7) % 20) / 10,
-      color: ["#ffd166", "#ef476f", "#06d6a0", "#118ab2", "#f78c6b", "#b388eb"][i % 6],
-      size: 6 + ((i * 5) % 8),
-      round: i % 3 === 0
-    }))
-  ).current;
-  const pct = total > 0 ? Math.round((100 * correct) / total) : 0;
-  const matchIndex = LLM_LADDER.findIndex((row) => correct >= row.min);
-  const match = LLM_LADDER[matchIndex];
-  return (
-    <div className="completion-overlay" role="dialog" aria-label="Quiz complete">
-      <div className="confetti" aria-hidden="true">
-        {pieces.map((p, i) => (
-          <i
-            key={i}
-            style={{
-              left: `${p.left}%`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.duration}s`,
-              background: p.color,
-              width: p.size,
-              height: p.round ? p.size : p.size * 1.8,
-              borderRadius: p.round ? "50%" : "2px"
-            }}
-          />
-        ))}
-      </div>
-      <div className="completion-card">
-        <div className="completion-trophy" aria-hidden="true">
-          🏆
-        </div>
-        <h2>All done!</h2>
-        <p className="completion-score">
-          You answered all {total} questions — score <strong>{correct}</strong>/{total} ({pct}%)
-        </p>
-        <p className="completion-note">
-          Your answers and session have been recorded. Thanks for taking the ArchitectureIQ quiz!
-        </p>
-        <div className="completion-match">
-          <p className="completion-match-line">
-            {match.min > 0 ? (
-              <>
-                This score matches <strong>{match.models}</strong> — {match.full} on the full
-                500-question set
-              </>
-            ) : (
-              <>No LLM on our leaderboard scored this low — you are, in fact, a human.</>
-            )}
-          </p>
-          <table className="completion-ladder">
-            <thead>
-              <tr>
-                <th>Your score</th>
-                <th>Model</th>
-                <th>Acc (500)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {LLM_LADDER.map((row, i) => (
-                <tr
-                  key={row.min}
-                  className={i === matchIndex ? "is-you" : i > matchIndex ? "is-above" : ""}
-                >
-                  <td>{row.min > 0 ? `${row.min}+ / 50` : "< 21 / 50"}</td>
-                  <td>{row.models}</td>
-                  <td>{row.full}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="completion-actions">
-          <button type="button" className="completion-btn primary" onClick={onExport}>
-            Export my results
-          </button>
-          <button type="button" className="completion-btn" onClick={onClose}>
-            Back to questions
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

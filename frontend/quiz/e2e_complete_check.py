@@ -1,4 +1,4 @@
-"""Completion celebration check: answering all 50 triggers the overlay.
+"""Score settlement check: unlock at 20 and auto-open after all 50.
 
 Also verifies the cross-pack restore fetch (list without pack filter).
 """
@@ -54,6 +54,35 @@ try:
             page.click(".choice-card >> nth=0")
             page.wait_for_selector(".verdict", timeout=5_000)
             answered += 1
+
+            if answered == 19:
+                assert page.locator(".settle-button").is_disabled(), (
+                    "settlement must stay locked after 19 answers"
+                )
+                print("ok: settlement remains locked after 19 answers")
+
+            if answered == 20:
+                settle = page.locator(".settle-button")
+                assert settle.is_enabled(), "settlement did not unlock at 20 answers"
+                settle.click()
+                page.wait_for_selector(".completion-overlay", timeout=8_000)
+                page.wait_for_selector(".share-preview img", timeout=8_000)
+                page.wait_for_function(
+                    "document.querySelector('.share-preview img')?.naturalWidth === 1200",
+                    timeout=8_000,
+                )
+                dimensions = page.locator(".share-preview img").evaluate(
+                    "image => [image.naturalWidth, image.naturalHeight]"
+                )
+                assert dimensions == [1200, 630], (
+                    f"unexpected share image dimensions: {dimensions}"
+                )
+                settlement = page.locator(".completion-card").inner_text()
+                assert "Your result" in settlement, settlement
+                print("ok: settlement unlocked at 20 with a 1200x630 share preview")
+                page.locator(".completion-btn", has_text="Back to questions").click()
+                page.wait_for_timeout(200)
+
             if i < 49:
                 page.locator(".top-actions button", has_text="Next").click()
                 page.wait_for_timeout(150)
@@ -63,7 +92,7 @@ try:
         print(f"answered {answered} questions")
         page.wait_for_selector(".completion-overlay", timeout=8_000)
         card = page.locator(".completion-card").inner_text()
-        assert "All done!" in card, f"overlay text unexpected: {card!r}"
+        assert "All done" in card, f"overlay text unexpected: {card!r}"
         assert "/ 50" in card or "/50" in card, f"score missing: {card!r}"
         print("ok: completion overlay appeared with score:", " ".join(card.split())[:90])
 
