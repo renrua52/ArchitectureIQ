@@ -17,7 +17,7 @@ class LLMClientError(RuntimeError):
 @dataclass(frozen=True)
 class ModelConfig:
     name: str
-    temperature: float = 0.0
+    temperature: float | None = 0.0
     max_tokens: int = 16384
     top_p: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
@@ -25,9 +25,10 @@ class ModelConfig:
     def to_dict(self) -> dict[str, Any]:
         payload = {
             "name": self.name,
-            "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
         if self.top_p is not None:
             payload["top_p"] = self.top_p
         if self.extra:
@@ -125,9 +126,10 @@ class LLMClient:
         payload: dict[str, Any] = {
             "model": config.name,
             "messages": messages,
-            "temperature": config.temperature,
             **_token_limit_payload(config),
         }
+        if config.temperature is not None:
+            payload["temperature"] = config.temperature
         if config.top_p is not None:
             payload["top_p"] = config.top_p
         for key, value in config.extra.items():

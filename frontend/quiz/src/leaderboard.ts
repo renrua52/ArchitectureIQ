@@ -10,22 +10,22 @@ export type LeaderboardEntry = {
   total: number;
   accuracy: number | null;
   rank: number | null;
-  source: "answered_questions" | "benchmark_500" | "human";
+  source: "question_pack" | "human";
 };
 
 type Score = { correct: number; total: number };
 
-const BENCHMARK_500: Array<{ label: string; accuracy: number }> = [
-  { label: "GPT-5.6 Sol", accuracy: 0.764 },
-  { label: "Claude Opus 5", accuracy: 0.76 },
-  { label: "Claude Sonnet 5", accuracy: 0.678 },
-  { label: "Gemini 3.1 Pro", accuracy: 0.666 },
-  { label: "GPT-5.6 Luna", accuracy: 0.654 },
-  { label: "DeepSeek R1", accuracy: 0.59 },
-  { label: "Gemini 2.5 Pro", accuracy: 0.558 },
-  { label: "DeepSeek R1 32B", accuracy: 0.46 },
-  { label: "Llama 3.1 70B", accuracy: 0.42 }
-];
+const MODEL_LABELS: Record<string, string> = {
+  "gpt-5.6-sol": "GPT-5.6 Sol",
+  "gpt-5.6-luna": "GPT-5.6 Luna",
+  "claude-opus-5": "Claude Opus 5",
+  "claude-sonnet-5": "Claude Sonnet 5",
+  "gemini-3.1-pro-preview": "Gemini 3.1 Pro"
+};
+
+export function formatModelLabel(model: string): string {
+  return MODEL_LABELS[model] ?? model;
+}
 
 function compareEntries(a: LeaderboardEntry, b: LeaderboardEntry): number {
   if (a.accuracy === null) return b.accuracy === null ? 0 : 1;
@@ -43,6 +43,14 @@ export function buildLeaderboard(
   const modelScores = new Map<string, Score>();
   const seen = new Set<string>();
 
+  for (const question of Object.values(bake.byId)) {
+    for (const entry of question.llmCot?.entries ?? []) {
+      if (typeof entry.correct === "boolean" && !modelScores.has(entry.model)) {
+        modelScores.set(entry.model, { correct: 0, total: 0 });
+      }
+    }
+  }
+
   for (const questionId of Object.keys(results)) {
     const question = bake.byId[questionId];
     for (const entry of question?.llmCot?.entries ?? []) {
@@ -57,26 +65,15 @@ export function buildLeaderboard(
     }
   }
 
-  const entries: LeaderboardEntry[] = modelScores.size
-    ? Array.from(modelScores, ([model, score]) => ({
-        id: `ai:${model}`,
-        label: model,
-        kind: "ai" as const,
-        ...score,
-        accuracy: score.total ? score.correct / score.total : null,
-        rank: null,
-        source: "answered_questions" as const
-      }))
-    : BENCHMARK_500.map(({ label, accuracy }) => ({
-        id: `ai:${label}`,
-        label,
-        kind: "ai" as const,
-        correct: Math.round(accuracy * 500),
-        total: 500,
-        accuracy,
-        rank: null,
-        source: "benchmark_500" as const
-      }));
+  const entries: LeaderboardEntry[] = Array.from(modelScores, ([model, score]) => ({
+    id: `ai:${model}`,
+    label: formatModelLabel(model),
+    kind: "ai" as const,
+    ...score,
+    accuracy: score.total ? score.correct / score.total : null,
+    rank: null,
+    source: "question_pack" as const
+  }));
 
   const humanScore = Object.values(results).reduce<Score>(
     (score, result) => ({

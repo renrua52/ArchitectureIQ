@@ -6,7 +6,7 @@ import { decisionField, regionBands } from "./regions";
 import { MathInline } from "./math";
 import { newSessionId, track } from "./telemetry";
 import { bundleFilename, canBuildBundle, downloadBundle } from "./bundle";
-import { buildLeaderboard } from "./leaderboard";
+import { buildLeaderboard, formatModelLabel } from "./leaderboard";
 import { LiveScoreboard, SettlementOverlay } from "./scoreboard";
 import type {
   BakeFile,
@@ -1108,7 +1108,7 @@ function LlmCotPanel({ cot }: { cot?: LlmCot }) {
           >
             {entries.map((entry) => (
               <option key={entry.model} value={entry.model}>
-                {entry.model} · {entry.correct ? "Correct" : "Wrong"}
+                {formatModelLabel(entry.model)} · {entry.correct ? "Correct" : "Wrong"}
                 {entry.parsedLetter ? ` (${entry.parsedLetter})` : ""}
               </option>
             ))}
@@ -1120,8 +1120,8 @@ function LlmCotPanel({ cot }: { cot?: LlmCot }) {
       ) : null}
       <p className={`llm-cot-verdict ${selected.correct ? "ok" : "bad"}`}>
         {selected.correct
-          ? `${selected.model} answered correctly`
-          : `${selected.model} answered incorrectly`}
+          ? `${formatModelLabel(selected.model)} answered correctly`
+          : `${formatModelLabel(selected.model)} answered incorrectly`}
         {selected.parsedLetter ? ` (picked ${selected.parsedLetter})` : ""}.
       </p>
       <pre className={`llm-cot-text${selected.text?.trim() ? "" : " empty"}`}>

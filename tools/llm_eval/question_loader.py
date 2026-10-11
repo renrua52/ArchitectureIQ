@@ -93,5 +93,40 @@ def _collect_question_dirs(root: Path) -> list[Path]:
 
 
 def list_questions(questions_root: Path) -> list[QuestionItem]:
+    bake_path = questions_root.resolve()
+    if bake_path.is_dir():
+        bake_path = bake_path / "questions.json"
+    if bake_path.is_file() and bake_path.suffix == ".json":
+        payload = json.loads(bake_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and isinstance(payload.get("byId"), dict):
+            items: list[QuestionItem] = []
+            ordered_ids = [row["id"] for row in payload.get("questions", [])]
+            if not ordered_ids:
+                ordered_ids = sorted(payload["byId"])
+            for question_id in ordered_ids:
+                baked = payload["byId"][question_id]
+                prompt_text = str(baked["detail"]["prompt"])
+                choices = baked["detail"]["choices"]
+                normalized = {
+                    "question_id": question_id,
+                    "type": baked.get("type", "?"),
+                    "family": baked.get("family", "?"),
+                    "correct_letter": baked["reveal"]["correctLetter"],
+                    "choices": choices,
+                }
+                items.append(
+                    QuestionItem(
+                        question_dir=bake_path.parent,
+                        question_id=question_id,
+                        question=normalized,
+                        prompt_text=prompt_text,
+                        prompt_hash=prompt_hash(prompt_text),
+                        valid_letters=frozenset(
+                            str(choice["letter"]).upper() for choice in choices
+                        ),
+                    )
+                )
+            return items
+
     dirs = _collect_question_dirs(questions_root)
     return [load_question_item(path) for path in dirs]

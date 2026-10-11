@@ -6,7 +6,8 @@ ANSWER_FORMAT_SECTION = """\
 ---
 ## Response format
 
-Think through the problem step by step. You may use as much reasoning as you need.
+Explain your reasoning step by step before committing to an answer. Include the
+main comparisons that led to your choice; do not reply with only the answer tag.
 
 When you are ready to commit to a choice, put your final answer on its own line wrapped in tags:
 

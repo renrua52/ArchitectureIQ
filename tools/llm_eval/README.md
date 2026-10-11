@@ -23,7 +23,9 @@ python tools/llm_eval/run.py data/datasets/univariate_regression/sym_XXXXXX/ques
 Optional flags:
 
 - `--temperature 0.0`
+- `--omit-temperature` — omit the field for models that reject `temperature`
 - `--max-tokens 16384` (raise if reasoning models stop early)
+- `--timeout-seconds 300` — allow slower reasoning-model responses
 - `--limit 10` — evaluate first N questions only
 - `--workers 4` — concurrent API requests (default 4; use 1 for sequential)
 - `--run-dir path/to/run` — explicit output directory

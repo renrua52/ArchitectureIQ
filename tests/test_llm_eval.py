@@ -14,7 +14,7 @@ sys.path.insert(0, str(LLM_EVAL))
 from completion import fetch_model_response  # noqa: E402
 from llm_client import LLMCompletion, ModelConfig, _token_limit_payload, message_text  # noqa: E402
 from prompt_wrapper import format_eval_prompt  # noqa: E402
-from question_loader import QuestionItem, load_question_item, prompt_hash  # noqa: E402
+from question_loader import QuestionItem, list_questions, load_question_item, prompt_hash  # noqa: E402
 from response_parser import parse_choice_letter, split_chain_of_thought  # noqa: E402
 from runner import QuestionResult, evaluate_question, run_evaluation, summarize_results  # noqa: E402
 
@@ -83,10 +83,15 @@ def test_token_limit_payload_sends_one_field() -> None:
     ) == {"max_completion_tokens": 512}
 
 
+def test_model_config_omits_none_temperature_from_manifest() -> None:
+    assert "temperature" not in ModelConfig(name="m", temperature=None).to_dict()
+
+
 def test_format_eval_prompt_appends_answer_tags() -> None:
     wrapped = format_eval_prompt("Pick one.", frozenset({"A", "B"}))
     assert "<answer>A</answer>" in wrapped
     assert "Valid choices: A, B" in wrapped
+    assert "do not reply with only the answer tag" in wrapped
 
 
 def test_parse_choice_letter_from_answer_tag() -> None:
@@ -171,6 +176,48 @@ def test_run_evaluation_concurrent(tmp_path: Path) -> None:
     assert manifest["summary"]["correct"] == 3
     assert manifest["workers"] == 3
     assert len(list((tmp_path / "run" / "results").glob("*.json"))) == 3
+
+
+def test_list_questions_reads_bake_file(tmp_path: Path) -> None:
+    bake_path = tmp_path / "questions.json"
+    bake_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "questions": [{"id": "q_b"}, {"id": "q_a"}],
+                "byId": {
+                    "q_a": {
+                        "type": "mixed",
+                        "family": "family-a",
+                        "detail": {
+                            "prompt": "Prompt A",
+                            "choices": [{"letter": "A"}, {"letter": "B"}],
+                        },
+                        "reveal": {"correctLetter": "A"},
+                    },
+                    "q_b": {
+                        "type": "optimizer_only",
+                        "family": "family-b",
+                        "detail": {
+                            "prompt": "Prompt B",
+                            "choices": [{"letter": "A"}, {"letter": "B"}],
+                        },
+                        "reveal": {"correctLetter": "B"},
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    items = list_questions(bake_path)
+
+    assert [item.question_id for item in items] == ["q_b", "q_a"]
+    assert items[0].prompt_text == "Prompt B"
+    assert items[0].correct_letter == "B"
+    assert items[0].valid_letters == frozenset({"A", "B"})
+
+    assert [item.question_id for item in list_questions(tmp_path)] == ["q_b", "q_a"]
 
 
 def test_run_evaluation_writes_run_artifacts(tmp_path: Path) -> None:

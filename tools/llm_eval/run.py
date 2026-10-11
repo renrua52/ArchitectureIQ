@@ -34,8 +34,19 @@ def main() -> None:
     )
     parser.add_argument("--model", required=True, help="Model name passed to the chat API")
     parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument(
+        "--omit-temperature",
+        action="store_true",
+        help="Do not send temperature (required by models that reject the parameter)",
+    )
     parser.add_argument("--max-tokens", type=int, default=16384)
     parser.add_argument("--top-p", type=float, default=None)
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=120.0,
+        help="Per-request HTTP timeout (default: 120)",
+    )
     parser.add_argument(
         "--runs-root",
         default=str(_default_runs_root()),
@@ -74,11 +85,11 @@ def main() -> None:
 
     config = ModelConfig(
         name=args.model,
-        temperature=args.temperature,
+        temperature=None if args.omit_temperature else args.temperature,
         max_tokens=args.max_tokens,
         top_p=args.top_p,
     )
-    client = LLMClient()
+    client = LLMClient(timeout_s=args.timeout_seconds)
 
     manifest = run_evaluation(
         questions_root=questions_root,

@@ -14,7 +14,6 @@ export function LiveScoreboard({
   onSettle: () => void;
 }) {
   const unlocked = answered >= settleMinimum;
-  const usesLiveAi = entries.some((entry) => entry.source === "answered_questions");
   return (
     <aside className="scoreboard" aria-label="Live leaderboard">
       <div className="scoreboard-head">
@@ -22,7 +21,7 @@ export function LiveScoreboard({
           <p className="scoreboard-kicker">Live ranking</p>
           <h2>Human vs AI</h2>
         </div>
-        <span className="scoreboard-source">{usesLiveAi ? "Live" : "500Q"}</span>
+        <span className="scoreboard-source">This pack</span>
       </div>
       <ol className="scoreboard-list" aria-live="polite">
         {entries.map((entry) => (
