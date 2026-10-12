@@ -35,14 +35,21 @@ MAX_CHARS = 12_000
 MIN_CHARS = 80
 
 
+def _clean_text(value: object) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
 def pick_text(rec: dict) -> tuple[str | None, str | None]:
     """Return CoT only when long enough; short answers are treated as missing."""
     parts = rec.get("message_parts") or {}
     candidates = [
-        ("reasoning_content", (parts.get("reasoning_content") or parts.get("reasoning") or "").strip()),
-        ("chain_of_thought", (rec.get("chain_of_thought") or "").strip()),
-        ("content", (parts.get("content") or "").strip()),
-        ("model_response", (rec.get("model_response") or "").strip()),
+        ("reasoning_content", _clean_text(rec.get("reasoning_content"))),
+        ("explanation", _clean_text(rec.get("explanation"))),
+        ("reasoning_content", _clean_text(parts.get("reasoning_content") or parts.get("reasoning"))),
+        ("chain_of_thought", _clean_text(rec.get("chain_of_thought"))),
+        ("content", _clean_text(parts.get("content"))),
+        ("model_response", _clean_text(rec.get("model_response"))),
+        ("response", _clean_text(rec.get("response"))),
     ]
     for source, text in candidates:
         if len(text) >= MIN_CHARS:
@@ -63,9 +70,10 @@ def truncate(text: str) -> str:
     return text[:MAX_CHARS].rstrip() + "\n\n…[truncated for quiz display]"
 
 
-def enrich(bake: dict, runs: Path) -> dict:
+def enrich(bake: dict, runs: Path, excluded_models: set[str] | None = None) -> dict:
+    excluded = EXCLUDE | (excluded_models or set())
     models = sorted(
-        [p.name for p in runs.iterdir() if p.is_dir() and p.name not in EXCLUDE],
+        [p.name for p in runs.iterdir() if p.is_dir() and p.name not in excluded],
         key=model_rank,
     )
     stats = {
@@ -85,9 +93,11 @@ def enrich(bake: dict, runs: Path) -> dict:
         for model in models:
             path = runs / model / "results" / f"{qid}.json"
             if not path.is_file():
+                path = runs / model / f"{qid}.json"
+            if not path.is_file():
                 continue
             rec = json.loads(path.read_text(encoding="utf-8"))
-            if rec.get("error"):
+            if rec.get("error") or rec.get("ok") is False:
                 continue
             parsed = rec.get("parsed_letter")
             correct = bool(rec.get("correct")) and parsed is not None
@@ -157,9 +167,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bake", type=Path, required=True)
     parser.add_argument("--runs", type=Path, required=True)
+    parser.add_argument(
+        "--exclude-model",
+        action="append",
+        default=[],
+        help="Model directory to omit; repeat for multiple models",
+    )
     args = parser.parse_args()
     bake = json.loads(args.bake.read_text(encoding="utf-8"))
-    stats = enrich(bake, args.runs)
+    stats = enrich(bake, args.runs, set(args.exclude_model))
     args.bake.write_text(json.dumps(bake, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(stats))
     print(f"size_mb={args.bake.stat().st_size / 1e6:.2f}")

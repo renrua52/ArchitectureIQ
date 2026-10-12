@@ -20,7 +20,16 @@ const MODEL_LABELS: Record<string, string> = {
   "gpt-5.6-luna": "GPT-5.6 Luna",
   "claude-opus-5": "Claude Opus 5",
   "claude-sonnet-5": "Claude Sonnet 5",
-  "gemini-3.1-pro-preview": "Gemini 3.1 Pro"
+  "deepseek-v4-flash-0731": "DeepSeek V4 Flash",
+  "deepseek-v4-pro-0813": "DeepSeek V4 Pro",
+  "deepseek_deepseek-r1": "DeepSeek R1",
+  "gemini-2.5-pro": "Gemini 2.5 Pro",
+  "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+  "gemini-3.1-pro-preview-high": "Gemini 3.1 Pro",
+  "glm-5.2-low": "GLM-5.2 Low",
+  "gpt-4o": "GPT-4o",
+  "minicpm5-1b": "MiniCPM 5 1B",
+  "qwen3.5-0.8b": "Qwen 3.5 0.8B"
 };
 
 export function formatModelLabel(model: string): string {
