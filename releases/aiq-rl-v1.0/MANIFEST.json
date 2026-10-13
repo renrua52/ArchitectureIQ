@@ -1,0 +1,138 @@
+{
+  "release": "AIQ-RL v1.0",
+  "tag": "aiq-rl-v1.0",
+  "benchmark_version": "v1.5 (unchanged)",
+  "scope": "Complete frozen pool B questions and consumed inputs for the 6k RL mainline",
+  "counts": {
+    "train": 6153,
+    "heldout": 290,
+    "source_available": {
+      "ranking_v3": 1000,
+      "ranking_v2": 1999,
+      "arch170": 170,
+      "dataflip_v2": 1514,
+      "mcq_replay": 1760
+    },
+    "train_by_source": {
+      "mcq_replay": 1760,
+      "ranking_v2": 1939,
+      "dataflip_v2": 1434,
+      "ranking_v3": 900,
+      "arch170": 120
+    },
+    "heldout_by_source": {
+      "arch170": 50,
+      "dataflip_v2": 80,
+      "ranking_v2": 60,
+      "ranking_v3": 100
+    },
+    "train_by_task": {
+      "select": 3314,
+      "ranking": 2839
+    },
+    "heldout_by_task": {
+      "select": 130,
+      "ranking": 160
+    },
+    "dataflip_v2_pairs": {
+      "total": 757,
+      "heldout": 40,
+      "by_family": {
+        "multivariate_regression": 167,
+        "synthetic_tabular_classification": 167,
+        "spiral_classification": 167,
+        "univariate_regression": 89,
+        "bigram_lm": 167
+      },
+      "by_node_family": {
+        "360-2|multivariate_regression": 165,
+        "a100_perm|synthetic_tabular_classification": 82,
+        "a100_t1_2|univariate_regression": 20,
+        "a100_t1_3|multivariate_regression": 2,
+        "a100_t1_3|synthetic_tabular_classification": 85,
+        "a100_t1_3|univariate_regression": 28,
+        "a100_t1|spiral_classification": 167,
+        "a100_t1|univariate_regression": 41,
+        "ophis-gpu|bigram_lm": 167
+      }
+    },
+    "mcq_replay_by_old_source": {
+      "train": {
+        "v12_981": 805,
+        "dataflip-orig": 250,
+        "dataflip-strict": 39,
+        "v15-root": 86,
+        "dataflip-cf": 250,
+        "v15-main": 330
+      },
+      "raw_from_train_v3": {
+        "dataflip-orig": 250,
+        "dataflip-cf": 250,
+        "v12_981": 805,
+        "v15-main": 500,
+        "dataflip-strict": 39,
+        "v15-root": 86
+      }
+    }
+  },
+  "split_checks": {
+    "qid_overlap": 0,
+    "group_overlap": 0,
+    "instance_key_overlap": 0,
+    "dataset_id_overlap": 0,
+    "heldout_in_sft": 0,
+    "dataflip_pairs_split": 0
+  },
+  "files": {
+    "LICENSE": {
+      "bytes": 1096,
+      "sha256": "85ca023c8115c262e34b2a5c97baba7660bc77cd2b40d568d2ae646000c588ab"
+    },
+    "LICENSE.converter": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "POOL_MANIFEST.json": {
+      "bytes": 12724,
+      "sha256": "89a76f585e4c6c706ff3c815ec7c64da081a38c1fcf0a9bcfcce8b71de7edb36"
+    },
+    "README.md": {
+      "bytes": 4175,
+      "sha256": "7e7e601a33a93716bfb394ab5a4c03847d3c2edcb5e55aeb7376164cbccb0288"
+    },
+    "arch170_canonical.jsonl": {
+      "bytes": 1666454,
+      "sha256": "c4c0a007f499cd2098f1ac182d4c4632cfd6a0a92736a8f57b40839f67af4a2f",
+      "rows": 170
+    },
+    "heldout.jsonl": {
+      "bytes": 3624905,
+      "sha256": "066aaa471caaf8b1b982aa6a9eb918e2d892ed93d48a15f3c28f0611a154538d",
+      "rows": 290
+    },
+    "heldout_think.jsonl": {
+      "bytes": 3476420,
+      "sha256": "cfcf2877b241ac88f5142acb71f9346d8fe444f7442f5eef64c64773d0b59bae",
+      "rows": 290
+    },
+    "prep_rows.py": {
+      "bytes": 4747,
+      "sha256": "f01bc688bfc4591763d0d26c0e68cd0a689f34bce94d8aa4e42eb97b72dc1ac4"
+    },
+    "train.jsonl": {
+      "bytes": 78585612,
+      "sha256": "6e203abab8be441412e5a740ccbb2935fb5b189b2606c563c96927b8b28d294a",
+      "rows": 6153
+    },
+    "train_think.jsonl": {
+      "bytes": 75774191,
+      "sha256": "3a909dddfc30b5aaac287f87f55796a0f97f577d41b907885e733844780223f2",
+      "rows": 6153
+    }
+  },
+  "historical_identity": {
+    "train_think_md5": "669b570dd041fc5eb06d84e121f41c37",
+    "heldout_think_md5": "6c922effa8e2538888251540e155cffd"
+  },
+  "quality_limit": "Original source-specific gates and unrepeated dataflip_v2 full re-audit remain as recorded in POOL_MANIFEST.json"
+}

@@ -70,6 +70,20 @@ Each ArchitectureIQ question presents a synthetic dataset and several training r
 
 AIQ-Hard50 is the **data-flip** companion suite: questions are constructed so that the ground-truth winner **depends on the dataset itself**, not only on the training recipe. Once the answer is tied to data properties, recipe-level heuristics stop working and the questions become dramatically harder — **50% is the barrier**: it is the data-blind upper bound, the best accuracy achievable without using any dataset-specific information (chance is 33.3%). Even the decision tree trained on the main benchmark only reaches 48.0% here, below that bound.
 
+## AIQ-RL v1.0 training questions
+
+[AIQ-RL v1.0](./releases/aiq-rl-v1.0/) publishes the frozen pool B question set
+used for RL: **6,153 training questions** and **290 held-out questions**
+(130 multiple-choice and 160 ranking questions). It has its own version number;
+the official benchmark remains v1.5.
+
+The release includes prompts, answer labels, source and group metadata, the
+original and thinking prompt formats, split provenance, and SHA256 checksums.
+Download the [versioned release](https://github.com/renrua52/ArchitectureIQ/releases/tag/aiq-rl-v1.0)
+or use the identical copy in the [poor-rl repository](https://github.com/guoshaoyang-pku/poor-rl/tree/main/releases/aiq-rl-v1.0).
+The dataset README records the source-specific quality gates and historical
+audit limits.
+
 ## Citation
 
 ```bibtex

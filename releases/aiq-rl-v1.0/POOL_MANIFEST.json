@@ -1,0 +1,325 @@
+{
+ "name": "rl_pool_b_v0",
+ "plan": "/Users/guoshaoyang/Desktop/workdir/ArchitectureIQ/aiq_rl/docs/plans/NEXT_RL_RUN_SETTING_2026-10-03.md §3 (plan B)",
+ "built_at": "2026-10-02T19:22:33+00:00",
+ "builder": "aiq_rl/tools/build_rl_pool_b_v0.py",
+ "split_seed": 20261003,
+ "heldout_spec": {
+  "ranking_v3": 100,
+  "ranking_v2": 60,
+  "dataflip_v2": 40,
+  "arch170": 50,
+  "unit": "groups (dataset instance; dataflip_v2 = pair of 2 questions)",
+  "stratify": "family (largest remainder)",
+  "arch170_eligibility": "not in SFT train(300) or SFT heldout(90) ids"
+ },
+ "counts": {
+  "train": 6153,
+  "heldout": 290,
+  "source_available": {
+   "ranking_v3": 1000,
+   "ranking_v2": 1999,
+   "arch170": 170,
+   "dataflip_v2": 1514,
+   "mcq_replay": 1760
+  },
+  "train_by_source": {
+   "mcq_replay": 1760,
+   "ranking_v2": 1939,
+   "dataflip_v2": 1434,
+   "ranking_v3": 900,
+   "arch170": 120
+  },
+  "heldout_by_source": {
+   "arch170": 50,
+   "dataflip_v2": 80,
+   "ranking_v2": 60,
+   "ranking_v3": 100
+  },
+  "train_by_task": {
+   "select": 3314,
+   "ranking": 2839
+  },
+  "heldout_by_task": {
+   "select": 130,
+   "ranking": 160
+  },
+  "dataflip_v2_pairs": {
+   "total": 757,
+   "heldout": 40,
+   "by_family": {
+    "multivariate_regression": 167,
+    "synthetic_tabular_classification": 167,
+    "spiral_classification": 167,
+    "univariate_regression": 89,
+    "bigram_lm": 167
+   },
+   "by_node_family": {
+    "360-2|multivariate_regression": 165,
+    "a100_perm|synthetic_tabular_classification": 82,
+    "a100_t1_2|univariate_regression": 20,
+    "a100_t1_3|multivariate_regression": 2,
+    "a100_t1_3|synthetic_tabular_classification": 85,
+    "a100_t1_3|univariate_regression": 28,
+    "a100_t1|spiral_classification": 167,
+    "a100_t1|univariate_regression": 41,
+    "ophis-gpu|bigram_lm": 167
+   }
+  },
+  "mcq_replay_by_old_source": {
+   "train": {
+    "v12_981": 805,
+    "dataflip-orig": 250,
+    "dataflip-strict": 39,
+    "v15-root": 86,
+    "dataflip-cf": 250,
+    "v15-main": 330
+   },
+   "raw_from_train_v3": {
+    "dataflip-orig": 250,
+    "dataflip-cf": 250,
+    "v12_981": 805,
+    "v15-main": 500,
+    "dataflip-strict": 39,
+    "v15-root": 86
+   }
+  }
+ },
+ "distribution_source_family_type": {
+  "train": {
+   "arch170|bigram_lm|architecture_only": 29,
+   "arch170|multivariate_regression|architecture_only": 24,
+   "arch170|spiral_classification|architecture_only": 15,
+   "arch170|synthetic_tabular_classification|architecture_only": 23,
+   "arch170|univariate_regression|architecture_only": 20,
+   "arch170|xor_classification|architecture_only": 9,
+   "dataflip_v2|bigram_lm|architecture_only": 38,
+   "dataflip_v2|bigram_lm|mixed": 122,
+   "dataflip_v2|bigram_lm|optimizer_only": 156,
+   "dataflip_v2|multivariate_regression|architecture_only": 54,
+   "dataflip_v2|multivariate_regression|mixed": 212,
+   "dataflip_v2|multivariate_regression|optimizer_only": 50,
+   "dataflip_v2|spiral_classification|architecture_only": 68,
+   "dataflip_v2|spiral_classification|mixed": 190,
+   "dataflip_v2|spiral_classification|optimizer_only": 58,
+   "dataflip_v2|synthetic_tabular_classification|architecture_only": 32,
+   "dataflip_v2|synthetic_tabular_classification|mixed": 168,
+   "dataflip_v2|synthetic_tabular_classification|optimizer_only": 116,
+   "dataflip_v2|univariate_regression|architecture_only": 32,
+   "dataflip_v2|univariate_regression|mixed": 110,
+   "dataflip_v2|univariate_regression|optimizer_only": 28,
+   "mcq_replay|bigram_lm|architecture_only": 70,
+   "mcq_replay|bigram_lm|mixed": 133,
+   "mcq_replay|bigram_lm|optimizer_only": 123,
+   "mcq_replay|multivariate_regression|architecture_only": 76,
+   "mcq_replay|multivariate_regression|mixed": 142,
+   "mcq_replay|multivariate_regression|optimizer_only": 112,
+   "mcq_replay|spiral_classification|architecture_only": 40,
+   "mcq_replay|spiral_classification|mixed": 70,
+   "mcq_replay|spiral_classification|optimizer_only": 47,
+   "mcq_replay|synthetic_tabular_classification|architecture_only": 167,
+   "mcq_replay|synthetic_tabular_classification|mixed": 225,
+   "mcq_replay|synthetic_tabular_classification|optimizer_only": 195,
+   "mcq_replay|univariate_regression|architecture_only": 86,
+   "mcq_replay|univariate_regression|mixed": 140,
+   "mcq_replay|univariate_regression|optimizer_only": 100,
+   "mcq_replay|xor_classification|mixed": 16,
+   "mcq_replay|xor_classification|optimizer_only": 18,
+   "ranking_v2|bigram_lm|architecture_only": 106,
+   "ranking_v2|bigram_lm|mixed": 110,
+   "ranking_v2|bigram_lm|optimizer_only": 107,
+   "ranking_v2|multivariate_regression|mixed": 160,
+   "ranking_v2|multivariate_regression|optimizer_only": 164,
+   "ranking_v2|spiral_classification|mixed": 162,
+   "ranking_v2|spiral_classification|optimizer_only": 161,
+   "ranking_v2|synthetic_tabular_classification|mixed": 160,
+   "ranking_v2|synthetic_tabular_classification|optimizer_only": 163,
+   "ranking_v2|univariate_regression|mixed": 159,
+   "ranking_v2|univariate_regression|optimizer_only": 164,
+   "ranking_v2|xor_classification|mixed": 160,
+   "ranking_v2|xor_classification|optimizer_only": 163,
+   "ranking_v3|bigram_lm|architecture_only": 150,
+   "ranking_v3|multivariate_regression|architecture_only": 150,
+   "ranking_v3|spiral_classification|architecture_only": 150,
+   "ranking_v3|synthetic_tabular_classification|architecture_only": 150,
+   "ranking_v3|univariate_regression|architecture_only": 150,
+   "ranking_v3|xor_classification|architecture_only": 150
+  },
+  "heldout": {
+   "arch170|bigram_lm|architecture_only": 5,
+   "arch170|multivariate_regression|architecture_only": 10,
+   "arch170|spiral_classification|architecture_only": 2,
+   "arch170|synthetic_tabular_classification|architecture_only": 11,
+   "arch170|univariate_regression|architecture_only": 14,
+   "arch170|xor_classification|architecture_only": 8,
+   "dataflip_v2|bigram_lm|mixed": 10,
+   "dataflip_v2|bigram_lm|optimizer_only": 8,
+   "dataflip_v2|multivariate_regression|architecture_only": 8,
+   "dataflip_v2|multivariate_regression|mixed": 10,
+   "dataflip_v2|spiral_classification|architecture_only": 10,
+   "dataflip_v2|spiral_classification|mixed": 6,
+   "dataflip_v2|spiral_classification|optimizer_only": 2,
+   "dataflip_v2|synthetic_tabular_classification|mixed": 8,
+   "dataflip_v2|synthetic_tabular_classification|optimizer_only": 10,
+   "dataflip_v2|univariate_regression|mixed": 4,
+   "dataflip_v2|univariate_regression|optimizer_only": 4,
+   "ranking_v2|bigram_lm|architecture_only": 5,
+   "ranking_v2|bigram_lm|mixed": 1,
+   "ranking_v2|bigram_lm|optimizer_only": 4,
+   "ranking_v2|multivariate_regression|mixed": 7,
+   "ranking_v2|multivariate_regression|optimizer_only": 3,
+   "ranking_v2|spiral_classification|mixed": 4,
+   "ranking_v2|spiral_classification|optimizer_only": 6,
+   "ranking_v2|synthetic_tabular_classification|mixed": 6,
+   "ranking_v2|synthetic_tabular_classification|optimizer_only": 4,
+   "ranking_v2|univariate_regression|mixed": 7,
+   "ranking_v2|univariate_regression|optimizer_only": 3,
+   "ranking_v2|xor_classification|mixed": 6,
+   "ranking_v2|xor_classification|optimizer_only": 4,
+   "ranking_v3|bigram_lm|architecture_only": 16,
+   "ranking_v3|multivariate_regression|architecture_only": 17,
+   "ranking_v3|spiral_classification|architecture_only": 17,
+   "ranking_v3|synthetic_tabular_classification|architecture_only": 17,
+   "ranking_v3|univariate_regression|architecture_only": 17,
+   "ranking_v3|xor_classification|architecture_only": 16
+  }
+ },
+ "dedup": {
+  "mcq_replay_dropped": {
+   "dup_of_arch170 (v15-main)": 170
+  },
+  "rule": "replay rows whose qid is an arch170 qid are dropped (arch170 kept as its own source); replay groups (old pair or instance) whose qid or instance key matches any dataflip_v2 question are dropped as a whole"
+ },
+ "leakage": {
+  "train_rows_dropped_for_sharing_instance_with_heldout": {},
+  "examples": [],
+  "final_checks": {
+   "qid_overlap": 0,
+   "group_overlap": 0,
+   "instance_key_overlap": 0,
+   "dataset_id_overlap": 0,
+   "heldout_in_sft": 0,
+   "dataflip_pairs_split": 0
+  },
+  "instance_keys": "ds:<dataset_id> where known (ranking, arch170, dataflip_v2 both sides); txt:<sha1 normalised ## Dataset block>; code:<sha1 synthesizer code>; seed:<family>:<point/table seed>"
+ },
+ "prompt_structure": {
+  "ranking_v3": {
+   "roles": {
+    "system + user": 1000
+   },
+   "system_prompts": {
+    "You are solving an ArchitectureIQ benchmark question. Rank the five candidate settings from lowest to highest held-out selection metric using the required format.": 1000
+   },
+   "answer_contract": {
+    "one tag: <answer>B<C<D<E<A</answer> (ranking)": 1000
+   }
+  },
+  "ranking_v2": {
+   "roles": {
+    "system + user": 1999
+   },
+   "system_prompts": {
+    "You are solving an ArchitectureIQ benchmark question. Rank the five candidate settings from lowest to highest held-out selection metric using the required format.": 1999
+   },
+   "answer_contract": {
+    "one tag: <answer>B<C<D<E<A</answer> (ranking)": 1999
+   }
+  },
+  "arch170": {
+   "roles": {
+    "user": 170
+   },
+   "system_prompts": {
+    "<none>": 170
+   },
+   "answer_contract": {
+    "two tags: <explanation> + <answer>": 170
+   }
+  },
+  "dataflip_v2": {
+   "roles": {
+    "system + user": 1514
+   },
+   "system_prompts": {
+    "You are solving an ArchitectureIQ multiple-choice question. Reason carefully about the dataset and the candidate training recipes, then answer in the required format.": 1514
+   },
+   "answer_contract": {
+    "one tag: <answer>X</answer>": 1514
+   }
+  },
+  "mcq_replay": {
+   "roles": {
+    "system + user": 1760
+   },
+   "system_prompts": {
+    "You are solving an ArchitectureIQ multiple-choice question. Reason carefully about the dataset and the candidate training recipes, then answer in the required format.": 1760
+   },
+   "answer_contract": {
+    "one tag: <answer>X</answer>": 1760
+   }
+  }
+ },
+ "inputs": {
+  "ranking_v3": {
+   "360-1": {
+    "questions": 400,
+    "target": 400,
+    "updated_at": "2026-10-02T18:57:43.215165+00:00",
+    "sha256": "6fad820eb25703dae348ac0570ce9607220815991a0d4df641d7df5de2f24786"
+   },
+   "360-2": {
+    "questions": 200,
+    "target": 200,
+    "updated_at": "2026-10-02T15:45:09.033809+00:00",
+    "sha256": "d93c92f0912439979b60e5621a6cd4a0afc63a68c6ff4136d3a2566b2bda4463"
+   },
+   "ophis-gpu": {
+    "questions": 400,
+    "target": 400,
+    "updated_at": "2026-10-02T18:42:32.849888+00:00",
+    "sha256": "e45830345eebd2b8ee47e692bcffba7b65f7464acdbf30ed721e364cf966ba84"
+   }
+  },
+  "ranking_v2": {
+   "path": "aiq_bench_repo/releases/ranking_v2_pairwise_legacy/questions.jsonl",
+   "sha256": "ca67eb79277932d46d9a4c8bf784c02a66e7f33e38bc91ff81c56f506e03a8c3"
+  },
+  "arch170": {
+   "path": "aiq_bench_repo/releases/kb_science_pool_v1/questions.jsonl",
+   "sha256": "241229a6156695de8bdc6227be9d6da8adc7e0f5534d33771517011e45c6e337",
+   "filter": "source == arch170"
+  },
+  "dataflip_v2": {
+   "root": "aiq_rl/data/rl_pool_b_v0/inputs/dataflip_v2",
+   "node_tarballs_sha256": {
+    "360-2.tgz": "eea2f21fa1699492a0c0495a501738452fe53fa31fb23d313fd30e213cc9c28b",
+    "a100_perm.tgz": "4ee2909143f33b577037ba159ee2dce00c5395e6c02d24bc372c514900d5ba84",
+    "a100_t1.tgz": "35c80f385a4895c6cd6ff023b543d620a1b711adc743227f9faf5e3cd60c28ef",
+    "a100_t1_2.tgz": "dbd689b0c42ce7c494c6bc6973882c047628b824c217fb3f7137e197f96db01b",
+    "a100_t1_3.tgz": "c2e97d8ee5dc4b4051ab7ddd5c0ccf8fe68c2ac80a09369dfeedc1b1eeb33300",
+    "ophis-gpu.tgz": "8d02c8e6f5f04c6918b2e1472ae26374a589c76ac383a1158518113e6b7ef369"
+   }
+  },
+  "mcq_replay": {
+   "path": "aiq_rl/data/kb_scratch/swarm50/rl/train_v3.jsonl",
+   "sha256": "feccb0ce05d051d3323d54d80eb6a476fc040fd06b11842e0eabff3182f35d3e",
+   "manifest": "aiq_rl/data/kb_scratch/swarm50/rl/pool_manifest_v3.json",
+   "manifest_sha256": "64d45f443a9fe0d40f493b0e742afdd7e5a3a0cdb49be810faf059deba2e0a82"
+  },
+  "sft_ids": {
+   "path": "aiq_rl/data/reward_design_20261003/audit/sftrc_ids.json",
+   "sha256": "546bc3ac29ae9af6a59283f688b46b9d5c75ad3a54e5aa835be1c7bd6a0994c1"
+  }
+ },
+ "files": {
+  "train.jsonl": "6e203abab8be441412e5a740ccbb2935fb5b189b2606c563c96927b8b28d294a",
+  "heldout.jsonl": "066aaa471caaf8b1b982aa6a9eb918e2d892ed93d48a15f3c28f0611a154538d"
+ },
+ "todo": [
+  "dataflip_v2 univariate_regression 89/150 strict pairs (fleet a100_t1/_2/_3 still generating)",
+  "dataflip_v2_strict has no formal release yet (questions read from fleet out/ dirs; audit_counterfactual_collection re-audit not rerun here)",
+  "arch170 prompts keep the kb_science_pool_v1 original (user-only, two-tag <explanation>+<answer>); template unification left to the trainer-side template agent",
+  "plan-C batches (new v1.5 arch-only + mixed ranking) to be appended as later versions"
+ ]
+}
